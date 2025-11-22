@@ -1,0 +1,73 @@
+<ion-header>
+  <ion-toolbar class="no-padding">
+    <ion-buttons slot="start">
+      <ion-back-button [defaultHref]="backButtonHref" text=""></ion-back-button>
+    </ion-buttons>
+    <ion-avatar slot="start">
+      <img [src]="recieverAvatar" alt="Client Avatar">
+    </ion-avatar>
+    <ion-title>{{ recieverName }}</ion-title>
+    <ion-buttons slot="end" *ngIf="!isNewChat">
+      <ion-button (click)="goToNotes()">
+        <ion-icon slot="icon-only" name="document-outline"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true" #content [scrollEvents]="true" class="ion-padding-bottom">
+  <div class="background-gradient"></div>
+  
+
+  
+  <div class="chat-container">
+  <app-tool-tip 
+    *ngIf="isNewChat && showTooltip" 
+    [text]="tooltipText"
+    (close)="closeTooltip()">
+  </app-tool-tip>
+    <div *ngFor="let message of messages"
+      [ngClass]="{'receiver-message': message.senderId !== uid, 'sender-message': message.senderId === uid}"
+      class="chat-bubble">
+      <ng-container *ngIf="isAgreementMessage(message.text); else calendarCheck">
+        <app-agreement-message [agreementId]="getAgreementId(message.text)">
+        </app-agreement-message>
+      </ng-container>
+      <ng-template #calendarCheck>
+        <ng-container *ngIf="isCalendarMessage(message.text); else rescheduleCheck">
+          <app-booking-message [trainerId]="getTrainerId(message.text)" [trainerName]="recieverName">
+          </app-booking-message>
+        </ng-container>
+      </ng-template>
+      <ng-template #rescheduleCheck>
+        <ng-container *ngIf="isRescheduleMessage(message.text); else regularMessage">
+          <app-session-reschedule-message [rescheduleId]="getRescheduleId(message.text)" [senderId]="message.senderId" [timestamp]="message.timestamp">
+          </app-session-reschedule-message>
+        </ng-container>
+      </ng-template>
+      <ng-template #regularMessage>
+        <div class="selectable-text">{{ message.text }}</div>
+      </ng-template>
+    </div>
+  </div>
+  <!-- Chat content goes here -->
+</ion-content>
+
+<ion-footer>
+  <ion-toolbar>
+    <ion-item>
+      <ion-textarea [(ngModel)]="newMessage" placeholder="Type a message" autocorrect="on" autocapitalize="on" spellcheck="true" auto-grow="true" rows="1" class="chat-textarea"></ion-textarea>
+      <ion-button (click)="sendMessage()" slot="end">Send</ion-button>
+      
+      <!-- Calendar button for trainers to share availability -->
+      <ion-button *ngIf="accountType === 'trainer'" (click)="shareCalendar()" slot="end" title="Share Availability Calendar">
+        <ion-icon name="calendar-outline"></ion-icon>
+      </ion-button>
+      
+      <!-- Agreement button for trainers -->
+      <ion-button *ngIf="accountType === 'trainer'" (click)="openAgreementModal()" slot="end" title="Send Service Agreement">
+        <ion-icon name="document-outline"></ion-icon>
+      </ion-button>
+    </ion-item>
+  </ion-toolbar>
+</ion-footer>

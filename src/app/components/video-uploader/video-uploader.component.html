@@ -1,0 +1,36 @@
+<div class="video-container">
+  <!-- Hidden file input for web browsers -->
+  <input 
+    type="file" 
+    id="videoFileInput" 
+    accept="video/mp4,video/quicktime,video/x-m4v" 
+    (change)="selectVideo($event)" 
+    [hidden]="true">
+  
+  <div class="video-preview">
+    <video [src]="previewUrl || currentVideoUrl" *ngIf="previewUrl || currentVideoUrl" controls playsinline (click)="$event.stopPropagation()"></video>
+    <div class="upload-placeholder" *ngIf="!previewUrl && !currentVideoUrl" (click)="triggerFileInput()">
+      <ion-icon name="videocam-outline"></ion-icon>
+      <p>Tap to upload video</p>
+      <p class="video-info">Max 2 minutes • Vertical format</p>
+    </div>
+  </div>
+
+  <div class="upload-overlay" *ngIf="!previewUrl && !currentVideoUrl" (click)="triggerFileInput()">
+    <ion-icon name="cloud-upload"></ion-icon>
+  </div>
+
+  <!-- Remove button -->
+  <button 
+    class="remove-button" 
+    *ngIf="previewUrl || currentVideoUrl" 
+    (click)="removeVideo(); $event.stopPropagation()"
+    type="button">
+    <ion-icon name="close-circle"></ion-icon>
+  </button>
+
+  <!-- Duration badge -->
+  <div class="duration-badge" *ngIf="videoDuration > 0">
+    {{ formatDuration(videoDuration) }}
+  </div>
+</div>

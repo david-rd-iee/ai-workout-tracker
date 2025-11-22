@@ -1,0 +1,159 @@
+<app-header></app-header>
+
+<ion-content [fullscreen]="true">
+
+  <div class="trainer-info">
+    <ion-grid>
+      <ion-row>
+        <ion-col size="6" class="image-container">
+          <app-image-uploader [currentImageUrl]="trainerInfo.trainerImage" (imageSelected)="onImageSelected($event)">
+          </app-image-uploader>
+        </ion-col>
+        <ion-col size="6" style="text-align: left;">
+          <ion-row class="short" size="1">
+            <h1>{{trainerInfo.name | titlecase}}</h1>
+          </ion-row>
+          <ion-row class="short" size="1">
+            <ion-textarea #specializationTextarea placeholder="Enter Specialization (e.g., Weight Loss, Strength Training)"
+              [(ngModel)]="trainerInfo.specialization" (ionChange)="onTrainerInfoChange()">
+              <!-- <ion-button fill="clear" slot="end" aria-label="Show/hide">
+                <ion-icon slot="icon-only" name="create-outline" aria-hidden="true"></ion-icon>
+              </ion-button> -->
+            </ion-textarea>
+          </ion-row>
+          <ion-row class="short" size="1">
+            <app-certifications [education]="trainerInfo.certs"></app-certifications>
+          </ion-row> 
+        </ion-col>
+      </ion-row>
+      <ion-row>
+        <h1>Description</h1>
+      </ion-row>
+      <ion-row>
+        <ion-textarea #descriptionTextarea placeholder="Enter description" [(ngModel)]="trainerInfo.description"
+          (ionChange)="onTrainerInfoChange()" rows="8">
+          <!-- <ion-button fill="clear" slot="end" aria-label="Show/hide">
+            <ion-icon slot="icon-only" name="create-outline" aria-hidden="true"></ion-icon>
+          </ion-button> -->
+        </ion-textarea>
+      </ion-row>
+    </ion-grid>
+  </div>
+  <div class="section">
+    <div class="section-header">
+      <ion-row>
+        <ion-col size="auto">
+          <h3>Training Preferences(s)</h3>
+        </ion-col>
+        <ion-col size="auto" class="info-icon" lass="ion-text-end">
+          <ion-icon size="small" name="information-circle-outline"></ion-icon>
+        </ion-col>
+      </ion-row>
+      <ion-item lines="none">
+        <ion-checkbox slot="start" [(ngModel)]="trainerInfo.isRemote"
+          (ngModelChange)="onTrainerInfoChange()"></ion-checkbox>
+        <label>Remote</label>
+      </ion-item>
+      <ion-item lines="none">
+        <ion-checkbox slot="start" [(ngModel)]="trainerInfo.isInperson"
+          (ngModelChange)="onTrainerInfoChange()"></ion-checkbox>
+        <label>In-person</label>
+      </ion-item>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-header">
+      <ion-row>
+        <ion-col size="auto">
+          <h3>Introduction Video</h3>
+        </ion-col>
+        <ion-col size="auto" class="info-icon" lass="ion-text-end">
+          <ion-icon size="small" name="information-circle-outline"></ion-icon>
+        </ion-col>
+      </ion-row>
+      <p class="section-description">Upload a short vertical video (max 2 minutes) to introduce yourself to potential clients.</p>
+      <div style="padding: 16px;">
+        <app-video-uploader 
+          [currentVideoUrl]="trainerInfo.introVideoUrl" 
+          (videoSelected)="onVideoSelected($event)"
+          (videoRemoved)="onVideoRemoved()">
+        </app-video-uploader>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-header">
+      <ion-row>
+        <ion-col size="auto">
+          <h3>Additional Photos</h3>
+        </ion-col>
+        <ion-col size="auto" class="info-icon" lass="ion-text-end">
+          <ion-icon size="small" name="information-circle-outline"></ion-icon>
+        </ion-col>
+      </ion-row>
+      <p class="section-description">Share any other photos you'd like to showcase on your profile.</p>
+      <div style="padding: 16px;">
+        <app-image-carousel 
+          [images]="additionalPhotos"
+          (imagesChange)="onAdditionalPhotosChange($event)">
+        </app-image-carousel>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-header">
+      <ion-row>
+        <ion-col size="auto">
+          <h3>Before & After Photos</h3>
+        </ion-col>
+        <ion-col size="auto" class="info-icon" lass="ion-text-end">
+          <ion-icon size="small" name="information-circle-outline"></ion-icon>
+        </ion-col>
+      </ion-row>
+      <p class="section-description">Showcase your clients' transformation results with before and after photos.</p>
+      <div style="padding: 16px;">
+        <app-image-carousel 
+          [images]="beforeAfterImages"
+          (imagesChange)="onBeforeAfterImagesChange($event)">
+        </app-image-carousel>
+      </div>
+    </div>
+  </div>
+
+
+  <div class="section">
+    <div class="section-header">
+      <ion-row>
+        <ion-col size="auto">
+          <h3>Availability</h3>
+        </ion-col>
+        <ion-col size="auto" class="info-icon" lass="ion-text-end">
+          <ion-icon size="small" name="information-circle-outline"></ion-icon>
+        </ion-col>
+      </ion-row>
+      <div style="padding-left: 16px; padding-right: 16px;">
+        <app-availabilty [availability]="availability" (availabilityChange)="onAvailabilityChange($event)"></app-availabilty>
+      </div>
+    </div>
+  </div>
+
+  <!-- <ion-card>
+    <ion-list lines="full">
+      <ion-item button [routerLink]="[ROUTE_PATHS.APP.TABS.ACCOUNT_TRAINER]">
+        <ion-icon slot="start" name="settings-outline"></ion-icon>
+        <ion-label>
+          <h3>Account Settings</h3>
+        </ion-label>
+      </ion-item>
+    </ion-list>
+  </ion-card> -->
+
+  <ion-button expand="block" (click)="toggleEdit()" *ngIf="hasChanges">
+    Save Changes
+  </ion-button>
+  
+
+</ion-content>

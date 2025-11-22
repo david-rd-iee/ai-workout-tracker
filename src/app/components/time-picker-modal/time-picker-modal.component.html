@@ -1,0 +1,29 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-title>Select Time</ion-title>
+    <ion-buttons slot="end">
+      <ion-button (click)="cancel()" id="cancel-button">Cancel</ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding">
+  <div class="time-picker-container">
+    <!-- Add a wrapper div to help with iOS rendering -->
+    <div class="datetime-wrapper">
+      <ion-datetime 
+        presentation="time"
+        [value]="value"
+        (ionChange)="onTimeChange($event)"
+        hourCycle="h12"
+        preferWheel="true"
+        showDefaultButtons="true"
+        size="cover"
+        id="time-picker"
+        class="ios-optimized"
+        locale="en-US"
+        minuteValues="0,15,30,45">
+    </ion-datetime>
+    </div>
+  </div>
+</ion-content>

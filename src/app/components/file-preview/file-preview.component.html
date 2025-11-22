@@ -1,0 +1,84 @@
+<div class="file-preview-container">
+  <!-- Loading state -->
+  <div *ngIf="isLoading" class="loading-container">
+    <ion-spinner></ion-spinner>
+    <p>Loading preview...</p>
+  </div>
+
+  <!-- Error state -->
+  <div *ngIf="error" class="error-container">
+    <ion-icon name="alert-circle-outline" color="danger"></ion-icon>
+    <p>{{ error }}</p>
+  </div>
+
+  <!-- Image preview -->
+  <div *ngIf="!isLoading && !error && previewType === 'image'" class="image-preview">
+    <img [src]="safeUrl" [alt]="fileName" (click)="openFile()" />
+    <div class="file-actions">
+      <!-- <ion-button fill="clear" size="small" (click)="downloadFile($event)">
+        <ion-icon name="download-outline" slot="icon-only"></ion-icon>
+      </ion-button> -->
+      <!-- <ion-button *ngIf="canDelete && fileId" fill="clear" size="small" color="danger" (click)="confirmDelete($event)">
+        <ion-icon name="trash-outline" slot="icon-only"></ion-icon>
+      </ion-button> -->
+    </div>
+  </div>
+
+  <!-- PDF preview -->
+  <div *ngIf="!isLoading && !error && previewType === 'pdf'" class="pdf-preview">
+    <iframe [src]="safeResourceUrl" frameborder="0" height="300" width="100%" scrolling="auto" allow="fullscreen" style="display: block;"></iframe>
+    <div class="file-actions">
+      <ion-button fill="clear" size="small" (click)="downloadFile($event)">
+        <ion-icon name="download-outline" slot="icon-only"></ion-icon>
+      </ion-button>
+      <!-- <ion-button *ngIf="canDelete && fileId" fill="clear" size="small" color="danger" (click)="confirmDelete($event)">
+        <ion-icon name="trash-outline" slot="icon-only"></ion-icon>
+      </ion-button> -->
+    </div>
+  </div>
+
+  <!-- Video preview -->
+  <div *ngIf="!isLoading && !error && previewType === 'video'" class="video-preview">
+    <video controls [src]="safeUrl" width="100%"></video>
+    <div class="file-actions">
+      <ion-button fill="clear" size="small" (click)="downloadFile($event)">
+        <ion-icon name="download-outline" slot="icon-only"></ion-icon>
+      </ion-button>
+      <!-- <ion-button *ngIf="canDelete && fileId" fill="clear" size="small" color="danger" (click)="confirmDelete($event)">
+        <ion-icon name="trash-outline" slot="icon-only"></ion-icon>
+      </ion-button> -->
+    </div>
+  </div>
+
+  <!-- Audio preview -->
+  <div *ngIf="!isLoading && !error && previewType === 'audio'" class="audio-preview">
+    <audio controls [src]="safeUrl" style="width: 100%"></audio>
+    <div class="file-actions">
+      <ion-button fill="clear" size="small" (click)="downloadFile($event)">
+        <ion-icon name="download-outline" slot="icon-only"></ion-icon>
+      </ion-button>
+      <!-- <ion-button *ngIf="canDelete && fileId" fill="clear" size="small" color="danger" (click)="confirmDelete($event)">
+        <ion-icon name="trash-outline" slot="icon-only"></ion-icon>
+      </ion-button> -->
+    </div>
+  </div>
+
+  <!-- Other file types -->
+  <div *ngIf="!isLoading && !error && previewType === 'other'" class="other-preview" (click)="openFile()">
+    <div class="file-info">
+      <ion-icon name="document-outline" size="large"></ion-icon>
+      <p class="file-name">{{ fileName }}</p>
+    </div>
+    <div class="file-actions">
+      <ion-button size="small" fill="clear">
+        <ion-icon name="open-outline" slot="icon-only"></ion-icon>
+      </ion-button>
+      <ion-button fill="clear" size="small" (click)="downloadFile($event)">
+        <ion-icon name="download-outline" slot="icon-only"></ion-icon>
+      </ion-button>
+      <!-- <ion-button *ngIf="canDelete && fileId" fill="clear" size="small" color="danger" (click)="confirmDelete($event)">
+        <ion-icon name="trash-outline" slot="icon-only"></ion-icon>
+      </ion-button> -->
+    </div>
+  </div>
+</div>

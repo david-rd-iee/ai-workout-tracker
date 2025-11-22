@@ -1,0 +1,50 @@
+
+<app-header></app-header>
+
+
+<ion-content [fullscreen]="true">
+  <div class="background-gradient"></div>
+
+  <!-- Loading spinner -->
+  <div class="loading-container" *ngIf="isLoading()">
+    <ion-spinner name="circles"></ion-spinner>
+    <p>Loading your sessions...</p>
+  </div>
+
+  <ion-card>
+    <ion-card-content>
+      <ion-datetime
+        [value]="selectedDate"
+        (ionChange)="dateChanged($event)"
+        presentation="date"
+        [highlightedDates]="highlightedDates">
+      </ion-datetime>
+    </ion-card-content>
+  </ion-card>
+
+  <div class="trainings-container" *ngIf="!isLoading()">
+    <ion-card>
+      <ion-card-header>
+        <ion-card-title>
+          Your Sessions for {{ selectedDate | date:'mediumDate' }}
+        </ion-card-title>
+      </ion-card-header>
+    </ion-card>
+    
+    <!-- Use the list-sessions component for the selected day's sessions -->
+    <app-list-sessions
+      [sessions]="trainings"
+      [isLoading]="false"
+      [noSessionsFound]="trainings.length === 0"
+      [userType]="'client'"
+      [attr.data-refresh]="forceRefresh"
+      (sessionChanged)="onSessionChanged($event)">
+    </app-list-sessions>
+    
+    <ion-card *ngIf="allTrainings.length === 0 && !isLoading()">
+      <ion-card-content>
+        <p>You don't have any booked sessions yet. Visit the booking page to schedule your first session!</p>
+      </ion-card-content>
+    </ion-card>
+  </div>
+</ion-content>

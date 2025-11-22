@@ -1,0 +1,222 @@
+ion-content {
+  background-color: var(--ion-color-light);
+}
+
+// Loading and empty state styling
+.loading-container, .empty-state {
+  padding: 32px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  
+  ion-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+    color: var(--ion-color-medium);
+  }
+  
+  h2 {
+    margin: 8px 0;
+    font-size: 20px;
+    font-weight: 500;
+    color: var(--ion-color-dark);
+  }
+  
+  p {
+    margin: 8px 0;
+    font-size: 16px;
+    color: var(--ion-color-medium);
+  }
+}
+
+// Card styling for notes
+.note-card {
+  margin: 16px 0;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+  
+  &.workout-note-card {
+    border-left: 4px solid var(--ion-color-primary);
+  }
+  
+  // Styling for the note header with title and trash button inline
+  .trainer-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    
+    .editable-title {
+      flex: 1;
+      cursor: pointer;
+      
+      ion-card-title {
+        display: flex;
+        align-items: center;
+        font-size: 18px;
+        position: relative;
+        padding-bottom: 2px;
+        
+        &:after {
+          content: '';
+          position: absolute;
+          bottom: 0;
+          left: 0;
+          width: 100%;
+          height: 1px;
+          background-color: var(--ion-color-medium);
+          opacity: 0.3;
+        }
+      }
+    }
+    
+    .title-editor {
+      flex: 1;
+    }
+    
+    .delete-button {
+      margin: 0;
+    }
+  }
+  
+  ion-card-content {
+    padding: 0 16px 16px;
+    
+    &.editing {
+      background-color: rgba(var(--ion-color-primary-rgb), 0.05);
+    }
+    
+    .editable-content {
+      cursor: pointer;
+      position: relative;
+      
+      &:after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 16px;
+        right: 16px;
+        height: 1px;
+        background-color: var(--ion-color-medium);
+        opacity: 0.2;
+      }
+    }
+    
+    .note-list {
+      margin: 0;
+      padding: 0;
+      
+      .bullet-point {
+        color: var(--ion-color-primary);
+        margin-right: 8px;
+        font-size: 8px;
+        min-width: 8px;
+      }
+      
+      ion-item {
+        --padding-start: 0;
+        --inner-padding-end: 0;
+        --min-height: 36px;
+        
+        .note-item {
+          font-size: 16px;
+          margin: 4px 0;
+          color: var(--ion-color-dark);
+        }
+      }
+    }
+  }
+}
+
+// Editable title styling
+.editable-title {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  
+  .edit-icon {
+    margin-left: 8px;
+    opacity: 0.5;
+    font-size: 16px;
+  }
+  
+  &:hover .edit-icon {
+    opacity: 1;
+  }
+}
+
+// Title editor styling
+.title-editor {
+  width: 100%;
+  
+  .title-input {
+    --padding-start: 0;
+    --padding-end: 0;
+    --padding-top: 0;
+    --padding-bottom: 8px;
+    --placeholder-color: var(--ion-color-medium);
+    font-size: 18px;
+    font-weight: 600;
+    border-bottom: 2px solid var(--ion-color-primary);
+  }
+}
+
+// Content editor styling
+.content-editor {
+  margin: 12px 0;
+  
+  .content-textarea {
+    background-color: #fff;
+    border-radius: 8px;
+    margin-bottom: 12px;
+    border: 1px solid var(--ion-color-light);
+    --padding-start: 12px;
+    --padding-end: 12px;
+    --padding-top: 12px;
+    --padding-bottom: 12px;
+  }
+  
+  .editor-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+  }
+}
+
+// File attachments section styles
+.files-section {
+  margin-top: 16px;
+  border-top: 1px solid var(--ion-color-light-shade);
+  padding-top: 12px;
+}
+
+.files-heading {
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--ion-color-medium);
+  margin-bottom: 8px;
+}
+
+.files-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.file-item {
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.loading-files {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 12px 0;
+  color: var(--ion-color-medium);
+  font-size: 14px;
+}

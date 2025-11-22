@@ -1,0 +1,84 @@
+<div class="list-sessions-container">
+  <!-- Loading sessions state -->
+  <div *ngIf="isLoading">
+    <div class="session-card loading">
+      <ion-avatar>
+        <ion-skeleton-text [animated]="true"></ion-skeleton-text>
+      </ion-avatar>
+      <div class="session-info">
+        <ion-skeleton-text [animated]="true" style="width: 40%"></ion-skeleton-text>
+        <ion-skeleton-text [animated]="true" style="width: 60%"></ion-skeleton-text>
+        <ion-skeleton-text [animated]="true" style="width: 30%"></ion-skeleton-text>
+      </div>
+      <div class="session-chips">
+        <div class="chip date-chip"><ion-skeleton-text [animated]="true" style="width: 100%"></ion-skeleton-text></div>
+        <div class="chip time-chip"><ion-skeleton-text [animated]="true" style="width: 100%"></ion-skeleton-text></div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- No sessions found -->
+  <div *ngIf="!isLoading && noSessionsFound" class="no-sessions">
+    <p>You don't have any sessions scheduled.</p>
+  </div>
+  
+  <!-- Sessions list -->
+  <div *ngIf="!isLoading && !noSessionsFound && processedSessions.length > 0" class="sessions-list">
+    <div *ngFor="let session of processedSessions; let i = index" 
+         class="session-card"
+         [ngClass]="'color-' + (i % 4 + 1)">  
+      <!-- X Button for opening agreement modal -->
+      <div class="x-button" (click)="openCancelModal(session, $event)">
+        <ion-icon name="close-outline"></ion-icon>
+      </div>
+      
+      <!-- Main card content that navigates to session details -->
+      <div class="card-content" (click)="viewSessionDetails(session)">
+      
+      <!-- Profile image -->
+      <ion-avatar *ngIf="session.otherPartyImage">
+        <img [src]="session.otherPartyImage" [alt]="session.otherPartyName || 'Profile'">
+      </ion-avatar>
+      <ion-avatar *ngIf="!session.otherPartyImage" class="no-image">
+        <ion-icon name="person-outline"></ion-icon>
+      </ion-avatar>
+      
+      <!-- Session info -->
+      <div class="session-info">
+        <div class="name">{{ session.otherPartyName || (userType === 'client' ? 'Your Trainer' : 'Your Client') }}</div>
+        
+        <!-- CHANGE TO SHOW Remote or Inperson <div class="workout-name">{{ userType === 'client' ? 'Your Workout' : 'Client Workout' }}</div> -->
+        <!-- <div class="location">Remote</div> -->
+        <div class="session-status">{{ session.status | titlecase }}</div>
+      </div>
+      
+      <!-- Session chips -->
+      <div class="session-chips">
+        <div class="chip date-chip">
+          <div>{{ session.date | date: 'EEE' }}</div>
+          <div>{{ session.date | date: 'd MMM' }}</div>
+        </div>
+        <div class="chip time-chip">
+          <!-- <ion-icon name="time-outline"></ion-icon> -->
+          <div>{{ session.time }}</div>
+          <div *ngIf="session.duration" class="duration">{{ session.duration }} mins</div>
+        </div>
+      </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Session Notes Section -->
+  <div class="section-header" *ngIf="sessionNotes.length > 0 && !isLoadingNotes">
+    <h2>Notes from {{ userType === 'client' ? 'Your Trainer' : 'You' }}</h2>
+  </div>
+  
+  <!-- Session Notes List -->
+  <app-list-session-notes 
+    [sessionNotes]="sessionNotes"
+    [isLoading]="isLoadingNotes"
+    [noNotesFound]="noNotesFound"
+    [userType]="userType"
+    [bookedSessionDates]="bookedSessionDates">
+  </app-list-session-notes>
+</div>

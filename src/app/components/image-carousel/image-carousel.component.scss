@@ -1,0 +1,104 @@
+.carousel-container {
+  width: 100%;
+  overflow: hidden;
+}
+
+.carousel-header {
+  margin-bottom: 12px;
+  
+  h4 {
+    margin: 0 0 4px 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--ion-color-dark);
+  }
+  
+  .carousel-description {
+    margin: 0;
+    font-size: 0.875rem;
+    color: var(--ion-color-medium);
+    line-height: 1.4;
+  }
+}
+
+.carousel-scroll {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 8px 0;
+  scroll-behavior: smooth;
+  
+  /* Hide scrollbar for cleaner look */
+  scrollbar-width: thin;
+  scrollbar-color: var(--ion-color-medium) transparent;
+  
+  &::-webkit-scrollbar {
+    height: 6px;
+  }
+  
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  
+  &::-webkit-scrollbar-thumb {
+    background-color: var(--ion-color-medium);
+    border-radius: 3px;
+  }
+}
+
+.carousel-item {
+  flex-shrink: 0;
+  width: 200px;
+  height: 300px;
+  border-radius: 12px;
+  overflow: hidden;
+  position: relative;
+  
+  &.add-item {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--ion-color-light);
+    border: 2px dashed var(--ion-color-medium);
+  }
+}
+
+.image-wrapper {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+}
+
+.remove-button {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  --background: rgba(0, 0, 0, 0.6);
+  --color: white;
+  --border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  z-index: 10;
+  
+  ion-icon {
+    font-size: 20px;
+  }
+}
+
+.add-button {
+  --color: var(--ion-color-primary);
+  width: 64px;
+  height: 64px;
+  
+  ion-icon {
+    font-size: 48px;
+  }
+}

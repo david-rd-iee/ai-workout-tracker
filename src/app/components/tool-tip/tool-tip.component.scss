@@ -1,0 +1,63 @@
+.tooltip-container {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 14px 16px;
+  margin: 12px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  box-shadow: 0 4px 16px rgba(102, 126, 234, 0.4);
+  animation: slideDown 0.3s ease-out;
+  position: relative;
+}
+
+.tooltip-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+}
+
+.tooltip-icon {
+  font-size: 24px;
+  flex-shrink: 0;
+}
+
+.tooltip-text {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.4;
+  font-weight: 500;
+  flex: 1;
+}
+
+.close-button {
+  --padding-start: 4px;
+  --padding-end: 4px;
+  margin: 0;
+  height: 32px;
+  width: 32px;
+  flex-shrink: 0;
+
+  ion-icon {
+    font-size: 20px;
+    color: white;
+  }
+
+  &:hover {
+    opacity: 0.8;
+  }
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

@@ -1,0 +1,55 @@
+
+<app-header title="Settings" [transparent]="true"></app-header>
+
+
+<ion-content [fullscreen]="true">
+  <div class="background-gradient"></div>
+  <!-- Account Information Section -->
+  <ion-card *ngIf="user()">
+    <ion-card-header>
+      <ion-card-title>Account Information</ion-card-title>
+    </ion-card-header>
+    <ion-card-content>
+      <ion-list lines="full">
+        <ion-item button detail>
+          <ion-label>
+            <h3>Name</h3>
+            <p>{{user()?.firstName}} {{user()?.lastName || 'Not set'}}</p>
+          </ion-label>
+        </ion-item>
+        
+        <ion-item button detail>
+          <ion-label>
+            <h3>Email</h3>
+            <p>{{user()?.email || 'Not set'}}</p>
+          </ion-label>
+        </ion-item>
+
+        <ion-item button detail (click)="openPasswordChangeModal()">
+          <ion-label>
+            <h3>Password</h3>
+            <p>Change your password</p>
+          </ion-label>
+        </ion-item>
+        
+        <ion-item button detail routerLink="/delete-account">
+          <ion-label>
+            <h3>Delete Account</h3>
+          </ion-label>
+        </ion-item>
+
+        <ion-item button detail routerLink="/app/tabs/payment-history">
+          <ion-label>
+            <h3>Payment History</h3>
+          </ion-label>
+        </ion-item>
+      </ion-list>
+    </ion-card-content>
+  </ion-card>
+
+
+
+  <ion-button expand="block" color="danger" fill="outline" class="ion-margin" (click)="logout()">
+    Logout
+  </ion-button>
+</ion-content>

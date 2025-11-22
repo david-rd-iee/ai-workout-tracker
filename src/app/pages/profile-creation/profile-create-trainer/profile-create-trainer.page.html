@@ -1,0 +1,211 @@
+<app-header [title]="'Create Profile'" [showBack]="true"></app-header>
+<ion-content [fullscreen]="true">
+  <div class="form-container">
+
+    <form [formGroup]="trainerForm" (ngSubmit)="onSubmit()" class="trainer-form">
+      <!-- First Name -->
+      <div class="form-field">
+        <ion-input 
+          formControlName="firstName" 
+          label="First Name" 
+          labelPlacement="stacked"
+          placeholder="Enter your first name" 
+          autocomplete="given-name"
+          [class.ion-invalid]="shouldShowError('firstName')"
+          [class.ion-touched]="trainerForm.get('firstName')?.touched"
+          class="modern-input"
+          fill="outline">
+        </ion-input>
+      </div>
+
+      <!-- Last Name -->
+      <div class="form-field">
+        <ion-input 
+          formControlName="lastName" 
+          label="Last Name" 
+          labelPlacement="stacked"
+          placeholder="Enter your last name" 
+          autocomplete="family-name"
+          [class.ion-invalid]="shouldShowError('lastName')"
+          [class.ion-touched]="trainerForm.get('lastName')?.touched"
+          class="modern-input"
+          fill="outline">
+        </ion-input>
+      </div>
+
+      <!-- Phone Number -->
+      <div class="form-field phone-input" [class.field-error]="shouldShowError('phone')">
+        <app-phone-input formControlName="phone" class="modern-input"></app-phone-input>
+      </div>
+
+      <!-- Area of Specialization -->
+      <div class="form-field">
+        <ion-input 
+          formControlName="specialization" 
+          label="Area of Specialization" 
+          labelPlacement="stacked"
+          placeholder="Enter your area of specialization"
+          [class.ion-invalid]="shouldShowError('specialization')"
+          [class.ion-touched]="trainerForm.get('specialization')?.touched"
+          class="modern-input"
+          fill="outline">
+        </ion-input>
+      </div>
+
+      <!-- Years of Experience -->
+      <div class="form-field">
+        <ion-input 
+          formControlName="experience" 
+          label="Years of Experience" 
+          labelPlacement="stacked"
+          type="number"
+          placeholder="Enter number of years (ex. 2.5)"
+          [class.ion-invalid]="shouldShowError('experience')"
+          [class.ion-touched]="trainerForm.get('experience')?.touched"
+          class="modern-input"
+          fill="outline">
+        </ion-input>
+      </div>
+
+      <!-- Education/Certifications -->
+      <div class="form-field">
+        <ion-input 
+          formControlName="education" 
+          label="Education/Certifications" 
+          labelPlacement="stacked"
+          placeholder="Enter your education/certifications"
+          [class.ion-invalid]="shouldShowError('education')"
+          [class.ion-touched]="trainerForm.get('education')?.touched"
+          class="modern-input"
+          fill="outline">
+        </ion-input>
+      </div>
+
+      <!-- Description -->
+      <div class="form-field">
+        <ion-textarea 
+          formControlName="description" 
+          label="Description of Background and Experience" 
+          labelPlacement="stacked"
+          placeholder="Enter a description of your background and experience (minimum 20 characters)"
+          [class.ion-invalid]="shouldShowError('description')"
+          [class.ion-touched]="trainerForm.get('description')?.touched"
+          class="modern-input"
+          fill="outline"
+          rows="6"
+          autoGrow="true">
+        </ion-textarea>
+      </div>
+
+      <!-- City -->
+      <div class="form-field">
+        <ion-input 
+          formControlName="city" 
+          label="City" 
+          labelPlacement="stacked"
+          placeholder="Enter your city"
+          [class.ion-invalid]="shouldShowError('city')"
+          [class.ion-touched]="trainerForm.get('city')?.touched"
+          class="modern-input"
+          fill="outline">
+        </ion-input>
+      </div>
+
+      <!-- State -->
+      <div class="form-field">
+        <ion-input 
+          formControlName="state" 
+          label="State" 
+          labelPlacement="stacked"
+          placeholder="Enter your state"
+          [class.ion-invalid]="shouldShowError('state')"
+          [class.ion-touched]="trainerForm.get('state')?.touched"
+          class="modern-input"
+          fill="outline">
+        </ion-input>
+      </div>
+
+      <!-- Zip Code -->
+      <div class="form-field">
+        <ion-input 
+          formControlName="zip" 
+          label="Zip Code" 
+          labelPlacement="stacked"
+          placeholder="Enter your zip code"
+          [class.ion-invalid]="shouldShowError('zip')"
+          [class.ion-touched]="trainerForm.get('zip')?.touched"
+          class="modern-input"
+          fill="outline">
+        </ion-input>
+      </div>
+
+      <!-- Validation errors section -->
+      <div class="validation-errors" *ngIf="hasValidationErrors()">
+        <div class="error-header">
+          <ion-icon name="alert-circle" color="danger"></ion-icon>
+          <h4>Please fix the following errors:</h4>
+        </div>
+        <ul>
+          <li *ngIf="trainerForm.get('firstName')?.errors?.['required'] && shouldShowError('firstName')">
+            First name is required
+          </li>
+          <li *ngIf="trainerForm.get('firstName')?.errors?.['minlength'] && shouldShowError('firstName')">
+            First name must be at least 2 characters
+          </li>
+          <li *ngIf="trainerForm.get('lastName')?.errors?.['required'] && shouldShowError('lastName')">
+            Last name is required
+          </li>
+          <li *ngIf="trainerForm.get('lastName')?.errors?.['minlength'] && shouldShowError('lastName')">
+            Last name must be at least 2 characters
+          </li>
+          <li *ngIf="trainerForm.get('phone')?.errors?.['required'] && shouldShowError('phone')">
+            Phone number is required
+          </li>
+          <li *ngIf="trainerForm.get('phone')?.errors?.['phoneFormat'] && shouldShowError('phone')">
+            Please enter exactly 10 digits for phone number
+          </li>
+          <li *ngIf="trainerForm.get('specialization')?.errors?.['required'] && shouldShowError('specialization')">
+            Area of specialization is required
+          </li>
+          <li *ngIf="trainerForm.get('experience')?.errors?.['required'] && shouldShowError('experience')">
+            Years of experience is required
+          </li>
+          <li *ngIf="trainerForm.get('education')?.errors?.['required'] && shouldShowError('education')">
+            Education/certifications is required
+          </li>
+          <li *ngIf="trainerForm.get('description')?.errors?.['required'] && shouldShowError('description')">
+            Description is required
+          </li>
+          <li *ngIf="trainerForm.get('description')?.errors?.['minlength'] && shouldShowError('description')">
+            Description must be at least 20 characters
+          </li>
+          <li *ngIf="trainerForm.get('city')?.errors?.['required'] && shouldShowError('city')">
+            City is required
+          </li>
+          <li *ngIf="trainerForm.get('state')?.errors?.['required'] && shouldShowError('state')">
+            State is required
+          </li>
+          <li *ngIf="trainerForm.get('zip')?.errors?.['required'] && shouldShowError('zip')">
+            Zip code is required
+          </li>
+          <li *ngIf="trainerForm.get('zip')?.errors?.['pattern'] && shouldShowError('zip')">
+            Please enter a valid zip code (5 digits)
+          </li>
+        </ul>
+      </div>
+
+      <!-- Submit Button -->
+      <div class="submit-section">
+        <ion-button 
+          expand="full" 
+          [disabled]="!trainerForm.valid || isSubmitting" 
+          type="submit"
+          class="submit-button">
+          <ion-spinner *ngIf="isSubmitting" name="crescent"></ion-spinner>
+          <span *ngIf="!isSubmitting">Create Profile</span>
+          <span *ngIf="isSubmitting">Creating Profile...</span>
+        </ion-button>
+      </div>
+    </form>
+  </div>
+</ion-content>

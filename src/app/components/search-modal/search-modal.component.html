@@ -1,0 +1,48 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-title>Search Filters</ion-title>
+    <ion-buttons slot="end">
+      <ion-button (click)="dismiss()">Close</ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content>
+  <ion-list>
+    <ion-item>
+      <ion-label>Training Type</ion-label>
+      <ion-select [(ngModel)]="filters.trainingType" multiple="true">
+        <ion-select-option value="remote">Remote</ion-select-option>
+        <ion-select-option value="inPerson">In Person</ion-select-option>
+      </ion-select>
+    </ion-item>
+
+    <ion-item>
+      <ion-label>Specializations</ion-label>
+      <ion-select [(ngModel)]="filters.specialization" multiple="true">
+        <ion-select-option value="strength">Strength Training</ion-select-option>
+        <ion-select-option value="cardio">Cardio</ion-select-option>
+        <ion-select-option value="yoga">Yoga</ion-select-option>
+        <ion-select-option value="nutrition">Nutrition</ion-select-option>
+      </ion-select>
+    </ion-item>
+
+    <ion-item>
+      <ion-label>Price Range</ion-label>
+      <ion-range
+        [(ngModel)]="filters.priceRange"
+        [min]="0"
+        [max]="200"
+        [dualKnobs]="true"
+        [pin]="true"
+        [step]="10">
+        <ion-label slot="start">$0</ion-label>
+        <ion-label slot="end">$200+</ion-label>
+      </ion-range>
+    </ion-item>
+  </ion-list>
+
+  <ion-button expand="block" (click)="applyFilters()">
+    Apply Filters
+  </ion-button>
+</ion-content>

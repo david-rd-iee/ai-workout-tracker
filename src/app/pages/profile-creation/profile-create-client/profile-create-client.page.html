@@ -1,0 +1,195 @@
+<app-header [title]="'Create Profile'" [showBack]="true"></app-header>
+<ion-content [fullscreen]="true">
+  <div class="form-container">
+
+    <form [formGroup]="clientForm" (ngSubmit)="onSubmit()" class="client-form">
+      <!-- First Name -->
+      <div class="form-field">
+        <ion-input 
+          formControlName="firstName" 
+          label="First Name" 
+          labelPlacement="stacked"
+          placeholder="Enter your first name" 
+          autocomplete="given-name"
+          [class.ion-invalid]="shouldShowError('firstName')"
+          [class.ion-touched]="clientForm.get('firstName')?.touched"
+          class="modern-input"
+          fill="outline"
+          (ionInput)="onNameInput($event, 'firstName')"
+          (ionBlur)="capitalizeField('firstName')">
+        </ion-input>
+      </div>
+
+      <!-- Last Name -->
+      <div class="form-field">
+        <ion-input 
+          formControlName="lastName" 
+          label="Last Name" 
+          labelPlacement="stacked"
+          placeholder="Enter your last name" 
+          autocomplete="family-name"
+          [class.ion-invalid]="shouldShowError('lastName')"
+          [class.ion-touched]="clientForm.get('lastName')?.touched"
+          class="modern-input"
+          fill="outline"
+          (ionInput)="onNameInput($event, 'lastName')"
+          (ionBlur)="capitalizeField('lastName')">
+        </ion-input>
+      </div>
+
+      <!-- Phone Number -->
+      <div class="form-field phone-input" [class.field-error]="shouldShowError('phone')">
+        <app-phone-input formControlName="phone" class="modern-input"></app-phone-input>
+      </div>
+
+      <!-- City -->
+      <div class="form-field">
+        <ion-input 
+          formControlName="city" 
+          label="City" 
+          labelPlacement="stacked"
+          placeholder="Enter your city"
+          [class.ion-invalid]="shouldShowError('city')"
+          [class.ion-touched]="clientForm.get('city')?.touched"
+          class="modern-input"
+          fill="outline"
+          (ionInput)="onNameInput($event, 'city')"
+          (ionBlur)="capitalizeField('city')">
+        </ion-input>
+      </div>
+
+      <!-- State Dropdown -->
+      <div class="form-field">
+        <ion-select 
+          formControlName="state" 
+          label="State" 
+          labelPlacement="stacked"
+          placeholder="Select your state"
+          interface="popover"
+          [class.ion-invalid]="shouldShowError('state')"
+          [class.ion-touched]="clientForm.get('state')?.touched"
+          class="modern-input"
+          fill="outline">
+            <ion-select-option value="NV">Nevada</ion-select-option>
+            <!-- <ion-select-option value="AL">Alabama</ion-select-option>
+            <ion-select-option value="AK">Alaska</ion-select-option>
+            <ion-select-option value="AZ">Arizona</ion-select-option>
+            <ion-select-option value="AR">Arkansas</ion-select-option>
+            <ion-select-option value="CA">California</ion-select-option>
+            <ion-select-option value="CO">Colorado</ion-select-option>
+            <ion-select-option value="CT">Connecticut</ion-select-option>
+            <ion-select-option value="DE">Delaware</ion-select-option>
+            <ion-select-option value="FL">Florida</ion-select-option>
+            <ion-select-option value="GA">Georgia</ion-select-option>
+            <ion-select-option value="HI">Hawaii</ion-select-option>
+            <ion-select-option value="ID">Idaho</ion-select-option>
+            <ion-select-option value="IL">Illinois</ion-select-option>
+            <ion-select-option value="IN">Indiana</ion-select-option>
+            <ion-select-option value="IA">Iowa</ion-select-option>
+            <ion-select-option value="KS">Kansas</ion-select-option>
+            <ion-select-option value="KY">Kentucky</ion-select-option>
+            <ion-select-option value="LA">Louisiana</ion-select-option>
+            <ion-select-option value="ME">Maine</ion-select-option>
+            <ion-select-option value="MD">Maryland</ion-select-option>
+            <ion-select-option value="MA">Massachusetts</ion-select-option>
+            <ion-select-option value="MI">Michigan</ion-select-option>
+            <ion-select-option value="MN">Minnesota</ion-select-option>
+            <ion-select-option value="MS">Mississippi</ion-select-option>
+            <ion-select-option value="MO">Missouri</ion-select-option>
+            <ion-select-option value="MT">Montana</ion-select-option>
+            <ion-select-option value="NE">Nebraska</ion-select-option>
+            nevad goes here
+            <ion-select-option value="NH">New Hampshire</ion-select-option>
+            <ion-select-option value="NJ">New Jersey</ion-select-option>
+            <ion-select-option value="NM">New Mexico</ion-select-option>
+            <ion-select-option value="NY">New York</ion-select-option>
+            <ion-select-option value="NC">North Carolina</ion-select-option>
+            <ion-select-option value="ND">North Dakota</ion-select-option>
+            <ion-select-option value="OH">Ohio</ion-select-option>
+            <ion-select-option value="OK">Oklahoma</ion-select-option>
+            <ion-select-option value="OR">Oregon</ion-select-option>
+            <ion-select-option value="PA">Pennsylvania</ion-select-option>
+            <ion-select-option value="RI">Rhode Island</ion-select-option>
+            <ion-select-option value="SC">South Carolina</ion-select-option>
+            <ion-select-option value="SD">South Dakota</ion-select-option>
+            <ion-select-option value="TN">Tennessee</ion-select-option>
+            <ion-select-option value="TX">Texas</ion-select-option>
+            <ion-select-option value="UT">Utah</ion-select-option>
+            <ion-select-option value="VT">Vermont</ion-select-option>
+            <ion-select-option value="VA">Virginia</ion-select-option>
+            <ion-select-option value="WA">Washington</ion-select-option>
+            <ion-select-option value="WV">West Virginia</ion-select-option>
+            <ion-select-option value="WI">Wisconsin</ion-select-option>
+            <ion-select-option value="WY">Wyoming</ion-select-option> -->
+          </ion-select>
+      </div>
+
+      <!-- Zip Code -->
+      <div class="form-field">
+        <ion-input 
+          formControlName="zip" 
+          label="Zip Code" 
+          labelPlacement="stacked"
+          placeholder="Enter your zip code"
+          [class.ion-invalid]="shouldShowError('zip')"
+          [class.ion-touched]="clientForm.get('zip')?.touched"
+          class="modern-input"
+          fill="outline">
+        </ion-input>
+      </div>
+
+      <!-- Validation errors section -->
+      <div class="validation-errors" *ngIf="hasValidationErrors()">
+        <div class="error-header">
+          <ion-icon name="alert-circle" color="danger"></ion-icon>
+          <h4>Please fix the following errors:</h4>
+        </div>
+        <ul>
+          <li *ngIf="clientForm.get('firstName')?.errors?.['required'] && shouldShowError('firstName')">
+            First name is required
+          </li>
+          <li *ngIf="clientForm.get('firstName')?.errors?.['minlength'] && shouldShowError('firstName')">
+            First name must be at least 2 characters
+          </li>
+          <li *ngIf="clientForm.get('lastName')?.errors?.['required'] && shouldShowError('lastName')">
+            Last name is required
+          </li>
+          <li *ngIf="clientForm.get('lastName')?.errors?.['minlength'] && shouldShowError('lastName')">
+            Last name must be at least 2 characters
+          </li>
+          <li *ngIf="clientForm.get('phone')?.errors?.['required'] && shouldShowError('phone')">
+            Phone number is required
+          </li>
+          <li *ngIf="clientForm.get('phone')?.errors?.['phoneFormat'] && shouldShowError('phone')">
+            Please enter exactly 10 digits for phone number
+          </li>
+          <li *ngIf="clientForm.get('city')?.errors?.['required'] && shouldShowError('city')">
+            City is required
+          </li>
+          <li *ngIf="clientForm.get('state')?.errors?.['required'] && shouldShowError('state')">
+            State is required
+          </li>
+          <li *ngIf="clientForm.get('zip')?.errors?.['required'] && shouldShowError('zip')">
+            Zip code is required
+          </li>
+          <li *ngIf="clientForm.get('zip')?.errors?.['pattern'] && shouldShowError('zip')">
+            Please enter a valid zip code (5 digits)
+          </li>
+        </ul>
+      </div>
+
+      <!-- Submit Button -->
+      <div class="submit-section">
+        <ion-button 
+          expand="full" 
+          [disabled]="!clientForm.valid || isSubmitting" 
+          type="submit"
+          class="submit-button">
+          <ion-spinner *ngIf="isSubmitting" name="crescent"></ion-spinner>
+          <span *ngIf="!isSubmitting">Create Profile</span>
+          <span *ngIf="isSubmitting">Creating Profile...</span>
+        </ion-button>
+      </div>
+    </form>
+  </div>
+</ion-content>

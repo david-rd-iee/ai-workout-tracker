@@ -1,0 +1,203 @@
+.list-sessions-container {
+  padding: 16px;
+  
+  .section-header {
+    margin: 24px 0 16px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--ion-color-light-shade);
+    
+    h2 {
+      font-size: 28px;
+      font-weight: 600;
+      color: #000000;
+    }
+    
+  }
+  
+  .no-sessions {
+    background: #f5f5f5;
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 16px;
+    text-align: center;
+    font-size: 16px;
+    color: #666;
+  }
+  
+  .sessions-list {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+  
+  .session-card {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    padding: 16px;
+    border-radius: 16px;
+    gap: 16px;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    position: relative;
+    
+    &:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+    }
+    
+    /* X Button styling */
+    .x-button {
+      position: absolute;
+      top: -10px;
+      right: -10px;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background-color: #ff3b30; /* Red color for the button */
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10;
+      cursor: pointer;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+      transition: all 0.2s ease;
+      
+      &:hover {
+        transform: scale(1.1);
+        box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3);
+      }
+      
+      ion-icon {
+        font-size: 18px;
+        color: white;
+      }
+    }
+    
+    /* Card content wrapper */
+    .card-content {
+      display: contents; /* Use grid layout of parent */
+    }
+    
+    &.loading {
+      background: #f5f5f5;
+      min-height: 120px;
+    }
+    
+    // Alternating colors
+    &.color-1 {
+      background-color: #FCDCDE;
+    }
+    
+    &.color-2 {
+      background-color: #FCF2D5;
+    }
+    
+    &.color-3 {
+      background-color: #D8EFFF;
+    }
+    
+    &.color-4 {
+      background-color: #FFE8DA;
+    }
+    
+    ion-avatar {
+      width: 60px;
+      height: 60px;
+      border: 2px solid white;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      
+      &.no-image {
+        background: #e0e0e0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        
+        ion-icon {
+          font-size: 32px;
+          color: #999;
+        }
+      }
+    }
+    
+    .session-info {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      
+      .name {
+        font-size: 18px;
+        font-weight: 600;
+        color: #333;
+      }
+      
+      .session-status {
+        font-size: 16px;
+        font-weight: 500;
+        color: #555;
+      }
+      
+      .location {
+        font-size: 14px;
+        color: #777;
+      }
+    }
+    
+    .session-chips {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      
+      .chip {
+        background: white;
+        border-radius: 12px;
+        padding: 8px 12px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+        min-width: 100px;
+        text-align: center;
+        
+        &.date-chip {
+          background: #4285F4;
+          color: white;
+          font-weight: 500;
+          
+          div:first-child {
+            font-size: 14px;
+            text-transform: uppercase;
+          }
+          
+          div:last-child {
+            font-size: 16px;
+          }
+        }
+        
+        &.time-chip {
+          background: white;
+          color: #333;
+          
+          ion-icon {
+            font-size: 18px;
+            margin-bottom: 4px;
+            color: #666;
+          }
+          
+          div {
+            font-size: 16px;
+            font-weight: 500;
+          }
+          
+          .duration {
+            font-size: 12px;
+            color: #666;
+            margin-top: 2px;
+          }
+        }
+      }
+    }
+  }
+}

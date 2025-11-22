@@ -1,0 +1,176 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-title>Session Options</ion-title>
+    <ion-buttons slot="end">
+      <ion-button (click)="cancel()">
+        <ion-icon name="close-outline"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding">
+  <!-- Session Details -->
+  <ion-text color="dark">
+    <h2>Session Details</h2>
+  </ion-text>
+  
+  <ion-card>
+    <ion-card-content>
+      <!-- Profile picture at the top -->
+      <div class="profile-image-container ion-text-center ion-padding-bottom">
+        <ion-avatar class="large-avatar">
+          <img *ngIf="session.otherPartyImage" [src]="session.otherPartyImage" alt="Profile">
+          <ion-icon *ngIf="!session.otherPartyImage" name="person-outline" class="placeholder-icon"></ion-icon>
+        </ion-avatar>
+        <ion-text color="dark" class="ion-text-wrap ion-padding-top">
+          <h2>{{ session.otherPartyName }}</h2>
+        </ion-text>
+      </div>
+      
+      <ion-list lines="none">
+        <!-- <ion-item>
+          <ion-icon name="person-outline" slot="start" color="primary"></ion-icon>
+          <ion-label>
+            <ion-text color="medium" class="ion-text-wrap ion-text-small">{{ session.otherPartyType }}</ion-text>
+            <ion-text color="dark" class="ion-text-wrap"><h3>{{ session.otherPartyName }}</h3></ion-text>
+          </ion-label>
+        </ion-item> -->
+        
+        <ion-item>
+          <ion-icon name="calendar-outline" slot="start" color="primary"></ion-icon>
+          <ion-label>
+            <ion-text color="medium" class="ion-text-wrap ion-text-small">Date</ion-text>
+            <ion-text color="dark" class="ion-text-wrap"><h3>{{ session.date | date:'EEEE, MMM d, y' }}</h3></ion-text>
+          </ion-label>
+        </ion-item>
+        
+        <ion-item>
+          <ion-icon name="time-outline" slot="start" color="primary"></ion-icon>
+          <ion-label>
+            <ion-text color="medium" class="ion-text-wrap ion-text-small">Time</ion-text>
+            <ion-text color="dark" class="ion-text-wrap"><h3>{{ session.time }} - {{ session.endTime }}</h3></ion-text>
+          </ion-label>
+        </ion-item>
+        
+        <ion-item *ngIf="session.duration">
+          <ion-icon name="hourglass-outline" slot="start" color="primary"></ion-icon>
+          <ion-label>
+            <ion-text color="medium" class="ion-text-wrap ion-text-small">Duration</ion-text>
+            <ion-text color="dark" class="ion-text-wrap"><h3>{{ session.duration }} minutes</h3></ion-text>
+          </ion-label>
+        </ion-item>
+      </ion-list>
+    </ion-card-content>
+  </ion-card>
+
+  <!-- Action Selection -->
+  <div *ngIf="!selectedAction" class="ion-margin-top">
+    <ion-text color="dark">
+      <h2>What would you like to do?</h2>
+    </ion-text>
+    
+    <ion-button expand="block" size="large" (click)="selectAction('reschedule')" class="ion-margin-bottom">
+      <ion-icon name="calendar-outline" slot="start"></ion-icon>
+      Reschedule Session
+    </ion-button>
+    
+    <ion-button expand="block" fill="outline" color="danger" (click)="selectAction('cancel')">
+      <ion-icon name="close-outline" slot="start"></ion-icon>
+      Cancel Session
+    </ion-button>
+  </div>
+
+  <!-- Reason Form -->
+  <div *ngIf="selectedAction" class="ion-margin-top">
+    <ion-text color="dark">
+      <h2>{{ selectedAction === 'reschedule' ? 'Reschedule' : 'Cancel' }} Session</h2>
+    </ion-text>
+    
+    <ion-text color="medium" class="ion-margin-bottom ion-padding-bottom">
+      <p>Please provide a reason for {{ selectedAction === 'reschedule' ? 'rescheduling' : 'canceling' }} this session:</p>
+    </ion-text>
+    
+    <ion-card>
+      <ion-card-content>
+        <ion-item>
+          <ion-textarea
+            [(ngModel)]="reason"
+            placeholder="Enter reason here..."
+            rows="4"
+            [disabled]="isSubmitting"
+          ></ion-textarea>
+        </ion-item>
+        
+        <!-- Date and Time Selection for Rescheduling -->
+        <div *ngIf="selectedAction === 'reschedule'" class="ion-margin-top">
+          <ion-text color="dark">
+            <h3>Select New Date and Time</h3>
+          </ion-text>
+          
+          <ion-item>
+            <ion-icon name="calendar-outline" slot="start" color="primary"></ion-icon>
+            <ion-label position="stacked">New Date</ion-label>
+            <ion-datetime-button datetime="newDatePicker"></ion-datetime-button>
+            <ion-modal [keepContentsMounted]="true">
+              <ng-template>
+                <ion-datetime
+                  id="newDatePicker"
+                  presentation="date"
+                  [(ngModel)]="newDate"
+                  [min]="minDate"
+                  [disabled]="isSubmitting"
+                ></ion-datetime>
+              </ng-template>
+            </ion-modal>
+          </ion-item>
+          
+          <ion-item>
+            <ion-icon name="time-outline" slot="start" color="primary"></ion-icon>
+            <ion-label position="stacked">New Time</ion-label>
+            <ion-select
+              [(ngModel)]="newTime"
+              placeholder="Select time"
+              [disabled]="isSubmitting"
+            >
+              <ion-select-option value="8:00 AM">8:00 AM</ion-select-option>
+              <ion-select-option value="9:00 AM">9:00 AM</ion-select-option>
+              <ion-select-option value="10:00 AM">10:00 AM</ion-select-option>
+              <ion-select-option value="11:00 AM">11:00 AM</ion-select-option>
+              <ion-select-option value="12:00 PM">12:00 PM</ion-select-option>
+              <ion-select-option value="1:00 PM">1:00 PM</ion-select-option>
+              <ion-select-option value="2:00 PM">2:00 PM</ion-select-option>
+              <ion-select-option value="3:00 PM">3:00 PM</ion-select-option>
+              <ion-select-option value="4:00 PM">4:00 PM</ion-select-option>
+              <ion-select-option value="5:00 PM">5:00 PM</ion-select-option>
+              <ion-select-option value="6:00 PM">6:00 PM</ion-select-option>
+              <ion-select-option value="7:00 PM">7:00 PM</ion-select-option>
+            </ion-select>
+          </ion-item>
+        </div>
+      </ion-card-content>
+    </ion-card>
+    
+    <div class="ion-padding">
+      <ion-row>
+        <ion-col>
+          <ion-button expand="block" fill="outline" (click)="selectedAction = null" [disabled]="isSubmitting">
+            Back
+          </ion-button>
+        </ion-col>
+        <ion-col>
+          <ion-button 
+            expand="block" 
+            [color]="selectedAction === 'reschedule' ? 'primary' : 'danger'"
+            (click)="submitAction()" 
+            [disabled]="!reason.trim() || isSubmitting || (selectedAction === 'reschedule' && (!newDate || !newTime))"
+          >
+            <ion-spinner *ngIf="isSubmitting" name="dots"></ion-spinner>
+            <span *ngIf="!isSubmitting">{{ selectedAction === 'reschedule' ? 'Reschedule' : 'Cancel' }}</span>
+          </ion-button>
+        </ion-col>
+      </ion-row>
+    </div>
+  </div>
+</ion-content>
+

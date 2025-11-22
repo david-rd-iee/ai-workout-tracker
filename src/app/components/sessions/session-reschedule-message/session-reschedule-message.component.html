@@ -1,0 +1,101 @@
+<ion-card class="reschedule-message-card">
+  <ion-card-content>
+    <!-- Loading state -->
+    <div *ngIf="isLoading" class="ion-text-center ion-padding">
+      <ion-spinner name="dots"></ion-spinner>
+      <ion-text color="medium">
+        <p>Loading reschedule request...</p>
+      </ion-text>
+    </div>
+    
+    <!-- Error state -->
+    <div *ngIf="!isLoading && error" class="ion-text-center ion-padding">
+      <ion-icon name="alert-circle-outline" color="danger" size="large"></ion-icon>
+      <ion-text color="danger">
+        <p>{{ error }}</p>
+      </ion-text>
+    </div>
+    
+    <!-- Reschedule request details -->
+    <div *ngIf="!isLoading && !error && rescheduleRequest" class="reschedule-details">
+      <ion-text color="primary">
+        <h3>Session Reschedule Request</h3>
+      </ion-text>
+      
+      <ion-text color="medium">
+        <p *ngIf="rescheduleRequest.requestedBy === 'trainer'">Your trainer has requested to reschedule a session.</p>
+        <p *ngIf="rescheduleRequest.requestedBy === 'client'">Your client has requested to reschedule a session.</p>
+      </ion-text>
+      
+      <div class="session-change ion-margin-top">
+        <ion-item lines="none">
+          <ion-label>
+            <ion-text color="medium">Original Session</ion-text>
+            <div class="session-time">
+              <ion-icon name="calendar-outline" color="primary"></ion-icon>
+              <span>{{ formatDate(rescheduleRequest.originalDate) }}</span>
+            </div>
+            <div class="session-time">
+              <ion-icon name="time-outline" color="primary"></ion-icon>
+              <span>{{ rescheduleRequest.originalTime }}</span>
+            </div>
+          </ion-label>
+        </ion-item>
+        
+        <ion-item lines="none">
+          <ion-label>
+            <ion-text color="medium">New Session</ion-text>
+            <div class="session-time">
+              <ion-icon name="calendar-outline" color="primary"></ion-icon>
+              <span>{{ formatDate(rescheduleRequest.newDate) }}</span>
+            </div>
+            <div class="session-time">
+              <ion-icon name="time-outline" color="primary"></ion-icon>
+              <span>{{ rescheduleRequest.newTime }}</span>
+            </div>
+          </ion-label>
+        </ion-item>
+      </div>
+      
+      <ion-item lines="none">
+        <ion-label>
+          <ion-text color="medium">Reason</ion-text>
+          <p>{{ rescheduleRequest.reason }}</p>
+        </ion-label>
+      </ion-item>
+      
+      <!-- Status indicator -->
+      <div class="status-indicator ion-margin-top ion-text-center">
+        <ion-text *ngIf="rescheduleRequest.status === 'pending'" color="warning">
+          <p><ion-icon name="time-outline"></ion-icon> Pending</p>
+        </ion-text>
+        <ion-text *ngIf="rescheduleRequest.status === 'accepted'" color="success">
+          <p><ion-icon name="checkmark-outline"></ion-icon> Accepted</p>
+        </ion-text>
+        <ion-text *ngIf="rescheduleRequest.status === 'rejected'" color="danger">
+          <p><ion-icon name="close-outline"></ion-icon> Rejected</p>
+        </ion-text>
+      </div>
+      
+      <!-- Action buttons for pending requests -->
+      <div *ngIf="rescheduleRequest.status === 'pending' && canAccept" class="action-buttons ion-margin-top">
+        <ion-row>
+          <ion-col>
+            <ion-button fill="outline" color="danger" expand="block" (click)="rejectReschedule()" [disabled]="isProcessing">
+              <ion-icon name="close-outline" slot="start"></ion-icon>
+              <ion-spinner *ngIf="isProcessing" name="dots" slot="start"></ion-spinner>
+              Decline
+            </ion-button>
+          </ion-col>
+          <ion-col>
+            <ion-button color="primary" expand="block" (click)="acceptReschedule()" [disabled]="isProcessing">
+              <ion-icon name="checkmark-outline" slot="start"></ion-icon>
+              <ion-spinner *ngIf="isProcessing" name="dots" slot="start"></ion-spinner>
+              Accept
+            </ion-button>
+          </ion-col>
+        </ion-row>
+      </div>
+    </div>
+  </ion-card-content>
+</ion-card>

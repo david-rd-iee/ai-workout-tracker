@@ -1,0 +1,23 @@
+<ion-tabs scrollable="false" class="fixed-bottom">
+  <ion-tab-bar color="primary" slot="bottom">
+
+    <ion-tab-button tab="home">
+      <ion-icon name="home-outline"></ion-icon>
+    </ion-tab-button>
+
+    <ion-tab-button tab="calender">
+      <ion-icon name="calendar-outline"></ion-icon>
+    </ion-tab-button>
+
+    <ion-tab-button tab="trainer-finder" *ngIf="userType === 'client'">
+      <ion-icon name="list-outline"></ion-icon>
+    </ion-tab-button>
+    
+    <ion-tab-button tab="chats">
+      <ion-icon name="chatbubble-ellipses-sharp"></ion-icon>
+    </ion-tab-button>
+    <ion-tab-button *ngIf="userType === 'trainer'" tab="account">
+      <ion-icon name="file-tray-full-outline"></ion-icon>
+    </ion-tab-button>
+  </ion-tab-bar>
+</ion-tabs>

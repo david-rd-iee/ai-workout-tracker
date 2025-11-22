@@ -1,0 +1,47 @@
+.reschedule-message-card {
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  margin: 12px 0;
+  
+  ion-card-content {
+    padding: 16px;
+  }
+}
+
+.reschedule-details {
+  h3 {
+    margin-top: 0;
+    margin-bottom: 8px;
+    font-weight: 600;
+  }
+}
+
+.session-time {
+  display: flex;
+  align-items: center;
+  margin: 8px 0;
+  
+  ion-icon {
+    margin-right: 8px;
+    font-size: 18px;
+  }
+}
+
+.status-indicator {
+  margin: 16px 0;
+  
+  p {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 500;
+    
+    ion-icon {
+      margin-right: 6px;
+    }
+  }
+}
+
+.action-buttons {
+  margin-top: 16px;
+}

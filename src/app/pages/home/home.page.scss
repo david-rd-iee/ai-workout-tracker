@@ -1,0 +1,67 @@
+ion-content {
+  --background: transparent;
+}
+
+// Content styling
+h2 {
+  font-size: 32px;
+  font-weight: 600;
+  margin-bottom: 24px;
+  margin-left: 18px;
+  color: #000000;
+  position: relative; // Ensures text appears above the background
+}
+
+.payment-button-container {
+  margin: 20px;
+  padding: 10px;
+  border-radius: 8px;
+  background-color: #f8f8f8;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+ion-button {
+  --border-radius: 8px;
+  margin: 10px 0;
+  font-weight: 500;
+}
+
+// Styling for the payments section
+.payments-section {
+  margin-top: 24px;
+  padding-bottom: 24px;
+  
+  .section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    padding: 0 16px;
+    
+    h1 {
+      margin: 0;
+    }
+  }
+}
+
+// Styling for session cards
+.session-card {
+  margin-bottom: 12px;
+  cursor: pointer;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+// Styling for payment cards
+.payment-card {
+  margin-bottom: 12px;
+  cursor: pointer;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  
+  ion-card-content {
+    padding: 0;
+  }
+}

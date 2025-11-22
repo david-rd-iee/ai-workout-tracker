@@ -1,0 +1,57 @@
+<div class="list-sessions-container">  
+  <!-- Loading notes state -->
+  <div *ngIf="isLoading">
+    <div class="session-card loading">
+      <ion-avatar>
+        <ion-skeleton-text [animated]="true"></ion-skeleton-text>
+      </ion-avatar>
+      <div class="session-info">
+        <ion-skeleton-text [animated]="true" style="width: 40%"></ion-skeleton-text>
+        <ion-skeleton-text [animated]="true" style="width: 60%"></ion-skeleton-text>
+        <ion-skeleton-text [animated]="true" style="width: 30%"></ion-skeleton-text>
+      </div>
+      <div class="session-chips">
+        <div class="chip date-chip"><ion-skeleton-text [animated]="true" style="width: 100%"></ion-skeleton-text></div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- No notes found -->
+  <div *ngIf="!isLoading && (noNotesFound || processedNotes.length === 0)" class="no-notes">
+    <p>You don't have any session notes for the upcoming week.</p>
+  </div>
+  
+  <!-- Notes list -->
+  <div *ngIf="!isLoading && !noNotesFound && processedNotes.length > 0" class="sessions-list">
+    <div *ngFor="let note of processedNotes; let i = index" 
+         (click)="viewNoteDetails(note)" 
+         class="session-card"
+         [ngClass]="'color-' + (i % 4 + 1)">
+      
+      <!-- Profile image -->
+      <ion-avatar *ngIf="note.otherPartyImage">
+        <img [src]="note.otherPartyImage" [alt]="note.otherPartyName || 'Profile'">
+      </ion-avatar>
+      <ion-avatar *ngIf="!note.otherPartyImage" class="no-image">
+        <ion-icon name="person-outline"></ion-icon>
+      </ion-avatar>
+      
+      <!-- Note info -->
+      <div class="session-info">
+        <div class="name">{{ note.otherPartyName || (userType === 'client' ? 'Your Trainer' : 'Your Client') }}</div>
+        <div class="workout-name">
+          {{ note.name }}
+        </div>
+      </div>
+      
+      <!-- Note chips -->
+      <div class="session-chips">
+        <div class="chip date-chip">
+          <!-- Display the date directly using the dateObj property -->
+          <div>{{ note.dateObj | date: 'EEE' }}</div>
+          <div>{{ note.dateObj | date: 'd MMM' }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

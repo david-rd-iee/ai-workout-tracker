@@ -1,0 +1,142 @@
+.no-sessions,
+.no-notes {
+  background: #f5f5f5;
+  border-radius: 12px;
+  padding: 24px;
+  text-align: center;
+  font-size: 16px;
+  color: #666;
+}
+
+.sessions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.session-card {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  padding: 16px;
+  border-radius: 16px;
+  gap: 16px;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+  }
+
+  &.loading {
+    background: #f5f5f5;
+    min-height: 120px;
+  }
+
+  // Alternating colors
+  &.color-1 {
+    background-color: #FCDCDE;
+  }
+
+  &.color-2 {
+    background-color: #FCF2D5;
+  }
+
+  &.color-3 {
+    background-color: #D8EFFF;
+  }
+
+  &.color-4 {
+    background-color: #FFE8DA;
+  }
+
+  ion-avatar {
+    width: 60px;
+    height: 60px;
+    border: 2px solid white;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+
+    &.no-image {
+      background: #e0e0e0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      ion-icon {
+        font-size: 32px;
+        color: #999;
+      }
+    }
+  }
+
+  .session-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+
+    .name {
+      font-size: 18px;
+      font-weight: 600;
+      color: #333;
+    }
+
+    .workout-name {
+      font-size: 16px;
+      font-weight: 500;
+      color: #555;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      
+      .note-badge {
+        font-size: 11px;
+        font-weight: normal;
+        padding: 3px 6px;
+        border-radius: 4px;
+        background-color: #4285F4;
+        color: white;
+        margin-left: 4px;
+      }
+    }
+
+    .location {
+      font-size: 14px;
+      color: #777;
+    }
+  }
+
+  .session-chips {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+
+    .chip {
+      background: white;
+      border-radius: 12px;
+      padding: 8px 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+      min-width: 100px;
+      text-align: center;
+
+      &.date-chip {
+        background: #4285F4;
+        color: white;
+        font-weight: 500;
+
+        div:first-child {
+          font-size: 14px;
+          text-transform: uppercase;
+        }
+
+        div:last-child {
+          font-size: 16px;
+        }
+      }
+    }
+  }
+}

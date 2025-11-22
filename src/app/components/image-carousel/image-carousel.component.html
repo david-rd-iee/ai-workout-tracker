@@ -1,0 +1,42 @@
+<div class="carousel-container">
+  <!-- Title and description (optional) -->
+  <div class="carousel-header" *ngIf="title || description">
+    <h4 *ngIf="title">{{ title }}</h4>
+    <p *ngIf="description" class="carousel-description">{{ description }}</p>
+  </div>
+
+  <!-- Hidden file input for web -->
+  <input 
+    type="file" 
+    [id]="fileInputId" 
+    accept="image/*" 
+    (change)="selectImage($event)" 
+    style="display: none;">
+
+  <!-- Carousel scroll area -->
+  <div class="carousel-scroll">
+    <!-- Image items -->
+    <div class="carousel-item" *ngFor="let image of images">
+      <div class="image-wrapper">
+        <img [src]="image.url" alt="Before/After photo">
+        <ion-button 
+          class="remove-button" 
+          fill="clear" 
+          size="small"
+          (click)="removeImage(image.id)">
+          <ion-icon name="close" slot="icon-only"></ion-icon>
+        </ion-button>
+      </div>
+    </div>
+
+    <!-- Add button -->
+    <div class="carousel-item add-item" *ngIf="canAddMore()">
+      <ion-button 
+        class="add-button" 
+        fill="clear" 
+        (click)="addImage()">
+        <ion-icon name="add" slot="icon-only"></ion-icon>
+      </ion-button>
+    </div>
+  </div>
+</div>

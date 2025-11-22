@@ -1,0 +1,7 @@
+{
+  "name": "ai-health-assistant",
+  "integrations": {
+    "capacitor": {}
+  },
+  "type": "angular-standalone"
+}

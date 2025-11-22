@@ -1,0 +1,32 @@
+<ion-header>
+</ion-header>
+
+<ion-content class="ion-padding ion-safe-area">
+  <div class="logo">
+    <img src="assets/icons/atlas.svg" alt="Atlas Logo" width="100">
+  </div>
+  <h1>ATLAS</h1>
+  <form (ngSubmit)="onLoginSubmit()">
+    <ion-item lines="none">
+      <ion-input label="Email" label-placement="floating" type="email" [(ngModel)]="email" name="email" placeholder="EMAIL" required></ion-input>
+    </ion-item>
+    <ion-item lines="none">
+      <ion-input label="Password" label-placement="floating" type="password" [(ngModel)]="password" name="password" placeholder="PASSWORD" required></ion-input>
+    </ion-item>
+    <ion-button expand="block" color="primary" type="submit">Login</ion-button>
+  </form>
+  <!-- <ion-button expand="block" color="primary" type="submit" (click)="onLoginSubmit()">Login</ion-button> -->
+
+  <!-- <ion-button expand="block" fill="outline" (click)="loginWithGoogle()">
+    Login with Google
+  </ion-button> -->
+  
+  <ion-button *ngIf="isIOS" expand="block" fill="outline" (click)="loginWithApple()" class="apple-button">
+    <ion-icon name="logo-apple" slot="start"></ion-icon>
+    Sign in with Apple
+  </ion-button>
+  
+  <p class="sign-up">
+    <a routerLink="/sign-up">Sign Up</a> 
+  </p>
+</ion-content>

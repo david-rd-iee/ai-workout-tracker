@@ -1,0 +1,13 @@
+specVersion: "v1"
+serviceId: "atlas-webapp"
+location: "us-west4"
+schema:
+  source: "./schema"
+  datasource:
+    postgresql:
+      database: "fdcdb-1"
+      cloudSql:
+        instanceId: "atlas-webapp-fdc"
+        # schemaValidation: "STRICT"     # STRICT mode makes Postgres schema match Data Connect exactly.
+        # schemaValidation: "COMPATIBLE" # COMPATIBLE mode makes Postgres schema compatible with Data Connect.
+connectorDirs: ["./example"]

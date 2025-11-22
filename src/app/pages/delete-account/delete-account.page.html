@@ -1,0 +1,62 @@
+<ion-header [translucent]="true">
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-back-button defaultHref="/app/tabs/account"></ion-back-button>
+    </ion-buttons>
+    <ion-title>Delete Account</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true" class="ion-padding">
+  <div class="delete-account-container">
+    <ion-card>
+      <ion-card-header>
+        <ion-card-title color="danger">Warning: Account Deletion</ion-card-title>
+      </ion-card-header>
+      <ion-card-content>
+        <p>Deleting your account is permanent and cannot be undone. All your data will be permanently removed from our systems, including:</p>
+        
+        <ion-list lines="none">
+          <ion-item>
+            <ion-icon name="person-outline" slot="start" color="danger"></ion-icon>
+            <ion-label>Profile information</ion-label>
+          </ion-item>
+          <ion-item>
+            <ion-icon name="chatbubble-outline" slot="start" color="danger"></ion-icon>
+            <ion-label>Messages and chat history</ion-label>
+          </ion-item>
+          <ion-item>
+            <ion-icon name="document-text-outline" slot="start" color="primary"></ion-icon>
+            <ion-label>Agreements and contracts will be preserved for record-keeping</ion-label>
+          </ion-item>
+          <ion-item>
+            <ion-icon name="calendar-outline" slot="start" color="danger"></ion-icon>
+            <ion-label>Session bookings and history</ion-label>
+          </ion-item>
+          <ion-item *ngIf="isTrainer">
+            <ion-icon name="card-outline" slot="start" color="danger"></ion-icon>
+            <ion-label>Payment and Stripe account information</ion-label>
+          </ion-item>
+        </ion-list>
+      </ion-card-content>
+    </ion-card>
+
+    <div class="confirmation-section">
+
+      
+      <ion-button expand="block" color="danger" (click)="confirmDelete()" class="ion-margin-top">
+        Delete My Account Permanently
+      </ion-button>
+      
+      <ion-button expand="block" fill="outline" routerLink="/app/tabs/account" class="ion-margin-top">
+        Cancel
+      </ion-button>
+    </div>
+  </div>
+  
+  <!-- Loading indicator -->
+  <div class="loading-container" *ngIf="isLoading">
+    <ion-spinner></ion-spinner>
+    <p>Processing your request...</p>
+  </div>
+</ion-content>

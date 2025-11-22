@@ -1,0 +1,44 @@
+<div class="availability-container">
+  <div class="day-row" *ngFor="let dayAvailability of availability">
+    <div class="day-header">
+      <div class="day-checkbox">
+        <ion-checkbox [checked]="dayAvailability.available" (ionChange)="toggleAvailability(dayAvailability)"></ion-checkbox>
+        <span class="day-name">{{ dayAvailability.day }}</span>
+      </div>
+      
+      <ng-container *ngIf="dayAvailability.available">
+        <ion-button fill="clear" class="add-button" (click)="addTimeWindow(dayAvailability)">
+          <ion-icon name="add-circle-outline"></ion-icon>
+          Add Time
+        </ion-button>
+      </ng-container>
+    </div>
+    
+    <ng-container *ngIf="dayAvailability.available; else unavailable">
+      <div class="time-windows-container">
+        <ion-row class="time-window-row" *ngFor="let timeWindow of dayAvailability.timeWindows; let i = index">
+          <div class="time-inputs">
+            <div class="ios-time-display">
+              <ion-button fill="clear" class="time-select-button" (click)="openStartTimeModal(null, dayAvailability, i)">
+                {{ formatDisplayTime(timeWindow.startTime) }}
+              </ion-button>
+              <span class="time-separator">—</span>
+              <ion-button fill="clear" class="time-select-button" (click)="openEndTimeModal(null, dayAvailability, i)">
+                {{ formatDisplayTime(timeWindow.endTime) }}
+              </ion-button>
+            </div>
+            <ion-button fill="clear" class="clear-button" (click)="removeTimeWindow(dayAvailability, i)" *ngIf="dayAvailability.timeWindows.length > 1">
+              <ion-icon name="close-circle-outline"></ion-icon>
+            </ion-button>
+          </div>
+        </ion-row>
+      </div>
+    </ng-container>
+    
+    <ng-template #unavailable>
+      <div class="unavailable-text">
+        Unavailable
+      </div>
+    </ng-template>
+  </div>
+</div>

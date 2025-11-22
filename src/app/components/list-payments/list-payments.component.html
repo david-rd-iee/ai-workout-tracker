@@ -1,0 +1,63 @@
+<div class="list-payments-container">  
+  <!-- Loading payments state -->
+  <div *ngIf="isLoading">
+    <div class="payment-card loading">
+      <ion-avatar>
+        <ion-skeleton-text [animated]="true"></ion-skeleton-text>
+      </ion-avatar>
+      <div class="payment-info">
+        <ion-skeleton-text [animated]="true" style="width: 40%"></ion-skeleton-text>
+        <ion-skeleton-text [animated]="true" style="width: 60%"></ion-skeleton-text>
+        <ion-skeleton-text [animated]="true" style="width: 30%"></ion-skeleton-text>
+      </div>
+      <div class="payment-chips">
+        <div class="chip amount-chip"><ion-skeleton-text [animated]="true" style="width: 100%"></ion-skeleton-text></div>
+        <div class="chip date-chip"><ion-skeleton-text [animated]="true" style="width: 100%"></ion-skeleton-text></div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- No payments found -->
+  <div *ngIf="!isLoading && noPaymentsFound" class="no-payments">
+    <p>You don't have any recent payments.</p>
+  </div>
+  
+  <!-- Payments list -->
+  <div *ngIf="!isLoading && !noPaymentsFound && processedPayments.length > 0" class="payments-list">
+    <div *ngFor="let payment of processedPayments; let i = index" 
+         (click)="viewPaymentDetails(payment)" 
+         class="payment-card"
+         [ngClass]="'color-' + (i % 4 + 1)">
+      
+      <!-- Profile image -->
+      <ion-avatar *ngIf="payment.otherPartyImage">
+        <img [src]="payment.otherPartyImage" [alt]="payment.otherPartyName || 'Profile'">
+      </ion-avatar>
+      <ion-avatar *ngIf="!payment.otherPartyImage" class="no-image">
+        <ion-icon name="person-outline"></ion-icon>
+      </ion-avatar>
+      
+      <!-- Payment info -->
+      <div class="payment-info">
+        <div class="name">{{ payment.otherPartyName || (userType === 'client' ? 'Your Trainer' : 'Your Client') }}</div>
+        <div class="agreement-id" *ngIf="payment.agreementId">Agreement: {{ getShortenedAgreementId(payment.agreementId) }}</div>
+        <div class="status" [ngClass]="payment.status">
+          <ion-badge color="success" *ngIf="payment.status === 'completed'">Completed</ion-badge>
+          <ion-badge color="warning" *ngIf="payment.status === 'pending'">Pending</ion-badge>
+          <ion-badge color="danger" *ngIf="payment.status === 'failed'">Failed</ion-badge>
+        </div>
+      </div>
+      
+      <!-- Payment chips -->
+      <div class="payment-chips">
+        <div class="chip amount-chip">
+          <div>{{ formatAmount(payment.amount) }}</div>
+        </div>
+        <div class="chip date-chip">
+          <div>{{ payment.paymentDate | date: 'EEE' }}</div>
+          <div>{{ payment.paymentDate | date: 'd MMM' }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,37 @@
+<app-header></app-header>
+
+<ion-content [fullscreen]="true">
+  <div class="client-info" *ngIf="!isLoading()">
+    <ion-grid>
+      <ion-row>
+        <ion-col size="6" class="image-container">
+          <app-image-uploader [currentImageUrl]="clientInfo.profileImage" (imageSelected)="onImageSelected($event)">
+          </app-image-uploader>
+        </ion-col>
+        <ion-col size="6" style="text-align: left;">
+          <ion-row class="short" size="1">
+            <h1>{{clientInfo.firstName | titlecase}} {{clientInfo.lastName | titlecase}}</h1>
+          </ion-row>
+        </ion-col>
+      </ion-row>
+    </ion-grid>
+
+    <ion-card>
+      <ion-list lines="full">
+        <ion-item button [routerLink]="[ROUTE_PATHS.APP.TABS.ACCOUNT_CLIENT]">
+          <ion-icon slot="start" name="settings-outline"></ion-icon>
+          <ion-label>
+            <h3>Account Settings</h3>
+          </ion-label>
+        </ion-item>
+      </ion-list>
+    </ion-card>
+
+    <ion-button expand="block" (click)="saveChanges()" class="save-button">
+      Save Profile Photo
+    </ion-button>
+    
+
+  </div>
+  
+</ion-content>

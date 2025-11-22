@@ -1,0 +1,20 @@
+.blue-circle-gradient {
+  position: absolute;
+  top: -200px;
+  left: -200px;
+  width: 600px;
+  height: 600px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(41, 121, 255, 1) 0%, var(--ion-color-light, #f4f5f8) 40%);
+  z-index: -10;
+  opacity: 0.9;
+  pointer-events: none;
+}
+
+:host {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: -10;
+  pointer-events: none;
+}

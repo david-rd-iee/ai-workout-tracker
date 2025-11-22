@@ -1,0 +1,147 @@
+.availability-container {
+  padding: 10px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+
+  .day-row {
+    display: flex;
+    flex-direction: column;
+    padding: 10px 0;
+    border-bottom: 1px solid #e0e0e0;
+    
+    &:last-child {
+      border-bottom: none;
+    }
+
+    .day-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+
+      .day-checkbox {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+
+        .day-name {
+          font-weight: 500;
+          color: #555;
+        }
+      }
+
+      .add-button {
+        font-size: 14px;
+        --padding-start: 8px;
+        --padding-end: 8px;
+      }
+    }
+
+    .time-windows-container {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-left: 30px; // Indent time windows under the day
+    }
+
+    .time-window-row {
+      width: 100%;
+    }
+
+    .time-inputs {
+      display: flex;
+      align-items: center;
+      width: 100%;
+      gap: 5px;
+      
+      .ios-time-display {
+        display: flex;
+        align-items: center;
+        background-color: #f2f2f7; // iOS light gray background
+        border-radius: 8px;
+        padding: 0;
+        margin-right: 8px;
+        overflow: hidden;
+        flex-grow: 1; // Allow time display to take up available space
+        
+        ion-datetime-button {
+          margin: 0;
+          --background: transparent;
+          --color: var(--ion-color-primary);
+          font-size: 15px;
+          font-weight: 400;
+          min-width: 80px;
+          
+          &::part(native) {
+            padding: 8px 12px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+          }
+          
+          &::part(date-time-text) {
+            font-size: 15px;
+            color: var(--ion-color-primary);
+          }
+        }
+        
+        .time-separator {
+          margin: 0 4px;
+          font-weight: 300;
+          color: var(--ion-color-primary);
+        }
+      }
+
+      // Keep this for backward compatibility
+      .ios-time-button {
+        --background: transparent;
+        --color: var(--ion-color-primary);
+        --border-radius: 0;
+        --border-style: none;
+        --box-shadow: none;
+        --padding-start: 12px;
+        --padding-end: 12px;
+        --padding-top: 8px;
+        --padding-bottom: 8px;
+        margin: 0;
+        height: 36px;
+        
+        &::part(native) {
+          font-weight: 400;
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+          text-transform: none;
+        }
+        
+        .time-text {
+          font-size: 15px;
+          color: var(--ion-color-primary);
+        }
+      }
+      
+      .time-display-button {
+        --color: var(--ion-color-dark);
+        --border-radius: 4px;
+        --padding-start: 12px;
+        --padding-end: 12px;
+        max-width: 110px;
+        min-width: 90px;
+        height: 36px;
+        font-size: 14px;
+        margin: 0;
+      }
+
+      // Time separator moved to ios-time-display
+
+      .clear-button {
+        --padding-start: 4px;
+        --padding-end: 4px;
+        height: 36px;
+        
+        ion-icon {
+          color: #999;
+          font-size: 18px;
+        }
+      }
+    }
+
+
+  }
+}

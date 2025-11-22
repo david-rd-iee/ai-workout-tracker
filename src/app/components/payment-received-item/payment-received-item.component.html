@@ -1,0 +1,35 @@
+<!-- Payment item -->
+<ion-item lines="none" class="payment-item">
+  <!-- Icon or avatar -->
+  <ion-icon slot="start" name="cash-outline" class="payment-icon" *ngIf="!transaction.clientProfileImage"></ion-icon>
+  <ion-avatar slot="start" *ngIf="transaction.clientProfileImage">
+    <img [src]="transaction.clientProfileImage" alt="Client">
+  </ion-avatar>
+  
+  <!-- Payment details -->
+  <ion-label>
+    <h2>{{ formatAmount(transaction.amount) }}</h2>
+    <p *ngIf="showClientName && transaction.clientName">
+      <ion-icon name="person-outline" size="small"></ion-icon>
+      {{ transaction.clientName }}
+    </p>
+    <p>
+      <ion-icon name="calendar-outline" size="small"></ion-icon>
+      {{ transaction.paymentDate | date: 'MMM d, y' }}
+    </p>
+    <p *ngIf="showAgreementId">
+      <ion-icon name="document-text-outline" size="small"></ion-icon>
+      Agreement: {{ getShortenedAgreementId(transaction.agreementId) }}
+    </p>
+    
+    <!-- Status badge -->
+    <ion-badge color="success" *ngIf="transaction.status === 'completed'">Completed</ion-badge>
+    <ion-badge color="warning" *ngIf="transaction.status === 'pending'">Pending</ion-badge>
+    <ion-badge color="danger" *ngIf="transaction.status === 'failed'">Failed</ion-badge>
+  </ion-label>
+  
+  <!-- Date as note -->
+  <ion-note slot="end" *ngIf="!transaction.status">
+    {{ transaction.paymentDate | date: 'shortTime' }}
+  </ion-note>
+</ion-item>

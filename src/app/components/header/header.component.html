@@ -1,0 +1,17 @@
+  <ion-header>
+    <ion-toolbar  class="title-container">
+        <!-- Always keep a button space on the left, even if no back button -->
+        <div class="button-space" *ngIf="!showBack"></div>
+        <ion-button (click)="goBack()" *ngIf="showBack" fill="clear" class="header-button left-button">
+          <ion-icon slot="icon-only" name="chevron-back-outline"></ion-icon>
+        </ion-button>
+        
+        <ion-title><h2>{{title}}</h2></ion-title>
+        
+        <!-- Always keep a button space on the right, even if no profile button -->
+        <div class="button-space" *ngIf="showBack"></div>
+        <ion-button (click)="goToProfile()" *ngIf="!showBack" class="header-button right-button" fill="clear">
+          <ion-icon slot="icon-only" name="person-circle-outline"></ion-icon>
+        </ion-button>
+    </ion-toolbar>
+  </ion-header>

@@ -1,0 +1,370 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+    
+    function isTrainer() {
+      return isSignedIn() && exists(/databases/$(database)/documents/trainers/$(request.auth.uid));
+    }
+    
+    function isClient() {
+      return isSignedIn() && exists(/databases/$(database)/documents/clients/$(request.auth.uid));
+    }
+    
+    function isAgreementParticipant(agreementData) {
+      return isSignedIn() && (request.auth.uid == agreementData.trainerId || request.auth.uid == agreementData.clientId);
+    }
+    
+    // User profiles - trainers collection
+    match /trainers/{userId} {
+      // Trainers can read, write and delete their own profiles
+      // Clients can only read trainer profiles
+      allow read: if isSignedIn();
+      allow write, delete: if isOwner(userId);
+      
+      // Allow updating unreadMessageCount for chat notifications
+      // Any authenticated user can increment another user's unread count
+      allow update: if isSignedIn() && 
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['unreadMessageCount']) &&
+        request.resource.data.unreadMessageCount is number &&
+        request.resource.data.unreadMessageCount >= 0;
+    }
+    
+    // User profiles - clients collection
+    match /clients/{userId} {
+      // Clients can read, write and delete their own profiles
+      // Trainers can only read client profiles
+      allow read: if isSignedIn();
+      allow write, delete: if isOwner(userId);
+      
+      // Allow profile linking operations
+      allow create: if isSignedIn() && (
+        // Regular user creating their own profile
+        isOwner(userId) ||
+        // Profile linking: creating new profile with Firebase UID as document ID
+        (request.resource.data.firebaseUid == request.auth.uid &&
+         request.resource.data.isPartialProfile == false)
+      );
+      
+      // Allow profile linking: deleting partial profiles during linking
+      allow delete: if isSignedIn() && (
+        // Regular users can delete their own profiles
+        isOwner(userId) ||
+        // Profile linking: deleting partial profile when moving to Firebase UID
+        (resource.data.isPartialProfile == true &&
+         resource.data.email == request.auth.token.email)
+      );
+      
+      allow update: if isSignedIn() && (
+        // Regular users can only update their own profiles
+        isOwner(userId) ||
+        // Allow updating unreadMessageCount for chat notifications
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['unreadMessageCount']) &&
+         request.resource.data.unreadMessageCount is number &&
+         request.resource.data.unreadMessageCount >= 0) ||
+        // Allow profile linking: updating partial profiles to add firebaseUid
+        (request.resource.data.diff(resource.data).affectedKeys().hasAny(['firebaseUid', 'isPartialProfile', 'linkedAt', 'updatedAt']) &&
+         request.resource.data.firebaseUid == request.auth.uid &&
+         request.resource.data.isPartialProfile == false)
+      );
+    }
+    
+    // Agreement templates
+    match /templates/{userId}/agreements/{templateId} {
+      // Only trainers can access their own templates
+      allow read, write: if isOwner(userId) && isTrainer();
+    }
+    
+    // Agreements
+    match /agreements/{agreementId} {
+      // Both trainer and client can read agreements they are part of
+      allow read: if isSignedIn() && isAgreementParticipant(resource.data);
+      
+      // Only the trainer can create agreements
+      allow create: if isTrainer() && request.resource.data.trainerId == request.auth.uid;
+      
+      // Update rules for agreements
+      allow update: if isSignedIn() && (
+        // Trainer can update any field of their agreements EXCEPT paymentStatus cannot be set to "completed"
+        (isTrainer() && 
+         resource.data.trainerId == request.auth.uid &&
+         // Prevent setting paymentStatus to "completed" (only Stripe/Flex webhook can do this)
+         (request.resource.data.paymentStatus != "completed" || resource.data.paymentStatus == "completed")) ||
+        
+        // Client can only update specific fields related to their signature and pending signature
+        (isClient() && 
+         resource.data.clientId == request.auth.uid && 
+         request.resource.data.diff(resource.data).affectedKeys()
+           .hasOnly(['signatures', 'clientSigned', 'status', 'date_updated', 'dateUpdated', 'signedPdfStoragePath', 'pendingClientSignature']))
+      );
+    }
+    
+    // Users collection for Stripe Connect accounts
+    match /users/{userId} {
+      // Users can read, write and delete their own documents
+      allow read, write, delete: if isOwner(userId);
+    }
+    
+    // Chats collection
+    match /chats/{chatId} {
+      // Allow read if user is a participant
+      allow read: if isSignedIn() && (resource.data.participants[0] == request.auth.uid || resource.data.participants[1] == request.auth.uid);
+      
+      // Allow create if user is authenticated and is one of the participants
+      allow create: if isSignedIn() && (request.resource.data.participants[0] == request.auth.uid || request.resource.data.participants[1] == request.auth.uid);
+      
+      // Allow update and delete if user is a participant
+      allow update, delete: if isSignedIn() && (resource.data.participants[0] == request.auth.uid || resource.data.participants[1] == request.auth.uid);
+      
+      // Messages subcollection
+      match /messages/{messageId} {
+        allow read: if isSignedIn() && (get(/databases/$(database)/documents/chats/$(chatId)).data.participants[0] == request.auth.uid || 
+                                        get(/databases/$(database)/documents/chats/$(chatId)).data.participants[1] == request.auth.uid);
+        
+        allow create: if isSignedIn() && 
+                        (get(/databases/$(database)/documents/chats/$(chatId)).data.participants[0] == request.auth.uid || 
+                         get(/databases/$(database)/documents/chats/$(chatId)).data.participants[1] == request.auth.uid) && 
+                        request.resource.data.senderId == request.auth.uid;
+      }
+    }
+    
+    // User chats collection - for quick access to a user's chats
+    match /userChats/{userId} {
+      allow read: if isOwner(userId);
+      allow write, delete: if isOwner(userId);
+    }
+    
+    // Bookings collection
+    match /bookings/{bookingId} {
+      allow read: if isSignedIn() && (resource.data.trainerId == request.auth.uid || resource.data.clientId == request.auth.uid);
+      allow create: if isSignedIn();
+      allow update, delete: if isSignedIn() && (resource.data.trainerId == request.auth.uid || resource.data.clientId == request.auth.uid);
+    }
+    
+    // Trainer availability - both collection names
+    match /trainerAvailability/{trainerId} {
+      allow read: if isSignedIn();
+      allow write, delete: if isOwner(trainerId);
+    }
+    
+    match /trainer_availability/{trainerId} {
+      allow read: if isSignedIn();
+      allow write, delete: if isOwner(trainerId);
+    }
+    
+    // Transactions collection
+    match /transactions/{transactionId} {
+      // Allow trainers to read transactions where they are the trainer
+      // Allow clients to read transactions where they are the client
+      allow read: if isSignedIn() && (
+        (isTrainer() && resource.data.trainerId == request.auth.uid) || 
+        (isClient() && resource.data.clientId == request.auth.uid)
+      );
+      
+      // Only allow creation through the Stripe webhook function
+      // This is handled by the Cloud Function with admin privileges
+      allow create: if false;
+    }
+    
+    // Trainer search collection
+    match /trainerAvailability/{trainerId} {
+      // Trainers can read and write their own availability
+      // Clients can read trainer availability
+      allow read: if isSignedIn();
+      allow write: if isOwner(trainerId) && isTrainer();
+      
+      // Availability subcollection
+      match /availability/{docId} {
+        allow read: if isSignedIn();
+        allow write: if isOwner(trainerId) && isTrainer();
+      }
+      
+      // Bookings subcollection
+      match /bookings/{docId} {
+        allow read: if isSignedIn();
+        allow create, update: if isSignedIn(); // Allow both trainers and clients to create/update bookings
+      }
+    }
+    
+    // Legacy trainer availability collection (for backward compatibility)
+    match /trainerAvailability/{availabilityId} {
+      // Extract the trainerId from the composite ID (trainerId_date format)
+      function getTrainerIdFromAvailabilityId() {
+        return availabilityId.split('_')[0];
+      }
+      
+      // Trainers can read and write their own availability
+      // Clients can read trainer availability
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && (
+        // Trainer can update their own availability
+        request.auth.uid == getTrainerIdFromAvailabilityId() ||
+        // Allow booking updates by clients (including bookedSessions array)
+        (isClient() && request.resource.data.diff(resource.data).affectedKeys().hasAny(['timeSlots', 'updatedAt', 'bookedSessions']))
+      );
+      
+      // Allow creating trainer availability documents if they don't exist yet
+      allow create: if isSignedIn();
+    }
+    
+    // Bookings collection
+    match /bookings/{bookingId} {
+      // Both trainer and client can read bookings they are part of
+      allow read: if isSignedIn() && (resource.data.trainerId == request.auth.uid || resource.data.clientId == request.auth.uid);
+      
+      // Clients can create bookings
+      allow create: if isSignedIn() && request.resource.data.clientId == request.auth.uid;
+      
+      // Both trainer and client can update bookings they are part of
+      allow update: if isSignedIn() && (resource.data.trainerId == request.auth.uid || resource.data.clientId == request.auth.uid);
+    }
+    
+    // Agreement options collection - for service and policy options
+    match /agreementOptions/{optionId} {
+      // Allow any authenticated user to read options
+      allow read: if isSignedIn();
+      
+      // For now, allow write access for initialization
+      // TODO: Restrict this to admin users after initialization
+      // allow write, create, update, delete: if true;
+    }
+    
+    // Notes collection
+    match /notes/{noteId} {
+      // Trainers can create, read, update, and delete notes
+      // For clients, we'll filter visibility on the client side
+      
+      // Allow trainers to create notes
+      allow create: if isSignedIn() && isTrainer();
+      
+      // Allow any authenticated user to read notes
+      // We'll handle filtering for client visibility on the client side
+      allow read: if isSignedIn();
+      
+      // Only trainers who created the note can update or delete it
+      allow update, delete: if isSignedIn() && isTrainer() && resource != null && resource.data.trainerId == request.auth.uid;
+    }
+    
+    // Note files collection
+    match /noteFiles/{fileId} {
+      // Trainers can create files for their notes
+      allow create: if isSignedIn() && isTrainer();
+      
+      // For read operations - allow any signed in user to read note files
+      // We'll filter on the client side
+      allow read: if isSignedIn();
+      
+      // Only the uploader (trainer) can delete files
+      allow delete: if isSignedIn() && isTrainer() && resource != null && resource.data.uploadedBy == request.auth.uid;
+    }
+    
+    // Session Notes collection
+    match /sessionNotes/{noteId} {
+      // Allow any signed-in user to create session notes
+      allow create: if isSignedIn();
+      
+      // Allow read access to any signed-in user
+      // This is permissive but we'll filter on the client side as needed
+      allow read: if isSignedIn();
+      
+      // Only allow update/delete if the user is the trainer or client associated with the note
+      allow update, delete: if isSignedIn() && (
+        resource.data.trainerId == request.auth.uid || 
+        resource.data.clientId == request.auth.uid
+      );
+    }
+    
+    // Session Note Attachments collection
+    match /sessionNoteAttachments/{attachmentId} {
+      // Allow any signed-in user to create attachments
+      allow create: if isSignedIn();
+      
+      // Allow read access to any signed-in user
+      // This is permissive but we'll filter on the client side as needed
+      allow read: if isSignedIn();
+      
+      // Only allow deletion if the user is the uploader OR
+      // if they are the trainer or client associated with the parent note
+      allow delete: if isSignedIn() && (
+        // User is the one who uploaded the attachment
+        resource.data.uploadedBy == request.auth.uid ||
+        // Or user is associated with the parent note
+        (exists(/databases/$(database)/documents/sessionNotes/$(resource.data.noteId)) && (
+          get(/databases/$(database)/documents/sessionNotes/$(resource.data.noteId)).data.trainerId == request.auth.uid || 
+          get(/databases/$(database)/documents/sessionNotes/$(resource.data.noteId)).data.clientId == request.auth.uid
+        ))
+      );
+    }
+    
+    // Session Reschedule Requests collection
+    match /sessionReschedules/{rescheduleId} {
+      // Allow both trainers and clients to create reschedule requests
+      allow create: if isSignedIn();
+      
+      // Allow read access to trainers and clients who are participants in the reschedule request
+      allow read: if isSignedIn() && (
+        resource.data.trainerId == request.auth.uid || 
+        resource.data.clientId == request.auth.uid
+      );
+      
+      // Allow updates by participants (for accepting/rejecting reschedule requests)
+      allow update: if isSignedIn() && (
+        resource.data.trainerId == request.auth.uid || 
+        resource.data.clientId == request.auth.uid
+      );
+      
+      // Allow deletion by the user who created the request
+      allow delete: if isSignedIn() && (
+        resource.data.requestedBy == request.auth.uid
+      );
+    }
+    
+    // Quiz submissions collection (for analytics)
+    match /quiz_submissions/{submissionId} {
+      // Allow Firebase Functions to write quiz submissions
+      // Allow authenticated users to update submissions for profile linking
+      allow read: if false; // No user read access needed
+      allow create: if false; // Only Cloud Functions can create
+      allow update: if isSignedIn() && 
+        request.resource.data.diff(resource.data).affectedKeys().hasAny(['firebaseUid', 'linkedAt']) &&
+        request.resource.data.firebaseUid == request.auth.uid;
+    }
+    
+    // Matching quiz submissions collection (for AI trainer matching analytics)
+    match /matching_quiz_submissions/{submissionId} {
+      // Allow Firebase Functions to write matching quiz submissions
+      // Allow authenticated users to update submissions for profile linking
+      allow read: if false; // No user read access needed
+      allow create: if false; // Only Cloud Functions can create
+    }
+    
+    // Profile views collection (for analytics)
+    match /profile_views/{trainerId} {
+      // Only Firebase Functions (with admin privileges) can write
+      // Trainers can read their own view counts
+      allow read: if isOwner(trainerId);
+      allow write: if false; // Only Cloud Functions with admin privileges can write
+    }
+    
+    // App version configuration
+    match /version/{versionId} {
+      // Allow all authenticated users to read the version document
+      allow read: if true;
+      // Only admins can write (handled through Firebase Console)
+      allow write: if false;
+    }
+    
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

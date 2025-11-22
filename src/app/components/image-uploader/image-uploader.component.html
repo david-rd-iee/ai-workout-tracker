@@ -1,0 +1,23 @@
+<div class="image-container" (click)="triggerFileInput()">
+  <!-- Hidden file input for web browsers -->
+  <input 
+    type="file" 
+    id="fileInput" 
+    accept="image/*" 
+    (change)="selectImage($event)" 
+    [hidden]="true">
+  
+  <div class="image-preview">
+    <img [src]="previewUrl || currentImageUrl" *ngIf="previewUrl || currentImageUrl">
+    <div class="upload-placeholder" *ngIf="!previewUrl && !currentImageUrl">
+      <ion-icon name="camera" *ngIf="isCapacitor"></ion-icon>
+      <ion-icon name="image" *ngIf="!isCapacitor"></ion-icon>
+      <p *ngIf="isCapacitor">Tap to take a photo</p>
+      <p *ngIf="!isCapacitor">Tap to upload image</p>
+    </div>
+  </div>
+
+  <div class="upload-overlay">
+    <ion-icon name="cloud-upload"></ion-icon>
+  </div>
+</div>

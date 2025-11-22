@@ -1,0 +1,9 @@
+<div class="tooltip-container">
+  <div class="tooltip-content">
+    <ion-icon *ngIf="showIcon" name="chatbubble-ellipses-outline" class="tooltip-icon"></ion-icon>
+    <p class="tooltip-text">{{ text }}</p>
+  </div>
+  <ion-button fill="clear" class="close-button" (click)="onClose()">
+    <ion-icon slot="icon-only" name="close-outline"></ion-icon>
+  </ion-button>
+</div>
