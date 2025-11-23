@@ -1,0 +1,195 @@
+// Main container styles
+ion-content {
+  --background: #ffffff;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+}
+
+// Header styles
+ion-header ion-title {
+  font-weight: bold;
+  font-size: 24px;
+}
+
+// Program title and options
+.program-title {
+  font-size: 24px;
+  font-weight: bold;
+  margin-top: 20px;
+  margin-bottom: 20px;
+}
+
+.program-options {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 30px;
+}
+
+.program-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.program-label {
+  font-size: 16px;
+}
+
+ion-checkbox {
+  --size: 24px;
+  --checkbox-background-checked: #0040ff;
+  --border-color-checked: #0040ff;
+}
+
+// Availability section
+.availability-title {
+  font-size: 24px;
+  font-weight: bold;
+  margin-top: 30px;
+  margin-bottom: 20px;
+}
+
+// DateTime container
+.datetime-container {
+  margin-bottom: 30px;
+  display: flex;
+  justify-content: center;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+// Ionic datetime custom styles
+.ion-datetime-calendar {
+  width: 100%;
+  border-radius: 12px;
+  --background: #ffffff;
+  --background-rgb: 255, 255, 255;
+  
+  // Calendar day styling
+  --ion-color-primary: #0040ff;
+  --ion-color-primary-contrast: #ffffff;
+  
+  // Date wheel styling
+  --ion-color-step-650: #333333;
+  
+  // Button styling
+  --ion-color-primary-shade: #0039e6;
+  --ion-color-light: #f4f5f8;
+  
+  // Typography
+  --ion-font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans';
+
+  // Calendar day styling
+  --calendar-day-size: 36px;
+  --calendar-day-margin: 3px;
+}
+
+// Time slots
+.time-slots-container {
+  margin-top: 20px;
+  margin-bottom: 30px;
+  padding: 15px;
+  background-color: #f9f9f9;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.time-slots-container h3 {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 15px;
+  color: #333;
+}
+
+.debug-info {
+  font-size: 14px;
+  color: #666;
+  margin-bottom: 15px;
+  padding: 5px 10px;
+  background-color: #f0f0f0;
+  border-radius: 4px;
+  display: inline-block;
+}
+
+.time-slots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.no-slots-message {
+  padding: 15px;
+  background-color: #fff8e1;
+  border-radius: 8px;
+  border-left: 4px solid #ffc107;
+  margin-top: 10px;
+}
+
+.no-slots-message p {
+  margin: 0;
+  color: #856404;
+  font-size: 14px;
+}
+
+.time-slot-button {
+  --border-radius: 8px;
+  --padding-start: 12px;
+  --padding-end: 12px;
+  --padding-start: 20px;
+  --padding-end: 20px;
+  font-size: 16px;
+}
+
+// Buttons
+.proceed-button, .book-now-button, .select-time-button {
+  --background: #0040ff;
+  --color: white;
+  --border-radius: 30px;
+  font-size: 18px;
+  font-weight: 500;
+  margin: 30px 0;
+  height: 50px;
+  text-transform: none;
+}
+
+.select-time-button {
+  --background: #dddddd;
+  --color: #777777;
+}
+
+// Trainer info box
+.trainer-info-box {
+  background-color: var(--ion-color-light);
+  border-radius: 12px;
+  padding: 16px;
+  margin: 16px 0;
+  border-left: 4px solid var(--ion-color-primary);
+  
+  h3 {
+    margin: 0 0 8px 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--ion-color-dark);
+  }
+  
+  p {
+    margin: 0;
+    font-size: 14px;
+    color: var(--ion-color-medium);
+    line-height: 1.4;
+  }
+}
+
+// Done button for trainer view
+.done-button {
+  --background: var(--ion-color-success);
+  --color: white;
+  --border-radius: 30px;
+  font-size: 18px;
+  font-weight: 500;
+  margin: 30px 0;
+  height: 50px;
+  text-transform: none;
+}

@@ -1,0 +1,55 @@
+<app-header title="Agreements" [showBack]="true"></app-header>
+
+<ion-content class="ion-padding">
+  <!-- Loading indicator -->
+  <div *ngIf="isLoading" class="loading-container ion-text-center">
+    <ion-spinner></ion-spinner>
+    <p>Loading templates...</p>
+  </div>
+
+  <!-- Empty state -->
+  <div *ngIf="!isLoading && templates.length === 0" class="empty-state ion-text-center ion-padding">
+    <ion-icon name="document" size="large"></ion-icon>
+    <h2>No Agreement Templates</h2>
+    <p>Create your first agreement template to get started</p>
+    <ion-button expand="block" (click)="openCreator()">
+      Create New Agreement
+    </ion-button>
+  </div>
+
+  <!-- Templates list with swipe to delete -->
+  <ion-list *ngIf="!isLoading && templates.length > 0">
+    <ion-item-sliding *ngFor="let template of templates">
+      <ion-item (click)="viewTemplate(template.id)">
+        <ion-icon name="document-outline" slot="start"></ion-icon>
+        <ion-label>
+          <h2>{{ template.name }}</h2>
+          <p>Updated: {{ template.date_updated | date: 'medium' }}</p>
+        </ion-label>
+      </ion-item>
+
+      <ion-item-options side="end">
+        <ion-item-option color="danger" (click)="deleteTemplate(template.id)">
+          <ion-icon slot="icon-only" name="trash"></ion-icon>
+        </ion-item-option>
+      </ion-item-options>
+    </ion-item-sliding>
+  </ion-list>
+
+  <!-- FAB button to create new agreement -->
+  <ion-fab vertical="bottom" horizontal="end" slot="fixed" *ngIf="!isLoading && templates.length > 0">
+    <ion-fab-button (click)="openCreator()">
+      <ion-icon name="add"></ion-icon>
+    </ion-fab-button>
+  </ion-fab>
+
+  <!-- Modal for creating new agreement -->
+  <ion-modal [isOpen]="isModalOpen" (didDismiss)="closeModal()">
+    <ng-template>
+      
+      <ion-content>
+        <app-service-agreement-creator ></app-service-agreement-creator>
+      </ion-content>
+    </ng-template>
+  </ion-modal>
+</ion-content>

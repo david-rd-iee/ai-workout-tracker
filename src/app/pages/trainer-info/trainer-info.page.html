@@ -1,0 +1,79 @@
+<app-header [showBack]="true" [backHref]="ROUTE_PATHS.APP.TABS.TRAINERS"></app-header>
+
+<ion-content [fullscreen]="true" class="ion-padding">
+  <div class="background-gradient"></div>
+  <div *ngIf="isLoading()" class="loading-container">
+    <ion-spinner name="circular"></ion-spinner>
+  </div>
+
+  <div class="trainer-info-container ion-padding" *ngIf="!isLoading()">
+    <!-- Profile Header -->
+    <div class="white-card">
+    <div class="profile-header">
+      <div class="profile-image-container">
+        <img [src]="trainerInfo.trainerImage" alt="Trainer profile image" class="profile-image">
+      </div>
+      <div class="trainer-info">
+        <h1 class="trainer-name">{{trainerInfo.name | titlecase}}
+          <ion-icon name="checkmark-circle" class="verified-icon"></ion-icon>
+        </h1>
+        <div class="short-description-card" *ngIf="trainerInfo.specialization && trainerInfo.specialization.length > 0">
+          <p class="trainer-specialty">{{getTruncatedSpecialization()}}</p>
+          <div class="expand-toggle" *ngIf="trainerInfo.specialization && trainerInfo.specialization.length > specializationCharLimit" (click)="toggleSpecialization()">
+            <span>{{ isSpecializationExpanded() ? 'Show less' : '' }}</span>
+            <ion-icon [name]="isSpecializationExpanded() ? 'chevron-up-outline' : 'chevron-down-outline'"></ion-icon>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Certification Section -->
+    <div class="certification-section">
+      <h2>Certification</h2>
+      <div class="certification-badges">
+        <div class="certification-badge" *ngIf="trainerInfo.education">
+          <ion-icon name="school-outline"></ion-icon>
+          <span>{{trainerInfo.education}}</span>
+        </div>
+        <div class="certification-badge" *ngIf="!trainerInfo.education">
+          <ion-icon name="information-outline"></ion-icon>
+          <span>No certifications listed</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Training Preferences -->
+      <div class="training-preferences-section">
+        <ion-button class="preference-button" *ngIf="trainerInfo.isRemote" fill="outline" size="small">
+          <ion-icon name="globe-outline" slot="start"></ion-icon>
+          Virtual
+        </ion-button>
+        <ion-button class="preference-button" *ngIf="trainerInfo.isInperson" fill="outline" size="small">
+          <ion-icon name="location-outline" slot="start"></ion-icon>
+          In-Person
+        </ion-button>
+      </div>
+    </div>
+
+    <!-- Description Section -->
+    <div class="description-section">
+      <h2>Description</h2>
+      <div class="description-card">
+        <p class="trainer-bio">{{getTruncatedDescription()}}</p>
+        <div class="expand-toggle" *ngIf="trainerInfo.description && trainerInfo.description.length > descriptionCharLimit" (click)="toggleDescription()">
+          <span>{{ isDescriptionExpanded() ? 'Show less' : 'Read more' }}</span>
+          <ion-icon [name]="isDescriptionExpanded() ? 'chevron-up-outline' : 'chevron-down-outline'"></ion-icon>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Contact Button -->
+  <ion-footer class="ion-no-border" *ngIf="!isLoading()">
+    <ion-toolbar>
+      <ion-button expand="block" class="contact-button" (click)="goToChat()">
+        Contact
+      </ion-button>
+    </ion-toolbar>
+  </ion-footer>
+</ion-content>

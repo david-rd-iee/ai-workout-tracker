@@ -1,0 +1,83 @@
+<ion-header [translucent]="true">
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-back-button defaultHref="/"></ion-back-button>
+    </ion-buttons>
+    <ion-title class="ion-text-center">ATLAS</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true" class="ion-padding">
+  <h1 class="calendar-title">
+    <ng-container *ngIf="!isTrainer()">{{ trainerName() }}'s Calendar</ng-container>
+    <ng-container *ngIf="isTrainer()">Your Availability Calendar</ng-container>
+  </h1>
+  
+  <div class="datetime-container">
+    <ion-datetime
+      presentation="date"
+      [preferWheel]="false"
+      [min]="minSelectableDate"
+      [value]="selectedDateISO()"
+      (ionChange)="onDateChange($event)"
+      class="ion-datetime-calendar">
+    </ion-datetime>
+  </div>
+
+  <div *ngIf="selectedDate()" class="time-slots-container">
+    <h3>Available Time Slots for {{ selectedDate() | date:'EEEE, MMMM d, y' }}</h3>
+    <h3>Time Slots are 30 minutes long, please select one or more time slots for your needed booking time</h3>
+
+    
+    <div class="time-slots" *ngIf="availableTimeSlots().length > 0">
+      <ion-button *ngFor="let slot of availableTimeSlots()" 
+                 [disabled]="!slot.available || slot.booked"
+                 [color]="isTimeSlotSelected(slot.time) ? 'primary' : 'light'"
+                 (click)="selectTimeSlot(slot.time)"
+                 class="time-slot-button">
+        {{ slot.time }}
+      </ion-button>
+    </div>
+    
+    <!-- Message when no time slots are available -->
+    <div *ngIf="availableTimeSlots().length === 0" class="no-slots-message">
+      <p>No time slots available for this date. Please select another date or contact the trainer.</p>
+    </div>
+  </div>
+
+  <!-- Different UI for trainers vs clients -->
+  <ng-container *ngIf="!isTrainer()">
+    <!-- CLIENT VIEW -->
+    <!-- Show Select Time button when date is selected but not time -->
+    <ion-button *ngIf="selectedDate() && selectedTimeSlots().length === 0" 
+                expand="block" 
+                class="select-time-button"
+                disabled>
+      Please select at least one time slot
+    </ion-button>
+
+    <!-- Show Book Now button when all selections are made -->
+    <ion-button *ngIf="selectedDate() && selectedTimeSlots().length > 0" 
+                expand="block" 
+                class="book-now-button"
+                (click)="proceedToBooking()">
+      Book {{ selectedTimeSlots().length }} Time Slot{{ selectedTimeSlots().length > 1 ? 's' : '' }}
+    </ion-button>
+  </ng-container>
+
+  <!-- TRAINER VIEW -->
+  <ng-container *ngIf="isTrainer()">
+    <div *ngIf="selectedDate()" class="trainer-info-box">
+      <h3>Your Available Time Slots</h3>
+      <p>These are the time slots you've marked as available for clients to book.</p>
+    </div>
+
+    <ion-button *ngIf="selectedDate()" 
+                expand="block" 
+                class="done-button"
+                (click)="proceedToBooking()">
+      Done
+    </ion-button>
+  </ng-container>
+</ion-content>
+

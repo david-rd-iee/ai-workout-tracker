@@ -1,0 +1,16 @@
+<app-header [transparent]="true"></app-header>
+<ion-content>
+  <div class="background-gradient"></div>
+  <div class="trainer-finder-container">
+    <swiper-container 
+      direction="vertical" 
+      class="swiper-container"
+      (swiperslidechange)="onSlideChange()">
+      <ng-container *ngFor="let trainer of trainers">
+        <swiper-slide class="swiper-slide">
+          <app-trainer-card [trainer]="trainer"></app-trainer-card>
+        </swiper-slide>
+      </ng-container>
+    </swiper-container>
+  </div>
+</ion-content>

@@ -1,0 +1,26 @@
+ion-input {
+    --font-size: 1.2rem;
+    
+    &::part(label) {
+      font-size: 1.2rem;
+      font-weight: 500;
+    }
+    
+    &::part(input) {
+      font-size: 1.2rem;
+    }
+}
+
+.close-button {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 10;
+}
+
+ion-content {
+  --padding-top: 16px;
+  --padding-bottom: 16px;
+  --padding-start: 16px;
+  --padding-end: 16px;
+}

@@ -1,0 +1,38 @@
+<ion-card class="trainer-profile-card" (click)="goToTrainerProfile(trainer.id)">
+  <!-- Trainer Image Container -->
+  <ion-card-header class="ion-no-padding">
+    <img [src]="trainer.profileImage || 'assets/default-profile.jpg'" [alt]="trainer.firstName + ' ' + trainer.lastName" class="trainer-image" />
+  </ion-card-header>
+  
+  <!-- Trainer Info Container -->
+  <ion-card-content>
+    <div class="trainer-header">
+      <ion-card-title class="trainer-name">{{ trainer.firstName }} {{ trainer.lastName }}<ion-icon name="checkmark-circle" class="verified-icon"></ion-icon></ion-card-title>
+      <div class="trainer-specialty">{{ specializations.length > 0 ? specializations[0] : 'Functional fitness' }}</div>
+    </div>
+    
+    <div class="training-types">
+      <ion-button class="training-type-btn" *ngIf="trainer.trainingLocation && trainer.trainingLocation.remote" fill="outline" size="small">Virtual</ion-button>
+      <ion-button class="training-type-btn" *ngIf="trainer.trainingLocation && trainer.trainingLocation.inPerson" fill="outline" size="small">In-Person</ion-button>
+    </div>
+    
+    <!-- <div class="certification-section">
+      <div class="certification-header">Certification</div>
+      <div class="certification-badges">
+        <div class="certification-badge">
+          <ion-icon name="ribbon-outline"></ion-icon>
+          <span>NASM</span>
+        </div>
+        <div class="certification-badge">
+          <ion-icon name="ribbon-outline"></ion-icon>
+          <span>BHSc</span>
+        </div>
+      </div>
+    </div> -->
+    
+    <!-- Trainer Bio -->
+    <!-- <p class="trainer-bio">
+      {{ trainer.shortDescription || '' | truncate: 200 }}
+    </p> -->
+  </ion-card-content>
+</ion-card>
