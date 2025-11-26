@@ -1,7 +1,7 @@
 import { Component, OnInit, OnDestroy, CUSTOM_ELEMENTS_SCHEMA, ViewChild, ElementRef, Signal, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { IonContent, IonHeader, IonTitle, IonToolbar, IonAvatar, IonChip, IonLabel, IonItem, IonList, IonNote } from '@ionic/angular';
+import { IonContent, IonHeader, IonTitle, IonToolbar, IonAvatar, IonChip, IonLabel, IonItem, IonList, IonNote } from '@ionic/angular/standalone';
 import Swiper from 'swiper';
 import { Router } from '@angular/router';
 import { chevronForwardOutline } from 'ionicons/icons';

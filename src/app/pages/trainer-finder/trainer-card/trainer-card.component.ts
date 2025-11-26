@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, inject, OnInit, Input } from '@angular/core';
 import { Router } from '@angular/router';
-import { IonIcon, IonCard, IonCardHeader, IonCardContent, IonCardTitle, IonButton } from '@ionic/angular';
+import { IonIcon, IonCard, IonCardHeader, IonCardContent, IonCardTitle, IonButton } from '@ionic/angular/standalone';
 import { trainerProfile } from 'src/app/Interfaces/Profiles/Trainer';
 import { addIcons } from 'ionicons';
 import { locationOutline, cashOutline, fitnessOutline, checkmarkCircle } from 'ionicons/icons';

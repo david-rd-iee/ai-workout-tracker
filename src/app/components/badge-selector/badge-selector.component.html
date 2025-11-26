@@ -1,0 +1,90 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-title>Choose Display Badges</ion-title>
+    <ion-buttons slot="end">
+      <ion-button (click)="cancel()">
+        <ion-icon name="close"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding">
+  <div class="selector-header">
+    <p>Select up to {{ maxDisplayBadges }} earned badges to showcase on your profile (or select none to hide badges)</p>
+    <div class="selection-actions">
+      <p class="selection-count">
+        Selected: {{ selectedBadgeIds.length }} / {{ maxDisplayBadges }}
+      </p>
+      <ion-button 
+        *ngIf="selectedBadgeIds.length > 0"
+        fill="clear" 
+        size="small" 
+        (click)="clearSelection()"
+        color="medium"
+      >
+        Clear All
+      </ion-button>
+    </div>
+  </div>
+
+  <div class="filters-section">
+    <div class="filter-group">
+      <label class="filter-label">Filter by Category</label>
+      <ion-segment [value]="selectedCategory" (ionChange)="selectedCategory = $any($event).detail.value" class="category-filter" scrollable="true">
+        <ion-segment-button *ngFor="let cat of categories" [value]="cat">
+          <ion-label class="category-label">{{ cat | titlecase }}</ion-label>
+        </ion-segment-button>
+      </ion-segment>
+    </div>
+    
+    <div class="filter-group">
+      <label class="filter-label">Sort by</label>
+      <ion-segment [value]="sortBy" (ionChange)="sortBy = $any($event).detail.value" class="sort-filter">
+        <ion-segment-button value="tier">
+          <ion-label>Tier (Rarity)</ion-label>
+        </ion-segment-button>
+        <ion-segment-button value="category">
+          <ion-label>Type</ion-label>
+        </ion-segment-button>
+      </ion-segment>
+    </div>
+  </div>
+
+  <div class="badges-list">
+    <div 
+      *ngFor="let badge of filteredBadges"
+      class="badge-wrapper"
+      [class.selected]="isBadgeSelected(badge.id)"
+      [class.disabled]="!isBadgeSelected(badge.id) && !canSelectMore()"
+      (click)="toggleBadge(badge.id)"
+    >
+      <app-achievement-badge 
+        [badge]="badge" 
+        [showProgress]="false"
+        size="small"
+      ></app-achievement-badge>
+      
+      <div class="selection-indicator" *ngIf="isBadgeSelected(badge.id)">
+        <ion-icon name="checkmark-circle" color="primary"></ion-icon>
+      </div>
+    </div>
+  </div>
+
+  <div class="empty-state" *ngIf="filteredBadges.length === 0">
+    <p>No badges earned yet in this category. Keep working out to unlock achievements!</p>
+  </div>
+
+  <div class="button-container">
+    <ion-button 
+      expand="block" 
+      (click)="confirm()" 
+      color="primary"
+    >
+      {{ selectedBadgeIds.length === 0 ? 'Hide All Badges' : 'Save Selection' }}
+    </ion-button>
+    <ion-button expand="block" (click)="cancel()" fill="outline" color="medium">
+      Cancel
+    </ion-button>
+  </div>
+</ion-content>

@@ -1,7 +1,7 @@
 import { Component, CUSTOM_ELEMENTS_SCHEMA, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { IonContent, IonHeader, ModalController } from '@ionic/angular';
+import { IonContent, IonHeader, ModalController } from '@ionic/angular/standalone';
 import { TrainerCardComponent } from './trainer-card/trainer-card.component';
 import { Haptics, ImpactStyle } from '@capacitor/haptics';
 import { TrainerFinderService } from '../../services/trainer-finder.service';

@@ -8,7 +8,7 @@ import {
   IonSpinner,
   IonFooter,
   IonToolbar
-} from '@ionic/angular';
+} from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
 import { 
   informationCircleOutline, 

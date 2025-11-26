@@ -1,0 +1,132 @@
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 50vh;
+  text-align: center;
+}
+
+.error-container {
+  margin-top: 20px;
+}
+
+.payment-container {
+  margin-top: 20px;
+}
+
+.amount {
+  font-weight: bold;
+  font-size: 1.2em;
+  color: var(--ion-color-primary);
+}
+
+.checkout-button-container {
+  margin-top: 20px;
+}
+
+.stripe-container {
+  margin-top: 20px;
+}
+
+.stripe-element-container {
+  padding: 10px 0;
+  background: #f8f9fa;
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+.stripe-element {
+  padding: 12px;
+  border-radius: 4px;
+  background-color: white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  transition: box-shadow 150ms ease;
+}
+
+.payment-buttons {
+  margin-top: 20px;
+}
+
+ion-card {
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+}
+
+ion-card-header {
+  background-color: var(--ion-color-light);
+}
+
+ion-card-title {
+  font-size: 1.5em;
+  font-weight: 600;
+}
+
+// Payment container with Flex option
+.payment-container-with-flex {
+  margin-top: 20px;
+}
+
+// Flex payment section
+.flex-payment-section {
+  margin-bottom: 16px;
+}
+
+.flex-pay-button {
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+  
+  &:hover:not(:disabled) {
+    transform: translateY(-2px);
+    opacity: 0.9;
+  }
+  
+  &:active:not(:disabled) {
+    transform: translateY(0);
+  }
+  
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  
+  img {
+    width: 100%;
+    max-width: 471px;
+    height: auto;
+    display: block;
+    margin: 0 auto;
+  }
+}
+
+// Payment divider
+.payment-divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  margin: 24px 0;
+  
+  &::before,
+  &::after {
+    content: '';
+    flex: 1;
+    border-bottom: 1px solid var(--ion-color-medium);
+  }
+  
+  span {
+    padding: 0 16px;
+    color: var(--ion-color-medium);
+    font-size: 0.9em;
+    font-weight: 500;
+    text-transform: uppercase;
+  }
+}
+
+// Stripe container when shown with Flex
+.payment-container-with-flex .stripe-container {
+  margin-top: 0;
+}

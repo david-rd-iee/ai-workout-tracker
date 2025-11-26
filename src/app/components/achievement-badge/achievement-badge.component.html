@@ -1,0 +1,80 @@
+<div class="achievement-badge" [class]="'size-' + size" [class.locked]="isLocked">
+  <div class="badge-container">
+    <!-- Badge Icon with Gradient Background -->
+    <div class="badge-icon" [style.background]="badgeGradient">
+      <ion-icon 
+        [name]="badge.icon" 
+        [class.locked-icon]="isLocked"
+      ></ion-icon>
+      
+      <!-- Tier Level Indicator -->
+      <div class="tier-badge" *ngIf="currentTierConfig" [style.background]="currentTierConfig.color">
+        <ion-icon [name]="getTierIcon(currentTierConfig.level)"></ion-icon>
+      </div>
+      
+      <!-- Locked Overlay -->
+      <div class="locked-overlay" *ngIf="isLocked">
+        <ion-icon name="lock-closed"></ion-icon>
+      </div>
+    </div>
+
+    <!-- Badge Info -->
+    <div class="badge-info">
+      <div class="badge-header">
+        <h3 class="badge-name">{{ badge.name }}</h3>
+        <span class="badge-tier-label" *ngIf="currentTierConfig">
+          {{ currentTierConfig.displayName }}
+        </span>
+      </div>
+      <p class="badge-description">{{ badge.description }}</p>
+      
+      <!-- Current Stats -->
+      <div class="badge-stats" *ngIf="!isLocked && badge.currentValue !== undefined">
+        <div class="current-value">
+          <strong>{{ formatValue(badge.currentValue) }}</strong> {{ badge.unit }}
+        </div>
+        
+        <!-- Percentile Ranking -->
+        <div class="percentile" *ngIf="percentileText">
+          <ion-badge color="success">
+            <ion-icon name="trophy"></ion-icon>
+            {{ percentileText }}
+          </ion-badge>
+        </div>
+      </div>
+
+      <!-- Progress to Next Tier (Always Show) -->
+      <div class="progress-section" *ngIf="showProgress && progress">
+        <div class="progress-header">
+          <span class="progress-text">
+            {{ progress.nextLevel ? 'Next: ' + tierConfig[progress.nextLevel].displayName : 'Max Level!' }}
+          </span>
+          <span class="progress-value" *ngIf="progress.nextLevel && progress.currentLevel">
+            {{ formatValue((badge.currentValue || 0) - badge.tiers[progress.currentLevel!]) }} / {{ formatValue((progress.nextTierValue || 0) - badge.tiers[progress.currentLevel!]) }}
+          </span>
+          <span class="progress-value" *ngIf="progress.nextLevel && !progress.currentLevel">
+            {{ formatValue(badge.currentValue || 0) }} / {{ formatValue(progress.nextTierValue || 0) }}
+          </span>
+          <span class="progress-value" *ngIf="!progress.nextLevel">
+            {{ formatValue(badge.currentValue || 0) }} {{ badge.unit }}
+          </span>
+        </div>
+        <ion-progress-bar 
+          *ngIf="progress.nextLevel && progress.currentLevel"
+          [value]="progress.progressPercentage / 100"
+          [style.--progress-background]="tierConfig[progress.currentLevel].color"
+        ></ion-progress-bar>
+        <ion-progress-bar 
+          *ngIf="progress.nextLevel && !progress.currentLevel"
+          [value]="progress.progressPercentage / 100"
+          [style.--progress-background]="tierConfig['bronze'].color"
+        ></ion-progress-bar>
+        <ion-progress-bar 
+          *ngIf="!progress.nextLevel && progress.currentLevel"
+          [value]="1"
+          [style.--progress-background]="tierConfig[progress.currentLevel].color"
+        ></ion-progress-bar>
+      </div>
+    </div>
+  </div>
+</div>

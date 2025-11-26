@@ -11,7 +11,7 @@ import {
   IonButtons, 
   IonIcon,
   ModalController 
-} from '@ionic/angular';
+} from '@ionic/angular/standalone';
 import { HeaderComponent } from '../../../components/header/header.component';
 import { ServiceAgreementComponent } from 'src/app/components/agreements/service-agreement/service-agreement.component';
 import { AgreementService } from 'src/app/services/agreement.service';

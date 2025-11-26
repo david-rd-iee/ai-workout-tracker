@@ -1,0 +1,105 @@
+<ion-header [translucent]="true">
+  <ion-toolbar>
+    <ion-title>Complete Payment</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true" class="ion-padding">
+  <ion-header collapse="condense">
+    <ion-toolbar>
+      <ion-title size="large">Complete Payment</ion-title>
+    </ion-toolbar>
+  </ion-header>
+
+  <div *ngIf="isLoading" class="loading-container">
+    <ion-spinner name="circular"></ion-spinner>
+    <p>Loading payment information...</p>
+  </div>
+
+  <div *ngIf="error" class="error-container">
+    <ion-card>
+      <ion-card-header>
+        <ion-card-title>Error</ion-card-title>
+      </ion-card-header>
+      <ion-card-content>
+        <p>{{ error }}</p>
+        <ion-button expand="block" (click)="goBack()">Go Back</ion-button>
+      </ion-card-content>
+    </ion-card>
+  </div>
+
+  <!-- Show payment success component when payment is successful -->
+  <div *ngIf="showPaymentSuccess" class="success-container">
+    <app-payment-success [sessionId]="checkoutSessionId"></app-payment-success>
+  </div>
+
+  <!-- Show payment form when not showing success and not loading -->
+  <div *ngIf="!isLoading && !error && !showPaymentSuccess" class="payment-container">
+    <ion-card>
+      <ion-card-header>
+        <ion-card-title>Payment Summary</ion-card-title>
+      </ion-card-header>
+      <ion-card-content>
+        <ion-list lines="full">
+          <ion-item>
+            <ion-label>
+              <h2>Agreement ID</h2>
+              <p>{{ agreementId }}</p>
+            </ion-label>
+          </ion-item>
+          
+          <ion-item>
+            <ion-label>
+              <h2>Payment Type</h2>
+              <p>{{ agreement?.recurring ? 'Recurring Monthly Payment' : 'One-Time Payment' }}</p>
+            </ion-label>
+          </ion-item>
+          
+          <ion-item>
+            <ion-label>
+              <h2>{{ agreement?.recurring ? 'Monthly Amount' : 'Total Amount' }}</h2>
+              <p class="amount">${{ paymentAmount.toFixed(2) }}</p>
+            </ion-label>
+          </ion-item>
+        </ion-list>
+
+        <!-- Show checkout button if checkout not initiated yet -->
+        <div *ngIf="!checkoutSessionId" class="checkout-button-container">
+          <ion-button expand="block" (click)="initiateCheckout()" [disabled]="isLoading">
+            Proceed to Checkout
+          </ion-button>
+          <ion-button expand="block" fill="outline" (click)="goBack()">
+            Cancel
+          </ion-button>
+        </div>
+      </ion-card-content>
+    </ion-card>
+
+    <!-- Show payment options after clicking Proceed to Checkout -->
+    <div *ngIf="checkoutSessionId && !checkoutSessionId.startsWith('mock_session_')" class="payment-container-with-flex">
+      <!-- Flex Payment Button -->
+      <div *ngIf="flexCheckoutUrl" class="flex-payment-section">
+        <button class="flex-pay-button" (click)="payWithFlex()" [disabled]="isLoading">
+          <img src="assets/payment/button-navy.svg" alt="Pay with Flex" />
+        </button>
+      </div>
+
+      <!-- Divider -->
+      <div *ngIf="flexCheckoutUrl" class="payment-divider">
+        <span>or</span>
+      </div>
+
+      <!-- This div will contain the embedded checkout experience -->
+      <div class="stripe-element-container">
+        <div #checkoutElement class="stripe-element"></div>
+      </div>
+      
+      <!-- No need for separate payment buttons with embedded checkout -->
+      <div class="payment-buttons">
+        <ion-button expand="block" fill="outline" (click)="goBack()">
+          Cancel
+        </ion-button>
+      </div>
+    </div>
+  </div>
+</ion-content>

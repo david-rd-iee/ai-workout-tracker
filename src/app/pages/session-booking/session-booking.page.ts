@@ -5,9 +5,9 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { ROUTE_PATHS } from '../../app.routes';
 import { 
   IonContent, IonHeader, IonTitle, IonToolbar, IonButtons, IonBackButton, 
-  IonButton, IonIcon, IonCheckbox, IonToast, IonLoading, IonDatetime
-} from '@ionic/angular';
-import { ToastController, LoadingController, ModalController } from '@ionic/angular';
+  IonButton, IonIcon, IonCheckbox, IonToast, IonLoading, IonDatetime,
+  ToastController, LoadingController, ModalController
+} from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
 import { chevronBackOutline, chevronForwardOutline } from 'ionicons/icons';
 import { TrainerAvailabilityService } from '../../services/trainer-availability.service';

@@ -1,0 +1,31 @@
+<app-header title="Payment History" [transparent]="true"></app-header>
+
+<ion-content [fullscreen]="true">
+  <div class="background-gradient"></div>
+  
+  <!-- Payment History Information -->
+  <ion-card>
+    <ion-card-header>
+      <ion-card-title>Subscription Management</ion-card-title>
+    </ion-card-header>
+    <ion-card-content>
+      <ion-list lines="full">
+        <ion-item>
+          <ion-label class="ion-text-wrap">
+            <h3>Cancel Subscriptions</h3>
+            <p>To cancel any active subscriptions, please visit the Stripe billing portal:</p>
+            <ion-button 
+              fill="outline" 
+              color="primary" 
+              size="small" 
+              class="ion-margin-top"
+              (click)="openBillingPortal()">
+              <ion-icon name="card-outline" slot="start"></ion-icon>
+              Manage Billing
+            </ion-button>
+          </ion-label>
+        </ion-item>
+      </ion-list>
+    </ion-card-content>
+  </ion-card>
+</ion-content>

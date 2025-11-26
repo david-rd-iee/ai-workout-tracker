@@ -5,4 +5,5 @@ export interface clientProfile extends BaseUserProfile {
     goals: string;
     experience: string;
     description: string;
+    displayBadges?: string[]; // Array of badge IDs to display on profile
   }

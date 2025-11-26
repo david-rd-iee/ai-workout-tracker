@@ -1,0 +1,23 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-title>Stripe Setup</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content>
+  <div class="setup-container">
+    <div *ngIf="isLoading" class="loading-state">
+      <ion-spinner></ion-spinner>
+      <p>Loading Stripe setup...</p>
+    </div>
+    
+    <div *ngIf="!isLoading" class="setup-content">
+      <h2>Stripe Payment Setup</h2>
+      <p>Configure your Stripe payment settings here.</p>
+      
+      <ion-button expand="block" (click)="goBack()">
+        Go Back
+      </ion-button>
+    </div>
+  </div>
+</ion-content>

@@ -1,7 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { IonButton, IonContent, IonFab, IonFabButton, IonIcon, IonItem, IonItemOption, IonItemOptions, IonItemSliding, IonLabel, IonList, IonModal, IonSpinner, ModalController, ToastController } from '@ionic/angular';
+import { IonButton, IonContent, IonFab, IonFabButton, IonIcon, IonItem, IonItemOption, IonItemOptions, IonItemSliding, IonLabel, IonList, IonModal, IonSpinner, ModalController, ToastController } from '@ionic/angular/standalone';
 import { HeaderComponent } from '../../components/header/header.component';
 import { AgreementService } from '../../services/agreement.service';
 import { ServiceAgreementCreatorPage } from './service-agreement-creator/service-agreement-creator.page';

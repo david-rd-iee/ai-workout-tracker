@@ -96,7 +96,7 @@ export const routes: Routes = [
         loadComponent: () => import('../../pages/trainer-info/trainer-info.page').then( m => m.TrainerInfoPage),
         canActivate: [authGuard]
       },
-      {
+      /*{
         path: 'stripe-setup',
         loadComponent: () => import('../../pages/stripe-setup/stripe-setup.page').then( m => m.StripeSetupPage),
         canActivate: [authGuard]
@@ -105,7 +105,7 @@ export const routes: Routes = [
         path: 'payment-history',
         loadComponent: () => import('../../pages/payment-history/payment-history.component').then( m => m.PaymentHistoryComponent),
         canActivate: [authGuard]
-      },
+      },*/
       {
         path: '',
         redirectTo: '/app/tabs/home',

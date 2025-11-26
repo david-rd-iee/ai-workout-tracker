@@ -1,0 +1,30 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-title>Payment Cancelled</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding">
+  <ion-card>
+    <ion-card-header>
+      <ion-card-title class="ion-text-center">
+        <ion-icon name="close-circle-outline" color="danger" size="large"></ion-icon>
+        <h1>Payment Cancelled</h1>
+      </ion-card-title>
+    </ion-card-header>
+
+    <ion-card-content class="ion-text-center">
+      <p>Your payment was not completed. No charges have been made to your account.</p>
+      <p>If you encountered any issues during the payment process, please try again or contact your trainer for assistance.</p>
+      
+      <div class="action-buttons">
+        <ion-button expand="block" color="primary" (click)="tryAgain()">
+          Try Again
+        </ion-button>
+        <ion-button expand="block" fill="outline" (click)="goToAgreements()">
+          View My Agreements
+        </ion-button>
+      </div>
+    </ion-card-content>
+  </ion-card>
+</ion-content>

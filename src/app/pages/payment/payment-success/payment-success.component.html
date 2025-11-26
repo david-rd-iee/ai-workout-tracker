@@ -1,0 +1,51 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-title>Payment Successful</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding">
+  <ion-card>
+    <ion-card-header>
+      <ion-card-title class="ion-text-center">
+        <ion-icon name="checkmark-circle-outline" color="success" size="large"></ion-icon>
+        <h1>Thank You!</h1>
+      </ion-card-title>
+    </ion-card-header>
+
+    <ion-card-content class="ion-text-center">
+      <div *ngIf="loading">
+        <ion-spinner></ion-spinner>
+        <p>Verifying your payment...</p>
+      </div>
+
+      <div *ngIf="!loading">
+        <div [ngSwitch]="paymentStatus">
+          <div *ngSwitchCase="'completed'">
+            <h2>Payment Successful</h2>
+            <p>Your payment has been processed successfully. Your trainer has been notified.</p>
+          </div>
+          
+          <div *ngSwitchCase="'pending'">
+            <h2>Payment Processing</h2>
+            <p>Your payment is being processed. We'll notify you when it's complete.</p>
+          </div>
+          
+          <div *ngSwitchDefault>
+            <h2>Payment Received</h2>
+            <p>Thank you for your payment. You'll receive a confirmation shortly.</p>
+          </div>
+        </div>
+
+        <div class="action-buttons">
+          <ion-button expand="block" (click)="goToAgreements()">
+            View My Agreements
+          </ion-button>
+          <ion-button expand="block" fill="outline" (click)="goToHome()">
+            Return to Home
+          </ion-button>
+        </div>
+      </div>
+    </ion-card-content>
+  </ion-card>
+</ion-content>

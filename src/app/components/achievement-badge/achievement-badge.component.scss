@@ -1,0 +1,247 @@
+.achievement-badge {
+  width: 100%;
+  
+  .badge-container {
+    display: flex;
+    gap: 12px;
+    padding: 10px;
+    background: var(--ion-color-light);
+    border-radius: 10px;
+    border: 2px solid transparent;
+    transition: all 0.3s ease;
+
+    &:hover {
+      border-color: var(--ion-color-primary);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+  }
+
+  &.locked .badge-container {
+    opacity: 0.6;
+    background: var(--ion-color-light-shade);
+  }
+
+  .badge-icon {
+    position: relative;
+    min-width: 50px;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.2);
+
+    ion-icon {
+      font-size: 24px;
+      color: white;
+      filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+      
+      &.locked-icon {
+        opacity: 0.3;
+      }
+    }
+
+    .tier-badge {
+      position: absolute;
+      bottom: -2px;
+      right: -2px;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 2px solid white;
+
+      ion-icon {
+        font-size: 10px;
+        color: white;
+      }
+
+      span {
+        font-size: 0.55em;
+        font-weight: bold;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+    }
+
+    .locked-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.5);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      ion-icon {
+        font-size: 30px;
+        color: white;
+      }
+    }
+  }
+
+  .badge-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+
+    .badge-header {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .badge-name {
+      margin: 0;
+      font-size: 1em;
+      font-weight: bold;
+      color: var(--ion-text-color, #000);
+    }
+
+    .badge-tier-label {
+      font-size: 1em;
+      font-weight: bold;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      display: inline-block;
+      width: fit-content;
+      color: var(--ion-text-color, #000);
+    }
+
+    .badge-description {
+      margin: 0;
+      font-size: 0.85em;
+      color: var(--ion-color-medium);
+    }
+
+    .badge-stats {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+
+      .current-value {
+        font-size: 1em;
+        color: var(--ion-text-color, #000);
+
+        strong {
+          font-size: 1.3em;
+          color: var(--ion-text-color, #000);
+        }
+      }
+
+      .percentile {
+        ion-badge {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+          padding: 4px 8px;
+
+          ion-icon {
+            font-size: 14px;
+          }
+        }
+      }
+    }
+
+    .progress-section {
+      margin-top: 5px;
+
+      .progress-header {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 4px;
+        font-size: 0.85em;
+
+        .progress-text {
+          color: var(--ion-color-medium);
+          font-weight: 500;
+        }
+
+        .progress-value {
+          color: var(--ion-color-dark);
+          font-weight: bold;
+        }
+      }
+
+      ion-progress-bar {
+        height: 10px;
+        border-radius: 5px;
+        --background: rgba(0, 0, 0, 0.1);
+        box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.15);
+        border: 1px solid rgba(0, 0, 0, 0.05);
+      }
+    }
+
+    .locked-info {
+      .unlock-requirement {
+        margin: 0;
+        font-size: 0.9em;
+        color: var(--ion-color-medium);
+        font-style: italic;
+      }
+    }
+  }
+
+  // Size variations
+  &.size-small {
+    .badge-icon {
+      min-width: 50px;
+      width: 50px;
+      height: 50px;
+
+      ion-icon {
+        font-size: 24px;
+      }
+
+      .tier-badge span {
+        font-size: 0.6em;
+      }
+    }
+
+    .badge-info {
+      .badge-name {
+        font-size: 1em;
+      }
+
+      .badge-description {
+        font-size: 0.8em;
+      }
+    }
+  }
+
+  &.size-large {
+    .badge-icon {
+      min-width: 120px;
+      width: 120px;
+      height: 120px;
+
+      ion-icon {
+        font-size: 60px;
+      }
+
+      .tier-badge span {
+        font-size: 0.8em;
+      }
+    }
+
+    .badge-info {
+      .badge-name {
+        font-size: 1.5em;
+      }
+
+      .badge-description {
+        font-size: 1em;
+      }
+    }
+  }
+}

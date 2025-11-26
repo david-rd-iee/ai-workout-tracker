@@ -308,18 +308,18 @@ export class ServiceAgreementComponent implements OnInit {
       }
     });
     const options = {
-      margin: [0.75, 0.75, 0.75, 0.75], // top, right, bottom, left margins in inches
+      margin: [0.75, 0.75, 0.75, 0.75] as [number, number, number, number], // top, right, bottom, left margins in inches
       filename: `${this.agreementName}.pdf`,
-      image: { type: 'jpeg', quality: 0.98 },
+      image: { type: 'jpeg' as const, quality: 0.98 },
       html2canvas: {
         scale: 2,
         useCORS: true,
         logging: false
       },
       jsPDF: {
-        unit: 'in',
-        format: 'letter',
-        orientation: 'portrait',
+        unit: 'in' as const,
+        format: 'letter' as const,
+        orientation: 'portrait' as const,
         compress: true
       },
       pagebreak: {
