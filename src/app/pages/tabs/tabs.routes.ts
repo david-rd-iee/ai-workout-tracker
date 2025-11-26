@@ -33,6 +33,11 @@ export const routes: Routes = [
         canActivate: [authGuard],
       },
       {
+        path: 'profile/client/:userId',
+        loadComponent: () => import('../profiles/client-profile/client-profile.page').then(m => m.ClientProfilePage),
+        canActivate: [authGuard],
+      },
+      {
         path: 'profile/trainer',
         loadComponent: () => import('../profiles/trainer-profile/trainer-profile.page').then(m => m.TrainerProfilePage),
         canActivate: [authGuard],

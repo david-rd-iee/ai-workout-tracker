@@ -112,7 +112,7 @@ export class UserService {
         return true;
       } else {
         console.log('No profile found in either collection - user needs to create profile');
-        this.navCtrl.navigateRoot('/profile-creation');
+        // this.navCtrl.navigateRoot('/profile-creation'); // Temporarily disabled for testing
         return false;
       }
     } catch (error) {

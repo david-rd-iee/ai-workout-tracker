@@ -1,22 +1,109 @@
-<app-header></app-header>
+<app-header [transparent]="true"></app-header>
 
 <ion-content [fullscreen]="true">
+  <div class="background-gradient"></div>
+  
   <div class="client-info" *ngIf="!isLoading()">
-    <ion-grid>
-      <ion-row>
-        <ion-col size="6" class="image-container">
-          <app-image-uploader [currentImageUrl]="clientInfo.profileImage" (imageSelected)="onImageSelected($event)">
-          </app-image-uploader>
-        </ion-col>
-        <ion-col size="6" style="text-align: left;">
-          <ion-row class="short" size="1">
-            <h1>{{clientInfo.firstName | titlecase}} {{clientInfo.lastName | titlecase}}</h1>
-          </ion-row>
-        </ion-col>
-      </ion-row>
-    </ion-grid>
-
+    <ion-card class="profile-header-card">
+      <ion-card-content>
+        <div class="profile-header">
+          <div class="image-container">
+            <app-image-uploader [currentImageUrl]="clientInfo.profileImage" (imageSelected)="onImageSelected($event)">
+            </app-image-uploader>
+          </div>
+          <h1>{{clientInfo.firstName | titlecase}} {{clientInfo.lastName | titlecase}}</h1>
+        </div>
+      </ion-card-content>
+    </ion-card>
+     
+    <!-- Achievement Badges Section -->
     <ion-card>
+      <ion-list lines="full">
+        <ion-item>
+          <ion-icon slot="start" name="trophy" color="primary"></ion-icon>
+          <ion-label>
+            <h2>Achievement Badges</h2>
+          </ion-label>
+          <ion-button 
+            *ngIf="isOwnProfile" 
+            slot="end"
+            fill="clear" 
+            (click)="openBadgeSelector()"
+            size="small"
+          >
+            <ion-icon slot="icon-only" name="create-outline"></ion-icon>
+          </ion-button>
+        </ion-item>
+      </ion-list>
+      <ion-card-content>
+        <div class="display-badges" *ngIf="displayBadges.length > 0; else noBadges">
+          <ng-container *ngFor="let badge of displayBadges; let last = last">
+            <app-achievement-badge 
+              [badge]="badge" 
+              [showProgress]="true"
+              size="medium"
+            ></app-achievement-badge>
+            <div class="badge-separator" *ngIf="!last"></div>
+          </ng-container>
+        </div>
+        <ng-template #noBadges>
+          <p class="no-badges-text" *ngIf="earnedBadgesCount === 0">
+            Complete workouts to earn achievement badges! 
+            <br><small>Track your progress and showcase your best achievements.</small>
+          </p>
+          <p class="no-badges-text" *ngIf="earnedBadgesCount > 0">
+            No badges selected for display.
+            <br><small>Click the button above to choose which badges to showcase.</small>
+          </p>
+        </ng-template>
+      </ion-card-content>
+    </ion-card>
+
+    <div class="section-divider" *ngIf="allBadges.length > 0 && isOwnProfile"></div>
+
+    <!-- All Achievements Section (Only visible to profile owner) -->
+    <ion-card *ngIf="allBadges.length > 0 && isOwnProfile">
+      <ion-list lines="full">
+        <ion-item>
+          <ion-icon slot="start" name="medal" color="primary"></ion-icon>
+          <ion-label>
+            <h2>All Achievements</h2>
+            <p class="achievement-subtitle">{{ earnedBadgesCount }}/{{ allBadges.length }} earned • Only you can see this</p>
+          </ion-label>
+        </ion-item>
+      </ion-list>
+      <ion-card-content>
+        <div class="achievements-container" [class.collapsed]="!showAllAchievements">
+          <div class="all-badges-list">
+            <ng-container *ngFor="let badge of visibleAchievements; let i = index; let last = last">
+              <div class="achievement-item" [class.faded]="!showAllAchievements && i === initialAchievementsCount">
+                <app-achievement-badge 
+                  [badge]="badge" 
+                  [showProgress]="true"
+                  size="small"
+                ></app-achievement-badge>
+              </div>
+              <div class="achievement-divider" *ngIf="!last"></div>
+            </ng-container>
+          </div>
+          
+          <ion-button 
+            *ngIf="allBadges.length > initialAchievementsCount"
+            expand="block" 
+            fill="solid" 
+            (click)="toggleShowAllAchievements()"
+            class="show-more-button"
+          >
+            <ion-icon slot="start" [name]="showAllAchievements ? 'chevron-up' : 'chevron-down'"></ion-icon>
+            {{ showAllAchievements ? 'Show Less' : 'Show More (' + (allBadges.length - initialAchievementsCount) + ' more)' }}
+          </ion-button>
+        </div>
+      </ion-card-content>
+    </ion-card>
+
+    <div class="section-divider" *ngIf="isOwnProfile"></div>
+
+    <ion-card *ngIf="isOwnProfile">
       <ion-list lines="full">
         <ion-item button [routerLink]="[ROUTE_PATHS.APP.TABS.ACCOUNT_CLIENT]">
           <ion-icon slot="start" name="settings-outline"></ion-icon>
@@ -27,7 +114,7 @@
       </ion-list>
     </ion-card>
 
-    <ion-button expand="block" (click)="saveChanges()" class="save-button">
+    <ion-button *ngIf="isOwnProfile" expand="block" (click)="saveChanges()" class="save-button">
       Save Profile Photo
     </ion-button>
     

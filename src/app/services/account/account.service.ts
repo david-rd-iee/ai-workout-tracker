@@ -66,7 +66,7 @@ export class AccountService {
           // Don't navigate here - let the component/service that handles profile loading do the navigation
         } else {
           this.credentials.set({ uid: '', email: '' });
-          this.navCtrl.navigateRoot('/login');
+          // this.navCtrl.navigateRoot('/login'); // Temporarily disabled for testing
         }
         this.authInitialized.set(true);
       });
