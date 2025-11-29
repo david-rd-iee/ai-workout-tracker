@@ -1,11 +1,12 @@
 import {
   AppCheckInstances,
   AuthInstances
-} from "./chunk-WLKBTWWX.js";
+} from "./chunk-L5QKGEON.js";
 import {
   FirebaseApp,
   FirebaseApps
-} from "./chunk-7FTZVLBS.js";
+} from "./chunk-62LLWWWH.js";
+import "./chunk-QJH6OHLW.js";
 import {
   Component,
   FirebaseError,
@@ -35,8 +36,7 @@ import {
   ɵgetAllInstancesOf,
   ɵgetDefaultInstanceOf,
   ɵzoneWrap
-} from "./chunk-WO5U5L4M.js";
-import "./chunk-NZTELJ47.js";
+} from "./chunk-JFHOBYY2.js";
 import {
   InjectionToken,
   Injector,
@@ -59,7 +59,7 @@ import {
   timer,
   ɵɵdefineInjector,
   ɵɵdefineNgModule
-} from "./chunk-YKMEMMPJ.js";
+} from "./chunk-VXQWJB3U.js";
 import {
   __async,
   __superGet
