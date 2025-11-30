@@ -8,8 +8,8 @@ import { UserService } from '../../../services/account/user.service';
 import { HeaderComponent } from '../../../components/header/header.component';
 import { documentTextOutline, peopleOutline, walletOutline } from 'ionicons/icons';
 import { addIcons } from 'ionicons';
-import { trainerProfile } from 'src/app/Interfaces/Profiles/Trainer';
-import { clientProfile } from 'src/app/Interfaces/Profiles/Client';
+import { TrainerProfile } from '../../../interfaces/profiles/trainer';
+import { ClientProfile } from '../../../interfaces/profiles/client';
 import { PasswordChangeModalComponent } from '../../../components/password-change-modal/password-change-modal.component';
 @Component({
   selector: 'app-client-account',
@@ -32,7 +32,7 @@ import { PasswordChangeModalComponent } from '../../../components/password-chang
   ]
 })
 export class ClientAccountPage implements OnInit {
-  user: Signal<trainerProfile | clientProfile | null>;
+  user: Signal<TrainerProfile | ClientProfile | null>;
   
   constructor(
     private accountService: AccountService,

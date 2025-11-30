@@ -1,12 +1,22 @@
 import {
-  AppCheckInstances,
   AuthInstances
-} from "./chunk-L5QKGEON.js";
+} from "./chunk-WV6RZIGD.js";
+import {
+  AppCheckInstances
+} from "./chunk-FPEQ7UO7.js";
+import "./chunk-ZO67XBGE.js";
+import "./chunk-6A7NGCQP.js";
 import {
   FirebaseApp,
   FirebaseApps
-} from "./chunk-62LLWWWH.js";
-import "./chunk-QJH6OHLW.js";
+} from "./chunk-R62VQ5UR.js";
+import {
+  VERSION,
+  ɵAngularFireSchedulers,
+  ɵgetAllInstancesOf,
+  ɵgetDefaultInstanceOf,
+  ɵzoneWrap
+} from "./chunk-W76PCQAQ.js";
 import {
   Component,
   ComponentContainer,
@@ -16,7 +26,6 @@ import {
   Provider,
   SDK_VERSION,
   Sha1,
-  VERSION,
   _getProvider,
   _isFirebaseServerApp,
   _registerComponent,
@@ -40,7 +49,7 @@ import {
   isReactNative,
   isValidFormat,
   jsonEval,
-  map,
+  map as map2,
   pingServer,
   querystring,
   registerVersion,
@@ -48,37 +57,39 @@ import {
   stringLength,
   stringToByteArray,
   stringify,
-  updateEmulatorBanner,
-  ɵAngularFireSchedulers,
-  ɵgetAllInstancesOf,
-  ɵgetDefaultInstanceOf,
-  ɵzoneWrap
-} from "./chunk-JFHOBYY2.js";
+  updateEmulatorBanner
+} from "./chunk-ZMMZFQVD.js";
 import {
   InjectionToken,
   Injector,
   NgModule,
   NgZone,
-  Observable,
   Optional,
+  makeEnvironmentProviders,
+  setClassMetadata,
+  ɵɵdefineInjector,
+  ɵɵdefineNgModule
+} from "./chunk-6RHLTVIT.js";
+import {
+  merge
+} from "./chunk-7W67SMPV.js";
+import "./chunk-A4HOGWHI.js";
+import {
+  Observable,
   concatMap,
   delay,
   distinct,
   distinctUntilChanged,
   from,
-  makeEnvironmentProviders,
-  map as map2,
-  merge,
+  map,
   of,
   scan,
-  setClassMetadata,
   skipWhile,
   switchMap,
   timer,
-  withLatestFrom,
-  ɵɵdefineInjector,
-  ɵɵdefineNgModule
-} from "./chunk-VXQWJB3U.js";
+  withLatestFrom
+} from "./chunk-UP6CNWOR.js";
+import "./chunk-BBC5QSU6.js";
 import {
   __async
 } from "./chunk-4VWZEZJW.js";
@@ -4064,7 +4075,7 @@ var IndexMap = class _IndexMap {
    * Ensure that this node is properly tracked in any indexes that we're maintaining
    */
   addToIndexes(namedNode, existingChildren) {
-    const newIndexes = map(this.indexes_, (indexedChildren, indexName) => {
+    const newIndexes = map2(this.indexes_, (indexedChildren, indexName) => {
       const index = safeGet(this.indexSet_, indexName);
       assert(index, "Missing index implementation for " + indexName);
       if (indexedChildren === fallbackObject) {
@@ -4098,7 +4109,7 @@ var IndexMap = class _IndexMap {
    * Create a new IndexMap instance with the given value removed
    */
   removeFromIndexes(namedNode, existingChildren) {
-    const newIndexes = map(this.indexes_, (indexedChildren) => {
+    const newIndexes = map2(this.indexes_, (indexedChildren) => {
       if (indexedChildren === fallbackObject) {
         return indexedChildren;
       } else {
@@ -7838,14 +7849,14 @@ function repoOnDataUpdate(repo, pathString, data, isMerge, tag) {
   let events = [];
   if (tag) {
     if (isMerge) {
-      const taggedChildren = map(data, (raw) => nodeFromJSON(raw));
+      const taggedChildren = map2(data, (raw) => nodeFromJSON(raw));
       events = syncTreeApplyTaggedQueryMerge(repo.serverSyncTree_, path, taggedChildren, tag);
     } else {
       const taggedSnap = nodeFromJSON(data);
       events = syncTreeApplyTaggedQueryOverwrite(repo.serverSyncTree_, path, taggedSnap, tag);
     }
   } else if (isMerge) {
-    const changedChildren = map(data, (raw) => nodeFromJSON(raw));
+    const changedChildren = map2(data, (raw) => nodeFromJSON(raw));
     events = syncTreeApplyServerMerge(repo.serverSyncTree_, path, changedChildren);
   } else {
     const snap = nodeFromJSON(data);
@@ -9829,7 +9840,7 @@ function objectVal(query3, options) {
   if (options === void 0) {
     options = {};
   }
-  return fromRef(query3, ListenEvent.value).pipe(map2(function(change) {
+  return fromRef(query3, ListenEvent.value).pipe(map(function(change) {
     return changeToData(change, options);
   }));
 }
@@ -9858,7 +9869,7 @@ function stateChanges(query3, options) {
   return merge.apply(void 0, childEvent$);
 }
 function get2(query3) {
-  return from(get(query3)).pipe(map2(function(snapshot) {
+  return from(get(query3)).pipe(map(function(snapshot) {
     var event = ListenEvent.value;
     return { snapshot, prevKey: null, event };
   }));
@@ -9880,7 +9891,7 @@ function listVal(query3, options) {
   if (options === void 0) {
     options = {};
   }
-  return list(query3).pipe(map2(function(arr) {
+  return list(query3).pipe(map(function(arr) {
     return arr.map(function(change) {
       return changeToData(change, options);
     });
@@ -9975,7 +9986,7 @@ function auditTrail(query3, options) {
   return waitForLoaded(query3, auditTrail$);
 }
 function loadedData(query3) {
-  return fromRef(query3, ListenEvent.value).pipe(map2(function(data) {
+  return fromRef(query3, ListenEvent.value).pipe(map(function(data) {
     var lastKeyToLoad;
     data.snapshot.forEach(function(child3) {
       lastKeyToLoad = child3.key;
@@ -9990,7 +10001,7 @@ function waitForLoaded(query3, snap$) {
     withLatestFrom(snap$),
     // Get the latest values from the "loaded" and "child" datasets
     // We can use both datasets to form an array of the latest values.
-    map2(function(_a2) {
+    map(function(_a2) {
       var loaded = _a2[0], changes = _a2[1];
       var lastKeyToLoad = loaded.lastKeyToLoad;
       var loadedKeys = changes.map(function(change) {
@@ -10006,7 +10017,7 @@ function waitForLoaded(query3, snap$) {
     }),
     // Pluck off the meta data because the user only cares
     // to iterate through the snapshots
-    map2(function(meta) {
+    map(function(meta) {
       return meta.changes;
     })
   );

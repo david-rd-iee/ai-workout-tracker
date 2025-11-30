@@ -1,6 +1,6 @@
 import { Injectable, signal, Signal, computed } from '@angular/core';
 import { AngularFireAuth } from '@angular/fire/compat/auth';
-import { credentials } from '../../Interfaces/Profiles/Credentials';
+import { Credentials } from '../../interfaces/profiles/credentials';
 import { NavController, Platform } from '@ionic/angular';
 import { BehaviorSubject, Subject } from 'rxjs';
 import { Router } from '@angular/router';
@@ -31,7 +31,7 @@ const SignInWithApple = registerPlugin<AppleSignInPlugin>('SignInWithApple');
   providedIn: 'root'
 })
 export class AccountService {
-  private credentials = signal<credentials>({ uid: '', email: '' });
+  private credentials = signal<Credentials>({ uid: '', email: '' });
   private authInitialized = signal(false);
   private isAuthenticated = computed(() => !!this.credentials().uid);
   
@@ -84,7 +84,7 @@ export class AccountService {
     return this.isAuthenticated;
   }
 
-  getCredentials(): Signal<credentials> {
+  getCredentials(): Signal<Credentials> {
     return this.credentials.asReadonly();
   }
 
