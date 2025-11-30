@@ -1,4 +1,12 @@
 import {
+  KEYBOARD_DID_OPEN
+} from "./chunk-G5UZVNUA.js";
+import {
+  Keyboard,
+  KeyboardResize,
+  getCapacitor
+} from "./chunk-IKS2SDKY.js";
+import {
   ION_CONTENT_CLASS_SELECTOR,
   ION_CONTENT_ELEMENT_SELECTOR,
   disableContentScrollY,
@@ -15,14 +23,6 @@ import {
 import {
   isRTL
 } from "./chunk-IUXA2G6D.js";
-import {
-  KEYBOARD_DID_OPEN
-} from "./chunk-G5UZVNUA.js";
-import {
-  Keyboard,
-  KeyboardResize,
-  getCapacitor
-} from "./chunk-IKS2SDKY.js";
 import {
   AngularDelegate,
   BACKDROP,
@@ -87,13 +87,13 @@ import {
   setIonicClasses,
   setOverlayId,
   toastController
-} from "./chunk-5NA2OIO7.js";
+} from "./chunk-YMOJFXH3.js";
 import {
   iosTransitionAnimation
-} from "./chunk-M6DUAG6E.js";
+} from "./chunk-K4UBL5DC.js";
 import {
   mdTransitionAnimation
-} from "./chunk-KPHGING5.js";
+} from "./chunk-VQ6XSBMU.js";
 import {
   LIFECYCLE_DID_LEAVE,
   LIFECYCLE_WILL_LEAVE,
@@ -104,7 +104,7 @@ import {
   setPageHidden,
   transition,
   waitForMount
-} from "./chunk-OEAKZD6C.js";
+} from "./chunk-IUPXHPL7.js";
 import {
   Build,
   Fragment,
@@ -144,16 +144,16 @@ import {
 } from "./chunk-6U2AQA2C.js";
 import {
   shouldUseCloseWatcher
-} from "./chunk-ERSSCDF4.js";
+} from "./chunk-XONSWJIQ.js";
+import {
+  doc,
+  win
+} from "./chunk-QEE7QVES.js";
 import {
   config,
   printIonError,
   printIonWarning
 } from "./chunk-2H3NLAAY.js";
-import {
-  doc,
-  win
-} from "./chunk-QEE7QVES.js";
 import {
   NG_VALUE_ACCESSOR
 } from "./chunk-O6JU2AJW.js";
@@ -222,10 +222,10 @@ import {
   ɵɵtemplate,
   ɵɵviewQuery
 } from "./chunk-6RHLTVIT.js";
+import "./chunk-A4HOGWHI.js";
 import {
   fromEvent
 } from "./chunk-7W67SMPV.js";
-import "./chunk-A4HOGWHI.js";
 import "./chunk-UP6CNWOR.js";
 import {
   __decorate
@@ -5037,16 +5037,16 @@ var App = proxyCustomElement(class App2 extends H {
       rIC(() => __async(this, null, function* () {
         const isHybrid = isPlatform(window, "hybrid");
         if (!config.getBoolean("_testing")) {
-          import("./index7-ZSX2UVD3.js").then((module) => module.startTapClick(config));
+          import("./index7-CUHXCJJ6.js").then((module) => module.startTapClick(config));
         }
         if (config.getBoolean("statusTap", isHybrid)) {
           import("./status-tap-7E3OV7EG.js").then((module) => module.startStatusTap());
         }
         if (config.getBoolean("inputShims", needInputShims())) {
           const platform = isPlatform(window, "ios") ? "ios" : "android";
-          import("./input-shims-6PILIWZJ.js").then((module) => module.startInputShims(config, platform));
+          import("./input-shims-V4TUPIL7.js").then((module) => module.startInputShims(config, platform));
         }
-        const hardwareBackButtonModule = yield import("./hardware-back-button-26WL3NWE.js");
+        const hardwareBackButtonModule = yield import("./hardware-back-button-USTE5QX4.js");
         const supportsHardwareBackButtonEvents = isHybrid || shouldUseCloseWatcher();
         if (config.getBoolean("hardwareBackButton", supportsHardwareBackButtonEvents)) {
           hardwareBackButtonModule.startHardwareBackButton();
@@ -17847,6 +17847,19 @@ var Datetime = proxyCustomElement(class Datetime2 extends H {
         destroyKeyboardMO();
       }
     };
+    this.ensureReadyIfVisible = () => {
+      if (this.el.classList.contains("datetime-ready")) {
+        return;
+      }
+      const rect = this.el.getBoundingClientRect();
+      if (rect.width === 0 || rect.height === 0) {
+        return;
+      }
+      this.initializeListeners();
+      writeTask(() => {
+        this.el.classList.add("datetime-ready");
+      });
+    };
     this.processValue = (value) => {
       const hasValue = value !== null && value !== void 0 && value !== "" && (!Array.isArray(value) || value.length > 0);
       const valueToProcess = hasValue ? parseDate(value) : this.defaultParts;
@@ -18087,6 +18100,9 @@ var Datetime = proxyCustomElement(class Datetime2 extends H {
     };
     const visibleIO = new IntersectionObserver(visibleCallback, { threshold: 0.01, root: el });
     raf(() => visibleIO === null || visibleIO === void 0 ? void 0 : visibleIO.observe(intersectionTrackerRef));
+    setTimeout(() => {
+      this.ensureReadyIfVisible();
+    }, 100);
     const hiddenCallback = (entries) => {
       const ev = entries[0];
       if (ev.isIntersecting) {
@@ -18682,7 +18698,7 @@ var Datetime = proxyCustomElement(class Datetime2 extends H {
     const hasDatePresentation = presentation === "date" || presentation === "date-time" || presentation === "time-date";
     const hasWheelVariant = hasDatePresentation && preferWheel;
     renderHiddenInput(true, el, name, formatValue(value), disabled);
-    return h(Host, { key: "57492534800ea059a7c2bbd9f0059cc0b75ae8d2", "aria-disabled": disabled ? "true" : null, onFocus: this.onFocus, onBlur: this.onBlur, class: Object.assign({}, createColorClasses(color, {
+    return h(Host, { key: "efdbc0922670a841bc667ceac392cdc1dedffd01", "aria-disabled": disabled ? "true" : null, onFocus: this.onFocus, onBlur: this.onBlur, class: Object.assign({}, createColorClasses(color, {
       [mode]: true,
       ["datetime-readonly"]: readonly,
       ["datetime-disabled"]: disabled,
@@ -18692,7 +18708,7 @@ var Datetime = proxyCustomElement(class Datetime2 extends H {
       [`datetime-size-${size}`]: true,
       [`datetime-prefer-wheel`]: hasWheelVariant,
       [`datetime-grid`]: isGridStyle
-    })) }, h("div", { key: "97dac5e5195635ac0bc5fb472b9d09e5c3c6bbc3", class: "intersection-tracker", ref: (el2) => this.intersectionTrackerRef = el2 }), this.renderDatetime(mode));
+    })) }, h("div", { key: "3f8bb75fcb0baff55182ef3aa1b535eacc58d81f", class: "intersection-tracker", ref: (el2) => this.intersectionTrackerRef = el2 }), this.renderDatetime(mode));
   }
   get el() {
     return this;
@@ -18838,7 +18854,7 @@ function defineCustomElement$158() {
 }
 var defineCustomElement107 = defineCustomElement$158;
 
-// node_modules/@ionic/angular/node_modules/ionicons/components/index.js
+// node_modules/ionicons/components/index.js
 var NAMESPACE = "ionicons";
 var BUILD = (
   /* ionicons */
@@ -20114,7 +20130,7 @@ var isRTL3 = (hostEl) => {
   return (document === null || document === void 0 ? void 0 : document.dir.toLowerCase()) === "rtl";
 };
 
-// node_modules/@ionic/angular/node_modules/ionicons/components/ion-icon.js
+// node_modules/ionicons/components/ion-icon.js
 var validateContent2 = (svgContent) => {
   const div = document.createElement("div");
   div.innerHTML = svgContent;

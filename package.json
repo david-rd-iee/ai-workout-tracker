@@ -30,9 +30,9 @@
     "@capacitor/keyboard": "7.0.3",
     "@capacitor/status-bar": "7.0.3",
     "@dataconnect/generated": "file:src/dataconnect-generated",
-    "@ionic/angular": "^8.0.0",
+    "@ionic/angular": "^8.7.11",
     "firebase": "^11.10.0",
-    "ionicons": "^7.0.0",
+    "ionicons": "^8.0.13",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0",
     "zone.js": "~0.15.0"

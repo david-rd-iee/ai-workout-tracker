@@ -1,5 +1,5 @@
 import { Component, Input } from '@angular/core';
-import { IonHeader, IonToolbar, IonButtons, IonButton, IonIcon, IonTitle } from '@ionic/angular/standalone';
+import { IonHeader, IonToolbar, IonButton, IonIcon, IonTitle } from '@ionic/angular/standalone';
 import { Router } from '@angular/router';
 import { CommonModule, Location } from '@angular/common';
 import { addIcons } from 'ionicons';
@@ -10,7 +10,7 @@ import { chevronBackOutline, personOutline } from 'ionicons/icons';
   templateUrl: './header.component.html',
   styleUrls: ['./header.component.scss'],
   standalone: true,
-  imports: [IonToolbar, IonHeader, IonButtons, IonButton, IonIcon, IonTitle, CommonModule]
+  imports: [IonToolbar, IonHeader, IonButton, IonIcon, IonTitle, CommonModule]
 })
 export class HeaderComponent {
   @Input() title: string = 'ATLAS';

@@ -5,11 +5,11 @@ import {
   AppCheckInstances
 } from "./chunk-FPEQ7UO7.js";
 import "./chunk-ZO67XBGE.js";
-import "./chunk-6A7NGCQP.js";
 import {
   FirebaseApp,
   FirebaseApps
 } from "./chunk-R62VQ5UR.js";
+import "./chunk-6A7NGCQP.js";
 import {
   VERSION,
   ɵAngularFireSchedulers,
@@ -44,8 +44,8 @@ import {
   ɵɵdefineInjector,
   ɵɵdefineNgModule
 } from "./chunk-6RHLTVIT.js";
-import "./chunk-7W67SMPV.js";
 import "./chunk-A4HOGWHI.js";
+import "./chunk-7W67SMPV.js";
 import {
   Observable,
   concatMap,
