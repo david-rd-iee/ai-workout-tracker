@@ -87,7 +87,10 @@ import {
   setIonicClasses,
   setOverlayId,
   toastController
-} from "./chunk-YMOJFXH3.js";
+} from "./chunk-2N6OL5EY.js";
+import {
+  shouldUseCloseWatcher
+} from "./chunk-XONSWJIQ.js";
 import {
   iosTransitionAnimation
 } from "./chunk-K4UBL5DC.js";
@@ -139,13 +142,6 @@ import {
   transitionEndAsync
 } from "./chunk-4554YRK6.js";
 import {
-  GESTURE_CONTROLLER,
-  createGesture
-} from "./chunk-6U2AQA2C.js";
-import {
-  shouldUseCloseWatcher
-} from "./chunk-XONSWJIQ.js";
-import {
   doc,
   win
 } from "./chunk-QEE7QVES.js";
@@ -154,6 +150,10 @@ import {
   printIonError,
   printIonWarning
 } from "./chunk-2H3NLAAY.js";
+import {
+  GESTURE_CONTROLLER,
+  createGesture
+} from "./chunk-6U2AQA2C.js";
 import {
   NG_VALUE_ACCESSOR
 } from "./chunk-O6JU2AJW.js";
@@ -222,10 +222,10 @@ import {
   ɵɵtemplate,
   ɵɵviewQuery
 } from "./chunk-6RHLTVIT.js";
-import "./chunk-A4HOGWHI.js";
 import {
   fromEvent
 } from "./chunk-7W67SMPV.js";
+import "./chunk-A4HOGWHI.js";
 import "./chunk-UP6CNWOR.js";
 import {
   __decorate
@@ -866,7 +866,7 @@ var RouterOutlet = proxyCustomElement(class RouterOutlet2 extends H {
           this.swipeHandler.onStart();
         }
       };
-      this.gesture = (yield import("./swipe-back-V4JWZF6L.js")).createSwipeBackGesture(this.el, () => !this.gestureOrAnimationInProgress && !!this.swipeHandler && this.swipeHandler.canStart(), () => onStart(), (step) => {
+      this.gesture = (yield import("./swipe-back-GCCANZBZ.js")).createSwipeBackGesture(this.el, () => !this.gestureOrAnimationInProgress && !!this.swipeHandler && this.swipeHandler.canStart(), () => onStart(), (step) => {
         var _a;
         return (_a = this.ani) === null || _a === void 0 ? void 0 : _a.progressStep(step);
       }, (shouldComplete, step, dur) => {
@@ -16703,7 +16703,7 @@ var Nav = proxyCustomElement(class Nav2 extends H {
     return __async(this, null, function* () {
       this.didLoad = true;
       this.rootChanged();
-      this.gesture = (yield import("./swipe-back-V4JWZF6L.js")).createSwipeBackGesture(this.el, this.canStart.bind(this), this.onStart.bind(this), this.onMove.bind(this), this.onEnd.bind(this));
+      this.gesture = (yield import("./swipe-back-GCCANZBZ.js")).createSwipeBackGesture(this.el, this.canStart.bind(this), this.onStart.bind(this), this.onMove.bind(this), this.onEnd.bind(this));
       this.swipeGestureChanged();
     });
   }

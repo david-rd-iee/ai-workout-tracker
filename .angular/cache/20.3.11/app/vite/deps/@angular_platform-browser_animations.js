@@ -19,8 +19,8 @@ import {
   ɵɵdefineNgModule,
   ɵɵinject
 } from "./chunk-6RHLTVIT.js";
-import "./chunk-A4HOGWHI.js";
 import "./chunk-7W67SMPV.js";
+import "./chunk-A4HOGWHI.js";
 import "./chunk-UP6CNWOR.js";
 import "./chunk-BBC5QSU6.js";
 import {

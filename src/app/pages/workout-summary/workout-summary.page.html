@@ -1,0 +1,62 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-title>Workout Summary</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding">
+  <ion-card>
+    <ion-card-header>
+      <div class="score-block">
+        <div class="score-main">{{ summary.workScore }}</div>
+        <div class="score-label">WorkScore</div>
+      </div>
+    </ion-card-header>
+
+    <ion-card-content>
+      <p class="calories-text">
+        Calories Burned: <strong>{{ summary.calories }} kcal</strong>
+      </p>
+
+      <h3 class="section-title">Effort over time</h3>
+
+      <!-- simple bar graph made of little bars -->
+      <div class="effort-graph">
+        <div
+          class="effort-bar"
+          *ngFor="let point of summary.effortSeries"
+          [style.height.%]="point"
+        ></div>
+      </div>
+
+      <h3 class="section-title">Exercise Breakdown</h3>
+
+      <ion-grid>
+        <ion-row class="table-header">
+          <ion-col size="6" class="header-col">Exercise</ion-col>
+          <ion-col size="3" class="header-col center">Amount</ion-col>
+          <ion-col size="3" class="header-col right">Form</ion-col>
+        </ion-row>
+
+        <ion-row *ngFor="let ex of summary.exercises">
+          <ion-col size="6">{{ ex.name }}</ion-col>
+          <ion-col size="3">{{ ex.metric }}</ion-col>
+          <ion-col size="3" class="ion-text-right">
+            <ion-badge [color]="getFormColor(ex.formScore)">
+              {{ ex.formScore }}
+            </ion-badge>
+          </ion-col>
+        </ion-row>
+      </ion-grid>
+
+      <div class="actions">
+        <ion-button fill="outline" size="small" expand="block">
+          Share to Group
+        </ion-button>
+        <ion-button size="small" expand="block">
+          View Leaderboard
+        </ion-button>
+      </div>
+    </ion-card-content>
+  </ion-card>
+</ion-content>
