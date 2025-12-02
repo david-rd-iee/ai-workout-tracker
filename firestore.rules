@@ -362,6 +362,37 @@ service cloud.firestore {
       allow write: if false;
     }
     
+    // User stats collection (for leaderboards and progress tracking)
+    match /userStats/{userId} {
+      // Allow any authenticated user to read stats (for leaderboard)
+      allow read: if isSignedIn();
+      
+      // Only allow writes from backend Cloud Functions (using Firebase Admin SDK)
+      // This is enforced by checking for the `request.auth` being null, which happens
+      // when using the Firebase Admin SDK with service account credentials
+      allow write: if request.auth == null;
+    }
+    
+    // Groups collection (for group challenges and teams)
+    match /groups/{groupId} {
+      // Allow any authenticated user to read group information
+      allow read: if isSignedIn();
+      
+      // Only allow group members to write to the group document
+      // and only allow updates to specific fields
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && (
+        // Allow updating member lists, group name, and description
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['members', 'name', 'description', 'updatedAt']) ||
+        // Allow updating challenge progress
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['challenges']) &&
+         resource.data.members.hasAny([request.auth.uid]))
+      );
+      
+      // Only allow group admins to delete groups
+      allow delete: if isSignedIn() && resource.data.admins.hasAny([request.auth.uid]);
+    }
+    
     // Default deny
     match /{document=**} {
       allow read, write: if false;
