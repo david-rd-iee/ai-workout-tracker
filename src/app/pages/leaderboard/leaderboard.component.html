@@ -1,3 +1,25 @@
-<p>
-  leaderboard works!
-</p>
+<ion-content>
+  <ion-card *ngIf="stats as s; else noData">
+    <ion-card-header>
+      <ion-card-title>Test User Stats</ion-card-title>
+    </ion-card-header>
+
+    <ion-card-content>
+      <p><strong>User ID:</strong> {{ s.userId }}</p>
+      <p><strong>Total Work Score:</strong> {{ s.total_work_score }}</p>
+      <p><strong>Cardio Score:</strong> {{ s.cardio_work_score }}</p>
+      <p><strong>Strength Score:</strong> {{ s.strength_work_score }}</p>
+      <p><strong>Level:</strong> {{ s.level }}</p>
+      <p *ngIf="s.region"><strong>Region:</strong> {{ s.region }}</p>
+    </ion-card-content>
+  </ion-card>
+
+  <ng-template #noData>
+    <ion-card>
+      <ion-card-content>
+        <p>No user stats found for this test user.</p>
+        <p *ngIf="errorMessage"><strong>Error:</strong> {{ errorMessage }}</p>
+      </ion-card-content>
+    </ion-card>
+  </ng-template>
+</ion-content>

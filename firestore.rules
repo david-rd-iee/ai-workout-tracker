@@ -2,6 +2,8 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    
     // Helper functions
     function isSignedIn() {
       return request.auth != null;
@@ -364,14 +366,12 @@ service cloud.firestore {
     
     // User stats collection (for leaderboards and progress tracking)
     match /userStats/{userId} {
-      // Allow any authenticated user to read stats (for leaderboard)
-      allow read: if isSignedIn();
-      
-      // Only allow writes from backend Cloud Functions (using Firebase Admin SDK)
-      // This is enforced by checking for the `request.auth` being null, which happens
-      // when using the Firebase Admin SDK with service account credentials
-      allow write: if request.auth == null;
+      // Dev-friendly: any logged-in user can read any userStats doc
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == userId;
     }
+
+
     
     // Groups collection (for group challenges and teams)
     match /groups/{groupId} {
@@ -393,9 +393,9 @@ service cloud.firestore {
       allow delete: if isSignedIn() && resource.data.admins.hasAny([request.auth.uid]);
     }
     
-    // Default deny
+    // DEBUG ONLY
     match /{document=**} {
-      allow read, write: if false;
+      allow read, write: if true;
     }
   }
 }
