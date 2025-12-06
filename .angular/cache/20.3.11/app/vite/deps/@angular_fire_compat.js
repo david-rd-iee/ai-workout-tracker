@@ -18,7 +18,7 @@ import {
   onLog,
   registerVersion,
   setLogLevel
-} from "./chunk-IVQS3FBB.js";
+} from "./chunk-SGCNLH6P.js";
 import {
   Inject,
   InjectionToken,
@@ -32,7 +32,10 @@ import {
   ɵɵdefineInjector,
   ɵɵdefineNgModule,
   ɵɵinject
-} from "./chunk-ZZE7GORA.js";
+} from "./chunk-GFF4UYAA.js";
+import "./chunk-QBS6YOF6.js";
+import "./chunk-ZT5OBPF3.js";
+import "./chunk-N6GEM7SJ.js";
 import "./chunk-4VWZEZJW.js";
 
 // node_modules/@firebase/app-compat/dist/esm/index.esm2017.js
