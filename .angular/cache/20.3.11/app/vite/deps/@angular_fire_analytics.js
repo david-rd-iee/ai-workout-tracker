@@ -2,36 +2,28 @@ import {
   ActivationEnd,
   Router,
   ɵEmptyOutletComponent
-} from "./chunk-WHBAKI6S.js";
+} from "./chunk-XYC54TLX.js";
 import {
   Title
-} from "./chunk-Z2PZGSTS.js";
-import "./chunk-IKUEHSKM.js";
+} from "./chunk-TBQH36TG.js";
+import "./chunk-2HY36GBH.js";
 import {
   Auth,
   authState
-} from "./chunk-WV6RZIGD.js";
-import "./chunk-FPEQ7UO7.js";
-import "./chunk-ZO67XBGE.js";
+} from "./chunk-L5QKGEON.js";
 import {
   FirebaseApp,
   FirebaseApps
-} from "./chunk-R62VQ5UR.js";
+} from "./chunk-62LLWWWH.js";
 import {
   isPlatformBrowser
-} from "./chunk-6A7NGCQP.js";
-import {
-  VERSION,
-  ɵAngularFireSchedulers,
-  ɵgetAllInstancesOf,
-  ɵgetDefaultInstanceOf,
-  ɵzoneWrap
-} from "./chunk-W76PCQAQ.js";
+} from "./chunk-QJH6OHLW.js";
 import {
   Component,
   ErrorFactory,
   FirebaseError,
   Logger,
+  VERSION,
   _getProvider,
   _registerComponent,
   areCookiesEnabled,
@@ -43,8 +35,12 @@ import {
   isIndexedDBAvailable,
   openDB,
   registerVersion,
-  validateIndexedDBOpenable
-} from "./chunk-ZMMZFQVD.js";
+  validateIndexedDBOpenable,
+  ɵAngularFireSchedulers,
+  ɵgetAllInstancesOf,
+  ɵgetDefaultInstanceOf,
+  ɵzoneWrap
+} from "./chunk-JFHOBYY2.js";
 import {
   ComponentFactoryResolver$1,
   Injectable,
@@ -54,31 +50,26 @@ import {
   NgZone,
   Optional,
   PLATFORM_ID,
-  makeEnvironmentProviders,
-  setClassMetadata,
-  ɵɵdefineInjectable,
-  ɵɵdefineInjector,
-  ɵɵdefineNgModule,
-  ɵɵinject
-} from "./chunk-6RHLTVIT.js";
-import "./chunk-A4HOGWHI.js";
-import "./chunk-7W67SMPV.js";
-import {
   concatMap,
   distinct,
   distinctUntilChanged,
   filter,
   from,
   groupBy,
+  makeEnvironmentProviders,
   map,
   mergeMap,
   of,
   pairwise,
+  setClassMetadata,
   startWith,
   switchMap,
-  timer
-} from "./chunk-UP6CNWOR.js";
-import "./chunk-BBC5QSU6.js";
+  timer,
+  ɵɵdefineInjectable,
+  ɵɵdefineInjector,
+  ɵɵdefineNgModule,
+  ɵɵinject
+} from "./chunk-VXQWJB3U.js";
 import {
   __async,
   __spreadProps,

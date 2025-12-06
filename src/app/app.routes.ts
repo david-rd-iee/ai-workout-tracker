@@ -8,4 +8,12 @@ export const routes: Routes = [
     redirectTo: '/tabs/home',
     pathMatch: 'full',
   },
+  {
+    path: 'groups',
+    loadComponent: () => import('./pages/groups/groups.page').then(m => m.GroupsPage),
+  },
+  {
+    path: 'groups',
+    loadComponent: () => import('./pages/groups/groups.page').then( m => m.GroupsPage)
+  },
 ];

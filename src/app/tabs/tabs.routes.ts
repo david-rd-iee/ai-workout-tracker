@@ -15,8 +15,8 @@ export const routes: Routes = [
         loadComponent: () => import('../pages/leaderboard/leaderboard.component').then((m) => m.LeaderboardComponent),
       },
       {
-        path: 'account',
-        loadComponent: () => import('../pages/account/client-account/client-account.page').then((m) => m.ClientAccountPage),
+        path: 'groups',
+        loadComponent: () => import('../pages/groups/groups.page').then(m => m.GroupsPage)
       },
       {
         path: '',

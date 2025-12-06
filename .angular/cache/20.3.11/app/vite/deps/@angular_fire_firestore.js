@@ -1,28 +1,19 @@
 import {
+  AppCheckInstances,
   AuthInstances
-} from "./chunk-WV6RZIGD.js";
-import {
-  AppCheckInstances
-} from "./chunk-FPEQ7UO7.js";
-import "./chunk-ZO67XBGE.js";
+} from "./chunk-L5QKGEON.js";
 import {
   FirebaseApp,
   FirebaseApps
-} from "./chunk-R62VQ5UR.js";
-import "./chunk-6A7NGCQP.js";
-import {
-  VERSION,
-  ɵAngularFireSchedulers,
-  ɵgetAllInstancesOf,
-  ɵgetDefaultInstanceOf,
-  ɵzoneWrap
-} from "./chunk-W76PCQAQ.js";
+} from "./chunk-62LLWWWH.js";
+import "./chunk-QJH6OHLW.js";
 import {
   Component,
   FirebaseError,
   LogLevel,
   Logger,
   SDK_VERSION,
+  VERSION,
   _getProvider,
   _isFirebaseServerApp,
   _registerComponent,
@@ -40,36 +31,35 @@ import {
   isSafariOrWebkit,
   pingServer,
   registerVersion,
-  updateEmulatorBanner
-} from "./chunk-ZMMZFQVD.js";
+  updateEmulatorBanner,
+  ɵAngularFireSchedulers,
+  ɵgetAllInstancesOf,
+  ɵgetDefaultInstanceOf,
+  ɵzoneWrap
+} from "./chunk-JFHOBYY2.js";
 import {
   InjectionToken,
   Injector,
   NgModule,
   NgZone,
-  Optional,
-  makeEnvironmentProviders,
-  setClassMetadata,
-  ɵɵdefineInjector,
-  ɵɵdefineNgModule
-} from "./chunk-6RHLTVIT.js";
-import "./chunk-A4HOGWHI.js";
-import "./chunk-7W67SMPV.js";
-import {
   Observable,
+  Optional,
   concatMap,
   distinct,
   distinctUntilChanged,
   filter,
   from,
+  makeEnvironmentProviders,
   map,
   pairwise,
   pipe,
   scan,
+  setClassMetadata,
   startWith,
-  timer
-} from "./chunk-UP6CNWOR.js";
-import "./chunk-BBC5QSU6.js";
+  timer,
+  ɵɵdefineInjector,
+  ɵɵdefineNgModule
+} from "./chunk-VXQWJB3U.js";
 import {
   __async,
   __superGet
