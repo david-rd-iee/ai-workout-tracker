@@ -1,4 +1,3 @@
-<!-- src/app/pages/leaderboard/leaderboard.component.html -->
 <ion-header>
   <ion-toolbar>
     <ion-title>Leaderboard</ion-title>
@@ -12,45 +11,33 @@
       <ion-card-title>Sort Options</ion-card-title>
     </ion-card-header>
     <ion-card-content>
-      <!-- Region sort -->
+      <!-- Region sort as dropdown (optional) -->
       <ion-item>
         <ion-label>Region</ion-label>
-        <ion-segment
+        <ion-select
           [(ngModel)]="regionSort"
           (ionChange)="onRegionSortChange($event)"
-        >
-          <ion-segment-button value="none">
-            <ion-label>None</ion-label>
-          </ion-segment-button>
-          <ion-segment-button value="city">
-            <ion-label>City</ion-label>
-          </ion-segment-button>
-          <ion-segment-button value="state">
-            <ion-label>State</ion-label>
-          </ion-segment-button>
-          <ion-segment-button value="country">
-            <ion-label>Country</ion-label>
-          </ion-segment-button>
-        </ion-segment>
+          interface="popover"
+          placeholder="No region filter">
+          <ion-select-option value="none">None</ion-select-option>
+          <ion-select-option value="city">City</ion-select-option>
+          <ion-select-option value="state">State</ion-select-option>
+          <ion-select-option value="country">Country</ion-select-option>
+        </ion-select>
       </ion-item>
 
-      <!-- Metric sort -->
+      <!-- Workout type (metric) sort as dropdown -->
       <ion-item class="ion-margin-top">
-        <ion-label>Metric</ion-label>
-        <ion-segment
+        <ion-label>Workout Type</ion-label>
+        <ion-select
           [(ngModel)]="metricSort"
           (ionChange)="onMetricSortChange($event)"
-        >
-          <ion-segment-button value="total">
-            <ion-label>Total</ion-label>
-          </ion-segment-button>
-          <ion-segment-button value="cardio">
-            <ion-label>Cardio</ion-label>
-          </ion-segment-button>
-          <ion-segment-button value="strength">
-            <ion-label>Strength</ion-label>
-          </ion-segment-button>
-        </ion-segment>
+          interface="popover"
+          placeholder="Select type">
+          <ion-select-option value="total">Total (All Work)</ion-select-option>
+          <ion-select-option value="cardio">Cardio</ion-select-option>
+          <ion-select-option value="strength">Strength</ion-select-option>
+        </ion-select>
       </ion-item>
     </ion-card-content>
   </ion-card>
@@ -75,7 +62,6 @@
     <ion-item *ngFor="let entry of entries">
       <ion-label>
         <h2>#{{ entry.rank }} {{ entry.displayName }}</h2>
-
         <p>
           Total: {{ entry.totalWorkScore }}
           &nbsp;·&nbsp;
@@ -83,17 +69,9 @@
           &nbsp;·&nbsp;
           Strength: {{ entry.strengthWorkScore }}
         </p>
-
-        <!-- Level -->
-        <p *ngIf="entry.level !== undefined">
-          Level: {{ entry.level }}
-        </p>
-
-        <!-- Region display -->
+        <p *ngIf="entry.level !== undefined">Level: {{ entry.level }}</p>
         <ng-container *ngIf="entry.region as r">
-          <p>
-            {{ r.city }}, {{ r.state }}, {{ r.country }}
-          </p>
+          <p>{{ r.city }}, {{ r.state }}, {{ r.country }}</p>
         </ng-container>
       </ion-label>
     </ion-item>

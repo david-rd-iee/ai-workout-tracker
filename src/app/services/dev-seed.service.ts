@@ -29,7 +29,7 @@ export class DevSeedService {
   // 'pt'      -> only PT group
   // 'friends' -> only friends group
   // 'both'    -> PT + friends
-  private readonly devGroupScenario: DevGroupScenario = 'both';
+  private readonly devGroupScenario: DevGroupScenario = 'pt';
 
   private readonly ptGroupId = 'DEV_PT_GROUP';
   private readonly friendsGroupId = 'DEV_FRIENDS_GROUP';

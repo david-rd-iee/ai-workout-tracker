@@ -6,6 +6,7 @@ import {
   FirebaseApp,
   FirebaseApps
 } from "./chunk-F726I4SA.js";
+import "./chunk-HHZUQAL7.js";
 import {
   Component,
   ComponentContainer,
@@ -53,7 +54,6 @@ import {
   ɵgetDefaultInstanceOf,
   ɵzoneWrap
 } from "./chunk-SGCNLH6P.js";
-import "./chunk-HHZUQAL7.js";
 import {
   InjectionToken,
   Injector,

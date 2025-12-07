@@ -20,7 +20,6 @@ export interface LeaderboardEntry {
   cardioWorkScore: number;
   strengthWorkScore: number;
   level?: number;
-  xp?: number;
   region?: Region;
 }
 

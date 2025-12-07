@@ -16,6 +16,9 @@ import {
   FirebaseApps
 } from "./chunk-F726I4SA.js";
 import {
+  isPlatformBrowser
+} from "./chunk-HHZUQAL7.js";
+import {
   Component,
   ErrorFactory,
   FirebaseError,
@@ -38,9 +41,6 @@ import {
   ɵgetDefaultInstanceOf,
   ɵzoneWrap
 } from "./chunk-SGCNLH6P.js";
-import {
-  isPlatformBrowser
-} from "./chunk-HHZUQAL7.js";
 import {
   ComponentFactoryResolver$1,
   Injectable,
