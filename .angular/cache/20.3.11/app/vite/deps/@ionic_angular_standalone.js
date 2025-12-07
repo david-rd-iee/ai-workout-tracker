@@ -1,15 +1,4 @@
 import {
-  isRTL
-} from "./chunk-IUXA2G6D.js";
-import {
-  KEYBOARD_DID_OPEN
-} from "./chunk-G5UZVNUA.js";
-import {
-  Keyboard,
-  KeyboardResize,
-  getCapacitor
-} from "./chunk-IKS2SDKY.js";
-import {
   ION_CONTENT_CLASS_SELECTOR,
   ION_CONTENT_ELEMENT_SELECTOR,
   disableContentScrollY,
@@ -23,6 +12,17 @@ import {
 import {
   startFocusVisible
 } from "./chunk-L6ISKHKK.js";
+import {
+  isRTL
+} from "./chunk-IUXA2G6D.js";
+import {
+  KEYBOARD_DID_OPEN
+} from "./chunk-G5UZVNUA.js";
+import {
+  Keyboard,
+  KeyboardResize,
+  getCapacitor
+} from "./chunk-IKS2SDKY.js";
 import {
   AngularDelegate,
   BACKDROP,
@@ -87,13 +87,13 @@ import {
   setIonicClasses,
   setOverlayId,
   toastController
-} from "./chunk-DINJVZF6.js";
+} from "./chunk-OFTPLD33.js";
 import {
   iosTransitionAnimation
-} from "./chunk-K4UBL5DC.js";
+} from "./chunk-M6DUAG6E.js";
 import {
   mdTransitionAnimation
-} from "./chunk-VQ6XSBMU.js";
+} from "./chunk-KPHGING5.js";
 import {
   LIFECYCLE_DID_LEAVE,
   LIFECYCLE_WILL_LEAVE,
@@ -104,7 +104,7 @@ import {
   setPageHidden,
   transition,
   waitForMount
-} from "./chunk-IUPXHPL7.js";
+} from "./chunk-OEAKZD6C.js";
 import {
   Build,
   Fragment,
@@ -144,16 +144,16 @@ import {
 } from "./chunk-6U2AQA2C.js";
 import {
   shouldUseCloseWatcher
-} from "./chunk-XONSWJIQ.js";
-import {
-  doc,
-  win
-} from "./chunk-QEE7QVES.js";
+} from "./chunk-ERSSCDF4.js";
 import {
   config,
   printIonError,
   printIonWarning
 } from "./chunk-2H3NLAAY.js";
+import {
+  doc,
+  win
+} from "./chunk-QEE7QVES.js";
 import {
   NG_VALUE_ACCESSOR
 } from "./chunk-HIXY7WJ6.js";
@@ -222,10 +222,10 @@ import {
   ɵɵtemplate,
   ɵɵviewQuery
 } from "./chunk-GFF4UYAA.js";
-import "./chunk-ZT5OBPF3.js";
 import {
   fromEvent
 } from "./chunk-QBS6YOF6.js";
+import "./chunk-ZT5OBPF3.js";
 import {
   __decorate
 } from "./chunk-N6GEM7SJ.js";
@@ -5036,16 +5036,16 @@ var App = proxyCustomElement(class App2 extends H {
       rIC(() => __async(this, null, function* () {
         const isHybrid = isPlatform(window, "hybrid");
         if (!config.getBoolean("_testing")) {
-          import("./index7-CUHXCJJ6.js").then((module) => module.startTapClick(config));
+          import("./index7-ZSX2UVD3.js").then((module) => module.startTapClick(config));
         }
         if (config.getBoolean("statusTap", isHybrid)) {
           import("./status-tap-7E3OV7EG.js").then((module) => module.startStatusTap());
         }
         if (config.getBoolean("inputShims", needInputShims())) {
           const platform = isPlatform(window, "ios") ? "ios" : "android";
-          import("./input-shims-V4TUPIL7.js").then((module) => module.startInputShims(config, platform));
+          import("./input-shims-6PILIWZJ.js").then((module) => module.startInputShims(config, platform));
         }
-        const hardwareBackButtonModule = yield import("./hardware-back-button-USTE5QX4.js");
+        const hardwareBackButtonModule = yield import("./hardware-back-button-26WL3NWE.js");
         const supportsHardwareBackButtonEvents = isHybrid || shouldUseCloseWatcher();
         if (config.getBoolean("hardwareBackButton", supportsHardwareBackButtonEvents)) {
           hardwareBackButtonModule.startHardwareBackButton();

@@ -6,7 +6,6 @@ import {
   FirebaseApp,
   FirebaseApps
 } from "./chunk-F726I4SA.js";
-import "./chunk-HHZUQAL7.js";
 import {
   Component,
   FirebaseError,
@@ -26,6 +25,7 @@ import {
   ɵgetDefaultInstanceOf,
   ɵzoneWrap
 } from "./chunk-SGCNLH6P.js";
+import "./chunk-HHZUQAL7.js";
 import {
   InjectionToken,
   Injector,
@@ -37,8 +37,8 @@ import {
   ɵɵdefineInjector,
   ɵɵdefineNgModule
 } from "./chunk-GFF4UYAA.js";
-import "./chunk-ZT5OBPF3.js";
 import "./chunk-QBS6YOF6.js";
+import "./chunk-ZT5OBPF3.js";
 import {
   concatMap,
   distinct,
