@@ -1,40 +1,48 @@
 <ion-header>
   <ion-toolbar>
     <ion-title>Groups</ion-title>
-
-    <ion-buttons slot="end" *ngIf="hasGroups">
-      <ion-button (click)="onCreateGroup()">
-        <ion-icon name="add"></ion-icon>
-      </ion-button>
-    </ion-buttons>
   </ion-toolbar>
 </ion-header>
 
-<ion-content [fullscreen]="true">
-  <ion-spinner *ngIf="loading" class="ion-margin"></ion-spinner>
+<ion-content>
 
-  <ion-card *ngIf="!loading && errorMessage">
-    <ion-card-content>
-      <strong>Error:</strong> {{ errorMessage }}
-    </ion-card-content>
-  </ion-card>
+  <!-- Loading -->
+  <div class="ion-text-center ion-padding" *ngIf="loading">
+    <ion-spinner name="crescent"></ion-spinner>
+  </div>
 
-  <ng-container *ngIf="!loading && appUser as u">
+  <!-- Error -->
+  <ion-text color="danger" class="ion-padding" *ngIf="!loading && errorMessage">
+    {{ errorMessage }}
+  </ion-text>
+
+  <!-- No user logged in -->
+  <ng-container *ngIf="!loading && !appUser">
+    <ion-item>
+      <ion-label>You must be logged in to view groups.</ion-label>
+    </ion-item>
+  </ng-container>
+
+  <!-- Content when user exists -->
+  <ng-container *ngIf="!loading && appUser">
+
+    <!-- If the user has neither PT nor friend groups -->
     <ng-container *ngIf="!hasGroups && !hasPT; else hasSomeGroups">
       <ion-card>
         <ion-card-header>
-          <ion-card-title>No Groups Yet</ion-card-title>
+          <ion-card-title>No Groups Found</ion-card-title>
         </ion-card-header>
         <ion-card-content>
-          <p>You’re not in any groups yet.</p>
-          <ion-button expand="block" (click)="onCreateGroup()">
-            Start a group
-          </ion-button>
+          <p>You are not currently part of any PT or Friends group.</p>
+          <ion-button expand="block" (click)="onCreateGroup()">Create a Friends Group</ion-button>
         </ion-card-content>
       </ion-card>
     </ng-container>
 
+    <!-- If user has at least one group -->
     <ng-template #hasSomeGroups>
+
+      <!-- List of groups -->
       <ion-list>
         <ion-list-header>
           <ion-label>Your Groups</ion-label>
@@ -53,6 +61,88 @@
           </ion-label>
         </ion-item>
       </ion-list>
+
+      <!-- =============================== -->
+      <!--        GROUP LEADERBOARD        -->
+      <!-- =============================== -->
+      <ion-card *ngIf="selectedGroup">
+        <ion-card-header>
+          <ion-card-title>{{ selectedGroup.name }} Leaderboard</ion-card-title>
+          <ion-card-subtitle *ngIf="selectedGroup.isPTGroup">
+            PT Group
+          </ion-card-subtitle>
+          <ion-card-subtitle *ngIf="!selectedGroup.isPTGroup">
+            Friends Group
+          </ion-card-subtitle>
+        </ion-card-header>
+
+        <ion-card-content>
+
+          <!-- Workout Type Sort (No Region Sort) -->
+          <ion-item>
+            <ion-label>Workout Type</ion-label>
+            <ion-select
+              [(ngModel)]="groupMetricSort"
+              (ionChange)="onGroupMetricSortChange()"
+              interface="popover"
+            >
+              <ion-select-option value="total">
+                Total (All Work)
+              </ion-select-option>
+              <ion-select-option value="cardio">
+                Cardio
+              </ion-select-option>
+              <ion-select-option value="strength">
+                Strength
+              </ion-select-option>
+            </ion-select>
+          </ion-item>
+
+          <!-- Loading spinner -->
+          <div
+            class="ion-text-center ion-padding"
+            *ngIf="groupLeaderboardLoading"
+          >
+            <ion-spinner name="crescent"></ion-spinner>
+          </div>
+
+          <!-- Error -->
+          <ion-text
+            color="danger"
+            class="ion-padding"
+            *ngIf="!groupLeaderboardLoading && groupLeaderboardError"
+          >
+            {{ groupLeaderboardError }}
+          </ion-text>
+
+          <!-- Leaderboard List -->
+          <ion-list *ngIf="!groupLeaderboardLoading && !groupLeaderboardError">
+
+            <ion-item *ngFor="let entry of groupEntries">
+              <ion-label>
+                <h2>#{{ entry.rank }} {{ entry.displayName }}</h2>
+                <p>
+                  Total: {{ entry.totalWorkScore }}
+                  &nbsp;·&nbsp;
+                  Cardio: {{ entry.cardioWorkScore }}
+                  &nbsp;·&nbsp;
+                  Strength: {{ entry.strengthWorkScore }}
+                </p>
+                <p *ngIf="entry.level !== undefined">
+                  Level: {{ entry.level }}
+                </p>
+              </ion-label>
+            </ion-item>
+
+            <!-- No members -->
+            <ion-item *ngIf="groupEntries.length === 0">
+              <ion-label>No members with stats yet.</ion-label>
+            </ion-item>
+
+          </ion-list>
+        </ion-card-content>
+      </ion-card>
+
     </ng-template>
   </ng-container>
 </ion-content>

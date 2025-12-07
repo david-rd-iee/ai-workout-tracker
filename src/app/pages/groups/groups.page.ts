@@ -1,6 +1,8 @@
-import { Component, OnDestroy } from '@angular/core';
+// src/app/pages/groups/groups.page.ts
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { IonicModule, AlertController } from '@ionic/angular';
+import { FormsModule } from '@angular/forms';
 
 import { GroupService } from '../../services/group.service';
 import { Group } from '../../models/groups.model';
@@ -10,18 +12,34 @@ import { Auth, onAuthStateChanged } from '@angular/fire/auth';
 import { Subscription } from 'rxjs';
 import { Router } from '@angular/router';
 
+import {
+  LeaderboardService,
+  LeaderboardEntry,
+  Metric,
+} from '../../services/leaderboard.service';
+
 @Component({
   selector: 'app-groups',
   standalone: true,
   templateUrl: './groups.page.html',
   styleUrls: ['./groups.page.scss'],
-  imports: [CommonModule, IonicModule],
+  imports: [CommonModule, IonicModule, FormsModule],
 })
-export class GroupsPage implements OnDestroy {
+export class GroupsPage implements OnInit, OnDestroy {
   appUser?: AppUser;
   groups: Group[] = [];
   loading = true;
   errorMessage: string | null = null;
+
+  hasGroups = false;
+  hasPT = false;
+
+  // 🔹 Group leaderboard state
+  selectedGroup: Group | null = null;
+  groupMetricSort: Metric = 'total';
+  groupEntries: LeaderboardEntry[] = [];
+  groupLeaderboardLoading = false;
+  groupLeaderboardError: string | null = null;
 
   private authUnsub?: () => void;
   private sub?: Subscription;
@@ -30,62 +48,88 @@ export class GroupsPage implements OnDestroy {
     private auth: Auth,
     private groupService: GroupService,
     private alertCtrl: AlertController,
-    private router: Router
-  ) {
-    // Listen for auth changes
+    private router: Router,
+    private leaderboardService: LeaderboardService
+  ) {}
+
+  ngOnInit(): void {
+    // Watch auth state and load user's groups
     this.authUnsub = onAuthStateChanged(this.auth, (user) => {
+      this.sub?.unsubscribe();
+
       if (!user) {
-        this.loading = false;
-        this.errorMessage = 'No logged-in user.';
         this.appUser = undefined;
         this.groups = [];
+        this.hasGroups = false;
+        this.hasPT = false;
+        this.loading = false;
         return;
       }
 
       this.loading = true;
       this.errorMessage = null;
 
-      // Load AppUser + groups
-      this.sub?.unsubscribe();
       this.sub = this.groupService.getUserGroups(user.uid).subscribe({
-        next: ({ user, groups }) => {
-          this.appUser = user;
+        next: ({ user: appUser, groups }) => {
+          this.appUser = appUser;
           this.groups = groups;
+
+          this.hasGroups = groups.some((g) => !g.isPTGroup);
+          this.hasPT = groups.some((g) => g.isPTGroup);
+
           this.loading = false;
         },
         error: (err) => {
-          console.error('[GroupsPage] Error loading groups:', err);
-          this.errorMessage = err?.message ?? 'Error loading groups';
+          console.error('[GroupsPage] Failed to load user groups', err);
+          this.errorMessage = 'Could not load your groups.';
           this.loading = false;
         },
       });
     });
   }
 
-  get hasPT(): boolean {
-    return !!this.appUser?.ptUID;
+  // 🔹 When a group is clicked
+  async onGroupSelected(group: Group) {
+    this.selectedGroup = group;
+    this.groupMetricSort = 'total';
+    await this.loadGroupLeaderboard();
   }
 
-  get hasGroups(): boolean {
-    return (this.appUser?.groups?.length ?? 0) > 0;
-  }
+  // 🔹 Load leaderboard for currently selected group
+  async loadGroupLeaderboard() {
+    if (!this.selectedGroup) return;
 
-  /**
-   * Called when the user taps "Start a group" or the + button.
-   * Creates a non-PT group owned by this user.
-   */
-  async onCreateGroup(): Promise<void> {
-    if (!this.appUser) {
-      return;
+    this.groupLeaderboardLoading = true;
+    this.groupLeaderboardError = null;
+
+    try {
+      this.groupEntries = await this.leaderboardService.getGroupLeaderboard(
+        this.selectedGroup.groupId,
+        this.groupMetricSort
+      );
+    } catch (err) {
+      console.error('[GroupsPage] Failed to load group leaderboard', err);
+      this.groupLeaderboardError = 'Failed to load group leaderboard.';
+      this.groupEntries = [];
+    } finally {
+      this.groupLeaderboardLoading = false;
     }
+  }
 
+  // 🔹 Called when user changes metric sort (ion-select with ngModel)
+  async onGroupMetricSortChange() {
+    await this.loadGroupLeaderboard();
+  }
+
+  // 🔹 Create group button handler (tweak to your routing/flow)
+  async onCreateGroup() {
     const alert = await this.alertCtrl.create({
-      header: 'Create Group',
+      header: 'Create Friends Group',
       inputs: [
         {
           name: 'name',
           type: 'text',
-          placeholder: 'My Workout Group',
+          placeholder: 'Group name',
         },
       ],
       buttons: [
@@ -96,20 +140,17 @@ export class GroupsPage implements OnDestroy {
         {
           text: 'Create',
           handler: async (data) => {
-            const name: string = (data?.name || '').trim() || 'My Group';
+            const name = (data?.name || '').trim();
+            if (!name || !this.appUser?.userId) return;
+
             try {
-              this.loading = true;
-              const newGroupId = await this.groupService.createGroupForOwner(
-                this.appUser!.userId,
+              await this.groupService.createGroupForOwner(
+                this.appUser.userId,
                 name,
-                false // isPTGroup = false for user-created friend groups
+                false // friends group, not PT group
               );
-              console.log('[GroupsPage] Created group with ID:', newGroupId);
-              this.loading = false;
             } catch (err) {
-              console.error('[GroupsPage] Error creating group:', err);
-              this.errorMessage = (err as any)?.message ?? 'Error creating group';
-              this.loading = false;
+              console.error('[GroupsPage] Failed to create group', err);
             }
           },
         },
@@ -119,19 +160,10 @@ export class GroupsPage implements OnDestroy {
     await alert.present();
   }
 
-  /**
-   * Called when a group item is tapped.
-   * For now, we just log — later you can navigate to a group-specific leaderboard.
-   */
-  onGroupSelected(group: Group): void {
-    console.log('[GroupsPage] Selected group:', group);
-
-    // Example navigation idea (when you implement group-specific leaderboard):
-    // this.router.navigate(['/tabs/leaderboard'], { queryParams: { groupId: group.id } });
-  }
-
   ngOnDestroy(): void {
     this.sub?.unsubscribe();
-    this.authUnsub?.();
+    if (this.authUnsub) {
+      this.authUnsub();
+    }
   }
 }

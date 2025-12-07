@@ -1,4 +1,3 @@
-// src/app/pages/leaderboard/leaderboard.component.ts
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { IonicModule } from '@ionic/angular';
