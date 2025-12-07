@@ -94,3 +94,12 @@ firebase deploy --only functions
 ```bash
 ionic serve --stage
 ```
+
+### Testing Leaderboard, Client Profile, and Workout Summary Pages
+Navigate to the three different pages with correct hosting port
+
+```bash
+http://localhost:8100/leaderboard
+http://localhost:8100/workout-summary
+http://localhost:8100/client-profile
+```
