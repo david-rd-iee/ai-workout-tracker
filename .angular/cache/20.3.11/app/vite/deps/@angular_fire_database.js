@@ -1,11 +1,22 @@
 import {
-  AppCheckInstances,
   AuthInstances
-} from "./chunk-WLKBTWWX.js";
+} from "./chunk-WV6RZIGD.js";
+import {
+  AppCheckInstances
+} from "./chunk-FPEQ7UO7.js";
+import "./chunk-ZO67XBGE.js";
+import "./chunk-6A7NGCQP.js";
 import {
   FirebaseApp,
   FirebaseApps
-} from "./chunk-7FTZVLBS.js";
+} from "./chunk-R62VQ5UR.js";
+import {
+  VERSION,
+  ɵAngularFireSchedulers,
+  ɵgetAllInstancesOf,
+  ɵgetDefaultInstanceOf,
+  ɵzoneWrap
+} from "./chunk-W76PCQAQ.js";
 import {
   Component,
   ComponentContainer,
@@ -15,7 +26,6 @@ import {
   Provider,
   SDK_VERSION,
   Sha1,
-  VERSION,
   _getProvider,
   _isFirebaseServerApp,
   _registerComponent,
@@ -47,38 +57,39 @@ import {
   stringLength,
   stringToByteArray,
   stringify,
-  updateEmulatorBanner,
-  ɵAngularFireSchedulers,
-  ɵgetAllInstancesOf,
-  ɵgetDefaultInstanceOf,
-  ɵzoneWrap
-} from "./chunk-WO5U5L4M.js";
-import "./chunk-NZTELJ47.js";
+  updateEmulatorBanner
+} from "./chunk-ZMMZFQVD.js";
 import {
   InjectionToken,
   Injector,
   NgModule,
   NgZone,
-  Observable,
   Optional,
+  makeEnvironmentProviders,
+  setClassMetadata,
+  ɵɵdefineInjector,
+  ɵɵdefineNgModule
+} from "./chunk-6RHLTVIT.js";
+import {
+  merge
+} from "./chunk-7W67SMPV.js";
+import "./chunk-A4HOGWHI.js";
+import {
+  Observable,
   concatMap,
   delay,
   distinct,
   distinctUntilChanged,
   from,
-  makeEnvironmentProviders,
   map,
-  merge,
   of,
   scan,
-  setClassMetadata,
   skipWhile,
   switchMap,
   timer,
-  withLatestFrom,
-  ɵɵdefineInjector,
-  ɵɵdefineNgModule
-} from "./chunk-YKMEMMPJ.js";
+  withLatestFrom
+} from "./chunk-UP6CNWOR.js";
+import "./chunk-BBC5QSU6.js";
 import {
   __async
 } from "./chunk-4VWZEZJW.js";

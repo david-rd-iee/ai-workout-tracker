@@ -96,3 +96,5 @@ pnpm-debug.log*
 *.temp
 *.bak
 *.backup
+
+template-example/

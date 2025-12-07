@@ -1,0 +1,73 @@
+.score-block {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.score-main {
+  font-size: 2rem;
+  font-weight: 700;
+}
+
+.score-label {
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #666;
+}
+
+.calories-text {
+  margin-bottom: 8px;
+}
+
+.section-title {
+  margin-top: 12px;
+  margin-bottom: 4px;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+/* Effort graph */
+.effort-graph {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  height: 40px;
+  margin: 8px 0 12px;
+}
+
+.effort-bar {
+  flex: 1;
+  border-radius: 999px;
+  background: rgba(112, 120, 255, 0.25);
+}
+
+/* Table header */
+.table-header .header-col {
+  font-weight: 600;
+  font-size: 0.8rem;
+  white-space: nowrap; // prevents "Amount" from wrapping
+}
+
+.table-header .center {
+  text-align: center;
+}
+
+.table-header .right {
+  text-align: right;
+}
+
+/* Action buttons */
+.actions {
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+/* On very small screens (e.g., iPhone SE), stack buttons */
+@media (max-width: 375px) {
+  .actions {
+    flex-direction: column;
+  }
+}

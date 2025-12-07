@@ -1,11 +1,11 @@
 import { Injectable, signal, computed, Signal, effect, inject } from '@angular/core';
 import { AccountService } from './account.service';
-import { trainerProfile } from '../../Interfaces/Profiles/Trainer';
-import { clientProfile } from '../../Interfaces/Profiles/Client';
+import { TrainerProfile } from '../../interfaces/profiles/trainer';
+import { ClientProfile } from '../../interfaces/profiles/client';
 import { Firestore, collection, collectionData, addDoc, setDoc, getDoc, doc, onSnapshot, CollectionReference, query, updateDoc } from '@angular/fire/firestore';
 import { Storage, ref, uploadBytes, getDownloadURL } from '@angular/fire/storage';
 import { NavController } from '@ionic/angular';
-import { Observable, from, of } from 'rxjs';
+import { BehaviorSubject, Observable, from, of } from 'rxjs';
 import { map, switchMap } from 'rxjs/operators';
 import { FileUploadService } from '../file-upload.service';
 import { getFunctions, httpsCallable } from 'firebase/functions';
@@ -14,7 +14,8 @@ import { getFunctions, httpsCallable } from 'firebase/functions';
   providedIn: 'root'
 })
 export class UserService {
-  private userInfo = signal<trainerProfile | clientProfile | null>(null);
+  private userInfo = signal<TrainerProfile | ClientProfile | null>(null);
+  private userInfo$ = new BehaviorSubject<TrainerProfile | ClientProfile | null>(null);
   private readonly TRAINERS_COLLECTION = 'trainers';
   private readonly CLIENTS_COLLECTION = 'clients';
 
@@ -42,7 +43,7 @@ export class UserService {
     });
   }
 
-  async createUserProfile(formData: trainerProfile | clientProfile): Promise<boolean> {
+  async createUserProfile(formData: TrainerProfile | ClientProfile): Promise<boolean> {
     const userID = this.accountService.getCredentials()().uid;
     formData.email = this.accountService.getCredentials()().email;
 
@@ -99,7 +100,7 @@ export class UserService {
       }
 
       if (userDoc.exists()) {
-        const userData = userDoc.data() as trainerProfile | clientProfile;
+        const userData = userDoc.data() as TrainerProfile | ClientProfile;
         userData.email = this.accountService.getCredentials()().email;
         this.userInfo.set(userData);
         console.log('User profile loaded successfully:', userData.accountType, userData.firstName);
@@ -124,12 +125,16 @@ export class UserService {
     }
   }
 
-  getUserInfo(): Signal<trainerProfile | clientProfile | null> {
-    return this.userInfo;
+  getUserInfo(): Signal<TrainerProfile | ClientProfile | null> {
+    return this.userInfo.asReadonly();
   }
 
-  getUserById(userId: string, accountType: 'trainer' | 'client'): Signal<trainerProfile | clientProfile | null> {
-    const userSignal = signal<trainerProfile | clientProfile | null>(null);
+  getUserInfoObservable(): Observable<TrainerProfile | ClientProfile | null> {
+    return this.userInfo$.asObservable();
+  }
+
+  getUserById(userId: string, accountType: 'trainer' | 'client'): Signal<TrainerProfile | ClientProfile | null> {
+    const userSignal = signal<TrainerProfile | ClientProfile | null>(null);
     const collection = accountType === 'trainer' ? this.TRAINERS_COLLECTION : this.CLIENTS_COLLECTION;
     const userRef = doc(this.firestore, `${collection}/${userId}`);
 
@@ -137,7 +142,7 @@ export class UserService {
     getDoc(userRef)
       .then((docSnap) => {
         if (docSnap.exists()) {
-          const userData = docSnap.data() as trainerProfile | clientProfile;
+          const userData = docSnap.data() as TrainerProfile | ClientProfile;
           userSignal.set(userData);
           console.log('User loaded successfully:', userData);
         } else {
@@ -152,23 +157,31 @@ export class UserService {
     return userSignal;
   }
 
-  async updateClientProfile(uid: string, profileData: Partial<clientProfile>, imageFile?: File): Promise<void> {
+  async updateUserProfile(uid: string, profileData: Partial<TrainerProfile | ClientProfile> & { accountType: 'trainer' | 'client' }, imageFile?: File): Promise<void> {
     try {
       if (imageFile) {
         const imageUrl = await this.uploadClientImage(uid, imageFile);
-        profileData.profileImage = imageUrl;
+        (profileData as any).photoURL = imageUrl; // Update photoURL instead of profileImage
       }
 
-      const docRef = doc(this.firestore, `${this.CLIENTS_COLLECTION}/${uid}`);
+      const collectionName = profileData.accountType === 'trainer' ? this.TRAINERS_COLLECTION : this.CLIENTS_COLLECTION;
+      const docRef = doc(this.firestore, `${collectionName}/${uid}`);
       await updateDoc(docRef, profileData);
-      console.log('Client profile updated successfully');
+      console.log('Profile updated successfully');
+      
+      // Update the local user info
+      const currentUser = this.userInfo();
+      if (currentUser && currentUser.uid === uid) {
+        this.userInfo.set({ ...currentUser, ...profileData } as TrainerProfile | ClientProfile);
+        this.userInfo$.next(this.userInfo());
+      }
     } catch (error) {
-      console.error('Error updating client profile:', error);
+      console.error('Error updating profile:', error);
       throw error;
     }
   }
 
-  async getUserProfileDirectly(uid: string, accountType: 'trainer' | 'client'): Promise<trainerProfile | clientProfile | null> {
+  async getUserProfileDirectly(uid: string, accountType: 'trainer' | 'client'): Promise<TrainerProfile | ClientProfile | null> {
     try {
       console.log(`Getting ${accountType} profile directly for uid:`, uid);
       const collection = accountType === 'trainer' ? this.TRAINERS_COLLECTION : this.CLIENTS_COLLECTION;
@@ -176,7 +189,7 @@ export class UserService {
       const docSnap = await getDoc(docRef);
       
       if (docSnap.exists()) {
-        const userData = docSnap.data() as (trainerProfile | clientProfile);
+        const userData = docSnap.data() as (TrainerProfile | ClientProfile);
         console.log(`${accountType} profile data retrieved:`, userData);
         return userData;
       } else {
@@ -218,10 +231,10 @@ export class UserService {
       map(userProfile => {
         if (!userProfile) return '';
         if (accountType === 'trainer') {
-          const profile = userProfile as trainerProfile;
+          const profile = userProfile as TrainerProfile;
           return `${profile.firstName} ${profile.lastName}`;
         } else {
-          const profile = userProfile as clientProfile;
+          const profile = userProfile as ClientProfile;
           return `${profile.firstName} ${profile.lastName}`;
         }
       })
@@ -245,7 +258,7 @@ export class UserService {
         return 0;
       }
       
-      const currentProfile = docSnap.data() as trainerProfile | clientProfile;
+      const currentProfile = docSnap.data() as TrainerProfile | ClientProfile;
       const currentCount = currentProfile.unreadMessageCount || 0;
       const newCount = currentCount + 1;
       
@@ -287,7 +300,7 @@ export class UserService {
   async getUnreadMessageCount(userId: string, accountType: 'trainer' | 'client'): Promise<number> {
     try {
       const profile = await this.getUserProfileDirectly(userId, accountType);
-      return profile?.unreadMessageCount || 0;
+      return (profile as ClientProfile)?.unreadMessageCount || 0;
     } catch (error) {
       console.error('Error getting unread message count:', error);
       return 0;
