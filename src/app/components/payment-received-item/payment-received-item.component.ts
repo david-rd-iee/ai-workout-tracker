@@ -3,7 +3,8 @@ import { CommonModule, DatePipe } from '@angular/common';
 import { IonItem, IonLabel, IonIcon, IonAvatar, IonBadge, IonNote, IonCard, IonCardContent } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
 import { cashOutline, personOutline, calendarOutline, documentTextOutline } from 'ionicons/icons';
-import { Transaction } from '../../services/stripe/transaction.service';
+// import { Transaction } from '../../services/stripe/transaction.service';
+type Transaction = any;
 
 @Component({
   selector: 'app-payment-received-item',

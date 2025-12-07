@@ -21,7 +21,7 @@
     [isLoading]="isLoadingSessions"
     [noSessionsFound]="noSessionsFound"
     [userType]="userType"
-    (sessionChanged)="onSessionChanged($event)">
+    (sessionChanged)="onSessionChanged($any($event))">
   </app-list-sessions>
 
   <!-- Recent Payments Section (Only for Trainers) -->

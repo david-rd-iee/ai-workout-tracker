@@ -8,8 +8,8 @@ import { UserService } from '../../../services/account/user.service';
 import { HeaderComponent } from '../../../components/header/header.component';
 import { documentTextOutline, peopleOutline, walletOutline } from 'ionicons/icons';
 import { addIcons } from 'ionicons';
-import { trainerProfile } from 'src/app/Interfaces/Profiles/Trainer';
-import { clientProfile } from 'src/app/Interfaces/Profiles/Client';
+import { trainerProfile } from 'src/app/Interfaces/Profiles/trainer';
+import { clientProfile } from 'src/app/Interfaces/Profiles/client';
 import { ROUTE_PATHS } from 'src/app/app.routes';
 import { PasswordChangeModalComponent } from '../../../components/password-change-modal/password-change-modal.component';
 

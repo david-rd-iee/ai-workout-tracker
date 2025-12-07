@@ -2,12 +2,12 @@ import { Component, forwardRef, Input, OnInit } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR, NG_VALIDATORS, FormControl, Validator, ValidationErrors, AbstractControl } from '@angular/forms';
 import { IonInput } from '@ionic/angular/standalone';
 import { CommonModule } from '@angular/common';
-import { PhoneFormatPipe } from 'src/app/pipes/phone-format.pipe';
+// import { PhoneFormatPipe } from 'src/app/pipes/phone-format.pipe';
 
 @Component({
   selector: 'app-phone-input',
   standalone: true,
-  imports: [CommonModule, IonInput, PhoneFormatPipe],
+  imports: [CommonModule, IonInput], // PhoneFormatPipe
   template: `
     <ion-input
       [label]="label"
@@ -87,7 +87,7 @@ export class PhoneInputComponent implements ControlValueAccessor, Validator, OnI
   disabled: boolean = false;
   touched: boolean = false;
 
-  private phoneFormatPipe = new PhoneFormatPipe();
+  // private phoneFormatPipe = new PhoneFormatPipe();
 
   onChange: any = () => { };
   onTouched: any = () => { };
@@ -123,7 +123,8 @@ export class PhoneInputComponent implements ControlValueAccessor, Validator, OnI
 
   // Update the display value based on the current value
   private updateDisplayValue(): void {
-    this.displayValue = this.value ? this.phoneFormatPipe.transform(this.value) : '';
+    // this.displayValue = this.value ? this.phoneFormatPipe.transform(this.value) : '';
+    this.displayValue = this.value; // Simplified without pipe
   }
 
   // ControlValueAccessor methods

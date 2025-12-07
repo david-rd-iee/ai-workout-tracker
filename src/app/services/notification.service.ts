@@ -2,7 +2,8 @@ import { Injectable, inject } from '@angular/core';
 import { Firestore, doc, getDoc, updateDoc, setDoc } from '@angular/fire/firestore';
 import { Functions, httpsCallable, getFunctions } from '@angular/fire/functions';
 import { UserService } from './account/user.service';
-import { PushNotifications } from '@capacitor/push-notifications';
+// import { PushNotifications } from '@capacitor/push-notifications';
+const PushNotifications: any = null;
 
 @Injectable({
   providedIn: 'root'
@@ -39,23 +40,23 @@ export class NotificationService {
    */
   private setupPushListeners() {
     // Registration success listener
-    PushNotifications.addListener('registration', (token) => {
+    PushNotifications.addListener('registration', (token: any) => {
       this.logTokenInfo(token.value);
       this.saveApnsToken(token.value);
     });
 
     // Registration error listener
-    PushNotifications.addListener('registrationError', (error) => {
+    PushNotifications.addListener('registrationError', (error: any) => {
       console.error('Push registration error:', error);
     });
 
     // Notification received listener
-    PushNotifications.addListener('pushNotificationReceived', (notification) => {
+    PushNotifications.addListener('pushNotificationReceived', (notification: any) => {
       console.log('Push notification received:', notification);
     });
 
     // Notification action performed listener
-    PushNotifications.addListener('pushNotificationActionPerformed', (notification) => {
+    PushNotifications.addListener('pushNotificationActionPerformed', (notification: any) => {
       console.log('Push notification action performed:', notification);
     });
   }

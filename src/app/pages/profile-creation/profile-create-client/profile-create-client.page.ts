@@ -4,12 +4,12 @@ import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } 
 import { IonContent, IonHeader, IonTitle, IonToolbar, IonLabel, IonInput, IonButton, IonSelect, IonSelectOption, IonIcon, IonSpinner } from '@ionic/angular/standalone';
 import { Router } from '@angular/router';
 import { UserService } from 'src/app/services/account/user.service';
-import { trainerProfile } from 'src/app/Interfaces/Profiles/Trainer';
-import { clientProfile } from 'src/app/Interfaces/Profiles/Client';
+import { trainerProfile } from 'src/app/Interfaces/Profiles/trainer';
+import { clientProfile } from 'src/app/Interfaces/Profiles/client';
 import { HeaderComponent } from "../../../components/header/header.component";
 import { ROUTE_PATHS } from 'src/app/app.routes';
 import { PhoneInputComponent } from 'src/app/components/phone-input/phone-input.component';
-import { AutocorrectDirective } from 'src/app/directives/autocorrect.directive';
+// import { AutocorrectDirective } from 'src/app/directives/autocorrect.directive';
 import { addIcons } from 'ionicons';
 import { alertCircle } from 'ionicons/icons';
 
@@ -20,7 +20,7 @@ import { alertCircle } from 'ionicons/icons';
   standalone: true,
   imports: [
     IonContent, CommonModule, FormsModule, ReactiveFormsModule,
-    IonInput, IonButton, IonSelect, IonSelectOption, IonIcon, IonSpinner, HeaderComponent, PhoneInputComponent, AutocorrectDirective
+    IonInput, IonButton, IonSelect, IonSelectOption, IonIcon, IonSpinner, HeaderComponent, PhoneInputComponent // , AutocorrectDirective
   ]
 })
 export class ProfileCreateClientPage implements OnInit {

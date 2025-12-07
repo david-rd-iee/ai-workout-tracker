@@ -5,8 +5,8 @@ import { addIcons } from 'ionicons';
 import { timeOutline, personOutline } from 'ionicons/icons';
 import { Router } from '@angular/router';
 import { UserService } from '../../../services/account/user.service';
-import { trainerProfile } from '../../../Interfaces/Profiles/Trainer';
-import { clientProfile } from '../../../Interfaces/Profiles/Client';
+import { trainerProfile } from '../../../Interfaces/Profiles/trainer';
+import { clientProfile } from '../../../Interfaces/Profiles/client';
 import { SessionNote } from '../../../Interfaces/session-notes.interface';
 
 export interface SessionNoteData {

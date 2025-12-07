@@ -1,6 +1,8 @@
 import { Injectable, inject } from '@angular/core';
-import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
-import { FilePicker } from '@capawesome/capacitor-file-picker';
+// import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
+const Camera: any = null; const CameraResultType: any = null; const CameraSource: any = null;
+// import { FilePicker } from '@capawesome/capacitor-file-picker';
+const FilePicker: any = null;
 import { Platform, ToastController, ActionSheetController } from '@ionic/angular/standalone';
 
 @Injectable({

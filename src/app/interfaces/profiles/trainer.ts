@@ -1,18 +1,24 @@
-export interface TrainerProfile {
-  uid: string;
-  email: string;
-  accountType: 'trainer';
-  displayName?: string;
-  photoURL?: string;
-  firstName?: string;
-  lastName?: string;
-  specialization?: string[];
-  bio?: string;
-  experience?: number;
-  rating?: number;
-  clients?: string[];
-  unreadMessageCount?: number;
-  createdAt?: Date;
-  updatedAt?: Date;
-  // Add more trainer-specific properties as needed
+import { BaseUserProfile } from "./BaseProfile";
+
+export interface trainerProfile extends BaseUserProfile {
+  accountType: "trainer";
+  specialization: string;
+  experience: string;
+  education: string;
+  shortDescription?: string;
+  description: string;
+  certifications?: string[];
+  trainingLocation: {
+    remote: boolean;
+    inPerson: boolean;
+  };
+  hourlyRate?: number;
+  availability?: {
+    [key: string]: { start: string; end: string; }[];
+  };
+  additionalPhotos?: string[];
+  introVideoUrl?: string;
+  visible?: boolean;
 }
+
+

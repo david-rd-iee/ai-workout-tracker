@@ -4,7 +4,8 @@ import { FormsModule } from '@angular/forms';
 import { IonButton, IonContent, IonHeader, IonLabel, IonSelect, IonSelectOption, IonTitle, IonToolbar, IonCheckbox, AlertController } from '@ionic/angular/standalone';
 import { Router,RouterModule } from '@angular/router';
 import { Capacitor } from '@capacitor/core';
-import { PushNotifications } from '@capacitor/push-notifications';
+// import { PushNotifications } from '@capacitor/push-notifications';
+const PushNotifications: any = null;
 
 @Component({
   selector: 'app-profile-creation',

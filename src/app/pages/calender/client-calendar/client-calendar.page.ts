@@ -3,9 +3,10 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { IonContent, IonDatetime, IonCard, IonCardHeader, IonCardTitle, IonCardContent, IonSpinner } from '@ionic/angular/standalone';
 import { HeaderComponent } from '../../../components/header/header.component';
-import { SessionBookingService } from '../../../services/session-booking.service';
+// import { SessionBookingService } from '../../../services/session-booking.service';
+type SessionBookingService = any;
 import { UserService } from '../../../services/account/user.service';
-import { trainerProfile } from '../../../Interfaces/Profiles/Trainer';
+import { trainerProfile } from '../../../Interfaces/Profiles/trainer';
 import { ListSessionsComponent, SessionData } from '../../../components/sessions/list-sessions/list-sessions.component';
 import { ActivatedRoute } from '@angular/router';
 

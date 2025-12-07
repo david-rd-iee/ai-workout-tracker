@@ -17,11 +17,12 @@ export const routes: Routes = [
         canActivate: [authGuard],
 
       },
-      {
-        path: 'trainer-finder',
-        loadComponent: () => import('../trainer-finder/trainer-finder.page').then(m => m.TrainerFinderPage),
-        canActivate: [authGuard],
-      },
+      // Temporarily disabled - missing component
+      // {
+      //   path: 'trainer-finder',
+      //   loadComponent: () => import('../trainer-finder/trainer-finder.page').then(m => m.TrainerFinderPage),
+      //   canActivate: [authGuard],
+      // },
       {
         path: 'profile',
         loadComponent: () => import('../../pages/login/login.page').then( m => m.LoginPage),
@@ -30,14 +31,14 @@ export const routes: Routes = [
       {
         path: 'profile/client',
         loadComponent: () => import('../profiles/client-profile/client-profile.page').then(m => m.ClientProfilePage),
-        canActivate: [authGuard],
+        // canActivate: [authGuard], // Temporarily disabled for testing
       },
-      {
-        path: 'profile/trainer',
-        loadComponent: () => import('../profiles/trainer-profile/trainer-profile.page').then(m => m.TrainerProfilePage),
-        canActivate: [authGuard],
-      },
-      {
+      //{
+      //  path: 'profile/trainer',
+      //  loadComponent: () => import('../profiles/trainer-profile/trainer-profile.page').then(m => m.TrainerProfilePage),
+      //  canActivate: [authGuard],
+      //},
+      /*  {
         path: 'chats',
         loadComponent: () => import('../../pages/login/login.page').then( m => m.LoginPage),
         canActivate: [authGuard, userTypeGuard]
@@ -52,10 +53,11 @@ export const routes: Routes = [
         loadComponent: () => import('../chats/client-chats/client-chats.page').then(m => m.ClientChatsPage),
         canActivate: [authGuard],
       },
-      {
-        path: 'service-agreement-creator',
-        loadComponent: () => import('../../pages/service-agreements/service-agreement-creator/service-agreement-creator.page').then( m => m.ServiceAgreementCreatorPage)
-      },
+      // Temporarily disabled - missing component
+      // {
+      //   path: 'service-agreement-creator',
+      //   loadComponent: () => import('../../pages/service-agreements/service-agreement-creator/service-agreement-creator.page').then( m => m.ServiceAgreementCreatorPage)
+      // },
       {
         path: 'calender',
         loadComponent: () => import('../../pages/login/login.page').then( m => m.LoginPage),
@@ -86,21 +88,22 @@ export const routes: Routes = [
         loadComponent: () => import('../../pages/account/client-account/client-account.page').then( m => m.ClientAccountPage),
         canActivate: [authGuard]
       },
-      {
-        path: 'trainer-info/:id',
-        loadComponent: () => import('../../pages/trainer-info/trainer-info.page').then( m => m.TrainerInfoPage),
-        canActivate: [authGuard]
-      },
-      {
-        path: 'stripe-setup',
-        loadComponent: () => import('../../pages/stripe-setup/stripe-setup.page').then( m => m.StripeSetupPage),
-        canActivate: [authGuard]
-      },
-      {
-        path: 'payment-history',
-        loadComponent: () => import('../../pages/payment-history/payment-history.component').then( m => m.PaymentHistoryComponent),
-        canActivate: [authGuard]
-      },
+      // Temporarily disabled - missing components
+      // {
+      //   path: 'trainer-info/:id',
+      //   loadComponent: () => import('../../pages/trainer-info/trainer-info.page').then( m => m.TrainerInfoPage),
+      //   canActivate: [authGuard]
+      // },
+      // {
+      //   path: 'stripe-setup',
+      //   loadComponent: () => import('../../pages/stripe-setup/stripe-setup.page').then( m => m.StripeSetupPage),
+      //   canActivate: [authGuard]
+      // },
+      // {
+      //   path: 'payment-history',
+      //   loadComponent: () => import('../../pages/payment-history/payment-history.component').then( m => m.PaymentHistoryComponent),
+      //   canActivate: [authGuard]
+      // },**/
       {
         path: '',
         redirectTo: '/app/tabs/home',

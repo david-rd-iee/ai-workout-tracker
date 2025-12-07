@@ -1,6 +1,6 @@
 import { Injectable, signal } from '@angular/core';
 import { Firestore, collection, doc, getDoc, setDoc, query, where, getDocs } from '@angular/fire/firestore';
-import { trainerProfile } from '../Interfaces/Profiles/Trainer';
+import { trainerProfile } from '../Interfaces/Profiles/trainer';
 import { BehaviorSubject, Observable } from 'rxjs';
 
 

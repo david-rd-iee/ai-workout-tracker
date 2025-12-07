@@ -1,6 +1,7 @@
 import { Injectable, signal, Signal, computed } from '@angular/core';
 import { AngularFireAuth } from '@angular/fire/compat/auth';
-import { Credentials } from '../../interfaces/profiles/credentials';
+import { credentials } from '../../interfaces/profiles/credentials';
+type Credentials = credentials;
 import { NavController, Platform } from '@ionic/angular';
 import { BehaviorSubject, Subject } from 'rxjs';
 import { Router } from '@angular/router';
@@ -66,7 +67,7 @@ export class AccountService {
           // Don't navigate here - let the component/service that handles profile loading do the navigation
         } else {
           this.credentials.set({ uid: '', email: '' });
-          this.navCtrl.navigateRoot('/login');
+          // this.navCtrl.navigateRoot('/login'); // Temporarily disabled for testing
         }
         this.authInitialized.set(true);
       });

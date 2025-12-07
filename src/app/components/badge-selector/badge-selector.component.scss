@@ -1,0 +1,162 @@
+.selector-header {
+  text-align: center;
+  margin-bottom: 20px;
+
+  p {
+    margin: 5px 0;
+    color: var(--ion-color-medium);
+  }
+
+  .selection-actions {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 12px;
+    margin-top: 8px;
+
+    .selection-count {
+      font-weight: bold;
+      color: var(--ion-color-primary);
+      font-size: 1.1em;
+      margin: 0;
+    }
+
+    ion-button {
+      --padding-start: 8px;
+      --padding-end: 8px;
+      height: 28px;
+    }
+  }
+}
+
+.filters-section {
+  margin-bottom: 20px;
+
+  .filter-group {
+    margin-bottom: 16px;
+
+    .filter-label {
+      display: block;
+      font-size: 0.9em;
+      font-weight: 600;
+      color: var(--ion-color-medium);
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+  }
+}
+
+.category-filter {
+  ion-segment-button {
+    min-width: auto;
+    max-width: none;
+    padding: 0 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    
+    ion-label {
+      text-align: center;
+    }
+    
+    .category-label {
+      font-size: 0.9em;
+      white-space: nowrap;
+      overflow: visible;
+      text-overflow: clip;
+      text-align: center;
+    }
+  }
+  
+  @media (max-width: 576px) {
+    ion-segment-button {
+      padding: 0 8px;
+      
+      .category-label {
+        font-size: 0.85em;
+      }
+    }
+  }
+}
+
+.sort-filter {
+  ion-segment-button {
+    ion-label {
+      font-size: 0.9em;
+    }
+  }
+}
+
+.badges-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+
+  .badge-wrapper {
+    position: relative;
+    cursor: pointer;
+    border: 2px solid transparent;
+    border-radius: 12px;
+    transition: all 0.3s ease;
+    overflow: hidden;
+
+    &:hover {
+      border-color: var(--ion-color-light-shade);
+    }
+
+    &.selected {
+      border-color: var(--ion-color-primary);
+      background: rgba(var(--ion-color-primary-rgb), 0.1);
+    }
+
+    &.disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    app-achievement-badge {
+      display: block;
+      
+      ::ng-deep .achievement-badge {
+        .badge-container {
+          border: none !important;
+          box-shadow: none !important;
+          
+          &:hover {
+            border: none !important;
+            box-shadow: none !important;
+            transform: none !important;
+          }
+        }
+      }
+    }
+
+    .selection-indicator {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      
+      ion-icon {
+        font-size: 32px;
+      }
+    }
+  }
+}
+
+.empty-state {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--ion-color-medium);
+  font-style: italic;
+}
+
+.button-container {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid var(--ion-color-light-shade);
+
+  ion-button {
+    margin-bottom: 10px;
+  }
+}

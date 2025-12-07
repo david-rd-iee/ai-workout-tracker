@@ -3,7 +3,7 @@ import { IonHeader, IonToolbar, IonButton, IonIcon, IonTitle } from '@ionic/angu
 import { Router } from '@angular/router';
 import { CommonModule, Location } from '@angular/common';
 import { addIcons } from 'ionicons';
-import { chevronBackOutline, personOutline } from 'ionicons/icons';
+import { chevronBackOutline, personOutline, personCircleOutline } from 'ionicons/icons';
 
 @Component({
   selector: 'app-header',
@@ -21,7 +21,8 @@ export class HeaderComponent {
   constructor(private router: Router, private location: Location) {
     addIcons({
       chevronBackOutline,
-      personOutline
+      personOutline,
+      personCircleOutline
     });
   }
 
