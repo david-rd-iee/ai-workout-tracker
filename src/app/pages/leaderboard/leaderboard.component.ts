@@ -1,67 +1,101 @@
-import { Component, OnDestroy } from '@angular/core';
+// src/app/pages/leaderboard/leaderboard.component.ts
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { IonicModule } from '@ionic/angular';
-
-import { UserStatsService } from '../../services/user-stats.service';
+import { FormsModule } from '@angular/forms';
+import { LeaderboardService, LeaderboardEntry, Metric } from '../../services/leaderboard.service';
 import { Subscription } from 'rxjs';
-import { UserStats } from '../../models/user-stats.model';
 
-import { Auth, onAuthStateChanged } from '@angular/fire/auth';
+export type RegionSort = 'none' | 'city' | 'state' | 'country';
 
 @Component({
   selector: 'app-leaderboard',
   standalone: true,
   templateUrl: './leaderboard.component.html',
   styleUrls: ['./leaderboard.component.scss'],
-  imports: [CommonModule, IonicModule],
+  imports: [CommonModule, IonicModule, FormsModule],
 })
-export class LeaderboardComponent implements OnDestroy {
-  stats?: UserStats;
+export class LeaderboardComponent implements OnInit, OnDestroy {
+  // Sort controls
+  regionSort: RegionSort = 'none';
+  metricSort: Metric = 'total';
+
+  // Data
+  allEntries: LeaderboardEntry[] = [];
+  entries: LeaderboardEntry[] = [];
+
+  loading = true;
   errorMessage: string | null = null;
 
   private sub?: Subscription;
-  private authUnsubscribe?: () => void;
 
-  constructor(
-    private userStatsService: UserStatsService,
-    private auth: Auth
-  ) {
-    // 🔥 Listen for auth changes
-    this.authUnsubscribe = onAuthStateChanged(this.auth, (user) => {
-      if (!user) {
-        console.warn('⚠ No user currently logged in.');
-        this.errorMessage = 'No logged-in user.';
-        this.stats = undefined;
-        return;
-      }
+  constructor(private leaderboardService: LeaderboardService) {}
 
-      console.log('👤 Current logged-in UID:', user.uid);
-
-      // If an old subscription exists, clean it up before making a new one
-      this.sub?.unsubscribe();
-
-      // 🔥 Load the authenticated user's stats
-      this.sub = this.userStatsService.getUserStats(user.uid).subscribe({
-        next: (stats) => {
-          console.log('🔥 Firestore returned stats:', stats);
-          this.stats = stats;
-
-          if (!stats) {
-            this.errorMessage = 'No stats document found for this user.';
-          } else {
-            this.errorMessage = null;
-          }
-        },
-        error: (err) => {
-          console.error('❌ Firestore error:', err);
-          this.errorMessage = err?.message ?? 'Unknown Firestore error';
-        },
-      });
-    });
+  ngOnInit() {
+    this.loadLeaderboard();
   }
 
   ngOnDestroy() {
     this.sub?.unsubscribe();
-    this.authUnsubscribe?.();
+  }
+
+  loadLeaderboard() {
+    this.loading = true;
+    this.errorMessage = null;
+    this.sub?.unsubscribe();
+
+    this.sub = this.leaderboardService.getAllUserStats().subscribe({
+      next: (entries) => {
+        this.allEntries = entries;
+        this.applySorting();
+        this.loading = false;
+      },
+      error: (err) => {
+        console.error(err);
+        this.errorMessage = 'Could not load leaderboard.';
+        this.loading = false;
+      },
+    });
+  }
+
+  onRegionSortChange(event: Event) {
+    const customEvent = event as CustomEvent;
+    const value = customEvent.detail?.value;
+    if (value === 'none' || value === 'city' || value === 'state' || value === 'country') {
+      this.regionSort = value;
+      this.applySorting();
+    }
+  }
+
+  onMetricSortChange(event: Event) {
+    const customEvent = event as CustomEvent;
+    const value = customEvent.detail?.value;
+    if (value === 'total' || value === 'cardio' || value === 'strength') {
+      this.metricSort = value;
+      this.applySorting();
+    }
+  }
+
+  private applySorting() {
+    const regionField = this.regionSort === 'none' ? null : this.regionSort;
+    const metricField = this.metricSort === 'total' ? 'totalWorkScore' : 
+                       this.metricSort === 'cardio' ? 'cardioWorkScore' : 'strengthWorkScore';
+
+    const sorted = [...this.allEntries].sort((a, b) => {
+      // 1) Region sort (if any)
+      if (regionField) {
+        const aRegionVal = (a.region?.[regionField] ?? '').toLowerCase();
+        const bRegionVal = (b.region?.[regionField] ?? '').toLowerCase();
+        if (aRegionVal < bRegionVal) return -1;
+        if (aRegionVal > bRegionVal) return 1;
+      }
+
+      // 2) Metric sort (descending)
+      return (b[metricField] as number) - (a[metricField] as number);
+    });
+
+    // Update ranks
+    sorted.forEach((entry, idx) => (entry.rank = idx + 1));
+    this.entries = sorted;
   }
 }

@@ -1,25 +1,105 @@
-<ion-content>
-  <ion-card *ngIf="stats as s; else noData">
-    <ion-card-header>
-      <ion-card-title>Test User Stats</ion-card-title>
-    </ion-card-header>
+<!-- src/app/pages/leaderboard/leaderboard.component.html -->
+<ion-header>
+  <ion-toolbar>
+    <ion-title>Leaderboard</ion-title>
+  </ion-toolbar>
+</ion-header>
 
+<ion-content>
+  <!-- Sort controls -->
+  <ion-card>
+    <ion-card-header>
+      <ion-card-title>Sort Options</ion-card-title>
+    </ion-card-header>
     <ion-card-content>
-      <p><strong>User ID:</strong> {{ s.userId }}</p>
-      <p><strong>Total Work Score:</strong> {{ s.total_work_score }}</p>
-      <p><strong>Cardio Score:</strong> {{ s.cardio_work_score }}</p>
-      <p><strong>Strength Score:</strong> {{ s.strength_work_score }}</p>
-      <p><strong>Level:</strong> {{ s.level }}</p>
-      <p *ngIf="s.region"><strong>Region:</strong> {{ s.region }}</p>
+      <!-- Region sort -->
+      <ion-item>
+        <ion-label>Region</ion-label>
+        <ion-segment
+          [(ngModel)]="regionSort"
+          (ionChange)="onRegionSortChange($event)"
+        >
+          <ion-segment-button value="none">
+            <ion-label>None</ion-label>
+          </ion-segment-button>
+          <ion-segment-button value="city">
+            <ion-label>City</ion-label>
+          </ion-segment-button>
+          <ion-segment-button value="state">
+            <ion-label>State</ion-label>
+          </ion-segment-button>
+          <ion-segment-button value="country">
+            <ion-label>Country</ion-label>
+          </ion-segment-button>
+        </ion-segment>
+      </ion-item>
+
+      <!-- Metric sort -->
+      <ion-item class="ion-margin-top">
+        <ion-label>Metric</ion-label>
+        <ion-segment
+          [(ngModel)]="metricSort"
+          (ionChange)="onMetricSortChange($event)"
+        >
+          <ion-segment-button value="total">
+            <ion-label>Total</ion-label>
+          </ion-segment-button>
+          <ion-segment-button value="cardio">
+            <ion-label>Cardio</ion-label>
+          </ion-segment-button>
+          <ion-segment-button value="strength">
+            <ion-label>Strength</ion-label>
+          </ion-segment-button>
+        </ion-segment>
+      </ion-item>
     </ion-card-content>
   </ion-card>
 
-  <ng-template #noData>
-    <ion-card>
-      <ion-card-content>
-        <p>No user stats found for this test user.</p>
-        <p *ngIf="errorMessage"><strong>Error:</strong> {{ errorMessage }}</p>
-      </ion-card-content>
-    </ion-card>
-  </ng-template>
+  <!-- Pull to refresh -->
+  <ion-refresher slot="fixed" (ionRefresh)="loadLeaderboard(); $event.target.complete()">
+    <ion-refresher-content></ion-refresher-content>
+  </ion-refresher>
+
+  <!-- Loading -->
+  <div class="ion-text-center ion-padding" *ngIf="loading">
+    <ion-spinner name="crescent"></ion-spinner>
+  </div>
+
+  <!-- Error -->
+  <ion-text color="danger" class="ion-padding" *ngIf="!loading && errorMessage">
+    {{ errorMessage }}
+  </ion-text>
+
+  <!-- Leaderboard entries -->
+  <ion-list *ngIf="!loading && !errorMessage">
+    <ion-item *ngFor="let entry of entries">
+      <ion-label>
+        <h2>#{{ entry.rank }} {{ entry.displayName }}</h2>
+
+        <p>
+          Total: {{ entry.totalWorkScore }}
+          &nbsp;·&nbsp;
+          Cardio: {{ entry.cardioWorkScore }}
+          &nbsp;·&nbsp;
+          Strength: {{ entry.strengthWorkScore }}
+        </p>
+
+        <!-- Level -->
+        <p *ngIf="entry.level !== undefined">
+          Level: {{ entry.level }}
+        </p>
+
+        <!-- Region display -->
+        <ng-container *ngIf="entry.region as r">
+          <p>
+            {{ r.city }}, {{ r.state }}, {{ r.country }}
+          </p>
+        </ng-container>
+      </ion-label>
+    </ion-item>
+
+    <ion-item *ngIf="entries.length === 0">
+      <ion-label>No user stats found.</ion-label>
+    </ion-item>
+  </ion-list>
 </ion-content>

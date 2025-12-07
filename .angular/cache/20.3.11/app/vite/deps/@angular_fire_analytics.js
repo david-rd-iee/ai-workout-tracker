@@ -12,12 +12,12 @@ import {
   authState
 } from "./chunk-CCZMMSHT.js";
 import {
-  isPlatformBrowser
-} from "./chunk-HHZUQAL7.js";
-import {
   FirebaseApp,
   FirebaseApps
 } from "./chunk-F726I4SA.js";
+import {
+  isPlatformBrowser
+} from "./chunk-HHZUQAL7.js";
 import {
   Component,
   ErrorFactory,
@@ -57,8 +57,8 @@ import {
   ɵɵdefineNgModule,
   ɵɵinject
 } from "./chunk-GFF4UYAA.js";
-import "./chunk-QBS6YOF6.js";
 import "./chunk-ZT5OBPF3.js";
+import "./chunk-QBS6YOF6.js";
 import {
   concatMap,
   distinct,
