@@ -41,13 +41,14 @@ export class DevSeedService {
 
   /**
    * Ensures there is a dev user in Firebase Auth and
-   * that /users/{uid}, /userStats/{uid}, and group membership
-   * exist with dummy data.
+   * that /users/{uid}, /userStats/{uid}, group membership,
+   * and dummy leaderboard users exist.
    */
   async ensureDevUserAndSeed(): Promise<void> {
     console.log('[DevSeedService] ensureDevUserAndSeed() starting...');
     let user: User | null = null;
 
+    // 1) Sign in or create the dev auth user
     try {
       const cred = await signInWithEmailAndPassword(
         this.auth,
@@ -84,7 +85,9 @@ export class DevSeedService {
     }
 
     const uid = user.uid;
+    console.log('[DevSeedService] Using dev UID:', uid);
 
+    // 2) Ensure /users/{uid} exists
     const userRef = doc(this.firestore, 'users', uid);
     const userSnap = await getDoc(userRef);
 
@@ -99,7 +102,6 @@ export class DevSeedService {
         isPT: false,
         ptUID: '',
         groups: [],
-        // optional: keep /users in sync with region too
         region: {
           country: 'USA',
           state: 'Nevada',
@@ -125,6 +127,7 @@ export class DevSeedService {
       );
     }
 
+    // 3) Ensure /userStats/{uid} exists
     const statsRef = doc(this.firestore, 'userStats', uid);
     const statsSnap = await getDoc(statsRef);
 
@@ -165,7 +168,10 @@ export class DevSeedService {
       );
     }
 
+    // 4) Ensure dev groups + membership
     await this.ensureDevGroupsAndMembership(uid);
+
+    // 5) Seed dummy userStats docs for leaderboard testing
     await this.seedDummyUserStats();
 
     console.log('[DevSeedService] ensureDevUserAndSeed() finished.');
@@ -240,7 +246,7 @@ export class DevSeedService {
     await setDoc(
       userRef,
       { groups },
-      { merge: true }
+      { merge: true },
     );
   }
 
@@ -329,20 +335,30 @@ export class DevSeedService {
 
     for (const dummy of dummyUsers) {
       const ref = doc(this.firestore, 'userStats', dummy.userId);
-      await setDoc(
-        ref,
-        {
-          userId: dummy.userId,
-          displayName: dummy.displayName,
-          total_work_score: dummy.total_work_score,
-          cardio_work_score: dummy.cardio_work_score,
-          strength_work_score: dummy.strength_work_score,
-          level: dummy.level,
-          region: dummy.region,
-          last_updated_at: serverTimestamp(),
-        },
-        { merge: true },
-      );
+      try {
+        console.log('[DevSeedService] Writing dummy userStats:', dummy.userId);
+        await setDoc(
+          ref,
+          {
+            userId: dummy.userId,
+            displayName: dummy.displayName,
+            total_work_score: dummy.total_work_score,
+            cardio_work_score: dummy.cardio_work_score,
+            strength_work_score: dummy.strength_work_score,
+            level: dummy.level,
+            region: dummy.region,
+            last_updated_at: serverTimestamp(),
+          },
+          { merge: true },
+        );
+        console.log('[DevSeedService] Wrote dummy userStats:', dummy.userId);
+      } catch (err) {
+        console.error(
+          '[DevSeedService] Failed to write dummy userStats:',
+          dummy.userId,
+          err,
+        );
+      }
     }
 
     console.log('[DevSeedService] Dummy userStats seeding complete.');

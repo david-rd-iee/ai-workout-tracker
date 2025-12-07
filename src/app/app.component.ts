@@ -1,30 +1,32 @@
+// src/app/app.component.ts
 import { Component, OnInit } from '@angular/core';
-import { IonicModule } from '@ionic/angular';
-import { RouterModule } from '@angular/router';
-
+import { IonApp, IonRouterOutlet } from '@ionic/angular/standalone';
 import { DevSeedService } from './services/dev-seed.service';
 import { environment } from '../environments/environment';
 
 @Component({
   selector: 'app-root',
-  templateUrl: 'app.component.html',
   standalone: true,
-  imports: [IonicModule, RouterModule],
+  templateUrl: 'app.component.html',
+  imports: [IonApp, IonRouterOutlet],
 })
 export class AppComponent implements OnInit {
+
   constructor(private devSeedService: DevSeedService) {}
 
-  async ngOnInit(): Promise<void> {
+  async ngOnInit() {
+    console.log('[AppComponent] ngOnInit');
+
     if (!environment.production) {
-      console.log('[AppComponent] Dev seeding starting...');
+      console.log('[AppComponent] Running dev seed...');
       try {
         await this.devSeedService.ensureDevUserAndSeed();
-        console.log('[AppComponent] Dev seeding complete.');
+        console.log('[AppComponent] Dev seed finished.');
       } catch (err) {
-        console.error('[AppComponent] Dev seeding failed:', err);
+        console.error('[AppComponent] Dev seed failed:', err);
       }
     } else {
-      console.log('[AppComponent] Production mode - skipping dev seeding.');
+      console.log('[AppComponent] Skipping dev seed (production env).');
     }
   }
 }
