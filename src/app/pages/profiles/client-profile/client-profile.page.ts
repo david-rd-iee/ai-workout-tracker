@@ -238,9 +238,9 @@ export class ClientProfilePage implements OnInit {
     await toast.present();
   }
 
-  // Achievement Badge management methods
+  //Achievement Badge management methods
   loadMockAchievementBadges() {
-    // Create mock data with realistic stats
+    //Create mock data
     this.allBadges = ACHIEVEMENT_BADGES.map(badge => ({
       ...badge,
       currentValue: this.getMockValue(badge.id),
@@ -253,52 +253,55 @@ export class ClientProfilePage implements OnInit {
       };
     });
 
-    // Set some badges as display badges (user's top achievements)
-    // Showcasing the best achievements: Platinum, Diamond, and Gold tier badges
-    this.displayBadgeIds = ['strength-master', 'workout-warrior', 'heavy-lifter'];
+    //Set badges as display badges
+    this.displayBadgeIds = ['strength-master', 'workout-warrior', 'streak-king'];
     this.updateDisplayBadges();
   }
 
   getMockValue(badgeId: string): number {
-    // Mock values for demonstration - showing variety of achievement levels
+    //Mock values for demonstration
     const mockData: Record<string, number> = {
-      // MASTER tier - Ultimate achievement
-      'strength-master': 5500000,     // 5.5M lbs - Master tier (Top 0.5%)
+      //MASTER tier - Ultimate achievement
+      'strength-master': 5500000,   
       
-      // DIAMOND tier - Exceptional
-      'workout-warrior': 650,         // 650 sessions - Diamond tier (Top 3%)
-      'heavy-lifter': 550,            // 550 lbs max - Diamond tier (Top 2%)
+      //DIAMOND tier - Exceptional
+      'workout-warrior': 650,         
+      'heavy-lifter': 550,            
       
-      // GOLD tier - Advanced
-      'streak-king': 120,             // 120 day streak - Gold tier (Top 8%)
-      'endurance-champion': 12000,    // 200 hours cardio - Gold tier (Top 12%)
+      //GOLD tier - Advanced
+      'streak-king': 120,             
+      'endurance-champion': 12000,    
       
-      // SILVER tier - Intermediate
-      'pr-crusher': 22,               // 22 PRs - Silver tier (Top 20%)
-      'century-club': 175,            // 175 active days - Silver tier (Top 25%)
+      //SILVER tier - Intermediate
+      'pr-crusher': 22,               
+      'century-club': 175,            
       
-      // BRONZE tier - Getting started
-      'social-butterfly': 35,         // 35 group sessions - Bronze tier (Top 40%)
-      'early-riser': 18,              // 18 early workouts - Bronze tier (Top 45%)
+      //BRONZE tier - Getting started
+      'social-butterfly': 35,         
+      'early-riser': 18,              
       
-      // NOT YET EARNED - Show locked badges
-      'transformation': 5,            // 5 lbs (need 10 for Bronze)
+      //NOT YET EARNED - Show locked badges
+      'transformation': 5,         
+      
+      //MASTER tier - Jerk Master
+      //'jerk-master': 5000000000,      //5 billion reps - Master tier
     };
     return mockData[badgeId] || 0;
   }
 
   getMockPercentile(badgeId: string): number | undefined {
-    // Mock percentile rankings - higher achievements = lower percentile number (Top X%)
+    //Mock percentile rankings
     const mockPercentiles: Record<string, number> = {
-      'strength-master': 0.5,         // Top 0.5% - Master tier
-      'workout-warrior': 2.3,         // Top 2.3%
-      'heavy-lifter': 0.1,            // Top 2.0% - Diamond tier
-      'streak-king': 7.5,             // Top 7.5%
-      'endurance-champion': 11.2,     // Top 11.2%
-      'pr-crusher': 18.9,             // Top 18.9%
-      'century-club': 23.4,           // Top 23.4%
-      'social-butterfly': 38.6,       // Top 38.6%
-      'early-riser': 42.1,            // Top 42.1%
+      'strength-master': 0.5,        
+      'workout-warrior': 2.3,       
+      'heavy-lifter': 0.1,         
+      'streak-king': 6.7,            
+      'endurance-champion': 11.2,     
+      'pr-crusher': 18.9,          
+      'century-club': 23.4,          
+      'social-butterfly': 38.6,      
+      'early-riser': 42.1,          
+      //'jerk-master': 0.000001         
     };
     return mockPercentiles[badgeId];
   }
@@ -310,7 +313,7 @@ export class ClientProfilePage implements OnInit {
   }
 
   async openBadgeSelector() {
-    // Only show earned badges in selector
+    //Only show earned badges in selector
     const earnedBadges = this.allBadges.filter(b => b.currentLevel);
     
     const modal = await this.modalCtrl.create({

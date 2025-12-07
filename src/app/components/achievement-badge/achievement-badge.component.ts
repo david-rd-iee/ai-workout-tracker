@@ -2,7 +2,7 @@ import { Component, Input, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { IonIcon, IonBadge, IonProgressBar } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
-import { trophy, star, lockClosed, medalOutline, trophyOutline, diamondOutline, body, shieldCheckmark, flame, speedometer, sunny, people, analytics, calendar, barbell } from 'ionicons/icons';
+import { trophy, star, lockClosed, medalOutline, trophyOutline, diamondOutline, body, shieldCheckmark, flame, speedometer, sunny, people, analytics, calendar, barbell, bed, fitness } from 'ionicons/icons';
 import { AchievementBadge, BadgeLevel, BADGE_TIER_CONFIG, calculateProgressToNextTier } from '../../Interfaces/Badge';
 
 @Component({
@@ -46,7 +46,9 @@ export class AchievementBadgeComponent implements OnInit {
       people,
       analytics,
       calendar,
-      barbell
+      barbell,
+      bed,
+      fitness
     });
   }
 

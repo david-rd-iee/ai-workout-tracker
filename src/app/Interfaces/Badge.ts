@@ -256,7 +256,24 @@ export const ACHIEVEMENT_BADGES: AchievementBadge[] = [
       gold: 315,
       platinum: 405,
       diamond: 500,
-      master: 600
+      master: 600 
+    }
+  },
+  {
+    id: 'jerk-master',
+    name: 'Jerk Master',
+    icon: 'bed',
+    description: 'Total jerks performed',
+    category: 'strength',
+    metric: 'totalJerks',
+    unit: 'jerks',
+    tiers: {
+      bronze: 500,
+      silver: 1500,
+      gold: 3000,
+      platinum: 5000,
+      diamond: 7500,
+      master: 10000
     }
   }
 ];
