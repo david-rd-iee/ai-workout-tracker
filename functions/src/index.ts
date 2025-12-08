@@ -1,34 +1,95 @@
-/**
- * Import function triggers from their respective submodules:
- *
- * import {onCall} from "firebase-functions/v2/https";
- * import {onDocumentWritten} from "firebase-functions/v2/firestore";
- *
- * See a full list of supported triggers at https://firebase.google.com/docs/functions
- */
-
-import {setGlobalOptions} from "firebase-functions";
-import {onRequest} from "firebase-functions/https";
+import { onRequest } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
+import OpenAI from "openai";
 
-// Start writing functions
-// https://firebase.google.com/docs/functions/typescript
+// ------------------------------
+//  Initialization
+// ------------------------------
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY ?? "",
+});
 
-// For cost control, you can set the maximum number of containers that can be
-// running at the same time. This helps mitigate the impact of unexpected
-// traffic spikes by instead downgrading performance. This limit is a
-// per-function limit. You can override the limit for each function using the
-// `maxInstances` option in the function's options, e.g.
-// `onRequest({ maxInstances: 5 }, (req, res) => { ... })`.
-// NOTE: setGlobalOptions does not apply to functions using the v1 API. V1
-// functions should each use functions.runWith({ maxInstances: 10 }) instead.
-// In the v1 API, each function can only serve one request per container, so
-// this will be the maximum concurrent request count.
-setGlobalOptions({ maxInstances: 10 });
+// ------------------------------
+//  Cloud Function: workoutChat
+// ------------------------------
+export const workoutChat = onRequest(async (req, res) => {
+  logger.info("workoutChat called", { method: req.method });
 
-// export const helloWorld = onRequest((request, response) => {
-//   logger.info("Hello logs!", {structuredData: true});
-//   response.send("Hello from Firebase!");
-// });
+  // ----- CORS -----
+  res.set("Access-Control-Allow-Origin", "*");
+  res.set("Access-Control-Allow-Headers", "Content-Type");
+  res.set("Access-Control-Allow-Methods", "POST, OPTIONS");
 
-export { onWorkoutSessionCreate } from './stats/userStats';
+  // Allow OPTIONS preflight
+  if (req.method === "OPTIONS") {
+    res.status(204).send("");
+    return;
+  }
+
+  // Only allow POST requests
+  if (req.method !== "POST") {
+    res.status(405).send("Method Not Allowed");
+    return;
+  }
+
+  try {
+    const { message, session, history } = req.body || {};
+
+    if (!message || typeof message !== "string") {
+      res.status(400).json({
+        error: "Missing 'message' in request body",
+      });
+      return;
+    }
+
+    // ------------------------------
+    //  OpenAI Prompt
+    // ------------------------------
+    const prompt = `
+You are a friendly AI fitness coach. Help users clean up messy workout logs,
+interpret what they did, extract relevant workout details, and ask clarifying
+follow-up questions when needed.
+
+Current structured session:
+${JSON.stringify(session)}
+
+Recent chat history:
+${JSON.stringify(history)}
+
+User message:
+"${message}"
+
+Respond ONLY with conversational text. Do NOT return JSON here.
+`;
+
+    // ------------------------------
+    //  Call OpenAI
+    // ------------------------------
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4.1-mini",
+      messages: [
+        { role: "system", content: "You are a workout logging assistant." },
+        { role: "user", content: prompt },
+      ],
+      max_tokens: 256,
+    });
+
+    const reply =
+      completion.choices[0]?.message?.content?.trim() ||
+      "Sorry, I couldn't generate a response.";
+
+    // ------------------------------
+    //  Respond to frontend
+    // ------------------------------
+    res.status(200).json({
+      reply,
+    });
+  } catch (error: any) {
+    logger.error("Error in workoutChat:", error);
+
+    res.status(500).json({
+      error: "Internal server error in workoutChat.",
+      details: error?.message ?? String(error),
+    });
+  }
+});

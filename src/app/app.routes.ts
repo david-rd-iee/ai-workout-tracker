@@ -12,8 +12,15 @@ export const routes: Routes = [
     loadComponent: () => import('./pages/groups/groups.page').then(m => m.GroupsPage)
   },
   {
+    path: 'workout-chatbot',
+    loadComponent: () =>
+      import('./pages/workout-chatbot/workout-chatbot.page').then(
+        (m) => m.WorkoutChatbotPage
+      ),
+  },
+  {
     path: '**',
     redirectTo: '/tabs/home',
     pathMatch: 'full'
-  }
+  },
 ];
