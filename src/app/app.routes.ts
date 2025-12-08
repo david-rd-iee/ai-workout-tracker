@@ -3,6 +3,7 @@ import { authGuard, userTypeGuard } from './services/account/auth.guard';
 
 export const routes: Routes = [
   {
+<<<<<<< HEAD
     path: '',
     redirectTo: 'sign-up',
     pathMatch: 'full'
@@ -168,3 +169,25 @@ export const ROUTE_PATHS = {
     PROCESS: (agreementId: string) => `/payment/${agreementId}`
   }
 } as const;
+=======
+    path: 'workout-summary',
+    loadComponent: () => import('./pages/workout-summary/workout-summary.page').then(m => m.WorkoutSummaryPage)
+  },
+  {
+    path: 'groups',
+    loadComponent: () => import('./pages/groups/groups.page').then(m => m.GroupsPage)
+  },
+  {
+    path: 'workout-chatbot',
+    loadComponent: () =>
+      import('./pages/workout-chatbot/workout-chatbot.page').then(
+        (m) => m.WorkoutChatbotPage
+      ),
+  },
+  {
+    path: '**',
+    redirectTo: '/tabs/home',
+    pathMatch: 'full'
+  },
+];
+>>>>>>> feature/leader-board

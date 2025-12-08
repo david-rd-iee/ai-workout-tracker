@@ -1,0 +1,49 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-title>Workout Chatbot</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content>
+  <div class="chat-container">
+    <div
+      *ngFor="let msg of messages"
+      [ngClass]="{
+        'message': true,
+        'bot-message': msg.from === 'bot',
+        'user-message': msg.from === 'user'
+      }"
+    >
+      <div class="bubble">
+        {{ msg.text }}
+      </div>
+    </div>
+
+    <div
+      *ngIf="isLoading"
+      class="message bot-message typing-wrapper"
+    >
+      <div class="bubble typing-indicator">
+        <span></span>
+        <span></span>
+        <span></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="input-container">
+    <ion-input
+      [(ngModel)]="userInput"
+      placeholder="Tell me about your workout..."
+      (keyup.enter)="handleSend()"
+      [disabled]="isLoading"
+    ></ion-input>
+
+    <ion-button
+      (click)="handleSend()"
+      [disabled]="isLoading"
+    >
+      {{ isLoading ? 'Thinking...' : 'Send' }}
+    </ion-button>
+  </div>
+</ion-content>

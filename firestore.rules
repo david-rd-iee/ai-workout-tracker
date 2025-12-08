@@ -2,6 +2,8 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    
     // Helper functions
     function isSignedIn() {
       return request.auth != null;
@@ -362,9 +364,38 @@ service cloud.firestore {
       allow write: if false;
     }
     
-    // Default deny
+    // User stats collection (for leaderboards and progress tracking)
+    match /userStats/{userId} {
+      // Dev-friendly: any logged-in user can read any userStats doc
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+
+
+    
+    // Groups collection (for group challenges and teams)
+    match /groups/{groupId} {
+      // Allow any authenticated user to read group information
+      allow read: if isSignedIn();
+      
+      // Only allow group members to write to the group document
+      // and only allow updates to specific fields
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && (
+        // Allow updating member lists, group name, and description
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['members', 'name', 'description', 'updatedAt']) ||
+        // Allow updating challenge progress
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['challenges']) &&
+         resource.data.members.hasAny([request.auth.uid]))
+      );
+      
+      // Only allow group admins to delete groups
+      allow delete: if isSignedIn() && resource.data.admins.hasAny([request.auth.uid]);
+    }
+    
+    // DEBUG ONLY
     match /{document=**} {
-      allow read, write: if false;
+      allow read, write: if true;
     }
   }
 }

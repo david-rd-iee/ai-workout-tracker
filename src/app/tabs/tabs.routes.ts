@@ -15,6 +15,7 @@ export const routes: Routes = [
         loadComponent: () => import('../pages/leaderboard/leaderboard.component').then((m) => m.LeaderboardComponent),
       },
       {
+<<<<<<< HEAD
         path: 'workout-summary',
         loadComponent: () => import('../pages/workout-summary/workout-summary.page').then((m) => m.WorkoutSummaryPage),
       },
@@ -25,6 +26,10 @@ export const routes: Routes = [
       {
         path: 'account',
         loadComponent: () => import('../pages/account/client-account/client-account.page').then((m) => m.ClientAccountPage),
+=======
+        path: 'groups',
+        loadComponent: () => import('../pages/groups/groups.page').then(m => m.GroupsPage)
+>>>>>>> feature/leader-board
       },
       {
         path: '',
