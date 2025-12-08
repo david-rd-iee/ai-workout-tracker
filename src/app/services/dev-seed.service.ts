@@ -29,7 +29,7 @@ export class DevSeedService {
   // 'pt'      -> only PT group
   // 'friends' -> only friends group
   // 'both'    -> PT + friends
-  private readonly devGroupScenario: DevGroupScenario = 'friends';
+  private readonly devGroupScenario: DevGroupScenario = 'none';
 
   private readonly ptGroupId = 'DEV_PT_GROUP';
   private readonly friendsGroupId = 'DEV_FRIENDS_GROUP';
@@ -173,6 +173,9 @@ export class DevSeedService {
 
     // 5) Seed dummy userStats docs for leaderboard testing
     await this.seedDummyUserStats();
+
+    // 6) Seed dev badges for profile page
+    await this.seedDevBadges(uid);
 
     console.log('[DevSeedService] ensureDevUserAndSeed() finished.');
   }
@@ -363,4 +366,47 @@ export class DevSeedService {
 
     console.log('[DevSeedService] Dummy userStats seeding complete.');
   }
+
+  private async seedDevBadges(uid: string): Promise<void> {
+    console.log('[DevSeedService] Seeding dev badges...');
+
+    const badgeRef = doc(this.firestore, 'userBadges', uid);
+
+    // These numbers mirror your current getMockValue/getMockPercentile maps
+    await setDoc(
+      badgeRef,
+      {
+        userId: uid,
+        values: {
+          'strength-master': 5500000,
+          'workout-warrior': 650,
+          'heavy-lifter': 550,
+          'streak-king': 120,
+          'endurance-champion': 12000,
+          'pr-crusher': 22,
+          'century-club': 175,
+          'social-butterfly': 35,
+          'early-riser': 18,
+          'transformation': 5,
+        },
+        percentiles: {
+          'strength-master': 0.5,
+          'workout-warrior': 2.3,
+          'heavy-lifter': 0.1,
+          'streak-king': 6.7,
+          'endurance-champion': 11.2,
+          'pr-crusher': 18.9,
+          'century-club': 23.4,
+          'social-butterfly': 38.6,
+          'early-riser': 42.1,
+        },
+        displayBadgeIds: ['strength-master', 'workout-warrior', 'streak-king'],
+        last_updated_at: serverTimestamp(),
+      },
+      { merge: true },
+    );
+
+    console.log('[DevSeedService] Dev badges seeded.');
+  }
+
 }

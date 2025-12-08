@@ -25,16 +25,29 @@ import { UserService } from '../../../services/account/user.service';
 import { clientProfile } from '../../../Interfaces/Profiles/client';
 import { AccountService } from 'src/app/services/account/account.service';
 import { ImageUploaderComponent } from 'src/app/components/image-uploader/image-uploader.component';
-import { HeaderComponent } from "../../../components/header/header.component";
+import { HeaderComponent } from '../../../components/header/header.component';
 import { addIcons } from 'ionicons';
-import { settingsOutline, addCircleOutline, trophy, chevronDown, chevronUp, medal, createOutline } from 'ionicons/icons';
-import { AchievementBadge, ACHIEVEMENT_BADGES, calculateBadgeLevel } from '../../../interfaces/Badge';
+import {
+  settingsOutline,
+  addCircleOutline,
+  trophy,
+  chevronDown,
+  chevronUp,
+  medal,
+  createOutline
+} from 'ionicons/icons';
+import {
+  AchievementBadge,
+  ACHIEVEMENT_BADGES,
+  calculateBadgeLevel
+} from '../../../interfaces/Badge';
 import { BadgeSelectorComponent } from '../../../components/badge-selector/badge-selector.component';
 import { AchievementBadgeComponent } from '../../../components/achievement-badge/achievement-badge.component';
 
-// ⭐ NEW: Firestore + AppUser import
-import { Firestore, doc, getDoc } from '@angular/fire/firestore';
+// Firestore + AppUser import
+import { Firestore, doc, getDoc, setDoc } from '@angular/fire/firestore';
 import { AppUser } from 'src/app/models/user.model';
+import { UserBadgesDoc } from 'src/app/models/user-badges.model';
 
 @Component({
   selector: 'app-client-profile',
@@ -57,6 +70,8 @@ import { AppUser } from 'src/app/models/user.model';
     IonLabel,
     IonIcon,
     IonCard,
+    IonCardHeader,
+    IonCardTitle,
     IonCardContent,
     AchievementBadgeComponent,
   ]
@@ -67,14 +82,14 @@ export class ClientProfilePage implements OnInit {
   hasChanges: boolean = false;
   originalProfileImage: string = '';
 
-  // ⭐ NEW: store the logged-in AppUser from /users collection
+  // Store the logged-in AppUser from /users collection
   appUser: AppUser | null = null;
 
-  // 🔁 CHANGED: this is what you bind in your template
+  // Bound to the template for basic profile info
   clientInfo = {
-    profileImage: "",
-    firstName: "",
-    lastName: ""
+    profileImage: '',
+    firstName: '',
+    lastName: ''
   };
 
   // Achievement Badge properties
@@ -83,25 +98,24 @@ export class ClientProfilePage implements OnInit {
   displayBadgeIds: string[] = [];
   showAllAchievements: boolean = false;
   initialAchievementsCount: number = 3; // Show first 3 fully, 4th faded
-  
+
   // Profile viewing properties
   profileUserId: string | null = null; // The ID of the profile being viewed
-  isOwnProfile: boolean = true; // Whether viewing your own profile
-  
+  isOwnProfile: boolean = true;        // Whether viewing your own profile
+
   get earnedBadgesCount(): number {
     return this.allBadges.filter(b => b.currentLevel).length;
   }
-  
+
   get visibleAchievements(): AchievementBadge[] {
-    return this.showAllAchievements ? this.allBadges : this.allBadges.slice(0, this.initialAchievementsCount + 1);
+    return this.showAllAchievements
+      ? this.allBadges
+      : this.allBadges.slice(0, this.initialAchievementsCount + 1);
   }
-  
+
   toggleShowAllAchievements(): void {
     this.showAllAchievements = !this.showAllAchievements;
   }
-
-  // Expose ROUTE_PATHS to template
-  //readonly ROUTE_PATHS = ROUTE_PATHS;
 
   isAuthReady = this.accountService.isAuthReady();
   userId = computed(() => this.accountService.getCredentials()().uid);
@@ -114,7 +128,7 @@ export class ClientProfilePage implements OnInit {
     private accountService: AccountService,
     private modalCtrl: ModalController,
     private route: ActivatedRoute,
-    private firestore: Firestore,        // ⭐ NEW
+    private firestore: Firestore,
   ) {
     addIcons({
       settingsOutline,
@@ -125,6 +139,7 @@ export class ClientProfilePage implements OnInit {
       medal,
       createOutline
     });
+
     effect(() => {
       if (this.isAuthReady()) {
         this.loadClientProfile();
@@ -133,14 +148,12 @@ export class ClientProfilePage implements OnInit {
   }
 
   ngOnInit() {
-    // 🔁 CHANGED: just set route info; no more hard-coded Test Client here
     this.route.params.subscribe(params => {
       this.profileUserId = params['userId'] || null;
       this.isOwnProfile = !this.profileUserId || this.profileUserId === this.userId();
     });
 
-    // Keep mock achievement badges only if you still want them in dev:
-    this.loadMockAchievementBadges();
+    // Badges now come from Firestore, not hard-coded mocks
   }
 
   async loadClientProfile() {
@@ -161,7 +174,7 @@ export class ClientProfilePage implements OnInit {
     await loading.present();
 
     try {
-      // ⭐ NEW: read from /users/{uid} using AppUser model
+      // Read from /users/{uid} using AppUser model
       const userRef = doc(this.firestore, 'users', targetUserId);
       const userSnap = await getDoc(userRef);
 
@@ -190,6 +203,9 @@ export class ClientProfilePage implements OnInit {
 
         console.log('[ClientProfilePage] Loaded AppUser:', this.appUser);
         console.log('[ClientProfilePage] clientInfo:', this.clientInfo);
+
+        // Load achievement badges for this user from Firestore
+        await this.loadAchievementBadgesFromFirestore(targetUserId);
       }
 
       // OPTIONAL: if you still want your old clientProfile (extra fields),
@@ -206,7 +222,50 @@ export class ClientProfilePage implements OnInit {
     }
   }
 
-  // ⭐ NEW: small helper for dev fallback values
+  // Load badge values/percentiles/displayBadgeIds from /userBadges/{userId}
+  private async loadAchievementBadgesFromFirestore(userId: string): Promise<void> {
+    try {
+      const badgeRef = doc(this.firestore, 'userBadges', userId);
+      const badgeSnap = await getDoc(badgeRef);
+
+      if (!badgeSnap.exists()) {
+        console.warn('[ClientProfilePage] No userBadges doc found; using empty badge list.');
+        this.allBadges = [];
+        this.displayBadgeIds = [];
+        this.displayBadges = [];
+        return;
+      }
+
+      const data = badgeSnap.data() as UserBadgesDoc;
+      const values = data.values || {};
+      const percentiles = data.percentiles || {};
+      this.displayBadgeIds = data.displayBadgeIds || [];
+
+      // Merge Firestore progress into your static ACHIEVEMENT_BADGES definition
+      this.allBadges = ACHIEVEMENT_BADGES.map(badge => {
+        const currentValue = values[badge.id] ?? 0;
+        const percentile = percentiles[badge.id];
+
+        const level = calculateBadgeLevel(badge, currentValue || 0);
+        return {
+          ...badge,
+          currentValue,
+          percentile,
+          currentLevel: level || undefined,
+        };
+      });
+
+      this.updateDisplayBadges();
+      console.log('[ClientProfilePage] Loaded badges from Firestore:', this.allBadges);
+    } catch (err) {
+      console.error('[ClientProfilePage] Error loading badges from Firestore:', err);
+      this.allBadges = [];
+      this.displayBadgeIds = [];
+      this.displayBadges = [];
+    }
+  }
+
+  // Helper for dev fallback values
   private useFallbackClientInfo() {
     this.clientInfo = {
       profileImage: DEFAULT_ASSETS.PROFILE_PHOTO,
@@ -242,7 +301,7 @@ export class ClientProfilePage implements OnInit {
 
     try {
       const updatedProfile: Partial<clientProfile> = {};
-      
+
       // Temporarily disabled - updateClientProfile method doesn't exist
       // await this.userService.updateClientProfile(
       //   this.userId(),
@@ -254,7 +313,7 @@ export class ClientProfilePage implements OnInit {
       this.originalProfileImage = this.clientInfo.profileImage;
       this.selectedFile = null;
       this.hasChanges = false;
-      
+
       this.showToast('Profile updated successfully');
     } catch (error) {
       console.error('Error updating profile:', error);
@@ -273,56 +332,7 @@ export class ClientProfilePage implements OnInit {
     await toast.present();
   }
 
-  //Achievement Badge management methods
-  loadMockAchievementBadges() {
-    //Create mock data
-    this.allBadges = ACHIEVEMENT_BADGES.map(badge => ({
-      ...badge,
-      currentValue: this.getMockValue(badge.id),
-      percentile: this.getMockPercentile(badge.id)
-    })).map(badge => {
-      const level = calculateBadgeLevel(badge, badge.currentValue || 0);
-      return {
-        ...badge,
-        currentLevel: level || undefined
-      };
-    });
-
-    //Set badges as display badges
-    this.displayBadgeIds = ['strength-master', 'workout-warrior', 'streak-king'];
-    this.updateDisplayBadges();
-  }
-
-  getMockValue(badgeId: string): number {
-    const mockData: Record<string, number> = {
-      'strength-master': 5500000,   
-      'workout-warrior': 650,         
-      'heavy-lifter': 550,            
-      'streak-king': 120,             
-      'endurance-champion': 12000,    
-      'pr-crusher': 22,               
-      'century-club': 175,            
-      'social-butterfly': 35,         
-      'early-riser': 18,              
-      'transformation': 5,         
-    };
-    return mockData[badgeId] || 0;
-  }
-
-  getMockPercentile(badgeId: string): number | undefined {
-    const mockPercentiles: Record<string, number> = {
-      'strength-master': 0.5,        
-      'workout-warrior': 2.3,       
-      'heavy-lifter': 0.1,         
-      'streak-king': 6.7,            
-      'endurance-champion': 11.2,     
-      'pr-crusher': 18.9,          
-      'century-club': 23.4,          
-      'social-butterfly': 38.6,      
-      'early-riser': 42.1,          
-    };
-    return mockPercentiles[badgeId];
-  }
+  // Badge management methods
 
   updateDisplayBadges() {
     this.displayBadges = this.displayBadgeIds
@@ -332,7 +342,7 @@ export class ClientProfilePage implements OnInit {
 
   async openBadgeSelector() {
     const earnedBadges = this.allBadges.filter(b => b.currentLevel);
-    
+
     const modal = await this.modalCtrl.create({
       component: BadgeSelectorComponent,
       componentProps: {
@@ -353,8 +363,9 @@ export class ClientProfilePage implements OnInit {
   }
 
   async saveDisplayBadges() {
-    if (!this.clientProfile) {
-      this.showToast('No profile data available');
+    const uid = this.userId();
+    if (!uid) {
+      this.showToast('Not signed in');
       return;
     }
 
@@ -364,17 +375,13 @@ export class ClientProfilePage implements OnInit {
     await loading.present();
 
     try {
-      const updatedProfile: Partial<clientProfile> = {
-        displayBadges: this.displayBadgeIds
-      };
-      
-      // Temporarily disabled - updateClientProfile method doesn't exist
-      // await this.userService.updateClientProfile(
-      //   this.userId(),
-      //   updatedProfile
-      // );
-      console.warn('Update profile temporarily disabled');
-      
+      const badgeRef = doc(this.firestore, 'userBadges', uid);
+      await setDoc(
+        badgeRef,
+        { displayBadgeIds: this.displayBadgeIds },
+        { merge: true }
+      );
+
       this.showToast('Display badges updated successfully');
     } catch (error) {
       console.error('Error updating display badges:', error);
