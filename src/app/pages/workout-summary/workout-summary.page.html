@@ -12,59 +12,58 @@
 <ion-content [fullscreen]="true">
   <div class="background-gradient"></div>
   <div class="ion-padding">
-  <ion-card>
-    <ion-card-header>
-      <div class="score-block">
-        <div class="score-main">{{ summary.workScore }}</div>
-        <div class="score-label">WorkScore</div>
-      </div>
-    </ion-card-header>
+    <ion-card>
+      <ion-card-header>
+        <div class="score-block">
+          <div class="score-main">{{ summary.volume }}</div>
+          <div class="score-label">Total Volume</div>
+        </div>
+      </ion-card-header>
 
-    <ion-card-content>
-      <p class="calories-text">
-        Calories Burned: <strong>{{ summary.calories }} kcal</strong>
-      </p>
+      <ion-card-content>
+        <p class="calories-text">
+          Estimated Calories: <strong>{{ summary.calories }} kcal</strong>
+        </p>
 
-      <h3 class="section-title">Effort over time</h3>
+        <h3 class="section-title">Exercise Breakdown</h3>
 
-      <!-- simple bar graph made of little bars -->
-      <div class="effort-graph">
-        <div
-          class="effort-bar"
-          *ngFor="let point of summary.effortSeries"
-          [style.height.%]="point"
-        ></div>
-      </div>
+        <ion-grid>
+          <ion-row class="table-header">
+            <ion-col size="6" class="header-col">Exercise</ion-col>
+            <ion-col size="3" class="header-col center">Metric</ion-col>
+            <ion-col size="3" class="header-col right">Volume</ion-col>
+          </ion-row>
 
-      <h3 class="section-title">Exercise Breakdown</h3>
+          <ion-row *ngFor="let ex of summary.exercises">
+            <ion-col size="6">{{ ex.name }}</ion-col>
+            <ion-col size="3" class="ion-text-center">{{ ex.metric }}</ion-col>
+            <ion-col size="3" class="ion-text-right">
+              {{ ex.volume }}
+            </ion-col>
+          </ion-row>
+        </ion-grid>
 
-      <ion-grid>
-        <ion-row class="table-header">
-          <ion-col size="6" class="header-col">Exercise</ion-col>
-          <ion-col size="3" class="header-col center">Amount</ion-col>
-          <ion-col size="3" class="header-col right">Form</ion-col>
-        </ion-row>
+        <h3 class="section-title" *ngIf="summary.notes">Notes</h3>
+        <p *ngIf="summary.notes">{{ summary.notes }}</p>
 
-        <ion-row *ngFor="let ex of summary.exercises">
-          <ion-col size="6">{{ ex.name }}</ion-col>
-          <ion-col size="3">{{ ex.metric }}</ion-col>
-          <ion-col size="3" class="ion-text-right">
-            <ion-badge [color]="getFormColor(ex.formScore)">
-              {{ ex.formScore }}
-            </ion-badge>
-          </ion-col>
-        </ion-row>
-      </ion-grid>
-
-      <div class="actions">
-        <ion-button fill="outline" size="small" expand="block" (click)="navigateToGroups()">
-          Share to Group
-        </ion-button>
-        <ion-button size="small" expand="block" (click)="navigateToLeaderboard()">
-          View Leaderboard
-        </ion-button>
-      </div>
-    </ion-card-content>
-  </ion-card>
+        <div class="actions">
+          <ion-button
+            fill="outline"
+            size="small"
+            expand="block"
+            (click)="navigateToGroups()"
+          >
+            Share to Group
+          </ion-button>
+          <ion-button
+            size="small"
+            expand="block"
+            (click)="navigateToLeaderboard()"
+          >
+            View Leaderboard
+          </ion-button>
+        </div>
+      </ion-card-content>
+    </ion-card>
   </div>
 </ion-content>
