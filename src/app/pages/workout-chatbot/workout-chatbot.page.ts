@@ -13,7 +13,10 @@ import {
   IonButton,
   IonList,
   IonLabel,
+  IonIcon,
 } from '@ionic/angular/standalone';
+import { addIcons } from 'ionicons';
+import { fitnessOutline } from 'ionicons/icons';
 
 import {
   WorkoutSessionPerformance,
@@ -53,6 +56,7 @@ interface ChatMessage {
     IonButton,
     IonList,
     IonLabel,
+    IonIcon,
   ],
 })
 export class WorkoutChatbotPage implements OnInit {
@@ -70,7 +74,9 @@ export class WorkoutChatbotPage implements OnInit {
   constructor(
     private router: Router,
     private workoutChatService: WorkoutChatService
-  ) {}
+  ) {
+    addIcons({ fitnessOutline });
+  }
 
   ngOnInit() {
     this.addBotMessage(
@@ -141,5 +147,9 @@ export class WorkoutChatbotPage implements OnInit {
     } finally {
       this.isLoading = false;
     }
+  }
+
+  navigateToWorkoutSummary() {
+    this.router.navigate(['/workout-summary']);
   }
 }

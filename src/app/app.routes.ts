@@ -11,6 +11,11 @@ export const routes: Routes = [
     loadChildren: () =>
       import('./pages/tabs/tabs.routes').then((m) => m.routes),
   },
+  {
+    path: 'workout-summary',
+    loadComponent: () =>
+      import('./pages/workout-summary/workout-summary.page').then((m) => m.WorkoutSummaryPage),
+  },
 
   // If user manually types a bad URL → send to home
   {

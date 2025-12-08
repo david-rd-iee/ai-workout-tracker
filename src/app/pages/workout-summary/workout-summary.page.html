@@ -1,10 +1,17 @@
 <ion-header>
   <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-button (click)="goBackToChat()">
+        <ion-icon name="close-outline"></ion-icon>
+      </ion-button>
+    </ion-buttons>
     <ion-title>Workout Summary</ion-title>
   </ion-toolbar>
 </ion-header>
 
-<ion-content class="ion-padding">
+<ion-content [fullscreen]="true">
+  <div class="background-gradient"></div>
+  <div class="ion-padding">
   <ion-card>
     <ion-card-header>
       <div class="score-block">
@@ -50,13 +57,14 @@
       </ion-grid>
 
       <div class="actions">
-        <ion-button fill="outline" size="small" expand="block">
+        <ion-button fill="outline" size="small" expand="block" (click)="navigateToGroups()">
           Share to Group
         </ion-button>
-        <ion-button size="small" expand="block">
+        <ion-button size="small" expand="block" (click)="navigateToLeaderboard()">
           View Leaderboard
         </ion-button>
       </div>
     </ion-card-content>
   </ion-card>
+  </div>
 </ion-content>

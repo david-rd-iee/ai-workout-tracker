@@ -3,10 +3,10 @@ import { Component, OnInit, OnDestroy, CUSTOM_ELEMENTS_SCHEMA, ViewChild, Elemen
 const DEFAULT_ASSETS = { PROFILE_PHOTO: '' };
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { IonContent, IonHeader, IonTitle, IonToolbar, IonAvatar, IonChip, IonLabel, IonItem, IonList, IonNote } from '@ionic/angular/standalone';
+import { IonContent, IonHeader, IonTitle, IonToolbar, IonAvatar, IonChip, IonLabel, IonItem, IonList, IonNote, IonButton, IonIcon } from '@ionic/angular/standalone';
 // import Swiper from 'swiper';
 import { Router } from '@angular/router';
-import { chevronForwardOutline } from 'ionicons/icons';
+import { chevronForwardOutline, fitnessOutline } from 'ionicons/icons';
 import { addIcons } from 'ionicons';
 // import { TruncatePipe } from 'src/app/pipes/truncate.pipe';
 import { ChatsService } from 'src/app/services/chats.service';
@@ -26,6 +26,8 @@ import { HeaderComponent } from 'src/app/components/header/header.component';
     IonAvatar,
     IonLabel,
     IonNote,
+    IonButton,
+    IonIcon,
     HeaderComponent,
     // MessageDateTimePipe,
     IonItem, IonList, CommonModule, FormsModule]
@@ -45,7 +47,8 @@ export class ClientChatsPage implements OnInit, OnDestroy {
     private accountService: AccountService
   ) {
     addIcons({
-      chevronForwardOutline
+      chevronForwardOutline,
+      fitnessOutline
     });
 
     // Create effect to watch auth state and initialize chats
@@ -85,6 +88,10 @@ export class ClientChatsPage implements OnInit, OnDestroy {
     if (client) {
       this.router.navigate(['/chat', chatId,client, "client"]);
     }
+  }
+
+  navigateToWorkoutSummary() {
+    this.router.navigate(['/workout-summary']);
   }
 
 }

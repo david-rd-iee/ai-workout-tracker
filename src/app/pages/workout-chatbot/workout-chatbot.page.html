@@ -4,7 +4,16 @@
   </ion-toolbar>
 </ion-header>
 
-<ion-content>
+<ion-content [fullscreen]="true">
+  <div class="background-gradient"></div>
+  <!-- Button to navigate to workout summary -->
+  <div class="workout-summary-button-container">
+    <ion-button expand="block" (click)="navigateToWorkoutSummary()" class="workout-summary-button">
+      <ion-icon slot="start" name="fitness-outline"></ion-icon>
+      View Workout Summary
+    </ion-button>
+  </div>
+
   <div class="chat-container">
     <div
       *ngFor="let msg of messages"

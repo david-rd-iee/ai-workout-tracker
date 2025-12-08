@@ -1,7 +1,10 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { IonContent, IonHeader, IonTitle, IonToolbar, IonCard, IonCardHeader, IonCardContent, IonGrid, IonRow, IonCol, IonBadge, IonButton } from '@ionic/angular/standalone';
+import { Router } from '@angular/router';
+import { IonContent, IonHeader, IonTitle, IonToolbar, IonCard, IonCardHeader, IonCardContent, IonGrid, IonRow, IonCol, IonBadge, IonButton, IonButtons, IonIcon } from '@ionic/angular/standalone';
+import { addIcons } from 'ionicons';
+import { closeOutline } from 'ionicons/icons';
 
 @Component({
   selector: 'app-workout-summary',
@@ -12,6 +15,7 @@ import { IonContent, IonHeader, IonTitle, IonToolbar, IonCard, IonCardHeader, Io
     IonContent, IonHeader, IonTitle, IonToolbar,
     IonCard, IonCardHeader, IonCardContent,
     IonGrid, IonRow, IonCol, IonBadge, IonButton,
+    IonButtons, IonIcon,
     CommonModule, FormsModule
   ]
 })
@@ -28,7 +32,9 @@ export class WorkoutSummaryPage implements OnInit {
     ],
   };
 
-  constructor() {}
+  constructor(private router: Router) {
+    addIcons({ closeOutline });
+  }
 
   ngOnInit() {}
 
@@ -36,5 +42,17 @@ export class WorkoutSummaryPage implements OnInit {
     if (score === 'Good') return 'success';
     if (score === 'Fair') return 'warning';
     return 'danger';
+  }
+
+  goBackToChat() {
+    this.router.navigate(['/tabs/chats']);
+  }
+
+  navigateToGroups() {
+    this.router.navigate(['/tabs/groups']);
+  }
+
+  navigateToLeaderboard() {
+    this.router.navigate(['/tabs/leaderboard']);
   }
 }

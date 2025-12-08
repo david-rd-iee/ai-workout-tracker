@@ -1,5 +1,78 @@
-<ion-content class="ion-padding">
-  <ion-button expand="block" color="primary" (click)="onTestClick()">
-    TEST CLICK
-  </ion-button>
+<ion-content [fullscreen]="true">
+  <div class="background-gradient"></div>
+  
+  <div class="home-container">
+    <ion-card class="welcome-card">
+      <ion-card-content>
+        <div class="welcome-section">
+          <h1>Welcome to ATLAS</h1>
+          <p>Your AI-Powered Workout Tracker</p>
+        </div>
+      </ion-card-content>
+    </ion-card>
+
+    <div class="quick-links">
+      <h2>Quick Access</h2>
+      
+      <ion-card button="true" (click)="navigateTo('/tabs/profile')">
+        <ion-card-content>
+          <div class="card-content">
+            <ion-icon name="person-circle-outline" color="primary"></ion-icon>
+            <div>
+              <h3>Client Profile</h3>
+              <p>View and manage your profile</p>
+            </div>
+          </div>
+        </ion-card-content>
+      </ion-card>
+
+      <ion-card button="true" (click)="navigateTo('/tabs/leaderboard')">
+        <ion-card-content>
+          <div class="card-content">
+            <ion-icon name="trophy-outline" color="warning"></ion-icon>
+            <div>
+              <h3>Leaderboard</h3>
+              <p>See how you rank</p>
+            </div>
+          </div>
+        </ion-card-content>
+      </ion-card>
+
+      <ion-card button="true" (click)="navigateTo('/workout-summary')">
+        <ion-card-content>
+          <div class="card-content">
+            <ion-icon name="fitness-outline" color="success"></ion-icon>
+            <div>
+              <h3>Workout Summary</h3>
+              <p>View your latest workout stats</p>
+            </div>
+          </div>
+        </ion-card-content>
+      </ion-card>
+
+      <ion-card button="true" (click)="navigateTo('/tabs/groups')">
+        <ion-card-content>
+          <div class="card-content">
+            <ion-icon name="people-outline" color="tertiary"></ion-icon>
+            <div>
+              <h3>Groups</h3>
+              <p>Connect with your workout groups</p>
+            </div>
+          </div>
+        </ion-card-content>
+      </ion-card>
+
+      <ion-card button="true" (click)="navigateTo('/tabs/chats')">
+        <ion-card-content>
+          <div class="card-content">
+            <ion-icon name="chatbubbles-outline" color="secondary"></ion-icon>
+            <div>
+              <h3>Chats</h3>
+              <p>Message your trainers and friends</p>
+            </div>
+          </div>
+        </ion-card-content>
+      </ion-card>
+    </div>
+  </div>
 </ion-content>

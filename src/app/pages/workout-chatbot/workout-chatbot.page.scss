@@ -1,3 +1,21 @@
+ion-content {
+  --background: transparent;
+}
+
+.workout-summary-button-container {
+  padding: 16px 16px 8px;
+  background: var(--ion-background-color);
+}
+
+.workout-summary-button {
+  --background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --background-hover: linear-gradient(135deg, #5568d3 0%, #653a8b 100%);
+  --border-radius: 12px;
+  font-weight: 600;
+  height: 48px;
+  margin: 0;
+}
+
 .chat-container {
   padding: 16px;
   display: flex;
