@@ -3,37 +3,48 @@ import { authGuard, userTypeGuard } from './services/account/auth.guard';
 
 export const routes: Routes = [
   {
-<<<<<<< HEAD
     path: '',
     redirectTo: 'sign-up',
-    pathMatch: 'full'
+    pathMatch: 'full',
   },
   {
     path: 'app',
-    loadChildren: () => import('./pages/tabs/tabs.routes').then((m) => m.routes),
+    loadChildren: () =>
+      import('./pages/tabs/tabs.routes').then((m) => m.routes),
     canActivate: [authGuard],
   },
   {
     path: 'login',
-    loadComponent: () => import('./pages/login/login.page').then(m => m.LoginPage)
+    loadComponent: () =>
+      import('./pages/login/login.page').then((m) => m.LoginPage),
   },
   {
     path: 'sign-up',
-    loadComponent: () => import('./pages/sign-up/sign-up.page').then(m => m.SignUpPage)
+    loadComponent: () =>
+      import('./pages/sign-up/sign-up.page').then((m) => m.SignUpPage),
   },
   {
     path: 'profile-creation',
-    loadComponent: () => import('./pages/profile-creation/profile-creation.page').then(m => m.ProfileCreationPage),
+    loadComponent: () =>
+      import('./pages/profile-creation/profile-creation.page').then(
+        (m) => m.ProfileCreationPage
+      ),
     canActivate: [authGuard],
   },
   {
     path: 'profile-creation/trainer',
-    loadComponent: () => import('./pages/profile-creation/profile-create-trainer/profile-create-trainer.page').then(m => m.ProfileCreateTrainerPage),
+    loadComponent: () =>
+      import(
+        './pages/profile-creation/profile-create-trainer/profile-create-trainer.page'
+      ).then((m) => m.ProfileCreateTrainerPage),
     canActivate: [authGuard],
   },
   {
     path: 'profile-creation/client',
-    loadComponent: () => import('./pages/profile-creation/profile-create-client/profile-create-client.page').then(m => m.ProfileCreateClientPage),
+    loadComponent: () =>
+      import(
+        './pages/profile-creation/profile-create-client/profile-create-client.page'
+      ).then((m) => m.ProfileCreateClientPage),
     canActivate: [authGuard],
   },
   // Temporarily disabled - missing components
@@ -64,70 +75,61 @@ export const routes: Routes = [
   // },
   {
     path: 'client-profile',
-    loadComponent: () => import('./pages/profiles/client-profile/client-profile.page').then( m => m.ClientProfilePage),
+    loadComponent: () =>
+      import(
+        './pages/profiles/client-profile/client-profile.page'
+      ).then((m) => m.ClientProfilePage),
     // canActivate: [authGuard] // Temporarily disabled for testing
   },
   {
     path: 'client-profile/:userId',
-    loadComponent: () => import('./pages/profiles/client-profile/client-profile.page').then( m => m.ClientProfilePage),
+    loadComponent: () =>
+      import(
+        './pages/profiles/client-profile/client-profile.page'
+      ).then((m) => m.ClientProfilePage),
     // canActivate: [authGuard] // Temporarily disabled for testing
   },
   {
     path: 'leaderboard',
-    loadComponent: () => import('./pages/leaderboard/leaderboard.component').then(m => m.LeaderboardComponent),
+    loadComponent: () =>
+      import('./pages/leaderboard/leaderboard.component').then(
+        (m) => m.LeaderboardComponent
+      ),
     // canActivate: [authGuard] // Temporarily disabled for testing
   },
   {
     path: 'workout-summary',
-    loadComponent: () => import('./pages/workout-summary/workout-summary.page').then(m => m.WorkoutSummaryPage),
+    loadComponent: () =>
+      import('./pages/workout-summary/workout-summary.page').then(
+        (m) => m.WorkoutSummaryPage
+      ),
     // canActivate: [authGuard] // Temporarily disabled for testing
   },
-  // Temporarily disabled - missing components
-  // {
-  //   path: 'payment-success',
-  //   loadComponent: () => import('./pages/payment/payment-success/payment-success.component').then(m => m.PaymentSuccessComponent),
-  //   canActivate: [authGuard]
-  // },
-  // {
-  //   path: 'payment-cancel',
-  //   loadComponent: () => import('./pages/payment/payment-cancel/payment-cancel.component').then(m => m.PaymentCancelComponent),
-  //   canActivate: [authGuard]
-  // },
-  // {
-  //   path: 'payment/:agreementId',
-  //   loadComponent: () => import('./pages/payment/payment.page').then(m => m.PaymentPage),
-  //   canActivate: [authGuard]
-  // },
-  // {
-  //   path: 'payment/success',
-  //   redirectTo: '/app/tabs/home',
-  //   pathMatch: 'full'
-  // },
-  // {
-  //   path: 'session-booking',
-  //   loadComponent: () => import('./pages/session-booking/session-booking.page').then( m => m.SessionBookingPage),
-  //   canActivate: [authGuard]
-  // },
-  // {
-  //   path: 'session-booking/:trainerId',
-  //   loadComponent: () => import('./pages/session-booking/session-booking.page').then( m => m.SessionBookingPage),
-  //   canActivate: [authGuard]
-  // },
-  // {
-  //   path: 'stripe-setup',
-  //   loadComponent: () => import('./pages/stripe-setup/stripe-setup.page').then( m => m.StripeSetupPage),
-  //   canActivate: [authGuard]
-  // },
+  {
+    path: 'groups',
+    loadComponent: () =>
+      import('./pages/groups/groups.page').then((m) => m.GroupsPage),
+  },
+  {
+    path: 'workout-chatbot',
+    loadComponent: () =>
+      import('./pages/workout-chatbot/workout-chatbot.page').then(
+        (m) => m.WorkoutChatbotPage
+      ),
+  },
   {
     path: 'delete-account',
-    loadComponent: () => import('./pages/delete-account/delete-account.page').then( m => m.DeleteAccountPage),
-    canActivate: [authGuard]
+    loadComponent: () =>
+      import('./pages/delete-account/delete-account.page').then(
+        (m) => m.DeleteAccountPage
+      ),
+    canActivate: [authGuard],
   },
-  //The receiverId is the id of the user you are messaging
-  //{
-  //  path: 'notes/:receiverId',
-  //  loadComponent: () => import('./pages/notes/notes.page').then( m => m.NotesPage)
-  //}
+  // The receiverId is the id of the user you are messaging
+  // {
+  //   path: 'notes/:receiverId',
+  //   loadComponent: () => import('./pages/notes/notes.page').then( m => m.NotesPage)
+  // }
   // {
   //   path: 'trainer-finder',
   //   loadComponent: () => import('./pages/trainer-finder/trainer-finder.page').then( m => m.TrainerFinderPage)
@@ -136,6 +138,11 @@ export const routes: Routes = [
   //   path: 'trainer-profile',
   //   loadComponent: () => import('./pages/trainer-profile/trainer-profile.page').then( m => m.TrainerProfilePage)
   // },
+  {
+    path: '**',
+    redirectTo: 'sign-up',
+    pathMatch: 'full',
+  },
 ];
 
 export const ROUTE_PATHS = {
@@ -156,38 +163,16 @@ export const ROUTE_PATHS = {
       CALENDAR: '/app/tabs/calender',
       STRIPE_SETUP: '/app/tabs/stripe-setup',
       DELETE_ACCOUNT: '/app/tabs/delete-account',
-      PAYMENT_HISTORY: '/app/tabs/payment-history'
-    }
+      PAYMENT_HISTORY: '/app/tabs/payment-history',
+    },
   },
   AUTH: {
     LOGIN: '/login',
-    PROFILE_CREATION: '/profile-creation'
+    PROFILE_CREATION: '/profile-creation',
   },
   PAYMENT: {
     SUCCESS: '/payment-success',
     CANCEL: '/payment-cancel',
-    PROCESS: (agreementId: string) => `/payment/${agreementId}`
-  }
+    PROCESS: (agreementId: string) => `/payment/${agreementId}`,
+  },
 } as const;
-=======
-    path: 'workout-summary',
-    loadComponent: () => import('./pages/workout-summary/workout-summary.page').then(m => m.WorkoutSummaryPage)
-  },
-  {
-    path: 'groups',
-    loadComponent: () => import('./pages/groups/groups.page').then(m => m.GroupsPage)
-  },
-  {
-    path: 'workout-chatbot',
-    loadComponent: () =>
-      import('./pages/workout-chatbot/workout-chatbot.page').then(
-        (m) => m.WorkoutChatbotPage
-      ),
-  },
-  {
-    path: '**',
-    redirectTo: '/tabs/home',
-    pathMatch: 'full'
-  },
-];
->>>>>>> feature/leader-board
