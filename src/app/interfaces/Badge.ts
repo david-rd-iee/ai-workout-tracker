@@ -258,8 +258,8 @@ export const ACHIEVEMENT_BADGES: AchievementBadge[] = [
       diamond: 500,
       master: 600 
     }
-  },
-  {
+  }
+  /*{
     id: 'jerk-master',
     name: 'Jerk Master',
     icon: 'bed',
@@ -275,7 +275,7 @@ export const ACHIEVEMENT_BADGES: AchievementBadge[] = [
       diamond: 7500,
       master: 10000
     }
-  }
+  }*/
 ];
 
 // Helper function to calculate badge level based on current value
