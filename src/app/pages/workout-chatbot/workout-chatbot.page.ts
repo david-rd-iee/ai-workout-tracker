@@ -64,11 +64,15 @@ export class WorkoutChatbotPage implements OnInit {
   messages: ChatMessage[] = [];
   isLoading = false;
 
-  // structured session object the AI can update
+  // structured session/summary object the AI can update
   session: WorkoutSessionPerformance = {
     date: new Date().toISOString().slice(0, 10), // yyyy-mm-dd
     sessionType: '',
+    notes: '',
+    volume: 0,
+    calories: 0,
     exercises: [],
+    isComplete: false,
   };
 
   constructor(
@@ -80,7 +84,7 @@ export class WorkoutChatbotPage implements OnInit {
 
   ngOnInit() {
     this.addBotMessage(
-      "Hey! I’m your AI workout assistant. Tell me about your session and I’ll help clean it up and log it for your trainer."
+      "Hey! Ready to log your workout? Tell me your first exercise (name, sets, reps, weight) and I’ll organize everything for your trainer."
     );
   }
 
@@ -126,7 +130,7 @@ export class WorkoutChatbotPage implements OnInit {
 
       // update session if backend/AI changed it
       if (response.updatedSession) {
-        this.session = response.updatedSession;
+        this.session = response.updatedSession as WorkoutSessionPerformance;
         console.log('Updated session:', this.session);
       }
 
@@ -150,6 +154,9 @@ export class WorkoutChatbotPage implements OnInit {
   }
 
   navigateToWorkoutSummary() {
-    this.router.navigate(['/workout-summary']);
+    // pass the current AI-built summary to the summary page
+    this.router.navigate(['/workout-summary'], {
+      state: { summary: this.session },
+    });
   }
 }
