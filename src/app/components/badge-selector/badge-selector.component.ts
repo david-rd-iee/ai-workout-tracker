@@ -19,7 +19,7 @@ import {
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
 import { close, checkmark, checkmarkCircle } from 'ionicons/icons';
-import { AchievementBadge, ACHIEVEMENT_BADGES } from '../../Interfaces/Badge';
+import { AchievementBadge, ACHIEVEMENT_BADGES } from '../../interfaces/Badge';
 import { AchievementBadgeComponent } from '../achievement-badge/achievement-badge.component';
 
 @Component({

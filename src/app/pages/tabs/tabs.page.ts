@@ -1,40 +1,48 @@
-import { CommonModule } from '@angular/common';
-import { Component, effect, EnvironmentInjector, inject } from '@angular/core';
+import { Component } from '@angular/core';
+import {
+  IonTabs,
+  IonRouterOutlet,
+  IonTabBar,
+  IonTabButton,
+  IonIcon,
+  IonLabel
+} from '@ionic/angular/standalone';
 
-import { IonTabs, IonTabBar, IonTabButton, IonIcon, IonLabel, IonButton } from '@ionic/angular/standalone';
+import { RouterLink, RouterLinkActive } from '@angular/router';
+
 import { addIcons } from 'ionicons';
-import { homeOutline, calendarOutline, listOutline, chatbubbleEllipsesSharp, fileTrayFullOutline } from 'ionicons/icons';
-import { AccountService } from 'src/app/services/account/account.service';
-import { UserService } from 'src/app/services/account/user.service';
+import {
+  homeOutline,
+  peopleOutline,
+  podiumOutline,
+  chatbubbleEllipsesSharp,
+  personOutline,
+} from 'ionicons/icons';
 
 @Component({
   selector: 'app-tabs',
-  templateUrl: 'tabs.page.html',
-  styleUrls: ['tabs.page.scss'],
   standalone: true,
-  imports: [IonTabs, IonTabBar, IonTabButton, IonIcon, IonTabButton, CommonModule],
+  templateUrl: './tabs.page.html',
+  styleUrls: ['./tabs.page.scss'],
+  imports: [
+    IonTabs,
+    IonRouterOutlet,
+    IonTabBar,
+    IonTabButton,
+    IonIcon,
+    IonLabel,
+    RouterLink,
+    RouterLinkActive,
+  ],
 })
 export class TabsPage {
-  public environmentInjector = inject(EnvironmentInjector);
-  userType: 'trainer' | 'client' = 'client';
-
-  constructor(
-    private userService: UserService,
-    private accountService: AccountService,
-  ) {
-    effect(() => {
-      const info = this.userService.getUserInfo()();
-      if (info) {
-        this.userType = info.accountType;
-      }
-    });
-    // this.userType = this.userService.getProfileType();
+  constructor() {
     addIcons({
       homeOutline,
-      calendarOutline,
-      listOutline,
+      peopleOutline,
+      podiumOutline,
       chatbubbleEllipsesSharp,
-      fileTrayFullOutline
+      personOutline,
     });
   }
 }

@@ -1,40 +1,5 @@
-<app-header [transparent]="true"></app-header>
-
-<ion-content [fullscreen]="true" class="ion-padding">
-  <div class="background-gradient"></div>
-
-  <h2>Upcoming Sessions</h2>
-  
-  <!-- User not loaded yet -->
-  <div *ngIf="!isUserLoaded" class="ion-text-center">
-    <ion-card>
-      <ion-card-content>
-        <p>Loading user information...</p>
-      </ion-card-content>
-    </ion-card>
-  </div>
-  
-  <!-- List Sessions Component - handles all session display logic -->
-  <app-list-sessions 
-    *ngIf="isUserLoaded"
-    [sessions]="upcomingSessions"
-    [isLoading]="isLoadingSessions"
-    [noSessionsFound]="noSessionsFound"
-    [userType]="userType"
-    (sessionChanged)="onSessionChanged($any($event))">
-  </app-list-sessions>
-
-  <!-- Recent Payments Section (Only for Trainers) -->
-  <div *ngIf="userType === 'trainer'" class="payments-section">
-    <h2>Recent Payments</h2>
-    
-    <!-- List Payments Component - handles all payment display logic -->
-    <app-list-payments
-      [payments]="recentPayments"
-      [isLoading]="isLoadingPayments"
-      [noPaymentsFound]="noPaymentsFound"
-      [userType]="userType">
-    </app-list-payments>
-  </div>
-
+<ion-content class="ion-padding">
+  <ion-button expand="block" color="primary" (click)="onTestClick()">
+    TEST CLICK
+  </ion-button>
 </ion-content>

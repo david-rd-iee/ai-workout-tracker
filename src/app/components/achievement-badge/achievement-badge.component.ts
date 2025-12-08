@@ -3,7 +3,13 @@ import { CommonModule } from '@angular/common';
 import { IonIcon, IonBadge, IonProgressBar } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
 import { trophy, star, lockClosed, medalOutline, trophyOutline, diamondOutline, body, shieldCheckmark, flame, speedometer, sunny, people, analytics, calendar, barbell, bed, fitness } from 'ionicons/icons';
-import { AchievementBadge, BadgeLevel, BADGE_TIER_CONFIG, calculateProgressToNextTier } from '../../Interfaces/Badge';
+import {
+  AchievementBadge,
+  BadgeLevel,
+  BADGE_TIER_CONFIG,
+  calculateProgressToNextTier,
+} from '../../interfaces/Badge';
+
 
 @Component({
   selector: 'app-achievement-badge',

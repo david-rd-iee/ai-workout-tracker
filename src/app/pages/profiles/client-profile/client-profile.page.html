@@ -1,4 +1,4 @@
-<app-header [transparent]="true"></app-header>
+<!-- <app-header [transparent]="true"></app-header> -->
 
 <ion-content [fullscreen]="true">
   <div class="background-gradient"></div>
@@ -105,14 +105,16 @@
 
     <ion-card *ngIf="isOwnProfile">
       <ion-list lines="full">
-        <ion-item button [routerLink]="[ROUTE_PATHS.APP.TABS.ACCOUNT_CLIENT]">
+        <ion-item>
           <ion-icon slot="start" name="settings-outline"></ion-icon>
           <ion-label>
             <h3>Account Settings</h3>
+            <p>Coming soon in dev mode</p>
           </ion-label>
         </ion-item>
       </ion-list>
     </ion-card>
+
 
     <ion-button *ngIf="isOwnProfile" expand="block" (click)="saveChanges()" class="save-button">
       Save Profile Photo

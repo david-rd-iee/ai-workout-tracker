@@ -1,95 +1,43 @@
 import { Routes } from '@angular/router';
 import { TabsPage } from './tabs.page';
-import { authGuard, userTypeGuard } from '../../services/account/auth.guard';
 
 export const routes: Routes = [
   {
-    path: 'tabs',
+    path: '',
     component: TabsPage,
     children: [
-      // HOME
       {
         path: 'home',
         loadComponent: () =>
-          import('../home/home.page').then((m) => m.HomePage),
-        canActivate: [authGuard],
+          import('../home/home.page').then(m => m.HomePage),
       },
-
-      // GROUPS
       {
         path: 'groups',
         loadComponent: () =>
-          import('../groups/groups.page').then((m) => m.GroupsPage),
-        canActivate: [authGuard],
+          import('../groups/groups.page').then(m => m.GroupsPage),
       },
-
-      // LEADERBOARD (from feature/leader-board)
       {
         path: 'leaderboard',
         loadComponent: () =>
-          import('../leaderboard/leaderboard.component').then(
-            (m) => m.LeaderboardComponent
-          ),
-        canActivate: [authGuard],
+          import('../leaderboard/leaderboard.component').then(m => m.LeaderboardComponent),
       },
-
-      // PROFILE
+      {
+        path: 'chats',
+        loadComponent: () =>
+          import('../workout-chatbot/workout-chatbot.page').then((m) => m.WorkoutChatbotPage),
+      },
       {
         path: 'profile',
         loadComponent: () =>
-          import('../../pages/login/login.page').then((m) => m.LoginPage),
-        canActivate: [authGuard, userTypeGuard],
+          import('../profiles/client-profile/client-profile.page').then(m => m.ClientProfilePage),
       },
 
-      {
-        path: 'profile/client',
-        loadComponent: () =>
-          import('../profiles/client-profile/client-profile.page').then(
-            (m) => m.ClientProfilePage
-          ),
-        // canActivate: [authGuard], // Temporarily disabled for testing
-      },
-
-      // --- Many features disabled temporarily ---
-      // {
-      //   path: 'trainer-finder',
-      //   loadComponent: () => import('../trainer-finder/trainer-finder.page').then(m => m.TrainerFinderPage),
-      //   canActivate: [authGuard],
-      // },
-
-      // {
-      //   path: 'chats',
-      //   loadComponent: () => import('../../pages/login/login.page').then( m => m.LoginPage),
-      //   canActivate: [authGuard, userTypeGuard]
-      // },
-
-      // {
-      //   path: 'calender',
-      //   loadComponent: () => import('../../pages/login/login.page').then( m => m.LoginPage),
-      //   canActivate: [authGuard, userTypeGuard]
-      // },
-
-      // {
-      //   path: 'account',
-      //   loadComponent: () => import('../../pages/login/login.page').then( m => m.LoginPage),
-      //   canActivate: [authGuard, userTypeGuard]
-      // },
-
-      // ------------------------------------------
-
-      // Default route inside /tabs
+      // default inside /tabs → /tabs/home
       {
         path: '',
-        redirectTo: '/tabs/home',
+        redirectTo: 'home',
         pathMatch: 'full',
       },
     ],
-  },
-
-  // Root redirect
-  {
-    path: '',
-    redirectTo: '/tabs/home',
-    pathMatch: 'full',
   },
 ];

@@ -7,12 +7,12 @@ import { IonContent, IonGrid, IonRow, IonCol, IonButton, IonList, IonItem, IonLa
 import { UserService } from '../../../services/account/user.service';
 import { clientProfile } from '../../../Interfaces/Profiles/client';
 import { AccountService } from 'src/app/services/account/account.service';
-import { ROUTE_PATHS } from 'src/app/app.routes';
+//import { ROUTE_PATHS } from 'src/app/app.routes';
 import { ImageUploaderComponent } from 'src/app/components/image-uploader/image-uploader.component';
 import { HeaderComponent } from "../../../components/header/header.component";
 import { addIcons } from 'ionicons';
 import { settingsOutline, addCircleOutline, trophy, chevronDown, chevronUp, medal, createOutline } from 'ionicons/icons';
-import { AchievementBadge, ACHIEVEMENT_BADGES, calculateBadgeLevel } from '../../../Interfaces/Badge';
+import { AchievementBadge, ACHIEVEMENT_BADGES, calculateBadgeLevel } from '../../../interfaces/Badge';
 import { BadgeSelectorComponent } from '../../../components/badge-selector/badge-selector.component';
 import { AchievementBadgeComponent } from '../../../components/achievement-badge/achievement-badge.component';
 
@@ -77,7 +77,7 @@ export class ClientProfilePage implements OnInit {
   }
 
   // Expose ROUTE_PATHS to template
-  readonly ROUTE_PATHS = ROUTE_PATHS;
+  //readonly ROUTE_PATHS = ROUTE_PATHS;
 
   isAuthReady = this.accountService.isAuthReady();
   userId = computed(() => this.accountService.getCredentials()().uid);
