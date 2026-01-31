@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="AI Workout Tracker - CS 426 Senior Project in Computer Science, Spring 2025, UNR CSE Department">
+    <title>AI Workout Tracker - CS 426 Senior Project</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-image: url('BlurryGradientLight.svg');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+            overflow: hidden;
+            backdrop-filter: blur(10px);
+        }
+
+        header {
+            background: linear-gradient(135deg, rgba(66, 135, 245, 0.9) 0%, rgba(102, 126, 234, 0.85) 100%);
+            color: white;
+            padding: 40px 30px;
+            text-align: center;
+            backdrop-filter: blur(10px);
+        }
+
+        header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+
+        header .subtitle {
+            font-size: 1.1rem;
+            opacity: 0.95;
+            margin-bottom: 5px;
+        }
+
+        header .course-info {
+            font-size: 1rem;
+            opacity: 0.9;
+            margin-top: 10px;
+        }
+
+        main {
+            padding: 40px 30px;
+        }
+
+        section {
+            margin-bottom: 40px;
+        }
+
+        section:last-child {
+            margin-bottom: 0;
+        }
+
+        h2 {
+            color: #4287f5;
+            font-size: 1.8rem;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 3px solid #4287f5;
+        }
+
+        h3 {
+            color: #667eea;
+            font-size: 1.3rem;
+            margin-bottom: 10px;
+            margin-top: 20px;
+        }
+
+        p {
+            margin-bottom: 15px;
+            text-align: justify;
+        }
+
+        ul {
+            margin-left: 20px;
+            margin-bottom: 15px;
+        }
+
+        li {
+            margin-bottom: 8px;
+        }
+
+        a {
+            color: #4287f5;
+            text-decoration: none;
+            transition: color 0.3s ease;
+        }
+
+        a:hover,
+        a:focus {
+            color: #667eea;
+            text-decoration: underline;
+        }
+
+        a:focus {
+            outline: 2px solid #4287f5;
+            outline-offset: 2px;
+        }
+
+        .team-card,
+        .advisor-card {
+            background: rgba(248, 249, 250, 0.8);
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            border-left: 4px solid #4287f5;
+            backdrop-filter: blur(5px);
+        }
+
+        .advisor-card {
+            border-left-color: #667eea;
+        }
+
+        .team-card h3,
+        .advisor-card h3 {
+            margin-top: 0;
+            color: #333;
+            font-size: 1.2rem;
+        }
+
+        .team-card p,
+        .advisor-card p {
+            margin-bottom: 5px;
+        }
+
+        .tech-stack {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .tech-badge {
+            background: linear-gradient(135deg, #4287f5 0%, #667eea 100%);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            box-shadow: 0 2px 8px rgba(66, 135, 245, 0.3);
+        }
+
+        .resource-list {
+            background: rgba(248, 249, 250, 0.8);
+            padding: 20px;
+            border-radius: 8px;
+            backdrop-filter: blur(5px);
+        }
+
+        .resource-list h4 {
+            color: #4287f5;
+            margin-bottom: 10px;
+        }
+
+        .resource-list ul {
+            margin-left: 25px;
+        }
+
+        footer {
+            background: #2d3748;
+            color: white;
+            padding: 20px 30px;
+            text-align: center;
+        }
+
+        footer p {
+            margin-bottom: 5px;
+            text-align: center;
+        }
+
+        .skip-link {
+            position: absolute;
+            top: -40px;
+            left: 0;
+            background: #4287f5;
+            color: white;
+            padding: 8px;
+            text-decoration: none;
+            z-index: 100;
+        }
+
+        .skip-link:focus {
+            top: 0;
+        }
+
+        @media (max-width: 768px) {
+            header h1 {
+                font-size: 2rem;
+            }
+
+            h2 {
+                font-size: 1.5rem;
+            }
+
+            main {
+                padding: 30px 20px;
+            }
+
+            .tech-stack {
+                gap: 8px;
+            }
+
+            .tech-badge {
+                font-size: 0.85rem;
+                padding: 6px 12px;
+            }
+        }
+
+        .update-section {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 20px;
+        }
+
+        .update-section h4 {
+            color: #856404;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <a href="#main-content" class="skip-link">Skip to main content</a>
+    
+    <div class="container">
+        <header role="banner">
+            <h1>AI Workout Tracker</h1>
+            <p class="subtitle">Cross-Platform Fitness & Training Management System</p>
+            <p class="course-info">CS 426 Senior Project in Computer Science<br>
+            Spring 2025 | University of Nevada, Reno | Department of Computer Science and Engineering</p>
+        </header>
+
+        <main id="main-content" role="main">
+            <!-- Team Information -->
+            <section aria-labelledby="team-heading">
+                <h2 id="team-heading">Team Information</h2>
+                <div class="team-card">
+                    <h3>Team Number & Name</h3>
+                    <p><strong>Team Number:</strong> 22</p>
+                    <p><strong>Team Name:</strong> Clankers</p>
+                </div>
+                <div class="team-card">
+                    <h3>Team Members</h3>
+                    <ul>
+                        <li><strong>Langdon Isaacson</strong></li>
+                        <li><strong>Matthew Patterson</strong></li>
+                        <li><strong>David Riede</strong></li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- Advisors & Instructors -->
+            <section aria-labelledby="advisors-heading">
+                <h2 id="advisors-heading">Instructors & Advisors</h2>
+                <div class="advisor-card">
+                    <h3>Course Instructor</h3>
+                    <p><strong>Dave, Vinh</strong></p>
+                    <p>Department of Computer Science and Engineering</p>
+                    <p>University of Nevada, Reno</p>
+                </div>
+                <div class="advisor-card">
+                    <h3>External Advisor</h3>
+                    <p><strong>Atlas</strong></p>
+                    <p>Chad Serf, Jonathan Berring</p>
+                    <p>Personal Training</p>
+                </div>
+            </section>
+
+            <!-- Project Description -->
+            <section aria-labelledby="description-heading">
+                <h2 id="description-heading">Project Description</h2>
+                <p>
+                    The AI Workout Tracker is a comprehensive cross-platform application designed to streamline the management of fitness training sessions between personal trainers and their clients. The application features real-time communication capabilities, allowing trainers and clients to interact seamlessly through instant messaging and group chats. Clients can easily book training sessions based on trainer availability, with integrated calendar support to manage schedules effectively.
+                </p>
+
+                <h3>Technology Stack</h3>
+                <div class="tech-stack" role="list">
+                    <span class="tech-badge" role="listitem">Angular 20</span>
+                    <span class="tech-badge" role="listitem">Ionic 7</span>
+                    <span class="tech-badge" role="listitem">TypeScript</span>
+                    <span class="tech-badge" role="listitem">Firebase</span>
+                    <span class="tech-badge" role="listitem">Cloud Functions</span>
+                    <span class="tech-badge" role="listitem">Node.js</span>
+                    <span class="tech-badge" role="listitem">Capacitor</span>
+                </div>
+            </section>
+
+            <!-- Project Resources -->
+            <section aria-labelledby="resources-heading">
+                <h2 id="resources-heading">Project Related Resources</h2>
+                
+                <div class="resource-list">
+                    <h4>Technical Documentation & References</h4>
+                    <ul>
+                        <li><a href="https://angular.io/docs" target="_blank" rel="noopener noreferrer">Angular Official Documentation</a> - Framework documentation</li>
+                        <li><a href="https://ionicframework.com/docs" target="_blank" rel="noopener noreferrer">Ionic Framework Documentation</a> - Mobile UI framework</li>
+                        <li><a href="https://firebase.google.com/docs" target="_blank" rel="noopener noreferrer">Firebase Documentation</a> - Backend services and database</li>
+                        <li><a href="https://capacitorjs.com/docs" target="_blank" rel="noopener noreferrer">Capacitor Documentation</a> - Native runtime for web apps</li>
+                    </ul>
+                </div>
+
+                <div class="resource-list">
+                    <h4>Problem Domain Resources</h4>
+                    <ul>
+
+                    </ul>
+                </div>
+
+                <div class="resource-list">
+                    <h4>Related Technologies & Articles</h4>
+                    <ul>
+                        <li><a href="https://www.typescriptlang.org/docs/" target="_blank" rel="noopener noreferrer">TypeScript Handbook</a> - Type-safe JavaScript</li>
+                        <li><a href="https://web.dev/progressive-web-apps/" target="_blank" rel="noopener noreferrer">Progressive Web Apps (PWA)</a> - Modern web app capabilities</li>
+                        <li><a href="https://firebase.google.com/docs/firestore/security/overview" target="_blank" rel="noopener noreferrer">Firestore Security Rules</a> - Database security best practices</li>
+                        <li><a href="https://developers.google.com/machine-learning" target="_blank" rel="noopener noreferrer">Google Machine Learning</a> - AI and ML resources for chatbot development</li>
+                    </ul>
+                </div>
+
+                <div class="resource-list">
+                    <h4>Industry Trends & News</h4>
+                    <ul>
+
+                    </ul>
+                </div>
+            </section>
+
+            <!-- Project Repository -->
+            <section aria-labelledby="repository-heading">
+                <h2 id="repository-heading">Project Repository</h2>
+                <p>
+                    <strong>GitHub:</strong> <a href="https://github.com/david-rd-iee/ai-workout-tracker" target="_blank" rel="noopener noreferrer">github.com/david-rd-iee/ai-workout-tracker</a>
+                </p>
+                <p>
+                    The source code, documentation, and project history are publicly available on GitHub.
+                </p>
+            </section>
+
+            <!-- Project Updates -->
+            <section aria-labelledby="updates-heading">
+                <h2 id="updates-heading">Project Updates & News</h2>
+                <div class="update-section">
+                    <h4>Latest Update - January 2025</h4>
+                    <p>Initial project website launched. Core features including chatbot, gamification, and AI workout agent are in development.</p>
+                </div>
+                <p><em>This section will be regularly updated with project milestones, deliverables, and progress reports throughout the Spring 2025 semester.</em></p>
+                <p><strong>Upcoming:</strong> Project poster and demonstration video will be added prior to CoEN Innovation Day (April 2025).</p>
+            </section>
+
+            <!-- Key Features -->
+            <section aria-labelledby="features-heading">
+                <h2 id="features-heading">Key Features</h2>
+                <ul>
+                    <li><strong>Real-time Communication:</strong> Instant messaging between trainers and clients with group chat support</li>
+                    <li><strong>Session Management:</strong> Booking system with availability scheduling and calendar integration</li>
+                    <li><strong>AI Workout Assistant:</strong> Intelligent chatbot providing personalized exercise recommendations</li>
+                    <li><strong>Leaderboards:</strong> Competitive rankings to encourage user engagement and motivation</li>
+                    <li><strong>Achievement System:</strong> Badges and milestones to gamify the fitness experience</li>
+                    <li><strong>Payment Processing:</strong> Integrated payment handling for trainer services</li>
+                    <li><strong>Session Notes:</strong> Trainers can maintain detailed client progress records</li>
+                    <li><strong>Cross-Platform:</strong> Native experience on iOS, Android, and web browsers</li>
+                    <li><strong>Offline Capability:</strong> Core features accessible without internet connection</li>
+                </ul>
+            </section>
+        </main>
+
+        <footer role="contentinfo">
+            <p>&copy; 2025 AI Workout Tracker Team | CS 426 Senior Project</p>
+            <p>University of Nevada, Reno | Department of Computer Science and Engineering</p>
+            <p>This website is ADA compliant and will be maintained through April 2026</p>
+        </footer>
+    </div>
+</body>
+</html>
