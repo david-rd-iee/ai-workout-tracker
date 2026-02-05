@@ -28,6 +28,10 @@ import { getFunctions, provideFunctions } from '@angular/fire/functions';
 
 import { provideHttpClient } from '@angular/common/http';
 
+// Register Swiper web components
+import { register } from 'swiper/element/bundle';
+register();
+
 bootstrapApplication(AppComponent, {
   providers: [
     { provide: RouteReuseStrategy, useClass: IonicRouteStrategy },
