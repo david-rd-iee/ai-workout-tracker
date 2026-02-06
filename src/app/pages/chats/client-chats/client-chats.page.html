@@ -1,0 +1,24 @@
+<app-header [title]="'Messages'"></app-header>
+
+<ion-content [fullscreen]="true">
+  <ion-list>
+    <ion-item 
+      *ngFor="let chat of chats$ | async" 
+      button 
+      (click)="loadChat(chat.id, chat.participants)"
+      detail="true"
+    >
+      <ion-avatar slot="start">
+        <img [src]="bearProfile || 'assets/icon/favicon.png'" alt="Profile" />
+      </ion-avatar>
+      <ion-label>
+        <h2>{{ chat.displayName || 'Chat' }}</h2>
+        <ion-note>{{ chat.lastMessage || 'No messages yet' }}</ion-note>
+      </ion-label>
+    </ion-item>
+  </ion-list>
+
+  <div *ngIf="(chats$ | async)?.length === 0" style="text-align: center; padding: 40px;">
+    <p>No chats yet</p>
+  </div>
+</ion-content>

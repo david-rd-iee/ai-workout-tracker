@@ -1,6 +1,6 @@
 import { Injectable, signal, computed, Signal, effect, inject } from '@angular/core';
 import { AccountService } from './account.service';
-import { trainerProfile } from '../../Interfaces/Profiles/trainer';
+import { trainerProfile } from '../../Interfaces/Profiles/Trainer';
 import { clientProfile } from '../../Interfaces/Profiles/client';
 import { Firestore, collection, collectionData, addDoc, setDoc, getDoc, doc, onSnapshot, CollectionReference, query, updateDoc } from '@angular/fire/firestore';
 import { Storage, ref, uploadBytes, getDownloadURL } from '@angular/fire/storage';

@@ -1,0 +1,61 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-title>Agreement Templates</ion-title>
+    <ion-buttons slot="end">
+      <ion-button (click)="dismiss()">Close</ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding">
+  <div *ngIf="!showContent && !isCreatingNew">
+    <div class="template-selection">
+      <h2>Select a Template</h2>
+      
+      <div *ngIf="isLoading" class="loading-container">
+        <p>Loading templates...</p>
+      </div>
+      
+      <div *ngIf="!showContent">
+        <ion-list>
+          <ion-item *ngFor="let template of templates" (click)="selectTemplate(template.id)">
+            <ion-label>{{ template.name }}</ion-label>
+          </ion-item>
+        </ion-list>
+      </div>
+      
+      <ion-button expand="block" (click)="createNew()" class="ion-margin-top">
+        Create New Agreement
+      </ion-button>
+    </div>
+  </div>
+
+  
+  <div *ngIf="showContent">
+    <app-service-agreement 
+      [templateId]="selectedTemplateId" 
+      [mode]="'client'"
+      [clientId]="clientId"
+      [clientName]="clientName"
+      (onSave)="saveNewAgreement($event)" 
+      (onSend)="sendAgreement($event)">
+    </app-service-agreement>
+  </div>
+  
+  <!-- Add this section for creating a new agreement -->
+  <div *ngIf="isCreatingNew">
+    <app-service-agreement 
+    [mode]="'client'"
+    [clientId]="clientId"
+    [clientName]="clientName"
+    [templateId]="'new'" 
+    (onSave)="saveNewAgreement($event)"
+    (onSend)="sendAgreement($event)">
+    </app-service-agreement>
+    
+    <ion-button expand="block" (click)="isCreatingNew = false" class="ion-margin-top">
+      Cancel
+    </ion-button>
+  </div>
+  
+</ion-content>

@@ -1,3 +1,5 @@
+<app-header></app-header>
+
 <ion-content [fullscreen]="true">
   <div class="background-gradient"></div>
   
@@ -14,18 +16,6 @@
     <div class="quick-links">
       <h2>Quick Access</h2>
       
-      <ion-card button="true" (click)="navigateTo('/tabs/profile')">
-        <ion-card-content>
-          <div class="card-content">
-            <ion-icon name="person-circle-outline" color="primary"></ion-icon>
-            <div>
-              <h3>Client Profile</h3>
-              <p>View and manage your profile</p>
-            </div>
-          </div>
-        </ion-card-content>
-      </ion-card>
-
       <ion-card button="true" (click)="navigateTo('/tabs/leaderboard')">
         <ion-card-content>
           <div class="card-content">

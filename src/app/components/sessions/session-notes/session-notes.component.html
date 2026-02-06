@@ -1,0 +1,131 @@
+<ion-card>
+  <ion-card-header>
+    <ion-card-title>Session Notes</ion-card-title>
+  </ion-card-header>
+  <ion-card-content>
+    <!-- Calendar for selecting dates -->
+    <ion-datetime 
+      [value]="selectedDate.toISOString()" 
+      (ionChange)="onDateChange($event)"
+      (ionMonthChange)="onMonthChange($event)"
+      [highlightedDates]="getHighlightedDates()"
+      presentation="date">
+    </ion-datetime>
+    
+    <!-- Loading state -->
+    <div *ngIf="isLoading" class="loading-container ion-text-center">
+      <ion-spinner></ion-spinner>
+      <p>Loading notes...</p>
+    </div>
+    
+    <!-- Notes for selected day -->
+    <div *ngIf="!isLoading && selectedDayNotes.length === 0 && !isCreatingNote" class="empty-state ion-padding ion-text-center">
+      <p>No notes for this day</p>
+      <ion-button *ngIf="isTrainer" (click)="isCreatingNote = true; newNote = {}" expand="block" fill="outline">
+        <ion-icon name="add-outline" slot="start"></ion-icon>
+        Add Session Note
+      </ion-button>
+    </div>
+    
+    <!-- Create new note form -->
+    <div *ngIf="isCreatingNote" class="create-note-form ion-padding">
+      <h4>New Session Note</h4>
+      
+      <ion-item>
+        <ion-input [(ngModel)]="newNote.name" label="Title" labelPlacement="stacked" placeholder="Enter note title"></ion-input>
+      </ion-item>
+      
+      <ion-item>
+        <ion-textarea [(ngModel)]="newNote.text" label="Content" labelPlacement="stacked" rows="4" placeholder="Enter note content"></ion-textarea>
+      </ion-item>
+      
+      <!-- Add attachment button -->
+      <ion-item lines="none">
+        <ion-button (click)="addTempAttachment()" fill="clear" size="small">
+          <ion-icon name="document-attach-outline" slot="start"></ion-icon>
+          Add Attachment
+        </ion-button>
+      </ion-item>
+      
+      <!-- Display temporary attachments -->
+      <div *ngIf="tempAttachments.length > 0" class="temp-attachments">
+        <div *ngFor="let attachment of tempAttachments; let i = index" class="temp-attachment-item">
+          <ion-icon [name]="getFileIcon(attachment.file.type)" color="primary"></ion-icon>
+          <span class="temp-attachment-name">{{ attachment.file.name }}</span>
+          <ion-icon name="close-circle" class="temp-attachment-remove" (click)="removeTempAttachment(i)"></ion-icon>
+        </div>
+      </div>
+      
+      <div class="form-actions">
+        <ion-button (click)="createNote()" color="primary">
+          <ion-icon name="checkmark-outline" slot="start"></ion-icon>
+          Save
+        </ion-button>
+        <ion-button (click)="cancelCreateNote()" fill="outline" color="medium">
+          <ion-icon name="close-outline" slot="start"></ion-icon>
+          Cancel
+        </ion-button>
+      </div>
+    </div>
+    
+    <!-- List of notes for the selected day -->
+    <div *ngIf="!isLoading && selectedDayNotes.length > 0 && !isCreatingNote" class="notes-list">
+      <ion-button *ngIf="isTrainer" (click)="isCreatingNote = true; newNote = {}" expand="block" fill="outline" class="add-note-button">
+        <ion-icon name="add-outline" slot="start"></ion-icon>
+        Add Session Note
+      </ion-button>
+      
+      <ion-card *ngFor="let note of selectedDayNotes" class="note-card">
+        <ion-card-header>
+          <div class="note-header">
+            <ion-card-title>{{ note.name }}</ion-card-title>
+            <div class="note-actions-top">
+              <!-- Delete button for the entire note -->
+              <ion-button *ngIf="isTrainer || uid === note.trainerId" (click)="deleteNote(note)" fill="clear" size="small" class="delete-button">
+                <ion-icon name="trash-outline" color="danger"></ion-icon>
+              </ion-button>
+              <span class="note-time">{{ formatDate(note.datetime) }}</span>
+            </div>
+          </div>
+        </ion-card-header>
+        
+        <ion-card-content>
+          <p class="note-text">{{ note.text }}</p>
+          
+          <!-- Attachments section -->
+          <div *ngIf="noteAttachments.get(note.id)?.length" class="attachments-section">
+            <h5>Attachments</h5>
+            <div class="attachments-list">
+              <div *ngFor="let attachment of noteAttachments.get(note.id)" class="attachment-item">
+                <app-file-preview
+                  [fileUrl]="attachment.fileUrl"
+                  [fileName]="attachment.fileName"
+                  [fileType]="attachment.fileType"
+                  [fileId]="attachment.id"
+                  [filePath]="attachment.filePath || ''"
+                  [canDelete]="isTrainer || uid === attachment.uploadedBy"
+                  (deleteFile)="deleteAttachment(attachment.id, note.id, attachment.filePath)">
+                </app-file-preview>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Loading attachments indicator -->
+          <div *ngIf="loadingAttachments.get(note.id)" class="loading-attachments">
+            <ion-spinner name="dots" color="medium"></ion-spinner>
+            <span>Loading attachments...</span>
+          </div>
+          
+          <!-- Actions -->
+          <div class="note-actions">
+            <!-- Show attachment button to all users -->
+            <ion-button (click)="addAttachment(note.id)" fill="clear" size="small">
+              <ion-icon name="document-attach-outline" slot="icon-only"></ion-icon>
+              <span class="button-text">Add Attachment</span>
+            </ion-button>
+          </div>
+        </ion-card-content>
+      </ion-card>
+    </div>
+  </ion-card-content>
+</ion-card>
