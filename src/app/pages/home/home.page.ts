@@ -1,11 +1,48 @@
 // src/app/pages/home/home.page.ts
-import { Component } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { HeaderComponent } from 'src/app/components/header/header.component';
 import { IonContent, IonCard, IonCardContent, IonIcon, IonButton } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
-import { personCircleOutline, trophyOutline, fitnessOutline, peopleOutline, chatbubblesOutline } from 'ionicons/icons';
+import { 
+  personCircleOutline, 
+  trophyOutline, 
+  fitnessOutline, 
+  peopleOutline, 
+  chatbubblesOutline,
+  addCircle,
+  flame,
+  calendarOutline,
+  chevronForward,
+  personOutline
+} from 'ionicons/icons';
+
+interface Exercise {
+  name: string;
+  sets?: number;
+  reps?: number;
+  weight?: number;
+  weightUnit?: string;
+  duration?: number;
+}
+
+interface NextWorkout {
+  title: string;
+  date: Date;
+  type?: string;
+  duration?: number;
+  exercises?: Exercise[];
+  notes?: string;
+}
+
+interface UpcomingSession {
+  id: string;
+  trainerName: string;
+  date: Date;
+  notes?: string;
+  duration?: number;
+}
 
 @Component({
   selector: 'app-home',
@@ -14,9 +51,97 @@ import { personCircleOutline, trophyOutline, fitnessOutline, peopleOutline, chat
   styleUrls: ['./home.page.scss'],
   imports: [CommonModule, IonContent, IonCard, IonCardContent, IonIcon, IonButton, HeaderComponent],
 })
-export class HomePage {
+export class HomePage implements OnInit {
+  currentDate = new Date();
+  currentStreak = 0;
+  nextWorkout: NextWorkout | null = null;
+  upcomingSessions: UpcomingSession[] = [];
+
   constructor(private router: Router) {
-    addIcons({ personCircleOutline, trophyOutline, fitnessOutline, peopleOutline, chatbubblesOutline });
+    addIcons({ 
+      personCircleOutline, 
+      trophyOutline, 
+      fitnessOutline, 
+      peopleOutline, 
+      chatbubblesOutline,
+      addCircle,
+      flame,
+      calendarOutline,
+      chevronForward,
+      personOutline
+    });
+  }
+
+  ngOnInit() {
+    this.loadUserData();
+  }
+
+  loadUserData() {
+    // TODO: Load actual streak data from service
+    this.currentStreak = 5; // Placeholder
+    
+    // Fake workout for demonstration
+    this.nextWorkout = {
+      title: 'Upper Body Strength',
+      date: new Date(Date.now() + 86400000), // Tomorrow
+      type: 'Strength Training',
+      duration: 60,
+      exercises: [
+        { name: 'Bench Press', sets: 4, reps: 8, weight: 135, weightUnit: 'lbs' },
+        { name: 'Pull-ups', sets: 3, reps: 10 },
+        { name: 'Shoulder Press', sets: 3, reps: 12, weight: 45, weightUnit: 'lbs' },
+        { name: 'Bicep Curls', sets: 3, reps: 15, weight: 25, weightUnit: 'lbs' },
+        { name: 'Tricep Dips', sets: 3, reps: 12 }
+      ],
+      notes: 'Focus on proper form and controlled movements. Take 90 seconds rest between sets.'
+    };
+
+    // TODO: Load upcoming sessions from booking service
+    // Placeholder data for demonstration
+    this.upcomingSessions = [
+      {
+        id: '1',
+        trainerName: 'John Smith',
+        date: new Date(Date.now() + 172800000), // 2 days from now
+        notes: 'Focus on lower body strength. Bring resistance bands.',
+        duration: 60
+      },
+      {
+        id: '2',
+        trainerName: 'Sarah Johnson',
+        date: new Date(Date.now() + 432000000), // 5 days from now
+        notes: 'HIIT cardio session. Remember to hydrate well.',
+        duration: 45
+      }
+    ];
+  }
+
+  startWorkout() {
+    // Navigate to workout chatbot to start logging
+    this.router.navigate(['/tabs/chats/workout-chatbot']);
+  }
+
+  viewStreak() {
+    // TODO: Navigate to streak page (to be created)
+    // For now, navigate to profile which might show stats
+    this.router.navigate(['/tabs/profile']);
+  }
+
+  viewNextWorkout() {
+    if (this.nextWorkout) {
+      // Navigate to workout details page with workout data
+      this.router.navigate(['/workout-details'], { 
+        state: { workout: this.nextWorkout } 
+      });
+    } else {
+      // Navigate to calendar to schedule a workout
+      this.router.navigate(['/tabs/calender']);
+    }
+  }
+
+  viewSessionDetails(session: UpcomingSession) {
+    // Navigate to calendar to view session details
+    this.router.navigate(['/tabs/calender']);
   }
 
   navigateTo(path: string) {

@@ -4,9 +4,322 @@ ion-content {
 
 .home-container {
   padding: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
 }
 
-.welcome-card {
+// Welcome Section
+.welcome-section {
+  margin-bottom: 24px;
+  
+  h1 {
+    font-size: 28px;
+    font-weight: 700;
+    margin: 0 0 4px 0;
+    color: var(--ion-color-dark);
+  }
+  
+  .date {
+    font-size: 14px;
+    color: var(--ion-color-medium);
+    margin: 0;
+  }
+}
+
+// Start Workout Widget (Main Action)
+.start-workout-widget {
+  margin-bottom: 20px;
+  background: linear-gradient(135deg, var(--ion-color-primary), var(--ion-color-primary-shade));
+  box-shadow: 0 4px 12px rgba(var(--ion-color-primary-rgb), 0.3);
+  
+  ion-card-content {
+    padding: 20px;
+  }
+  
+  .widget-content {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  
+  .icon-container {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    
+    ion-icon {
+      font-size: 32px;
+      color: white;
+    }
+  }
+  
+  .widget-text {
+    flex: 1;
+    
+    h2 {
+      font-size: 20px;
+      font-weight: 600;
+      margin: 0 0 4px 0;
+      color: white;
+    }
+    
+    p {
+      font-size: 14px;
+      margin: 0;
+      color: rgba(255, 255, 255, 0.8);
+    }
+  }
+  
+  .chevron {
+    font-size: 24px;
+    color: rgba(255, 255, 255, 0.6);
+  }
+}
+
+// Widgets Grid
+.widgets-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+// Streak Widget
+.streak-widget {
+  margin: 0;
+  background: linear-gradient(135deg, #FF6B35, #FF8C42);
+  box-shadow: 0 2px 8px rgba(255, 107, 53, 0.3);
+  
+  ion-card-content {
+    padding: 20px;
+  }
+  
+  .streak-content {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  
+  .streak-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    
+    ion-icon {
+      font-size: 28px;
+      color: white;
+    }
+  }
+  
+  .streak-info {
+    h3 {
+      font-size: 32px;
+      font-weight: 700;
+      margin: 0;
+      color: white;
+      line-height: 1;
+    }
+    
+    p {
+      font-size: 13px;
+      margin: 4px 0 0 0;
+      color: rgba(255, 255, 255, 0.9);
+    }
+  }
+}
+
+// Next Workout Widget
+.next-workout-widget {
+  margin: 0;
+  background: white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  
+  ion-card-content {
+    padding: 20px;
+  }
+  
+  .next-workout-content {
+    .workout-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+      
+      ion-icon {
+        font-size: 18px;
+        color: var(--ion-color-primary);
+      }
+      
+      span {
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--ion-color-medium);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+    }
+    
+    .workout-details {
+      h3 {
+        font-size: 16px;
+        font-weight: 600;
+        margin: 0 0 4px 0;
+        color: var(--ion-color-dark);
+      }
+      
+      p {
+        font-size: 13px;
+        margin: 0;
+        color: var(--ion-color-medium);
+      }
+    }
+    
+    .no-workout {
+      p {
+        font-size: 14px;
+        color: var(--ion-color-medium);
+        margin: 0;
+        font-style: italic;
+      }
+    }
+  }
+}
+
+// Upcoming Sessions Section
+.upcoming-sessions {
+  margin-bottom: 24px;
+  
+  h2 {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0 0 16px 0;
+    color: var(--ion-color-dark);
+  }
+  
+  .session-card {
+    margin-bottom: 12px;
+    background: white;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    
+    &:last-child {
+      margin-bottom: 0;
+    }
+    
+    ion-card-content {
+      padding: 16px;
+    }
+    
+    .session-content {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    
+    .session-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--ion-color-primary), var(--ion-color-primary-shade));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      
+      ion-icon {
+        font-size: 24px;
+        color: white;
+      }
+    }
+    
+    .session-info {
+      flex: 1;
+      min-width: 0;
+      
+      h3 {
+        font-size: 16px;
+        font-weight: 600;
+        margin: 0 0 4px 0;
+        color: var(--ion-color-dark);
+      }
+      
+      .session-date {
+        font-size: 13px;
+        color: var(--ion-color-primary);
+        margin: 0 0 6px 0;
+        font-weight: 500;
+      }
+      
+      .session-notes {
+        font-size: 13px;
+        color: var(--ion-color-medium);
+        margin: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+    }
+    
+    .chevron {
+      font-size: 20px;
+      color: var(--ion-color-medium);
+      flex-shrink: 0;
+    }
+  }
+}
+
+// Quick Stats Section
+.quick-stats {
+  h2 {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0 0 16px 0;
+    color: var(--ion-color-dark);
+  }
+  
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+  
+  .stat-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 20px 12px;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    
+    &:active {
+      transform: scale(0.95);
+    }
+    
+    ion-icon {
+      font-size: 28px;
+    }
+    
+    span {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--ion-color-dark);
+      text-align: center;
+    }
+  }
+}
+
+.background-gradient {
   margin-bottom: 0px;
   
   ion-card-content {

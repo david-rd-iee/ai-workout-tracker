@@ -34,8 +34,7 @@
         <ion-item
           button
           *ngFor="let g of groups"
-          (click)="onGroupSelected(g)"
-          [class.selected]="selectedGroup?.groupId === g.groupId"
+          (click)="openGroupChat(g)"
           class="group-item"
         >
           <div class="group-avatar" slot="start">
@@ -45,7 +44,9 @@
             <h2>{{ g.name }}</h2>
             <p>{{ g.isPTGroup ? 'PT Group' : 'Friends Group' }}</p>
           </ion-label>
-          <ion-icon name="chevron-forward" slot="end" class="chevron"></ion-icon>
+          <ion-button fill="clear" slot="end" (click)="viewGroupInfo(g, $event)" class="info-button">
+            <ion-icon name="information-circle-outline" slot="icon-only"></ion-icon>
+          </ion-button>
         </ion-item>
       </ion-list>
     </ng-container>

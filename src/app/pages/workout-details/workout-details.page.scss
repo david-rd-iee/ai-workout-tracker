@@ -1,0 +1,318 @@
+ion-content {
+  --background: transparent;
+}
+
+.background-gradient {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image: url('/assets/backgrounds/BlurryGradientLight.svg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  z-index: -1;
+}
+
+.workout-details-container {
+  padding: 20px;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+// Header Card
+.header-card {
+  margin-bottom: 16px;
+  background: linear-gradient(135deg, var(--ion-color-primary), var(--ion-color-primary-shade));
+  color: white;
+  
+  ion-card-content {
+    padding: 24px;
+  }
+  
+  .workout-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  
+  .icon-container {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    
+    ion-icon {
+      font-size: 32px;
+      color: white;
+    }
+  }
+  
+  .header-info {
+    flex: 1;
+    
+    h1 {
+      font-size: 24px;
+      font-weight: 700;
+      margin: 0 0 4px 0;
+      color: white;
+    }
+    
+    .workout-type {
+      font-size: 14px;
+      margin: 0;
+      color: rgba(255, 255, 255, 0.9);
+    }
+  }
+}
+
+// Info Card
+.info-card {
+  margin-bottom: 16px;
+  
+  .info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 20px;
+  }
+  
+  .info-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    
+    ion-icon {
+      font-size: 24px;
+      color: var(--ion-color-primary);
+      flex-shrink: 0;
+    }
+    
+    .info-label {
+      font-size: 12px;
+      color: var(--ion-color-medium);
+      margin: 0 0 4px 0;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    .info-value {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--ion-color-dark);
+      margin: 0;
+    }
+  }
+}
+
+// Exercises Widget (Collapsible)
+.exercises-widget {
+  margin-bottom: 16px;
+  background: white;
+  overflow: hidden;
+  transition: all 0.3s ease;
+  
+  &:active {
+    transform: scale(0.99);
+  }
+  
+  ion-card-content {
+    padding: 0;
+  }
+  
+  .widget-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px;
+    
+    .icon-container {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: rgba(var(--ion-color-primary-rgb), 0.1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      
+      ion-icon {
+        font-size: 24px;
+        color: var(--ion-color-primary);
+      }
+    }
+    
+    .widget-info {
+      flex: 1;
+      
+      h3 {
+        font-size: 16px;
+        font-weight: 600;
+        margin: 0 0 4px 0;
+        color: var(--ion-color-dark);
+      }
+      
+      p {
+        font-size: 14px;
+        margin: 0;
+        color: var(--ion-color-medium);
+      }
+    }
+    
+    .toggle-icon {
+      font-size: 24px;
+      color: var(--ion-color-medium);
+      transition: transform 0.3s ease;
+    }
+  }
+  
+  .exercises-content {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+    
+    &.expanded {
+      max-height: 2000px;
+    }
+  }
+  
+  .exercises-list {
+    padding: 0 16px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  
+  .exercise-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 16px;
+    background: rgba(var(--ion-color-primary-rgb), 0.05);
+    border-radius: 12px;
+    border-left: 4px solid var(--ion-color-primary);
+    
+    .exercise-icon {
+      padding-top: 2px;
+      
+      ion-icon {
+        font-size: 24px;
+      }
+    }
+    
+    .exercise-details {
+      flex: 1;
+      
+      h4 {
+        font-size: 16px;
+        font-weight: 600;
+        margin: 0 0 6px 0;
+        color: var(--ion-color-dark);
+      }
+      
+      .exercise-stats {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        
+        span {
+          font-size: 14px;
+          color: var(--ion-color-medium);
+          
+          &.weight {
+            color: var(--ion-color-primary);
+            font-weight: 600;
+          }
+        }
+      }
+    }
+  }
+}
+
+// Previous Workouts Card
+.previous-workouts-card {
+  margin-bottom: 16px;
+  background: white;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  
+  &:active {
+    transform: scale(0.98);
+  }
+  
+  .card-content {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  
+  .icon-container {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: rgba(var(--ion-color-primary-rgb), 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    
+    ion-icon {
+      font-size: 24px;
+      color: var(--ion-color-primary);
+    }
+  }
+  
+  .card-text {
+    flex: 1;
+    
+    h3 {
+      font-size: 16px;
+      font-weight: 600;
+      margin: 0 0 4px 0;
+      color: var(--ion-color-dark);
+    }
+    
+    p {
+      font-size: 14px;
+      margin: 0;
+      color: var(--ion-color-medium);
+    }
+  }
+  
+  .chevron {
+    font-size: 20px;
+    color: var(--ion-color-medium);
+  }
+}
+
+// Notes Card
+.notes-card {
+  margin-bottom: 16px;
+  
+  ion-card-title {
+    font-size: 18px;
+    font-weight: 600;
+  }
+  
+  .notes-text {
+    font-size: 15px;
+    line-height: 1.6;
+    color: var(--ion-color-dark);
+    margin: 0;
+  }
+}
+
+// Action Container
+.action-container {
+  padding: 20px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  
+  ion-button {
+    --border-radius: 12px;
+    font-weight: 600;
+    text-transform: none;
+    font-size: 16px;
+  }
+}
