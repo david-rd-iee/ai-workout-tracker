@@ -152,7 +152,7 @@ export class HomePage implements OnInit {
     this.router.navigate(['/tabs/calender']);
   }
 
-  navigateTo(path: string) {
-    this.router.navigate([path]);
+  navigateTo(path: string): void {
+    this.router?.navigate([path]);
   }
 }

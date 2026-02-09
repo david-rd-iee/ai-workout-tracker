@@ -150,14 +150,18 @@ export class DevSeedService {
         last_updated_at: serverTimestamp(),
       });
     } else {
-      console.log(
-        '[DevSeedService] /userStats doc already exists for dev user.',
-      );
-      // Ensure existing stats have the fields we expect for leaderboard
+      console.log('[DevSeedService] /users doc already exists for dev user.');
+
+      // Ensure required fields exist even if the doc was created earlier with a different schema
       await setDoc(
-        statsRef,
+        userRef,
         {
-          displayName: 'Dev Test User',
+          userId: uid,
+          name: 'Dev Test User',
+          email: this.devEmail,
+          isPT: false,
+          ptUID: '',
+          // don't force groups here if you want membership logic to control it later
           region: {
             country: 'USA',
             state: 'Nevada',
@@ -167,6 +171,7 @@ export class DevSeedService {
         { merge: true },
       );
     }
+
 
     // 4) Ensure dev groups + membership
     await this.ensureDevGroupsAndMembership(uid);
