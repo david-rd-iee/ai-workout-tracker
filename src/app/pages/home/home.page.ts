@@ -1,127 +1,155 @@
-import { Component, OnDestroy, OnInit, inject } from '@angular/core';
+// src/app/pages/home/home.page.ts
+import { Component, OnInit, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
-import {
-  IonAvatar,
-  IonButton,
-  IonCard,
-  IonCardContent,
-  IonCardHeader,
-  IonCardTitle,
-  IonContent,
-  IonIcon,
-  IonSpinner,
-} from '@ionic/angular/standalone';
-
+import { HeaderComponent } from 'src/app/components/header/header.component';
+import { UserService } from 'src/app/services/account/user.service';
+import { IonContent, IonCard, IonCardContent, IonIcon, IonButton } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
-import {
+import { 
+  personCircleOutline, 
+  trophyOutline, 
+  fitnessOutline, 
+  peopleOutline, 
   chatbubblesOutline,
-  fitnessOutline,
-  peopleOutline,
-  personCircleOutline,
-  trophyOutline, constructOutline } from 'ionicons/icons';
-import { Auth } from '@angular/fire/auth';
-import { Firestore, doc, docData } from '@angular/fire/firestore';
-import { Subscription } from 'rxjs';
+  addCircle,
+  flame,
+  calendarOutline,
+  chevronForward,
+  personOutline
+} from 'ionicons/icons';
 
-import type { AppUser } from '../../models/user.model';
-import { DevSeedService } from '../../services/dev-seed.service';
+interface Exercise {
+  name: string;
+  sets?: number;
+  reps?: number;
+  weight?: number;
+  weightUnit?: string;
+  duration?: number;
+}
+
+interface NextWorkout {
+  title: string;
+  date: Date;
+  type?: string;
+  duration?: number;
+  exercises?: Exercise[];
+  notes?: string;
+}
+
+interface UpcomingSession {
+  id: string;
+  trainerName: string;
+  date: Date;
+  notes?: string;
+  duration?: number;
+}
 
 @Component({
   selector: 'app-home',
   standalone: true,
   templateUrl: './home.page.html',
   styleUrls: ['./home.page.scss'],
-  imports: [
-      CommonModule,
-      IonContent,
-      IonAvatar,
-      IonButton,
-      IonSpinner,
-      IonCard,
-      IonCardHeader,
-      IonCardTitle,
-      IonCardContent,
-      IonIcon,
-    ],
-
+  imports: [CommonModule, IonContent, IonCard, IonCardContent, IonIcon, IonButton, HeaderComponent],
 })
-export class HomePage implements OnInit, OnDestroy {
-  private router = inject(Router, { optional: true });
-  private auth = inject(Auth, { optional: true });
-  private firestore = inject(Firestore, { optional: true });
-  private devSeed = inject(DevSeedService, { optional: true });
+export class HomePage implements OnInit {
+  currentDate = new Date();
+  userName = computed(() => {
+    const userProfile = this.userService.getUserInfo()();
+    return userProfile?.firstName || 'User';
+  });
+  currentStreak = 0;
+  nextWorkout: NextWorkout | null = null;
+  upcomingSessions: UpcomingSession[] = [];
 
-  private userSub?: Subscription;
-
-  isLoadingUser = true;
-  currentUser: AppUser | null = null;
-
-  constructor() {
-    addIcons({constructOutline,personCircleOutline,trophyOutline,fitnessOutline,peopleOutline,chatbubblesOutline,});
-  }
-
-  async ngOnInit(): Promise<void> {
-    // Keep the component test-friendly: if Firebase isn't wired up, just show a fallback.
-    if (!this.auth || !this.firestore || !this.devSeed) {
-      this.currentUser = {
-        userId: 'DEV_OFFLINE',
-        name: 'Dev Test User',
-        email: 'dev-tester@example.com',
-        isPT: false,
-        ptUID: '',
-        groups: [],
-      };
-      this.isLoadingUser = false;
-      return;
-    }
-
-    // Ensure a dummy dev user exists in Firebase Auth + Firestore, then load the current user.
-    try {
-      await this.devSeed.ensureDevUserAndSeed();
-    } catch (e) {
-      console.warn('[HomePage] Dev seeding failed (continuing):', e);
-    }
-
-    this.auth.onAuthStateChanged((fbUser) => {
-      if (!fbUser) {
-        this.currentUser = null;
-        this.isLoadingUser = false;
-        return;
-      }
-
-      const userRef = doc(this.firestore!, 'users', fbUser.uid);
-      this.userSub?.unsubscribe();
-      this.userSub = docData(userRef).subscribe({
-        next: (u) => {
-          this.currentUser = (u as AppUser) ?? null;
-          this.isLoadingUser = false;
-        },
-        error: (err) => {
-          console.error('[HomePage] Failed to load current user:', err);
-          this.currentUser = null;
-          this.isLoadingUser = false;
-        },
-      });
+  constructor(
+    private router: Router,
+    private userService: UserService
+  ) {
+    addIcons({ 
+      personCircleOutline, 
+      trophyOutline, 
+      fitnessOutline, 
+      peopleOutline, 
+      chatbubblesOutline,
+      addCircle,
+      flame,
+      calendarOutline,
+      chevronForward,
+      personOutline
     });
   }
 
-  ngOnDestroy(): void {
-    this.userSub?.unsubscribe();
+  ngOnInit() {
+    this.loadUserData();
   }
 
-  get greetingName(): string {
-    return this.currentUser?.name || 'there';
+  loadUserData() {
+    // TODO: Load actual streak data from service
+    this.currentStreak = 5; // Placeholder
+    
+    // Fake workout for demonstration
+    this.nextWorkout = {
+      title: 'Upper Body Strength',
+      date: new Date(Date.now() + 86400000), // Tomorrow
+      type: 'Strength Training',
+      duration: 60,
+      exercises: [
+        { name: 'Bench Press', sets: 4, reps: 8, weight: 135, weightUnit: 'lbs' },
+        { name: 'Pull-ups', sets: 3, reps: 10 },
+        { name: 'Shoulder Press', sets: 3, reps: 12, weight: 45, weightUnit: 'lbs' },
+        { name: 'Bicep Curls', sets: 3, reps: 15, weight: 25, weightUnit: 'lbs' },
+        { name: 'Tricep Dips', sets: 3, reps: 12 }
+      ],
+      notes: 'Focus on jerking it harder. No rest between sets.'
+    };
+
+    // TODO: Load upcoming sessions from booking service
+    // Placeholder data for demonstration
+    this.upcomingSessions = [
+      {
+        id: '1',
+        trainerName: 'John Smith',
+        date: new Date(Date.now() + 172800000), // 2 days from now
+        notes: 'Focus on jerking it harder. No rest between sets.',
+        duration: 60
+      },
+      {
+        id: '2',
+        trainerName: 'Sarah Johnson',
+        date: new Date(Date.now() + 432000000), // 5 days from now
+        notes: '😳',
+        duration: 45
+      }
+    ];
   }
 
-  get avatarInitial(): string {
-    const name = (this.currentUser?.name || '').trim();
-    return name ? name[0].toUpperCase() : '?';
+  startWorkout() {
+    // Navigate to workout chatbot to start logging
+    this.router.navigate(['/tabs/chats/workout-chatbot']);
   }
 
-  onProfileClick(): void {
-    // TODO: Route to profile page when that flow is ready.
-    console.log('[HomePage] Profile avatar clicked (route not wired yet)');
+  viewStreak() {
+    // TODO: Navigate to streak page (to be created)
+    // For now, navigate to profile which might show stats
+    this.router.navigate(['/tabs/profile']);
+  }
+
+  viewNextWorkout() {
+    if (this.nextWorkout) {
+      // Navigate to workout details page with workout data
+      this.router.navigate(['/workout-details'], { 
+        state: { workout: this.nextWorkout } 
+      });
+    } else {
+      // Navigate to calendar to schedule a workout
+      this.router.navigate(['/tabs/calender']);
+    }
+  }
+
+  viewSessionDetails(session: UpcomingSession) {
+    // Navigate to calendar to view session details
+    this.router.navigate(['/tabs/calender']);
   }
 
   navigateTo(path: string): void {

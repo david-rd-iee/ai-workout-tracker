@@ -1,34 +1,52 @@
-import { Component, OnInit, OnDestroy, CUSTOM_ELEMENTS_SCHEMA, ViewChild, ElementRef, Signal, effect } from '@angular/core';
+import { Component, OnInit, OnDestroy, CUSTOM_ELEMENTS_SCHEMA, ViewChild, ElementRef, Signal, inject } from '@angular/core';
 // import { DEFAULT_ASSETS } from '../../../../assets/exports/assets.constants';
 const DEFAULT_ASSETS = { PROFILE_PHOTO: '' };
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { IonContent, IonHeader, IonTitle, IonToolbar, IonAvatar, IonChip, IonLabel, IonItem, IonList, IonNote, IonButton, IonIcon } from '@ionic/angular/standalone';
+import { IonAvatar, IonChip, IonLabel, IonItem, IonList, IonNote, IonButton, IonIcon } from '@ionic/angular/standalone';
 // import Swiper from 'swiper';
 import { Router } from '@angular/router';
 import { chevronForwardOutline, fitnessOutline } from 'ionicons/icons';
 import { addIcons } from 'ionicons';
 // import { TruncatePipe } from 'src/app/pipes/truncate.pipe';
-import { ChatsService } from 'src/app/services/chats.service';
 import { AccountService } from 'src/app/services/account/account.service';
-import { Observable, Subject, takeUntil, filter } from 'rxjs';
+import { Observable, Subject, takeUntil, filter, of } from 'rxjs';
 import { Chat } from 'src/app/Interfaces/Chats';
 // import { MessageDateTimePipe } from 'src/app/pipes/message-date-time.pipe';
-import { HeaderComponent } from 'src/app/components/header/header.component';
 
 @Component({
   selector: 'app-client-chat',
-  templateUrl: './client-chats.page.html',
-  styleUrls: ['./client-chats.page.scss', '../chat-shared.scss'],
+  template: `
+    <ion-list>
+      <ion-item 
+        *ngFor="let chat of chats$ | async" 
+        button 
+        (click)="loadChat(chat.chatId, chat.participants)"
+        detail="true"
+      >
+        <ion-avatar slot="start">
+          <img [src]="bearProfile || 'assets/icon/favicon.png'" alt="Profile" />
+        </ion-avatar>
+        <ion-label>
+          <h2>Chat</h2>
+          <ion-note>{{ chat.lastMessage || 'No messages yet' }}</ion-note>
+        </ion-label>
+      </ion-item>
+    </ion-list>
+
+    <div *ngIf="(chats$ | async)?.length === 0" style="text-align: center; padding: 40px;">
+      <p>No chats yet</p>
+    </div>
+  `,
+  styles: [`
+  `],
   standalone: true,
   imports: [    
-    IonContent,
     IonAvatar,
     IonLabel,
     IonNote,
     IonButton,
     IonIcon,
-    HeaderComponent,
     // MessageDateTimePipe,
     IonItem, IonList, CommonModule, FormsModule]
 })
@@ -37,40 +55,33 @@ export class ClientChatsPage implements OnInit, OnDestroy {
   bearProfile = DEFAULT_ASSETS.PROFILE_PHOTO;
   @ViewChild('swiper') swiperRef: ElementRef | undefined;
   swiper?: any; // Swiper;
-  chats$ = this.chatService.chats$;
+  
+  private router = inject(Router);
+  private accountService = inject(AccountService);
+  
+  // Temporary: Use empty observable to avoid circular dependency
+  // TODO: Fix circular dependency with ChatsService
+  chats$: Observable<Chat[]> = of([]);
 
 
 
-  constructor(
-    private router: Router,
-    private chatService: ChatsService,
-    private accountService: AccountService
-  ) {
+  constructor() {
     addIcons({
       chevronForwardOutline,
       fitnessOutline
     });
-
-    // Create effect to watch auth state and initialize chats
-    effect(() => {
-      // Only proceed if auth is initialized
-      if (this.accountService.isAuthReady()()) {
-        const credentials = this.accountService.getCredentials()();
-        const isAuthenticated = this.accountService.isLoggedIn()();
-        
-        if (isAuthenticated && credentials?.uid) {
-          this.initializeChats(credentials.uid);
-        }
-      }
-    });
   }
 
   ngOnInit() {
-    // No longer need initialization here as it's handled by the effect
+    // Temporarily disabled to avoid circular dependency
+    // const credentials = this.accountService.getCredentials()();
+    // if (credentials?.uid) {
+    //   this.initializeChats(credentials.uid);
+    // }
   }
 
   private initializeChats(userId: string) {
-    this.chatService.initializeUserChats(userId, 'client');
+    // this.chatService.initializeUserChats(userId, 'client');
   }
 
   ngOnDestroy() {

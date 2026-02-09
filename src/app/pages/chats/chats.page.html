@@ -1,0 +1,26 @@
+<app-header></app-header>
+
+<ion-content [fullscreen]="true">
+  <div class="background-gradient"></div>
+  
+  <div class="chats-container">
+    <ion-segment [(ngModel)]="selectedSegment" (ionChange)="segmentChanged()">
+      <ion-segment-button value="messages">
+        <ion-icon name="chatbubbles-outline"></ion-icon>
+        <ion-label>Messages</ion-label>
+      </ion-segment-button>
+      <ion-segment-button value="ai-coach">
+        <ion-icon name="fitness-outline"></ion-icon>
+        <ion-label>AI Coach</ion-label>
+      </ion-segment-button>
+      <ion-segment-button value="groups">
+        <ion-icon name="people-outline"></ion-icon>
+        <ion-label>Groups</ion-label>
+      </ion-segment-button>
+    </ion-segment>
+    
+    <div class="content-area">
+      <router-outlet></router-outlet>
+    </div>
+  </div>
+</ion-content>

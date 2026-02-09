@@ -27,7 +27,7 @@ export class HeaderComponent {
   }
 
   goToProfile() {
-    this.router.navigate(['/app/tabs/profile']);
+    this.router.navigate(['/tabs/profile']);
   }
   goBack() {
     // If backHref is provided, use it instead of browser history

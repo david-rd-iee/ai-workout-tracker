@@ -3,6 +3,8 @@ import { Component, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { IonicModule, AlertController } from '@ionic/angular';
 import { FormsModule } from '@angular/forms';
+import { addIcons } from 'ionicons';
+import { informationCircleOutline } from 'ionicons/icons';
 
 import { GroupService } from '../../services/group.service';
 import { Group } from '../../models/groups.model';
@@ -50,7 +52,9 @@ export class GroupsPage implements OnInit, OnDestroy {
     private alertCtrl: AlertController,
     private router: Router,
     private leaderboardService: LeaderboardService
-  ) {}
+  ) {
+    addIcons({ informationCircleOutline });
+  }
 
   ngOnInit(): void {
     // Watch auth state and load user's groups
@@ -88,7 +92,27 @@ export class GroupsPage implements OnInit, OnDestroy {
     });
   }
 
-  // 🔹 When a group is clicked
+  // 🔹 When a group is clicked - navigate to group chat
+  openGroupChat(group: Group) {
+    // TODO: Create dedicated group chat page
+    // For now, navigate to workout-chatbot as placeholder
+    // When group chat is implemented, use: this.router.navigate(['/group-chat', group.groupId]);
+    console.log('Opening chat for group:', group.name);
+    this.router.navigate(['/tabs/chats/workout-chatbot']);
+  }
+
+  // 🔹 When info icon is clicked - show group details
+  viewGroupInfo(group: Group, event: Event) {
+    // Prevent the item click from firing
+    event.stopPropagation();
+    
+    // Show group details in right panel
+    this.selectedGroup = group;
+    this.groupMetricSort = 'total';
+    this.loadGroupLeaderboard();
+  }
+
+  // 🔹 Legacy method - kept for compatibility
   async onGroupSelected(group: Group) {
     this.selectedGroup = group;
     this.groupMetricSort = 'total';

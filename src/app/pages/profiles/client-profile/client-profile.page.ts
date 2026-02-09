@@ -1,4 +1,4 @@
-import { Component, OnInit, Signal, computed, effect, signal } from '@angular/core';
+import { Component, OnInit, Signal, computed, effect, signal, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
 import { DEFAULT_ASSETS } from '../../../../assets/exports/assets.constants';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -34,15 +34,16 @@ import {
   chevronDown,
   chevronUp,
   medal,
-  createOutline
+  createOutline,
+  fitness
 } from 'ionicons/icons';
 import {
-  AchievementBadge,
-  ACHIEVEMENT_BADGES,
-  calculateBadgeLevel
-} from '../../../interfaces/Badge';
-import { BadgeSelectorComponent } from '../../../components/badge-selector/badge-selector.component';
-import { AchievementBadgeComponent } from '../../../components/achievement-badge/achievement-badge.component';
+  GreekStatue,
+  GREEK_STATUES,
+  calculateStatueLevel
+} from '../../../interfaces/GreekStatue';
+import { StatueSelectorComponent } from '../../../components/statue-selector/statue-selector.component';
+import { GreekStatueComponent } from '../../../components/greek-statue/greek-statue.component';
 
 // Firestore + AppUser import
 import { Firestore, doc, getDoc, setDoc } from '@angular/fire/firestore';
@@ -54,6 +55,7 @@ import { UserBadgesDoc } from 'src/app/models/user-badges.model';
   templateUrl: './client-profile.page.html',
   styleUrls: ['./client-profile.page.scss'],
   standalone: true,
+  schemas: [CUSTOM_ELEMENTS_SCHEMA],
   imports: [
     CommonModule,
     FormsModule,
@@ -73,7 +75,7 @@ import { UserBadgesDoc } from 'src/app/models/user-badges.model';
     IonCardHeader,
     IonCardTitle,
     IonCardContent,
-    AchievementBadgeComponent,
+    GreekStatueComponent,
   ]
 })
 export class ClientProfilePage implements OnInit {
@@ -92,29 +94,34 @@ export class ClientProfilePage implements OnInit {
     lastName: ''
   };
 
-  // Achievement Badge properties
-  allBadges: AchievementBadge[] = [];
-  displayBadges: AchievementBadge[] = [];
-  displayBadgeIds: string[] = [];
+  // Greek Statue properties
+  allStatues: GreekStatue[] = [];
+  displayStatues: GreekStatue[] = [];
+  displayStatueIds: string[] = [];
   showAllAchievements: boolean = false;
   initialAchievementsCount: number = 3; // Show first 3 fully, 4th faded
+  currentSlideIndex: number = 0; // Track active slide for pagination
 
   // Profile viewing properties
   profileUserId: string | null = null; // The ID of the profile being viewed
   isOwnProfile: boolean = true;        // Whether viewing your own profile
 
-  get earnedBadgesCount(): number {
-    return this.allBadges.filter(b => b.currentLevel).length;
+  get carvedStatuesCount(): number {
+    return this.allStatues.filter(s => s.currentLevel).length;
   }
 
-  get visibleAchievements(): AchievementBadge[] {
+  get visibleAchievements(): GreekStatue[] {
     return this.showAllAchievements
-      ? this.allBadges
-      : this.allBadges.slice(0, this.initialAchievementsCount + 1);
+      ? this.allStatues
+      : this.allStatues.slice(0, this.initialAchievementsCount + 1);
   }
 
   toggleShowAllAchievements(): void {
     this.showAllAchievements = !this.showAllAchievements;
+  }
+
+  onSlideChange(event: any): void {
+    this.currentSlideIndex = event.detail[0].activeIndex;
   }
 
   isAuthReady = this.accountService.isAuthReady();
@@ -137,7 +144,8 @@ export class ClientProfilePage implements OnInit {
       chevronDown,
       chevronUp,
       medal,
-      createOutline
+      createOutline,
+      fitness
     });
 
     effect(() => {
@@ -204,8 +212,8 @@ export class ClientProfilePage implements OnInit {
         console.log('[ClientProfilePage] Loaded AppUser:', this.appUser);
         console.log('[ClientProfilePage] clientInfo:', this.clientInfo);
 
-        // Load achievement badges for this user from Firestore
-        await this.loadAchievementBadgesFromFirestore(targetUserId);
+        // Load Greek statues for this user from Firestore
+        await this.loadGreekStatuesFromFirestore(targetUserId);
       }
 
       // OPTIONAL: if you still want your old clientProfile (extra fields),
@@ -222,46 +230,47 @@ export class ClientProfilePage implements OnInit {
     }
   }
 
-  // Load badge values/percentiles/displayBadgeIds from /userBadges/{userId}
-  private async loadAchievementBadgesFromFirestore(userId: string): Promise<void> {
+  // Load statue carving progress from /userBadges/{userId}
+  private async loadGreekStatuesFromFirestore(userId: string): Promise<void> {
     try {
       const badgeRef = doc(this.firestore, 'userBadges', userId);
       const badgeSnap = await getDoc(badgeRef);
 
       if (!badgeSnap.exists()) {
-        console.warn('[ClientProfilePage] No userBadges doc found; using empty badge list.');
-        this.allBadges = [];
-        this.displayBadgeIds = [];
-        this.displayBadges = [];
+        console.warn('[ClientProfilePage] No userBadges doc found; using empty statue list.');
+        this.allStatues = [];
+        this.displayStatueIds = [];
+        this.displayStatues = [];
         return;
       }
 
       const data = badgeSnap.data() as UserBadgesDoc;
       const values = data.values || {};
       const percentiles = data.percentiles || {};
-      this.displayBadgeIds = data.displayBadgeIds || [];
+      // Support both old and new field names
+      this.displayStatueIds = data.displayStatueIds || data.displayBadgeIds || [];
 
-      // Merge Firestore progress into your static ACHIEVEMENT_BADGES definition
-      this.allBadges = ACHIEVEMENT_BADGES.map(badge => {
-        const currentValue = values[badge.id] ?? 0;
-        const percentile = percentiles[badge.id];
+      // Merge Firestore progress into GREEK_STATUES definition
+      this.allStatues = GREEK_STATUES.map(statue => {
+        const currentValue = values[statue.id] ?? 0;
+        const percentile = percentiles[statue.id];
 
-        const level = calculateBadgeLevel(badge, currentValue || 0);
+        const level = calculateStatueLevel(statue, currentValue || 0);
         return {
-          ...badge,
+          ...statue,
           currentValue,
           percentile,
           currentLevel: level || undefined,
         };
       });
 
-      this.updateDisplayBadges();
-      console.log('[ClientProfilePage] Loaded badges from Firestore:', this.allBadges);
+      this.updateDisplayStatues();
+      console.log('[ClientProfilePage] Loaded statues from Firestore:', this.allStatues);
     } catch (err) {
-      console.error('[ClientProfilePage] Error loading badges from Firestore:', err);
-      this.allBadges = [];
-      this.displayBadgeIds = [];
-      this.displayBadges = [];
+      console.error('[ClientProfilePage] Error loading statues from Firestore:', err);
+      this.allStatues = [];
+      this.displayStatueIds = [];
+      this.displayStatues = [];
     }
   }
 
@@ -332,22 +341,22 @@ export class ClientProfilePage implements OnInit {
     await toast.present();
   }
 
-  // Badge management methods
+  // Statue management methods
 
-  updateDisplayBadges() {
-    this.displayBadges = this.displayBadgeIds
-      .map(id => this.allBadges.find(b => b.id === id))
-      .filter(badge => badge !== undefined) as AchievementBadge[];
+  updateDisplayStatues() {
+    this.displayStatues = this.displayStatueIds
+      .map(id => this.allStatues.find(s => s.id === id))
+      .filter(statue => statue !== undefined) as GreekStatue[];
   }
 
   async openBadgeSelector() {
-    const earnedBadges = this.allBadges.filter(b => b.currentLevel);
+    const carvedStatues = this.allStatues.filter(s => s.currentLevel);
 
     const modal = await this.modalCtrl.create({
-      component: BadgeSelectorComponent,
+      component: StatueSelectorComponent,
       componentProps: {
-        earnedBadges: earnedBadges,
-        selectedBadgeIds: this.displayBadgeIds
+        carvedStatues: carvedStatues,
+        selectedStatueIds: this.displayStatueIds
       }
     });
 
@@ -356,13 +365,13 @@ export class ClientProfilePage implements OnInit {
     const { data, role } = await modal.onWillDismiss();
 
     if (role === 'confirm' && data) {
-      this.displayBadgeIds = data;
-      this.updateDisplayBadges();
-      await this.saveDisplayBadges();
+      this.displayStatueIds = data;
+      this.updateDisplayStatues();
+      await this.saveDisplayStatues();
     }
   }
 
-  async saveDisplayBadges() {
+  async saveDisplayStatues() {
     const uid = this.userId();
     if (!uid) {
       this.showToast('Not signed in');
@@ -370,7 +379,7 @@ export class ClientProfilePage implements OnInit {
     }
 
     const loading = await this.loadingCtrl.create({
-      message: 'Saving display badges...'
+      message: 'Saving display statues...'
     });
     await loading.present();
 
@@ -378,14 +387,14 @@ export class ClientProfilePage implements OnInit {
       const badgeRef = doc(this.firestore, 'userBadges', uid);
       await setDoc(
         badgeRef,
-        { displayBadgeIds: this.displayBadgeIds },
+        { displayStatueIds: this.displayStatueIds },
         { merge: true }
       );
 
-      this.showToast('Display badges updated successfully');
+      this.showToast('Display statues updated successfully');
     } catch (error) {
-      console.error('Error updating display badges:', error);
-      this.showToast('Failed to update display badges');
+      console.error('Error updating display statues:', error);
+      this.showToast('Failed to update display statues');
     } finally {
       loading.dismiss();
     }

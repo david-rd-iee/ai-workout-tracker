@@ -373,45 +373,49 @@ export class DevSeedService {
   }
 
   private async seedDevBadges(uid: string): Promise<void> {
-    console.log('[DevSeedService] Seeding dev badges...');
+    console.log('[DevSeedService] Seeding Greek statues (dev badges)...');
 
     const badgeRef = doc(this.firestore, 'userBadges', uid);
 
-    // These numbers mirror your current getMockValue/getMockPercentile maps
+    // Greek statue progress values - showing various carving stages
     await setDoc(
       badgeRef,
       {
         userId: uid,
         values: {
-          'strength-master': 5500000,
-          'workout-warrior': 650,
-          'heavy-lifter': 550,
-          'streak-king': 120,
-          'endurance-champion': 12000,
-          'pr-crusher': 22,
-          'century-club': 175,
-          'social-butterfly': 35,
-          'early-riser': 18,
-          'transformation': 5,
+          // Greek god statue IDs with impressive progress
+          'heracles-strength': 5500000,      // Heracles - God of Strength (Divine level)
+          'ares-warrior': 650,               // Ares - God of War (Gilded level)
+          'atlas-burden': 550,               // Atlas - Titan (Gilded level)
+          'hestia-eternal-flame': 120,       // Hestia - Eternal Flame (Polished level)
+          'hermes-swiftness': 12000,         // Hermes - God of Swiftness (Detailed level)
+          'nike-victory': 22,                // Nike - Goddess of Victory (Outlined level)
+          'chronos-time': 175,               // Chronos - God of Time (Outlined level)
+          'dionysus-fellowship': 35,         // Dionysus - God of Fellowship (Rough level)
+          'eos-dawn': 18,                    // Eos - Goddess of Dawn (Rough level)
+          'apollo-transformation': 5,        // Apollo - God of Perfection (Just started)
         },
         percentiles: {
-          'strength-master': 0.5,
-          'workout-warrior': 2.3,
-          'heavy-lifter': 0.1,
-          'streak-king': 6.7,
-          'endurance-champion': 11.2,
-          'pr-crusher': 18.9,
-          'century-club': 23.4,
-          'social-butterfly': 38.6,
-          'early-riser': 42.1,
+          'heracles-strength': 0.5,    // Top 0.5% - very rare
+          'ares-warrior': 2.3,         // Top 2.3%
+          'atlas-burden': 0.1,         // Top 0.1% - extremely rare
+          'hestia-eternal-flame': 6.7,
+          'hermes-swiftness': 11.2,
+          'nike-victory': 18.9,
+          'chronos-time': 23.4,
+          'dionysus-fellowship': 38.6,
+          'eos-dawn': 42.1,
         },
-        displayBadgeIds: ['strength-master', 'workout-warrior', 'streak-king'],
+        // Display the most impressive statues
+        displayStatueIds: ['heracles-strength', 'ares-warrior', 'atlas-burden'],
+        // Keep old field for backwards compatibility
+        displayBadgeIds: ['heracles-strength', 'ares-warrior', 'atlas-burden'],
         last_updated_at: serverTimestamp(),
       },
       { merge: true },
     );
 
-    console.log('[DevSeedService] Dev badges seeded.');
+    console.log('[DevSeedService] Greek statues seeded successfully.');
   }
 
 }

@@ -16,13 +16,13 @@
       </ion-card-content>
     </ion-card>
      
-    <!-- Achievement Badges Section -->
+    <!-- Greek Statues Section -->
     <ion-card>
       <ion-list lines="full">
         <ion-item>
-          <ion-icon slot="start" name="trophy" color="primary"></ion-icon>
+          <ion-icon slot="start" name="fitness" color="primary"></ion-icon>
           <ion-label>
-            <h2>Achievement Badges</h2>
+            <h2>Statues of Progress</h2>
           </ion-label>
           <ion-button 
             *ngIf="isOwnProfile" 
@@ -36,66 +36,91 @@
         </ion-item>
       </ion-list>
       <ion-card-content>
-        <div class="display-badges" *ngIf="displayBadges.length > 0; else noBadges">
-          <ng-container *ngFor="let badge of displayBadges; let last = last">
-            <app-achievement-badge 
-              [badge]="badge" 
-              [showProgress]="true"
-              size="medium"
-            ></app-achievement-badge>
-            <div class="badge-separator" *ngIf="!last"></div>
-          </ng-container>
+        <div class="display-statues-carousel" *ngIf="displayStatues.length > 0; else noBadges">
+          <swiper-container
+            [slidesPerView]="1"
+            [centeredSlides]="true"
+            [spaceBetween]="20"
+            [pagination]="false"
+            class="statue-swiper"
+            (swiperslidechange)="onSlideChange($event)"
+          >
+            <swiper-slide *ngFor="let statue of displayStatues">
+              <div class="podium-container">
+                <div class="statue-showcase">
+                  <app-greek-statue 
+                    [statue]="statue" 
+                    [showProgress]="true"
+                    size="large"
+                  ></app-greek-statue>
+                </div>
+                <div class="podium">
+                  <div class="podium-top"></div>
+                  <div class="podium-body">
+                    <div class="podium-inscription">{{ statue.godName }}</div>
+                  </div>
+                </div>
+              </div>
+            </swiper-slide>
+          </swiper-container>
+          <div class="custom-pagination">
+            <span 
+              class="pagination-dot" 
+              *ngFor="let statue of displayStatues; let i = index"
+              [class.active]="i === currentSlideIndex"
+            ></span>
+          </div>
         </div>
         <ng-template #noBadges>
-          <p class="no-badges-text" *ngIf="earnedBadgesCount === 0">
-            Complete workouts to earn achievement badges! 
-            <br><small>Track your progress and showcase your best achievements.</small>
+          <p class="no-badges-text" *ngIf="carvedStatuesCount === 0">
+            Complete workouts to begin carving your statues! 
+            <br><small>Track your progress and showcase your divine masterpieces.</small>
           </p>
-          <p class="no-badges-text" *ngIf="earnedBadgesCount > 0">
-            No badges selected for display.
-            <br><small>Click the button above to choose which badges to showcase.</small>
+          <p class="no-badges-text" *ngIf="carvedStatuesCount > 0">
+            No statues selected for display.
+            <br><small>Click the button above to choose which statues to showcase.</small>
           </p>
         </ng-template>
       </ion-card-content>
     </ion-card>
 
-    <div class="section-divider" *ngIf="allBadges.length > 0 && isOwnProfile"></div>
+    <div class="section-divider" *ngIf="allStatues.length > 0 && isOwnProfile"></div>
 
     <!-- All Achievements Section (Only visible to profile owner) -->
-    <ion-card *ngIf="allBadges.length > 0 && isOwnProfile">
+    <ion-card *ngIf="allStatues.length > 0 && isOwnProfile">
       <ion-list lines="full">
         <ion-item>
           <ion-icon slot="start" name="medal" color="primary"></ion-icon>
           <ion-label>
-            <h2>All Achievements</h2>
-            <p class="achievement-subtitle">{{ earnedBadgesCount }}/{{ allBadges.length }} earned • Only you can see this</p>
+            <h2>All Statues</h2>
+            <p class="achievement-subtitle">{{ carvedStatuesCount }}/{{ allStatues.length }} carved • Only you can see this</p>
           </ion-label>
         </ion-item>
       </ion-list>
       <ion-card-content>
         <div class="achievements-container" [class.collapsed]="!showAllAchievements">
           <div class="all-badges-list">
-            <ng-container *ngFor="let badge of visibleAchievements; let i = index; let last = last">
+            <ng-container *ngFor="let statue of visibleAchievements; let i = index; let last = last">
               <div class="achievement-item" [class.faded]="!showAllAchievements && i === initialAchievementsCount">
-                <app-achievement-badge 
-                  [badge]="badge" 
+                <app-greek-statue 
+                  [statue]="statue" 
                   [showProgress]="true"
                   size="small"
-                ></app-achievement-badge>
+                ></app-greek-statue>
               </div>
               <div class="achievement-divider" *ngIf="!last"></div>
             </ng-container>
           </div>
           
           <ion-button 
-            *ngIf="allBadges.length > initialAchievementsCount"
+            *ngIf="allStatues.length > initialAchievementsCount"
             expand="block" 
             fill="solid" 
             (click)="toggleShowAllAchievements()"
             class="show-more-button"
           >
             <ion-icon slot="start" [name]="showAllAchievements ? 'chevron-up' : 'chevron-down'"></ion-icon>
-            {{ showAllAchievements ? 'Show Less' : 'Show More (' + (allBadges.length - initialAchievementsCount) + ' more)' }}
+            {{ showAllAchievements ? 'Show Less' : 'Show More (' + (allStatues.length - initialAchievementsCount) + ' more)' }}
           </ion-button>
         </div>
       </ion-card-content>

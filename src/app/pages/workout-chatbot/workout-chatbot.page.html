@@ -1,13 +1,5 @@
-<ion-header>
-  <ion-toolbar>
-    <ion-title>Workout Chatbot</ion-title>
-  </ion-toolbar>
-</ion-header>
-
-<ion-content [fullscreen]="true">
-  <div class="background-gradient"></div>
-  <!-- Button to navigate to workout summary -->
-  <div class="workout-summary-button-container">
+<!-- Button to navigate to workout summary -->
+<div class="workout-summary-button-container">
     <ion-button
       expand="block"
       (click)="navigateToWorkoutSummary()"
@@ -61,4 +53,3 @@
       {{ isLoading ? 'Thinking...' : 'Send' }}
     </ion-button>
   </div>
-</ion-content>

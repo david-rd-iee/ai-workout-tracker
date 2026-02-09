@@ -3,13 +3,12 @@ import { CommonModule, DatePipe } from '@angular/common';
 import { IonAvatar, IonIcon, IonSkeletonText, ModalController } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
 import { timeOutline, personOutline, closeOutline } from 'ionicons/icons';
-import { AgreementModalComponent } from '../../agreements/agreement-modal/agreement-modal.component';
+// import { AgreementModalComponent } from '../../agreements/agreement-modal/agreement-modal.component';
 import { Router } from '@angular/router';
 import { UserService } from '../../../services/account/user.service';
-import { trainerProfile } from '../../../Interfaces/Profiles/trainer';
+import { trainerProfile } from '../../../Interfaces/Profiles/Trainer';
 import { clientProfile } from '../../../Interfaces/Profiles/client';
-// import { SessionNotesService } from '../../../services/session-notes.service';
-type SessionNotesService = any;
+import { SessionNotesService } from '../../../services/session-notes.service';
 import { SessionNote } from '../../../Interfaces/session-notes.interface';
 import { ListSessionNotesComponent } from '../list-session-notes/list-session-notes.component';
 import { ModalSessionCancelComponent } from '../modal-session-cancel/modal-session-cancel.component';
@@ -96,7 +95,7 @@ export class ListSessionsComponent implements OnInit, OnChanges {
     this.isLoadingNotes = true;
     const currentDate = new Date();
     
-    this.sessionNotesService.getSessionNotesForMonth(currentDate).subscribe(notes => {
+    this.sessionNotesService.getSessionNotesForMonth(currentDate).subscribe((notes: SessionNote[]) => {
       this.sessionNotes = notes;
       this.noNotesFound = notes.length === 0;
       this.isLoadingNotes = false;

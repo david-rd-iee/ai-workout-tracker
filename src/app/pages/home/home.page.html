@@ -1,49 +1,85 @@
+<app-header></app-header>
+
 <ion-content [fullscreen]="true">
   <div class="background-gradient"></div>
 
   <div class="home-container">
-    <div class="top-row">
-      <ion-button
-        class="profile-button"
-        fill="clear"
-        size="small"
-        (click)="onProfileClick()"
-        aria-label="Open profile"
-      >
-        <ion-avatar class="profile-avatar" aria-hidden="true">
-          <div class="avatar-fallback">{{ avatarInitial }}</div>
-        </ion-avatar>
-      </ion-button>
-
-      <div class="greeting">
-        <div class="greeting-line">
-          <ng-container *ngIf="isLoadingUser; else greetingLoaded">
-            <ion-spinner name="dots"></ion-spinner>
-          </ng-container>
-
-          <ng-template #greetingLoaded>
-            <h1>Hello, {{ greetingName }}!</h1>
-          </ng-template>
-        </div>
-      </div>
+    <!-- Welcome Section -->
+    <div class="welcome-section">
+      <h1>Welcome Back, {{ userName() }}!</h1>
+      <p class="date">{{ currentDate | date:'EEEE, MMMM d' }}</p>
     </div>
 
-    <ion-card class="welcome-card">
+    <!-- Main Action Widget - Start Workout -->
+    <ion-card class="start-workout-widget" button="true" (click)="startWorkout()">
       <ion-card-content>
-        <div class="welcome-section">
-          <p>AI-Powered Workout Tracker</p>
+        <div class="widget-content">
+          <div class="icon-container primary">
+            <ion-icon name="add-circle"></ion-icon>
+          </div>
+          <div class="widget-text">
+            <h2>Start Logging Workout</h2>
+            <p>Begin tracking your session</p>
+          </div>
+          <ion-icon name="chevron-forward" class="chevron"></ion-icon>
         </div>
       </ion-card-content>
     </ion-card>
-    <div class="placeholder-section">
-      <ion-card class="dynamic-placeholder">
-        <ion-card-header>
-          <ion-card-title>Dynamic Dashboard</ion-card-title>
-        </ion-card-header>
+
+    <!-- Widgets Grid -->
+    <div class="widgets-grid">
+      <!-- Streak Widget -->
+      <ion-card class="streak-widget" button="true" (click)="viewStreak()">
         <ion-card-content>
-          <div class="placeholder-content">
-            <ion-icon name="construct-outline" size="large"></ion-icon>
-            <p>This is a placeholder for your dynamic homepage. Personalized workout stats, upcoming sessions, and AI recommendations will appear here soon.</p>
+          <div class="streak-content">
+            <div class="streak-icon">
+              <ion-icon name="flame"></ion-icon>
+            </div>
+            <div class="streak-info">
+              <h3>{{ currentStreak }}</h3>
+              <p>Day Streak</p>
+            </div>
+          </div>
+        </ion-card-content>
+      </ion-card>
+
+      <!-- Next Workout Widget -->
+      <ion-card class="next-workout-widget" button="true" (click)="viewNextWorkout()">
+        <ion-card-content>
+          <div class="next-workout-content">
+            <div class="workout-header">
+              <ion-icon name="calendar-outline"></ion-icon>
+              <span>Next Workout</span>
+            </div>
+            <div class="workout-details" *ngIf="nextWorkout; else noWorkout">
+              <h3>{{ nextWorkout.title }}</h3>
+              <p>{{ nextWorkout.date | date:'MMM d, h:mm a' }}</p>
+            </div>
+            <ng-template #noWorkout>
+              <div class="no-workout">
+                <p>No upcoming workouts</p>
+              </div>
+            </ng-template>
+          </div>
+        </ion-card-content>
+      </ion-card>
+    </div>
+
+    <!-- Upcoming Sessions -->
+    <div class="upcoming-sessions" *ngIf="upcomingSessions && upcomingSessions.length > 0">
+      <h2>Upcoming Sessions</h2>
+      <ion-card class="session-card" *ngFor="let session of upcomingSessions" button="true" (click)="viewSessionDetails(session)">
+        <ion-card-content>
+          <div class="session-content">
+            <div class="session-icon">
+              <ion-icon name="person-outline"></ion-icon>
+            </div>
+            <div class="session-info">
+              <h3>{{ session.trainerName }}</h3>
+              <p class="session-date">{{ session.date | date:'EEE, MMM d · h:mm a' }}</p>
+              <p class="session-notes" *ngIf="session.notes">{{ session.notes }}</p>
+            </div>
+            <ion-icon name="chevron-forward" class="chevron"></ion-icon>
           </div>
         </ion-card-content>
       </ion-card>
