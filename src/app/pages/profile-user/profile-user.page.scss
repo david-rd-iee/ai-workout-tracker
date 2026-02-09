@@ -1,0 +1,53 @@
+.profile-container {
+  padding: 16px;
+}
+
+.hero-card {
+  border-radius: 18px;
+}
+
+.section-card {
+  margin-top: 14px;
+  border-radius: 18px;
+}
+
+.stat-row {
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.stat {
+  flex: 1;
+  text-align: center;
+  padding: 10px 8px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.stat-value {
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.stat-label {
+  margin-top: 4px;
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+.progress-block {
+  margin-top: 8px;
+}
+
+.progress-label {
+  font-size: 12px;
+  opacity: 0.8;
+  margin-bottom: 8px;
+}
+
+.muted {
+  opacity: 0.75;
+}

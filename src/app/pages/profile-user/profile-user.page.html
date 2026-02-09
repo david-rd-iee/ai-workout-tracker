@@ -1,0 +1,70 @@
+<ion-header translucent="true">
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-back-button defaultHref=""></ion-back-button>
+    </ion-buttons>
+    <ion-title>Profile</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true">
+  <div class="profile-container">
+    <ion-card class="hero-card">
+      <ion-card-header>
+        <ion-card-title>{{ displayName }}</ion-card-title>
+      </ion-card-header>
+
+      <ion-card-content>
+        <div class="stat-row">
+          <div class="stat">
+            <div class="stat-value">{{ streakDays }}</div>
+            <div class="stat-label">Streak (days)</div>
+          </div>
+
+          <div class="stat">
+            <div class="stat-value">{{ level }}</div>
+            <div class="stat-label">Level</div>
+          </div>
+
+          <div class="stat">
+            <div class="stat-value">{{ totalWorkScore }}</div>
+            <div class="stat-label">Work Score</div>
+          </div>
+        </div>
+
+        <div class="progress-block">
+          <div class="progress-label">Next level progress</div>
+          <ion-progress-bar [value]="levelProgress"></ion-progress-bar>
+        </div>
+      </ion-card-content>
+    </ion-card>
+
+    <ion-card class="section-card">
+      <ion-card-header>
+        <ion-card-title>Badges</ion-card-title>
+      </ion-card-header>
+      <ion-card-content>
+        <p class="muted">
+          Placeholder — badges will appear here (FR-7).
+        </p>
+      </ion-card-content>
+    </ion-card>
+
+    <ion-card class="section-card">
+      <ion-card-header>
+        <ion-card-title>Groups</ion-card-title>
+      </ion-card-header>
+      <ion-card-content>
+        <ion-list lines="none">
+          <ion-item *ngIf="!currentUser?.groups?.length">
+            <ion-label class="muted">No groups yet.</ion-label>
+          </ion-item>
+
+          <ion-item *ngFor="let g of currentUser?.groups">
+            <ion-label>{{ g }}</ion-label>
+          </ion-item>
+        </ion-list>
+      </ion-card-content>
+    </ion-card>
+  </div>
+</ion-content>

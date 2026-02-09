@@ -120,9 +120,10 @@ export class HomePage implements OnInit, OnDestroy {
   }
 
   onProfileClick(): void {
-    // TODO: Route to profile page when that flow is ready.
-    console.log('[HomePage] Profile avatar clicked (route not wired yet)');
+    this.router?.navigate(['profile-user']);
   }
+
+
 
   navigateTo(path: string): void {
     this.router?.navigate([path]);
