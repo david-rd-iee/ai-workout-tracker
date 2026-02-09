@@ -1,8 +1,9 @@
 // src/app/pages/home/home.page.ts
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { HeaderComponent } from 'src/app/components/header/header.component';
+import { UserService } from 'src/app/services/account/user.service';
 import { IonContent, IonCard, IonCardContent, IonIcon, IonButton } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
 import { 
@@ -53,11 +54,18 @@ interface UpcomingSession {
 })
 export class HomePage implements OnInit {
   currentDate = new Date();
+  userName = computed(() => {
+    const userProfile = this.userService.getUserInfo()();
+    return userProfile?.firstName || 'User';
+  });
   currentStreak = 0;
   nextWorkout: NextWorkout | null = null;
   upcomingSessions: UpcomingSession[] = [];
 
-  constructor(private router: Router) {
+  constructor(
+    private router: Router,
+    private userService: UserService
+  ) {
     addIcons({ 
       personCircleOutline, 
       trophyOutline, 
@@ -93,7 +101,7 @@ export class HomePage implements OnInit {
         { name: 'Bicep Curls', sets: 3, reps: 15, weight: 25, weightUnit: 'lbs' },
         { name: 'Tricep Dips', sets: 3, reps: 12 }
       ],
-      notes: 'Focus on proper form and controlled movements. Take 90 seconds rest between sets.'
+      notes: 'Focus on jerking it harder. No rest between sets.'
     };
 
     // TODO: Load upcoming sessions from booking service
@@ -103,14 +111,14 @@ export class HomePage implements OnInit {
         id: '1',
         trainerName: 'John Smith',
         date: new Date(Date.now() + 172800000), // 2 days from now
-        notes: 'Focus on lower body strength. Bring resistance bands.',
+        notes: 'Focus on jerking it harder. No rest between sets.',
         duration: 60
       },
       {
         id: '2',
         trainerName: 'Sarah Johnson',
         date: new Date(Date.now() + 432000000), // 5 days from now
-        notes: 'HIIT cardio session. Remember to hydrate well.',
+        notes: '😳',
         duration: 45
       }
     ];

@@ -6,7 +6,7 @@
   <div class="home-container">
     <!-- Welcome Section -->
     <div class="welcome-section">
-      <h1>Welcome Back!</h1>
+      <h1>Welcome Back, {{ userName() }}!</h1>
       <p class="date">{{ currentDate | date:'EEEE, MMMM d' }}</p>
     </div>
 
@@ -83,25 +83,6 @@
           </div>
         </ion-card-content>
       </ion-card>
-    </div>
-
-    <!-- Quick Stats -->
-    <div class="quick-stats">
-      <h2>Quick Stats</h2>
-      <div class="stats-grid">
-        <div class="stat-item" (click)="navigateTo('/tabs/leaderboard')">
-          <ion-icon name="trophy-outline" color="warning"></ion-icon>
-          <span>Leaderboard</span>
-        </div>
-        <div class="stat-item" (click)="navigateTo('/tabs/groups')">
-          <ion-icon name="people-outline" color="tertiary"></ion-icon>
-          <span>Groups</span>
-        </div>
-        <div class="stat-item" (click)="navigateTo('/tabs/chats')">
-          <ion-icon name="chatbubbles-outline" color="secondary"></ion-icon>
-          <span>Chats</span>
-        </div>
-      </div>
     </div>
   </div>
 </ion-content>
