@@ -1,19 +1,13 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import {
   IonBackButton,
+  IonButton,
   IonButtons,
-  IonCard,
-  IonCardContent,
-  IonCardHeader,
-  IonCardTitle,
   IonContent,
   IonHeader,
-  IonItem,
-  IonLabel,
-  IonList,
-  IonProgressBar,
+  IonIcon,
   IonTitle,
   IonToolbar,
 } from '@ionic/angular/standalone';
@@ -36,66 +30,70 @@ import type { AppUser } from '../../models/user.model';
     IonTitle,
     IonButtons,
     IonBackButton,
+    IonButton,
+    IonIcon,
     IonContent,
-    IonCard,
-    IonCardHeader,
-    IonCardTitle,
-    IonCardContent,
-    IonList,
-    IonItem,
-    IonLabel,
-    IonProgressBar,
   ],
 })
-export class ProfileUserPage implements OnInit {
-  private router = inject(Router, { optional: true });
+export class ProfileUserPage implements OnInit, OnDestroy {
+  // Keep these optional so the page doesn't crash in tests/dev if Firebase isn't wired
+  router = inject(Router, { optional: true });
   private auth = inject(Auth, { optional: true });
   private firestore = inject(Firestore, { optional: true });
 
   private userSub?: Subscription;
 
+  // UI state
   isLoading = true;
+
+  // User data (from Firestore users/{uid})
   currentUser: AppUser | null = null;
 
-  // TEMP placeholders (replace with UserStats later)
-  streakDays = 0;
-  level = 1;
-  levelProgress = 0.25; // 0..1
-  totalWorkScore = 0;
+  // Temp fields used by the page UI
+  profileImageUrl: string | null = null;
+  username: string | null = null;
 
   ngOnInit(): void {
-    // If Firebase not wired (or tests), show a friendly placeholder
+    // Dev fallback: no Firebase -> show placeholder user
     if (!this.auth || !this.firestore) {
       this.currentUser = {
         userId: 'DEV_OFFLINE',
-        name: 'Dev Test User',
+        name: 'First Last',
         email: 'dev-tester@example.com',
         isPT: false,
         ptUID: '',
         groups: [],
       };
-      this.streakDays = 3;
-      this.level = 2;
-      this.levelProgress = 0.4;
-      this.totalWorkScore = 1200;
+
+      this.username = 'username';
+      this.profileImageUrl = null;
       this.isLoading = false;
       return;
     }
 
+    // Firebase path: load user doc
     this.auth.onAuthStateChanged((fbUser) => {
       if (!fbUser) {
         this.currentUser = null;
+        this.username = null;
+        this.profileImageUrl = null;
         this.isLoading = false;
         return;
       }
 
       const userRef = doc(this.firestore!, 'users', fbUser.uid);
       this.userSub?.unsubscribe();
+
       this.userSub = docData(userRef).subscribe({
         next: (u) => {
           this.currentUser = (u as AppUser) ?? null;
 
-          // TODO: Replace with real stats document (ex: userStats/{uid})
+          // TEMP mapping (adjust once your schema is finalized)
+          // If your AppUser already has username/photoUrl, map them here.
+          // Otherwise these are placeholders.
+          this.username = (this.currentUser as any)?.username ?? this.username ?? 'username';
+          this.profileImageUrl = (this.currentUser as any)?.photoUrl ?? null;
+
           this.isLoading = false;
         },
         error: (err) => {
@@ -111,11 +109,47 @@ export class ProfileUserPage implements OnInit {
     this.userSub?.unsubscribe();
   }
 
+  // Display helpers
   get displayName(): string {
-    return this.currentUser?.name || 'Your Profile';
+    return this.currentUser?.name || 'First Last';
   }
 
-  goHome(): void {
-    this.router?.navigate(['']);
+  // Top-right gear
+  onSettingsClick(): void {
+    // TODO: route to a settings page when you create it
+    console.log('Settings clicked');
+    // Example later:
+    // this.router?.navigate(['settings']);
+  }
+
+  // Stacked actions (wire these routes when the pages exist)
+  goToGroups(): void {
+    console.log('Groups clicked');
+    // this.router?.navigate(['groups']);
+  }
+
+  goToLogWorkout(): void {
+    console.log('Log Workout clicked');
+    // this.router?.navigate(['log-workout']);
+  }
+
+  goToFindPT(): void {
+    console.log('Find PT clicked');
+    // this.router?.navigate(['find-pt']);
+  }
+
+  goToStatues(): void {
+    console.log('Statues clicked');
+    // this.router?.navigate(['statues']);
+  }
+
+  goToRegional(): void {
+    console.log('Regional clicked');
+    // this.router?.navigate(['regional']);
+  }
+
+  goToAnalyzeWorkout(): void {
+    console.log('Analyze Workout clicked');
+    // this.router?.navigate(['analyze-workout']);
   }
 }

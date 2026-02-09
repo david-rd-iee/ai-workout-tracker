@@ -1,70 +1,75 @@
 <ion-header translucent="true">
   <ion-toolbar>
+
+    <!-- Back button -->
     <ion-buttons slot="start">
       <ion-back-button defaultHref=""></ion-back-button>
     </ion-buttons>
-    <ion-title>Profile</ion-title>
+
+    <!-- Empty title keeps spacing correct -->
+    <ion-title></ion-title>
+
+    <!-- Settings gear -->
+    <ion-buttons slot="end">
+      <ion-button fill="clear" (click)="onSettingsClick()">
+        <ion-icon name="settings-outline" slot="icon-only"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+
   </ion-toolbar>
 </ion-header>
 
-<ion-content [fullscreen]="true">
-  <div class="profile-container">
-    <ion-card class="hero-card">
-      <ion-card-header>
-        <ion-card-title>{{ displayName }}</ion-card-title>
-      </ion-card-header>
+<ion-content [fullscreen]="true" class="profile-content">
+  <div class="profile-page">
 
-      <ion-card-content>
-        <div class="stat-row">
-          <div class="stat">
-            <div class="stat-value">{{ streakDays }}</div>
-            <div class="stat-label">Streak (days)</div>
-          </div>
+    <!-- Profile hero -->
+    <div class="profile-hero">
+      <div class="avatar-wrap">
+        <img
+          class="avatar-img"
+          [src]="profileImageUrl || 'assets/img/default-avatar.png'"
+          alt="Profile"
+        />
+      </div>
 
-          <div class="stat">
-            <div class="stat-value">{{ level }}</div>
-            <div class="stat-label">Level</div>
-          </div>
+      <div class="identity">
+        <div class="full-name">{{ displayName }}</div>
+        <div class="username">@{{ username || 'username' }}</div>
+      </div>
+    </div>
 
-          <div class="stat">
-            <div class="stat-value">{{ totalWorkScore }}</div>
-            <div class="stat-label">Work Score</div>
-          </div>
-        </div>
+    <!-- Action stack -->
+    <div class="action-stack">
+      <button class="action-row" (click)="goToGroups()">
+        <span>Groups</span>
+        <ion-icon name="people-outline"></ion-icon>
+      </button>
 
-        <div class="progress-block">
-          <div class="progress-label">Next level progress</div>
-          <ion-progress-bar [value]="levelProgress"></ion-progress-bar>
-        </div>
-      </ion-card-content>
-    </ion-card>
+      <button class="action-row" (click)="goToLogWorkout()">
+        <span>Log Workout</span>
+        <ion-icon name="create-outline"></ion-icon>
+      </button>
 
-    <ion-card class="section-card">
-      <ion-card-header>
-        <ion-card-title>Badges</ion-card-title>
-      </ion-card-header>
-      <ion-card-content>
-        <p class="muted">
-          Placeholder — badges will appear here (FR-7).
-        </p>
-      </ion-card-content>
-    </ion-card>
+      <button class="action-row" (click)="goToFindPT()">
+        <span>Find PT</span>
+        <ion-icon name="search-outline"></ion-icon>
+      </button>
 
-    <ion-card class="section-card">
-      <ion-card-header>
-        <ion-card-title>Groups</ion-card-title>
-      </ion-card-header>
-      <ion-card-content>
-        <ion-list lines="none">
-          <ion-item *ngIf="!currentUser?.groups?.length">
-            <ion-label class="muted">No groups yet.</ion-label>
-          </ion-item>
+      <button class="action-row" (click)="goToStatues()">
+        <span>Statues</span>
+        <ion-icon name="trophy-outline"></ion-icon>
+      </button>
 
-          <ion-item *ngFor="let g of currentUser?.groups">
-            <ion-label>{{ g }}</ion-label>
-          </ion-item>
-        </ion-list>
-      </ion-card-content>
-    </ion-card>
+      <button class="action-row" (click)="goToRegional()">
+        <span>Regional</span>
+        <ion-icon name="map-outline"></ion-icon>
+      </button>
+
+      <button class="action-row" (click)="goToAnalyzeWorkout()">
+        <span>Analyze Workout</span>
+        <ion-icon name="analytics-outline"></ion-icon>
+      </button>
+    </div>
+
   </div>
 </ion-content>

@@ -1,53 +1,98 @@
-.profile-container {
+.profile-content {
+  --background: #f5ead7; // parchment vibe (tweak to your token)
+}
+
+.profile-page {
   padding: 16px;
+  padding-top: 10px;
 }
 
-.hero-card {
-  border-radius: 18px;
-}
-
-.section-card {
-  margin-top: 14px;
-  border-radius: 18px;
-}
-
-.stat-row {
+/* Top hero area */
+.profile-hero {
   display: flex;
-  gap: 12px;
-  justify-content: space-between;
-  margin-bottom: 14px;
+  gap: 14px;
+  align-items: center;
+  padding: 14px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.35);
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.10);
 }
 
-.stat {
+.avatar-wrap {
+  width: 110px;
+  height: 150px;
+  border-radius: 18px;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.6);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08);
+}
+
+.avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.identity {
   flex: 1;
-  text-align: center;
-  padding: 10px 8px;
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.04);
+  min-width: 0;
 }
 
-.stat-value {
-  font-size: 22px;
+.full-name {
+  font-size: 44px;
+  font-weight: 800;
+  line-height: 0.95;
+  letter-spacing: -0.5px;
+  color: #111;
+}
+
+.username {
+  margin-top: 10px;
+  font-size: 18px;
+  font-weight: 600;
+  color: #1a1a1a;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Stacked action rows */
+.action-stack {
+  margin-top: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.action-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  padding: 16px 16px;
+  border-radius: 16px;
+  border: none;
+
+  background: #2f7ac9; // your button blue (tweak to your palette)
+  color: #fff;
+
+  font-size: 16px;
   font-weight: 700;
-  line-height: 1.1;
+
+  box-shadow: 0 10px 18px rgba(0, 0, 0, 0.18);
 }
 
-.stat-label {
-  margin-top: 4px;
-  font-size: 12px;
-  opacity: 0.8;
+.action-row ion-icon {
+  font-size: 20px;
+  opacity: 0.95;
 }
 
-.progress-block {
-  margin-top: 8px;
-}
-
-.progress-label {
-  font-size: 12px;
-  opacity: 0.8;
-  margin-bottom: 8px;
-}
-
-.muted {
-  opacity: 0.75;
+/* pressed feel */
+.action-row:active {
+  transform: translateY(1px);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.16);
 }
