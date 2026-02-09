@@ -6,9 +6,58 @@ ion-content {
   padding: 20px;
 }
 
+.top-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.profile-button {
+  --padding-start: 0;
+  --padding-end: 0;
+  --padding-top: 0;
+  --padding-bottom: 0;
+  height: 44px;
+  width: 44px;
+}
+
+.profile-avatar {
+  height: 40px;
+  width: 40px;
+}
+
+.avatar-fallback {
+  height: 40px;
+  width: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  color: #ffffff;
+  background: linear-gradient(135deg, #0d5eaf, #297fd1);
+}
+
+.greeting {
+  flex: 1;
+}
+
+.greeting-line {
+  display: flex;
+  align-items: center;
+  min-height: 40px;
+}
+
+.greeting h1 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 800;
+}
+
 .welcome-card {
   margin-bottom: 0px;
-  
+
   ion-card-content {
     padding: 30px;
     display: flex;
@@ -21,13 +70,7 @@ ion-content {
   flex-direction: column;
   align-items: center;
   text-align: center;
-  
-  h1 {
-    font-size: 1.5em;
-    margin: 0 0 10px 0;
-    color: var(--ion-text-color, #000);
-  }
-  
+
   p {
     font-size: 1em;
     color: var(--ion-color-medium);
@@ -43,102 +86,38 @@ ion-content {
     color: #3880ff;
     text-align: center;
   }
-  
+
   ion-card {
     margin: 12px 0;
     cursor: pointer;
     transition: transform 0.2s, box-shadow 0.2s;
-    
+
     &:hover {
       transform: translateY(-2px);
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     }
-    
+
     .card-content {
       display: flex;
       align-items: center;
       gap: 16px;
-      
+
       ion-icon {
         font-size: 48px;
         min-width: 48px;
       }
-      
+
       h3 {
         margin: 0 0 4px 0;
         font-size: 18px;
         font-weight: 600;
       }
-      
+
       p {
         margin: 0;
         font-size: 14px;
         color: var(--ion-color-medium);
       }
     }
-  }
-}
-
-// Content styling
-h2 {
-  font-size: 32px;
-  font-weight: 600;
-  margin-bottom: 24px;
-  margin-left: 18px;
-  color: #000000;
-  position: relative; // Ensures text appears above the background
-}
-
-.payment-button-container {
-  margin: 20px;
-  padding: 10px;
-  border-radius: 8px;
-  background-color: #f8f8f8;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-ion-button {
-  --border-radius: 8px;
-  margin: 10px 0;
-  font-weight: 500;
-}
-
-// Styling for the payments section
-.payments-section {
-  margin-top: 24px;
-  padding-bottom: 24px;
-  
-  .section-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 8px;
-    padding: 0 16px;
-    
-    h1 {
-      margin: 0;
-    }
-  }
-}
-
-// Styling for session cards
-.session-card {
-  margin-bottom: 12px;
-  cursor: pointer;
-  border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  overflow: hidden;
-}
-
-// Styling for payment cards
-.payment-card {
-  margin-bottom: 12px;
-  cursor: pointer;
-  border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  overflow: hidden;
-  
-  ion-card-content {
-    padding: 0;
   }
 }
