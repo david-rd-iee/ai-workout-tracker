@@ -28,11 +28,12 @@ import { getFunctions, provideFunctions } from '@angular/fire/functions';
 
 import { provideHttpClient } from '@angular/common/http';
 
+
 bootstrapApplication(AppComponent, {
   providers: [
     { provide: RouteReuseStrategy, useClass: IonicRouteStrategy },
     { provide: FIREBASE_OPTIONS, useValue: environment.firebaseConfig },
-    provideIonicAngular(),
+    provideIonicAngular({ mode: 'ios' }),
     provideRouter(routes, withPreloading(PreloadAllModules)),
     provideFirebaseApp(() => initializeApp(environment.firebaseConfig)),
     provideFirestore(() => getFirestore()),

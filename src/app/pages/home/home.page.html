@@ -11,8 +11,15 @@
         aria-label="Open profile"
       >
         <ion-avatar class="profile-avatar" aria-hidden="true">
-          <div class="avatar-fallback">{{ avatarInitial }}</div>
-        </ion-avatar>
+      <img
+        *ngIf="profileImageUrl; else showFallback"
+        [src]="profileImageUrl"
+        alt="Profile pic"
+      />
+      <ng-template #showFallback>
+        <div class="avatar-fallback">{{ avatarInitial }}</div>
+      </ng-template>
+    </ion-avatar>
       </ion-button>
 
       <div class="greeting">

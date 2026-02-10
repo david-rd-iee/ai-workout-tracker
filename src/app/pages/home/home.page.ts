@@ -146,6 +146,19 @@ export class HomePage implements OnInit, OnDestroy {
     return source ? source[0].toUpperCase() : '?';
   }
 
+  get profileImageUrl(): string | null {
+    // Read from your Firestore user object.
+    const raw =
+      (this.currentUser as any)?.profilepic ??
+      (this.currentUser as any)?.profilePic ??
+      null;
+
+    return typeof raw === 'string' && raw.trim().length > 0
+      ? raw.trim()
+      : null;
+  }
+
+
   onProfileClick(): void {
     this.router?.navigate(['profile-user']);
   }

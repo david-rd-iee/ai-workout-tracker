@@ -66,7 +66,7 @@ export class ProfileUserPage implements OnInit, OnDestroy {
         groupID: [],
         profilePic: '',
         role: 'user',
-        username: 'devtester'
+        username: 'devtester',
       };
       this.username = this.currentUser.username;
       this.profileImageUrl = null;
@@ -160,3 +160,4 @@ export class ProfileUserPage implements OnInit, OnDestroy {
     console.log('Analyze Workout clicked');
   }
 }
+
