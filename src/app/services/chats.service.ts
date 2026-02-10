@@ -171,20 +171,28 @@ export class ChatsService {
 
   // Initialize user chats
   initializeUserChats(userId: string, userType: 'trainer' | 'client'): void {
+    console.log('[ChatsService] Initializing chats for user:', userId, 'type:', userType, 'already initialized:', this.initialized);
+    
     // Guard clause to prevent multiple initializations
-    if (this.initialized) return;
+    if (this.initialized) {
+      console.log('[ChatsService] Already initialized, skipping');
+      return;
+    }
       
     // Create reference to user's chats in Firebase
     const userChatsRef = ref(this.db, `userChats/${userId}`);
+    console.log('[ChatsService] Listening to:', `userChats/${userId}`);
       
     // Listen for changes to user's chats
     onValue(userChatsRef, (snapshot) => {
+      console.log('[ChatsService] Received snapshot, exists:', snapshot.exists());
       const chats: Chat[] = [];
       const promises: Promise<void>[] = [];
   
       // For each chat ID in userChats
       snapshot.forEach((childSnapshot) => {
         const chatId = childSnapshot.key!;
+        console.log('[ChatsService] Found chat ID:', chatId);
           
         // Create a promise to fetch each chat's details
         const promise = new Promise<void>((resolve) => {
@@ -192,6 +200,7 @@ export class ChatsService {
           // Get chat data
           onValue(chatRef, (chatSnapshot) => {
             if (chatSnapshot.exists()) {
+              console.log('[ChatsService] Chat data for', chatId, ':', chatSnapshot.val());
               // Find if chat already exists in array
               const existingChatIndex = chats.findIndex(c => c.chatId === chatId);
               const chatData = { ...chatSnapshot.val(), chatId };
@@ -234,11 +243,19 @@ export class ChatsService {
   
       // When all chat data is fetched, update the BehaviorSubject
       Promise.all(promises).then(() => {
+        console.log('[ChatsService] Emitting', chats.length, 'chats');
         this.chatsSubject.next(chats);
       });
     });
   
     this.initialized = true;
+  }
+  
+  // Reset initialization state (useful when logging out/switching users)
+  resetInitialization(): void {
+    console.log('[ChatsService] Resetting initialization');
+    this.initialized = false;
+    this.chatsSubject.next([]);
   }
 
   // Get messages for a specific chat

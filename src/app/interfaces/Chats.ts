@@ -1,6 +1,4 @@
-import { Signal } from '@angular/core';
-//import { trainerProfile } from '../Interfaces/Profiles/Trainer';
-//import { clientProfile } from './Profiles/Client';
+import { Signal, WritableSignal } from '@angular/core';
 
 export interface Message {
     messageId?: string;
@@ -16,7 +14,7 @@ export interface Chat {
     lastMessage: string;
     lastMessageTime: string;
     messages: { [key: string]: Message };
-   // userProfile?: Signal<trainerProfile | clientProfile | null>;
+    userProfile?: Signal<any>;
     hasUnreadMessages?: boolean;
     twilioChatId?: string;
 }

@@ -11,13 +11,18 @@
             <app-image-uploader [currentImageUrl]="clientInfo.profileImage" (imageSelected)="onImageSelected($event)">
             </app-image-uploader>
           </div>
-          <h1>{{clientInfo.firstName | titlecase}} {{clientInfo.lastName | titlecase}}</h1>
+          <div class="profile-info">
+            <h1>{{clientInfo.firstName | titlecase}} {{clientInfo.lastName | titlecase}}</h1>
+          </div>
+          <ion-button fill="clear" class="settings-button" (click)="openSettings()">
+            <ion-icon slot="icon-only" name="settings-outline"></ion-icon>
+          </ion-button>
         </div>
       </ion-card-content>
     </ion-card>
      
-    <!-- Greek Statues Section -->
-    <ion-card>
+    <!-- Greek Statues Section (Hidden for trainers) -->
+    <ion-card *ngIf="accountType() !== 'trainer'">
       <ion-list lines="full">
         <ion-item>
           <ion-icon slot="start" name="fitness" color="primary"></ion-icon>
@@ -84,10 +89,57 @@
       </ion-card-content>
     </ion-card>
 
-    <div class="section-divider" *ngIf="allStatues.length > 0 && isOwnProfile"></div>
+    <!-- Trainer Stats Section (Only for trainers) -->
+    <ion-card *ngIf="accountType() === 'trainer'">
+      <ion-list lines="full">
+        <ion-item>
+          <ion-icon slot="start" name="trophy" color="warning"></ion-icon>
+          <ion-label>
+            <h2>Trainer Stats</h2>
+          </ion-label>
+        </ion-item>
+      </ion-list>
+      <ion-card-content>
+        <div class="trainer-stats-buttons">
+          <ion-button expand="block" fill="outline" (click)="viewStatDetails('clients')">
+            <ion-icon slot="start" name="people-outline"></ion-icon>
+            <div class="button-content">
+              <span class="stat-value">{{ trainerStats.totalClients }}</span>
+              <span class="stat-label">Active Clients</span>
+            </div>
+          </ion-button>
+          
+          <ion-button expand="block" fill="outline" (click)="viewStatDetails('workouts')">
+            <ion-icon slot="start" name="fitness-outline"></ion-icon>
+            <div class="button-content">
+              <span class="stat-value">{{ trainerStats.clientWorkoutsCompleted }}</span>
+              <span class="stat-label">Client Workouts</span>
+            </div>
+          </ion-button>
+          
+          <ion-button expand="block" fill="outline" (click)="viewStatDetails('retention')">
+            <ion-icon slot="start" name="time-outline"></ion-icon>
+            <div class="button-content">
+              <span class="stat-value">{{ trainerStats.longestStandingClient }}</span>
+              <span class="stat-label">Longest Client</span>
+            </div>
+          </ion-button>
+          
+          <ion-button expand="block" fill="outline" (click)="viewStatDetails('leaderboard')">
+            <ion-icon slot="start" name="trophy"></ion-icon>
+            <div class="button-content">
+              <span class="stat-value">#{{ trainerStats.leaderboardPlace }}</span>
+              <span class="stat-label">Trainer Leaderboard</span>
+            </div>
+          </ion-button>
+        </div>
+      </ion-card-content>
+    </ion-card>
 
-    <!-- All Achievements Section (Only visible to profile owner) -->
-    <ion-card *ngIf="allStatues.length > 0 && isOwnProfile">
+    <div class="section-divider" *ngIf="allStatues.length > 0 && isOwnProfile && accountType() !== 'trainer'"></div>
+
+    <!-- All Achievements Section (Only visible to profile owner, hidden for trainers) -->
+    <ion-card *ngIf="allStatues.length > 0 && isOwnProfile && accountType() !== 'trainer'">
       <ion-list lines="full">
         <ion-item>
           <ion-icon slot="start" name="medal" color="primary"></ion-icon>

@@ -1,0 +1,140 @@
+// iMessage-style chat design
+.chat-content {
+  --background: #ffffff;
+}
+
+ion-header {
+  ion-toolbar {
+    --background: #f6f6f6;
+    --border-width: 0 0 0.5px 0;
+    --border-color: rgba(0, 0, 0, 0.1);
+    
+    ion-title {
+      font-weight: 600;
+      font-size: 17px;
+    }
+  }
+}
+
+.messages-list {
+  padding: 12px 16px;
+  padding-bottom: 80px;
+  min-height: 100%;
+}
+
+.message-row {
+  display: flex;
+  margin-bottom: 8px;
+  
+  &.sent {
+    justify-content: flex-end;
+    
+    .message-bubble {
+      background: #007AFF;
+      color: white;
+      border-radius: 18px 18px 3px 18px;
+      margin-left: 60px;
+    }
+  }
+  
+  &.received {
+    justify-content: flex-start;
+    
+    .message-bubble {
+      background: #E9E9EB;
+      color: #000000;
+      border-radius: 18px 18px 18px 3px;
+      margin-right: 60px;
+    }
+  }
+}
+
+.message-bubble {
+  max-width: 70%;
+  padding: 8px 12px;
+  position: relative;
+  
+  p {
+    margin: 0;
+    font-size: 15px;
+    line-height: 1.4;
+    word-wrap: break-word;
+    padding-bottom: 2px;
+  }
+  
+  .timestamp {
+    font-size: 11px;
+    opacity: 0.6;
+    display: block;
+    margin-top: 2px;
+  }
+}
+
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: #8E8E93;
+  
+  p {
+    margin: 0 0 4px 0;
+    font-size: 16px;
+    font-weight: 500;
+  }
+  
+  span {
+    font-size: 14px;
+  }
+}
+
+ion-footer {
+  ion-toolbar {
+    --background: #f6f6f6;
+    --border-width: 0.5px 0 0 0;
+    --border-color: rgba(0, 0, 0, 0.1);
+    --padding-top: 8px;
+    --padding-bottom: 8px;
+    --min-height: auto;
+  }
+}
+
+.input-wrapper {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  padding: 0 8px;
+  
+  .message-input {
+    flex: 1;
+    background: white;
+    border: 1px solid #D1D1D6;
+    border-radius: 20px;
+    padding: 6px 12px;
+    font-size: 15px;
+    min-height: 34px;
+    --padding-start: 12px;
+    --padding-end: 12px;
+    --padding-top: 6px;
+    --padding-bottom: 6px;
+  }
+  
+  .send-button {
+    --background: #007AFF;
+    --background-activated: #0051D5;
+    --padding-start: 0;
+    --padding-end: 0;
+    width: 34px;
+    height: 34px;
+    margin: 0;
+    
+    &[disabled] {
+      --background: #D1D1D6;
+      opacity: 0.5;
+    }
+    
+    ion-icon {
+      font-size: 18px;
+      font-weight: bold;
+    }
+  }
+}
+

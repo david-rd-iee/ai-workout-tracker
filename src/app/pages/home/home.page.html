@@ -10,80 +10,154 @@
       <p class="date">{{ currentDate | date:'EEEE, MMMM d' }}</p>
     </div>
 
-    <!-- Main Action Widget - Start Workout -->
-    <ion-card class="start-workout-widget" button="true" (click)="startWorkout()">
-      <ion-card-content>
-        <div class="widget-content">
-          <div class="icon-container primary">
-            <ion-icon name="add-circle"></ion-icon>
-          </div>
-          <div class="widget-text">
-            <h2>Start Logging Workout</h2>
-            <p>Begin tracking your session</p>
-          </div>
-          <ion-icon name="chevron-forward" class="chevron"></ion-icon>
-        </div>
-      </ion-card-content>
-    </ion-card>
+    <!-- CLIENT HOME PAGE -->
+    <ng-container *ngIf="accountType() === 'client'">
+      <!-- Custom Welcome Message -->
+      <div class="custom-message" *ngIf="customMessage && isWidgetEnabled('welcome')">
+        <p>{{ customMessage }}</p>
+      </div>
 
-    <!-- Widgets Grid -->
-    <div class="widgets-grid">
-      <!-- Streak Widget -->
-      <ion-card class="streak-widget" button="true" (click)="viewStreak()">
+      <!-- Main Action Widget - Start Workout -->
+      <ion-card class="start-workout-widget" button="true" (click)="startWorkout()">
         <ion-card-content>
-          <div class="streak-content">
-            <div class="streak-icon">
-              <ion-icon name="flame"></ion-icon>
+          <div class="widget-content">
+            <div class="icon-container primary">
+              <ion-icon name="add-circle"></ion-icon>
             </div>
-            <div class="streak-info">
-              <h3>{{ currentStreak }}</h3>
-              <p>Day Streak</p>
-            </div>
-          </div>
-        </ion-card-content>
-      </ion-card>
-
-      <!-- Next Workout Widget -->
-      <ion-card class="next-workout-widget" button="true" (click)="viewNextWorkout()">
-        <ion-card-content>
-          <div class="next-workout-content">
-            <div class="workout-header">
-              <ion-icon name="calendar-outline"></ion-icon>
-              <span>Next Workout</span>
-            </div>
-            <div class="workout-details" *ngIf="nextWorkout; else noWorkout">
-              <h3>{{ nextWorkout.title }}</h3>
-              <p>{{ nextWorkout.date | date:'MMM d, h:mm a' }}</p>
-            </div>
-            <ng-template #noWorkout>
-              <div class="no-workout">
-                <p>No upcoming workouts</p>
-              </div>
-            </ng-template>
-          </div>
-        </ion-card-content>
-      </ion-card>
-    </div>
-
-    <!-- Upcoming Sessions -->
-    <div class="upcoming-sessions" *ngIf="upcomingSessions && upcomingSessions.length > 0">
-      <h2>Upcoming Sessions</h2>
-      <ion-card class="session-card" *ngFor="let session of upcomingSessions" button="true" (click)="viewSessionDetails(session)">
-        <ion-card-content>
-          <div class="session-content">
-            <div class="session-icon">
-              <ion-icon name="person-outline"></ion-icon>
-            </div>
-            <div class="session-info">
-              <h3>{{ session.trainerName }}</h3>
-              <p class="session-date">{{ session.date | date:'EEE, MMM d · h:mm a' }}</p>
-              <p class="session-notes" *ngIf="session.notes">{{ session.notes }}</p>
+            <div class="widget-text">
+              <h2>Start Logging Workout</h2>
+              <p>Begin tracking your session</p>
             </div>
             <ion-icon name="chevron-forward" class="chevron"></ion-icon>
           </div>
         </ion-card-content>
       </ion-card>
-    </div>
+
+      <!-- Widgets Grid -->
+      <div class="widgets-grid">
+        <!-- Streak Widget -->
+        <ion-card *ngIf="isWidgetEnabled('streak')" class="streak-widget" button="true" (click)="viewStreak()">
+          <ion-card-content>
+            <div class="streak-content">
+              <div class="streak-icon">
+                <ion-icon name="flame"></ion-icon>
+              </div>
+              <div class="streak-info">
+                <h3>{{ currentStreak }}</h3>
+                <p>Day Streak</p>
+              </div>
+            </div>
+          </ion-card-content>
+        </ion-card>
+
+        <!-- Next Workout Widget -->
+        <ion-card *ngIf="isWidgetEnabled('next-workout')" class="next-workout-widget" button="true" (click)="viewNextWorkout()">
+          <ion-card-content>
+            <div class="next-workout-content">
+              <div class="workout-header">
+                <ion-icon name="calendar-outline"></ion-icon>
+                <span>Next Workout</span>
+              </div>
+              <div class="workout-details" *ngIf="nextWorkout; else noWorkout">
+                <h3>{{ nextWorkout.title }}</h3>
+                <p>{{ nextWorkout.date | date:'MMM d, h:mm a' }}</p>
+              </div>
+              <ng-template #noWorkout>
+                <div class="no-workout">
+                  <p>No upcoming workouts</p>
+                </div>
+              </ng-template>
+            </div>
+          </ion-card-content>
+        </ion-card>
+      </div>
+
+      <!-- Upcoming Sessions -->
+      <div class="upcoming-sessions" *ngIf="isWidgetEnabled('upcoming-session') && upcomingSessions && upcomingSessions.length > 0">
+        <h2>Upcoming Sessions</h2>
+        <ion-card class="session-card" *ngFor="let session of upcomingSessions" button="true" (click)="viewSessionDetails(session)">
+          <ion-card-content>
+            <div class="session-content">
+              <div class="session-icon">
+                <ion-icon name="person-outline"></ion-icon>
+              </div>
+              <div class="session-info">
+                <h3>{{ session.trainerName }}</h3>
+                <p class="session-date">{{ session.date | date:'EEE, MMM d · h:mm a' }}</p>
+                <p class="session-notes" *ngIf="session.notes">{{ session.notes }}</p>
+              </div>
+              <ion-icon name="chevron-forward" class="chevron"></ion-icon>
+            </div>
+          </ion-card-content>
+        </ion-card>
+      </div>
+    </ng-container>
+
+    <!-- TRAINER HOME PAGE -->
+    <ng-container *ngIf="accountType() === 'trainer'">
+      <!-- Monthly Revenue Card -->
+      <ion-card class="revenue-card">
+        <ion-card-content>
+          <div class="revenue-header">
+            <ion-button fill="clear" (click)="previousMonth()" [disabled]="currentMonthIndex === 0">
+              <ion-icon name="chevron-back"></ion-icon>
+            </ion-button>
+            <div class="month-info">
+              <h3>{{ currentMonthData?.month | date:'MMMM yyyy' }}</h3>
+              <p *ngIf="currentMonthData?.isCurrent" class="current-badge">Current Month</p>
+            </div>
+            <ion-button fill="clear" (click)="nextMonth()" [disabled]="currentMonthIndex === monthlyRevenue.length - 1">
+              <ion-icon name="chevron-forward"></ion-icon>
+            </ion-button>
+          </div>
+          <div class="revenue-amount">
+            <ion-icon name="cash-outline"></ion-icon>
+            <h2>${{ currentMonthData?.revenue || 0 | number }}</h2>
+          </div>
+          <p class="revenue-sessions">{{ currentMonthData?.sessions || 0 }} sessions completed</p>
+        </ion-card-content>
+      </ion-card>
+
+      <!-- Total Revenue Card -->
+      <ion-card class="total-revenue-card">
+        <ion-card-content>
+          <div class="total-revenue-content">
+            <div class="total-icon">
+              <ion-icon name="cash-outline"></ion-icon>
+            </div>
+            <div class="total-info">
+              <h3>Total Revenue</h3>
+              <h2>${{ totalRevenue | number }}</h2>
+            </div>
+          </div>
+        </ion-card-content>
+      </ion-card>
+
+      <!-- My Clients Section -->
+      <div class="clients-section">
+        <h2>My Clients</h2>
+        <ion-card class="client-card" *ngFor="let client of clients" button="true" (click)="viewClientDetails(client)">
+          <ion-card-content>
+            <div class="client-content">
+              <div class="client-avatar">
+                <ion-icon name="person-circle" *ngIf="!client.profileImage"></ion-icon>
+                <img [src]="client.profileImage" *ngIf="client.profileImage" alt="{{ client.name }}">
+              </div>
+              <div class="client-info">
+                <h3>{{ client.name }}</h3>
+                <p class="next-session">Next: {{ client.nextSession | date:'EEE, MMM d · h:mm a' }}</p>
+                <div class="client-stats">
+                  <span class="stat">{{ client.totalSessions }} sessions</span>
+                  <span class="stat-divider">·</span>
+                  <span class="stat">Last: {{ client.lastWorkout | date:'MMM d' }}</span>
+                </div>
+              </div>
+              <ion-icon name="chevron-forward" class="chevron"></ion-icon>
+            </div>
+          </ion-card-content>
+        </ion-card>
+      </div>
+    </ng-container>
 
   </div>
 </ion-content>

@@ -10,7 +10,9 @@ import { chevronForwardOutline, fitnessOutline } from 'ionicons/icons';
 import { addIcons } from 'ionicons';
 // import { TruncatePipe } from 'src/app/pipes/truncate.pipe';
 import { AccountService } from 'src/app/services/account/account.service';
-import { Observable, Subject, takeUntil, filter, of } from 'rxjs';
+import { ChatsService } from 'src/app/services/chats.service';
+import { UserService } from 'src/app/services/account/user.service';
+import { Observable, Subject, takeUntil, filter } from 'rxjs';
 import { Chat } from 'src/app/Interfaces/Chats';
 // import { MessageDateTimePipe } from 'src/app/pipes/message-date-time.pipe';
 
@@ -28,9 +30,12 @@ import { Chat } from 'src/app/Interfaces/Chats';
           <img [src]="bearProfile || 'assets/icon/favicon.png'" alt="Profile" />
         </ion-avatar>
         <ion-label>
-          <h2>Chat</h2>
+          <h2>{{ chat.userProfile?.()?.firstName || 'Loading...' }} {{ chat.userProfile?.()?.lastName || '' }}</h2>
           <ion-note>{{ chat.lastMessage || 'No messages yet' }}</ion-note>
         </ion-label>
+        <ion-note slot="end" *ngIf="chat.hasUnreadMessages" color="primary">
+          <strong>New</strong>
+        </ion-note>
       </ion-item>
     </ion-list>
 
@@ -58,10 +63,10 @@ export class ClientChatsPage implements OnInit, OnDestroy {
   
   private router = inject(Router);
   private accountService = inject(AccountService);
+  private chatsService = inject(ChatsService);
+  private userService = inject(UserService);
   
-  // Temporary: Use empty observable to avoid circular dependency
-  // TODO: Fix circular dependency with ChatsService
-  chats$: Observable<Chat[]> = of([]);
+  chats$: Observable<Chat[]> = this.chatsService.chats$;
 
 
 
@@ -73,15 +78,29 @@ export class ClientChatsPage implements OnInit, OnDestroy {
   }
 
   ngOnInit() {
-    // Temporarily disabled to avoid circular dependency
-    // const credentials = this.accountService.getCredentials()();
-    // if (credentials?.uid) {
-    //   this.initializeChats(credentials.uid);
-    // }
+    console.log('[ClientChatsPage] Initializing...');
+    const credentials = this.accountService.getCredentials()();
+    const userProfile = this.userService.getUserInfo()();
+    
+    console.log('[ClientChatsPage] Credentials:', credentials?.uid);
+    console.log('[ClientChatsPage] User profile:', userProfile?.accountType);
+    
+    if (credentials?.uid && userProfile?.accountType) {
+      // Reset chats service to allow re-initialization
+      this.chatsService.resetInitialization();
+      this.initializeChats(credentials.uid, userProfile.accountType as 'trainer' | 'client');
+    }
   }
 
-  private initializeChats(userId: string) {
-    // this.chatService.initializeUserChats(userId, 'client');
+  private initializeChats(userId: string, userType: 'trainer' | 'client') {
+    console.log('[ClientChatsPage] Calling initializeUserChats with:', userId, userType);
+    this.chatsService.initializeUserChats(userId, userType);
+    this.chats$ = this.chatsService.chats$;
+    
+    // Subscribe to see what's being emitted
+    this.chats$.pipe(takeUntil(this.destroy$)).subscribe(chats => {
+      console.log('[ClientChatsPage] Received chats:', chats.length, chats);
+    });
   }
 
   ngOnDestroy() {
@@ -95,9 +114,17 @@ export class ClientChatsPage implements OnInit, OnDestroy {
 
   loadChat(chatId: string, participants: string[]) {
     const currentUserId = this.accountService.getCredentials()().uid;
-    const client = participants.find(participant => participant !== currentUserId);
-    if (client) {
-      this.router.navigate(['/chat', chatId,client, "client"]);
+    const userProfile = this.userService.getUserInfo()();
+    const otherUserId = participants.find(participant => participant !== currentUserId);
+    
+    if (otherUserId && userProfile?.accountType) {
+      // Navigate to standalone chat detail page (outside tabs)
+      this.router.navigate(['/chat', chatId], {
+        state: { 
+          otherUserId,
+          userType: userProfile.accountType
+        }
+      });
     }
   }
 

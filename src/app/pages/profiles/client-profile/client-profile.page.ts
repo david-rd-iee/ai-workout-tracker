@@ -35,7 +35,10 @@ import {
   chevronUp,
   medal,
   createOutline,
-  fitness
+  fitness,
+  peopleOutline,
+  fitnessOutline,
+  timeOutline
 } from 'ionicons/icons';
 import {
   GreekStatue,
@@ -98,6 +101,17 @@ export class ClientProfilePage implements OnInit {
   allStatues: GreekStatue[] = [];
   displayStatues: GreekStatue[] = [];
   displayStatueIds: string[] = [];
+  
+  // Trainer-specific stats
+  accountType = computed(() => {
+    return this.userService.getUserInfo()()?.accountType || 'client';
+  });
+  trainerStats = {
+    longestStandingClient: 'John Smith (2 years)',
+    totalClients: 15,
+    clientWorkoutsCompleted: 487,
+    leaderboardPlace: 12
+  };
   showAllAchievements: boolean = false;
   initialAchievementsCount: number = 3; // Show first 3 fully, 4th faded
   currentSlideIndex: number = 0; // Track active slide for pagination
@@ -118,6 +132,18 @@ export class ClientProfilePage implements OnInit {
 
   toggleShowAllAchievements(): void {
     this.showAllAchievements = !this.showAllAchievements;
+  }
+
+  viewStatDetails(statType: string): void {
+    console.log('View details for:', statType);
+    // TODO: Navigate to detailed view or show modal with more information
+    // Example: this.router.navigate(['/trainer-stats', statType]);
+  }
+
+  openSettings(): void {
+    console.log('Open settings');
+    // TODO: Navigate to settings page or open settings modal
+    // Example: this.router.navigate(['/account']);
   }
 
   onSlideChange(event: any): void {
@@ -145,7 +171,10 @@ export class ClientProfilePage implements OnInit {
       chevronUp,
       medal,
       createOutline,
-      fitness
+      fitness,
+      peopleOutline,
+      fitnessOutline,
+      timeOutline
     });
 
     effect(() => {

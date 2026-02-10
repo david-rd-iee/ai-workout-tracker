@@ -1,0 +1,114 @@
+<ion-header>
+  <ion-toolbar color="primary">
+    <ion-title>Schedule Appointment</ion-title>
+    <ion-buttons slot="end">
+      <ion-button (click)="dismiss()">
+        <ion-icon name="close"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding">
+  <div class="modal-content">
+    <p class="client-name">Scheduling for: <strong>{{ clientName }}</strong></p>
+
+    <ion-card>
+      <ion-card-header>
+        <ion-card-title>Appointment Details</ion-card-title>
+      </ion-card-header>
+      <ion-card-content>
+        <!-- Date Selection -->
+        <ion-item>
+          <ion-label position="stacked">Date</ion-label>
+          <ion-datetime
+            [(ngModel)]="appointment.date"
+            presentation="date"
+            [min]="minDate"
+            class="date-picker"
+          ></ion-datetime>
+        </ion-item>
+
+        <!-- Time Selection -->
+        <ion-item>
+          <ion-label position="stacked">Start Time</ion-label>
+          <ion-select 
+            [(ngModel)]="appointment.time" 
+            placeholder="Select time"
+            interface="action-sheet"
+          >
+            <ion-select-option *ngFor="let slot of timeSlots" [value]="slot">
+              {{ formatTimeSlot(slot) }}
+            </ion-select-option>
+          </ion-select>
+        </ion-item>
+
+        <!-- Duration Selection -->
+        <ion-item>
+          <ion-label position="stacked">Duration</ion-label>
+          <ion-select 
+            [(ngModel)]="appointment.duration" 
+            placeholder="Select duration"
+            interface="popover"
+          >
+            <ion-select-option *ngFor="let dur of durations" [value]="dur.value">
+              {{ dur.label }}
+            </ion-select-option>
+          </ion-select>
+        </ion-item>
+
+        <!-- Session Type -->
+        <ion-item>
+          <ion-label position="stacked">Session Type</ion-label>
+          <ion-select 
+            [(ngModel)]="appointment.sessionType" 
+            placeholder="Select session type"
+            interface="action-sheet"
+          >
+            <ion-select-option *ngFor="let type of sessionTypes" [value]="type">
+              {{ type }}
+            </ion-select-option>
+          </ion-select>
+        </ion-item>
+
+        <!-- Notes -->
+        <ion-item>
+          <ion-label position="stacked">Notes (optional)</ion-label>
+          <ion-textarea 
+            [(ngModel)]="appointment.notes" 
+            placeholder="Add any special instructions or focus areas"
+            rows="3"
+          ></ion-textarea>
+        </ion-item>
+      </ion-card-content>
+    </ion-card>
+
+    <!-- Summary Card -->
+    <ion-card class="summary-card">
+      <ion-card-header>
+        <ion-card-title>Appointment Summary</ion-card-title>
+      </ion-card-header>
+      <ion-card-content>
+        <div class="summary-item">
+          <ion-icon name="calendar"></ion-icon>
+          <span>{{ appointment.date | date:'EEEE, MMMM d, yyyy' }}</span>
+        </div>
+        <div class="summary-item">
+          <ion-icon name="time"></ion-icon>
+          <span>{{ formatTimeSlot(appointment.time) }} ({{ appointment.duration }} min)</span>
+        </div>
+        <div class="summary-item">
+          <ion-icon name="fitness"></ion-icon>
+          <span>{{ appointment.sessionType }}</span>
+        </div>
+      </ion-card-content>
+    </ion-card>
+  </div>
+</ion-content>
+
+<div class="modal-footer">
+  <ion-button expand="block" (click)="scheduleAppointment()" color="primary" size="large">
+    <ion-icon name="calendar" slot="start"></ion-icon>
+    Confirm Appointment
+  </ion-button>
+</div>

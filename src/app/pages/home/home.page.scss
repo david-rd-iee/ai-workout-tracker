@@ -386,3 +386,201 @@ ion-content {
     }
   }
 }
+
+// Trainer Home - Clients Section
+.clients-section {
+  h2 {
+    font-size: 20px;
+    font-weight: 600;
+    margin: 0 0 16px 0;
+    color: var(--ion-color-dark);
+  }
+
+  .client-card {
+    margin-bottom: 12px;
+    
+    &:active {
+      transform: scale(0.99);
+    }
+
+    ion-card-content {
+      padding: 16px;
+    }
+
+    .client-content {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .client-avatar {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(var(--ion-color-primary-rgb), 0.1);
+
+      ion-icon {
+        font-size: 56px;
+        color: var(--ion-color-primary);
+      }
+
+      img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+    }
+
+    .client-info {
+      flex: 1;
+
+      h3 {
+        font-size: 18px;
+        font-weight: 600;
+        margin: 0 0 4px 0;
+        color: var(--ion-color-dark);
+      }
+
+      .next-session {
+        font-size: 14px;
+        color: var(--ion-color-primary);
+        margin: 0 0 6px 0;
+        font-weight: 500;
+      }
+
+      .client-stats {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 13px;
+        color: var(--ion-color-medium);
+
+        .stat-divider {
+          color: var(--ion-color-light-shade);
+        }
+      }
+    }
+
+    .chevron {
+      font-size: 24px;
+      color: var(--ion-color-medium);
+    }
+  }
+}
+
+// Trainer Revenue Cards
+.revenue-card {
+  margin-bottom: 16px;
+  background: linear-gradient(135deg, var(--ion-color-success), var(--ion-color-success-shade));
+  color: white;
+
+  ion-card-content {
+    padding: 20px;
+  }
+
+  .revenue-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+
+    ion-button {
+      --color: white;
+      --padding-start: 8px;
+      --padding-end: 8px;
+
+      &:disabled {
+        opacity: 0.3;
+      }
+    }
+
+    .month-info {
+      text-align: center;
+      flex: 1;
+
+      h3 {
+        font-size: 18px;
+        font-weight: 600;
+        margin: 0 0 4px 0;
+      }
+
+      .current-badge {
+        font-size: 12px;
+        margin: 0;
+        opacity: 0.8;
+      }
+    }
+  }
+
+  .revenue-amount {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin-bottom: 8px;
+
+    ion-icon {
+      font-size: 40px;
+    }
+
+    h2 {
+      font-size: 48px;
+      font-weight: 700;
+      margin: 0;
+    }
+  }
+
+  .revenue-sessions {
+    text-align: center;
+    font-size: 14px;
+    margin: 0;
+    opacity: 0.9;
+  }
+}
+
+.total-revenue-card {
+  margin-bottom: 20px;
+
+  .total-revenue-content {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .total-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: rgba(var(--ion-color-primary-rgb), 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    ion-icon {
+      font-size: 32px;
+      color: var(--ion-color-primary);
+    }
+  }
+
+  .total-info {
+    flex: 1;
+
+    h3 {
+      font-size: 14px;
+      font-weight: 600;
+      margin: 0 0 4px 0;
+      color: var(--ion-color-medium);
+    }
+
+    h2 {
+      font-size: 32px;
+      font-weight: 700;
+      margin: 0;
+      color: var(--ion-color-dark);
+    }
+  }
+}

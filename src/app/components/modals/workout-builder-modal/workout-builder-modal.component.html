@@ -1,0 +1,127 @@
+<ion-header>
+  <ion-toolbar color="primary">
+    <ion-title>Create Workout Plan</ion-title>
+    <ion-buttons slot="end">
+      <ion-button (click)="dismiss()">
+        <ion-icon name="close"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding">
+  <div class="modal-content">
+    <p class="client-name">Creating workout for: <strong>{{ clientName }}</strong></p>
+
+    <ion-card>
+      <ion-card-header>
+        <ion-card-title>Workout Details</ion-card-title>
+      </ion-card-header>
+      <ion-card-content>
+        <ion-item>
+          <ion-label position="stacked">Workout Name *</ion-label>
+          <ion-input 
+            [(ngModel)]="workout.name" 
+            placeholder="e.g., Upper Body Push Day"
+            type="text"
+          ></ion-input>
+        </ion-item>
+
+        <ion-item>
+          <ion-label position="stacked">Description</ion-label>
+          <ion-textarea 
+            [(ngModel)]="workout.description" 
+            placeholder="Add notes or instructions for this workout"
+            rows="3"
+          ></ion-textarea>
+        </ion-item>
+      </ion-card-content>
+    </ion-card>
+
+    <ion-card>
+      <ion-card-header>
+        <ion-card-title>Exercises</ion-card-title>
+      </ion-card-header>
+      <ion-card-content>
+        <div *ngFor="let exercise of workout.exercises; let i = index" class="exercise-item">
+          <div class="exercise-header">
+            <h4>Exercise {{ i + 1 }}</h4>
+            <ion-button 
+              fill="clear" 
+              color="danger" 
+              size="small" 
+              (click)="removeExercise(i)"
+              *ngIf="workout.exercises.length > 1"
+            >
+              <ion-icon name="remove" slot="icon-only"></ion-icon>
+            </ion-button>
+          </div>
+
+          <ion-item>
+            <ion-label position="stacked">Exercise Name *</ion-label>
+            <ion-select 
+              [(ngModel)]="exercise.name" 
+              placeholder="Select or type exercise"
+              interface="action-sheet"
+            >
+              <ion-select-option *ngFor="let ex of commonExercises" [value]="ex">
+                {{ ex }}
+              </ion-select-option>
+            </ion-select>
+          </ion-item>
+
+          <div class="exercise-grid">
+            <ion-item>
+              <ion-label position="stacked">Sets</ion-label>
+              <ion-input 
+                [(ngModel)]="exercise.sets" 
+                type="number" 
+                min="1"
+                placeholder="3"
+              ></ion-input>
+            </ion-item>
+
+            <ion-item>
+              <ion-label position="stacked">Reps</ion-label>
+              <ion-input 
+                [(ngModel)]="exercise.reps" 
+                type="text"
+                placeholder="8-12"
+              ></ion-input>
+            </ion-item>
+
+            <ion-item>
+              <ion-label position="stacked">Weight (optional)</ion-label>
+              <ion-input 
+                [(ngModel)]="exercise.weight" 
+                type="text"
+                placeholder="135 lbs"
+              ></ion-input>
+            </ion-item>
+          </div>
+
+          <ion-item>
+            <ion-label position="stacked">Notes (optional)</ion-label>
+            <ion-textarea 
+              [(ngModel)]="exercise.notes" 
+              placeholder="Form cues, tempo, rest time, etc."
+              rows="2"
+            ></ion-textarea>
+          </ion-item>
+        </div>
+
+        <ion-button expand="block" fill="outline" (click)="addExercise()" class="add-exercise-btn">
+          <ion-icon name="add" slot="start"></ion-icon>
+          Add Exercise
+        </ion-button>
+      </ion-card-content>
+    </ion-card>
+  </div>
+</ion-content>
+
+<div class="modal-footer">
+  <ion-button expand="block" (click)="saveWorkout()" color="primary" size="large">
+    <ion-icon name="save" slot="start"></ion-icon>
+    Save Workout Plan
+  </ion-button>
+</div>
