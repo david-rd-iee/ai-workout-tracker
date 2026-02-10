@@ -19,7 +19,10 @@ import {
   fitnessOutline,
   peopleOutline,
   personCircleOutline,
-  trophyOutline, constructOutline } from 'ionicons/icons';
+  trophyOutline,
+  constructOutline,
+} from 'ionicons/icons';
+
 import { Auth } from '@angular/fire/auth';
 import { Firestore, doc, docData } from '@angular/fire/firestore';
 import { Subscription } from 'rxjs';
@@ -33,18 +36,17 @@ import { DevSeedService } from '../../services/dev-seed.service';
   templateUrl: './home.page.html',
   styleUrls: ['./home.page.scss'],
   imports: [
-      CommonModule,
-      IonContent,
-      IonAvatar,
-      IonButton,
-      IonSpinner,
-      IonCard,
-      IonCardHeader,
-      IonCardTitle,
-      IonCardContent,
-      IonIcon,
-    ],
-
+    CommonModule,
+    IonContent,
+    IonAvatar,
+    IonButton,
+    IonSpinner,
+    IonCard,
+    IonCardHeader,
+    IonCardTitle,
+    IonCardContent,
+    IonIcon,
+  ],
 })
 export class HomePage implements OnInit, OnDestroy {
   private router = inject(Router, { optional: true });
@@ -54,76 +56,99 @@ export class HomePage implements OnInit, OnDestroy {
 
   private userSub?: Subscription;
 
+  // 👇 Your dev UID (Firestore doc ID)
+  private readonly DEV_UID = 'Zas8MzSObSfvv3SRMINzWMiQFg63';
+
   isLoadingUser = true;
   currentUser: AppUser | null = null;
 
   constructor() {
-    addIcons({constructOutline,personCircleOutline,trophyOutline,fitnessOutline,peopleOutline,chatbubblesOutline,});
+    addIcons({
+      constructOutline,
+      personCircleOutline,
+      trophyOutline,
+      fitnessOutline,
+      peopleOutline,
+      chatbubblesOutline,
+    });
   }
 
   async ngOnInit(): Promise<void> {
     // Keep the component test-friendly: if Firebase isn't wired up, just show a fallback.
-    if (!this.auth || !this.firestore || !this.devSeed) {
+    if (!this.firestore) {
       this.currentUser = {
-        userId: 'DEV_OFFLINE',
-        name: 'Dev Test User',
         email: 'dev-tester@example.com',
-        isPT: false,
-        ptUID: '',
-        groups: [],
+        firstName: 'Dev',
+        lastName: 'Tester',
+        groupID: [],
+        profilePic: '',
+        role: 'user',
+        username: 'devtester',
       };
       this.isLoadingUser = false;
       return;
     }
 
-    // Ensure a dummy dev user exists in Firebase Auth + Firestore, then load the current user.
+    // Run seeding (safe even if it no-ops) so your dev Firestore docs exist.
     try {
-      await this.devSeed.ensureDevUserAndSeed();
+      await this.devSeed?.ensureDevUserAndSeed();
     } catch (e) {
       console.warn('[HomePage] Dev seeding failed (continuing):', e);
     }
 
-    this.auth.onAuthStateChanged((fbUser) => {
-      if (!fbUser) {
-        this.currentUser = null;
-        this.isLoadingUser = false;
-        return;
-      }
-
-      const userRef = doc(this.firestore!, 'users', fbUser.uid);
-      this.userSub?.unsubscribe();
-      this.userSub = docData(userRef).subscribe({
-        next: (u) => {
-          this.currentUser = (u as AppUser) ?? null;
-          this.isLoadingUser = false;
-        },
-        error: (err) => {
-          console.error('[HomePage] Failed to load current user:', err);
-          this.currentUser = null;
-          this.isLoadingUser = false;
-        },
+    // If Auth exists, prefer the authed user; otherwise fall back to DEV_UID.
+    if (this.auth) {
+      this.auth.onAuthStateChanged((fbUser) => {
+        const uidToLoad = fbUser?.uid ?? this.DEV_UID;
+        this.subscribeToUser(uidToLoad);
       });
-    });
+    } else {
+      // No Auth wired up -> just load dev doc directly.
+      this.subscribeToUser(this.DEV_UID);
+    }
   }
 
   ngOnDestroy(): void {
     this.userSub?.unsubscribe();
   }
 
+  private subscribeToUser(uid: string): void {
+    const userRef = doc(this.firestore!, 'users', uid);
+
+    this.isLoadingUser = true;
+    this.userSub?.unsubscribe();
+
+    this.userSub = docData(userRef).subscribe({
+      next: (u) => {
+        // u does NOT include doc id (uid) — that's the Firestore document ID now.
+        this.currentUser = (u as AppUser) ?? null;
+        this.isLoadingUser = false;
+      },
+      error: (err) => {
+        console.error('[HomePage] Failed to load current user:', err);
+        this.currentUser = null;
+        this.isLoadingUser = false;
+      },
+    });
+  }
+
   get greetingName(): string {
-    return this.currentUser?.name || 'there';
+    // Prefer firstName, then username, then fallback
+    const first = (this.currentUser?.firstName || '').trim();
+    const user = (this.currentUser?.username || '').trim();
+    return first || user || 'there';
   }
 
   get avatarInitial(): string {
-    const name = (this.currentUser?.name || '').trim();
-    return name ? name[0].toUpperCase() : '?';
+    const first = (this.currentUser?.firstName || '').trim();
+    const user = (this.currentUser?.username || '').trim();
+    const source = first || user;
+    return source ? source[0].toUpperCase() : '?';
   }
 
   onProfileClick(): void {
     this.router?.navigate(['profile-user']);
   }
-
-
 
   navigateTo(path: string): void {
     this.router?.navigate([path]);

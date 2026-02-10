@@ -36,12 +36,15 @@ import type { AppUser } from '../../models/user.model';
   ],
 })
 export class ProfileUserPage implements OnInit, OnDestroy {
-  // Keep these optional so the page doesn't crash in tests/dev if Firebase isn't wired
+  // Keep optional for tests/dev safety
   router = inject(Router, { optional: true });
   private auth = inject(Auth, { optional: true });
   private firestore = inject(Firestore, { optional: true });
 
   private userSub?: Subscription;
+
+  // 👇 Dev fallback UID (Firestore document ID)
+  private readonly DEV_UID = 'Zas8MzSObSfvv3SRMINzWMiQFg63';
 
   // UI state
   isLoading = true;
@@ -49,107 +52,111 @@ export class ProfileUserPage implements OnInit, OnDestroy {
   // User data (from Firestore users/{uid})
   currentUser: AppUser | null = null;
 
-  // Temp fields used by the page UI
+  // Fields used by the HTML template
   profileImageUrl: string | null = null;
   username: string | null = null;
 
   ngOnInit(): void {
-    // Dev fallback: no Firebase -> show placeholder user
-    if (!this.auth || !this.firestore) {
+    // If Firestore isn't available, show placeholder and don't crash
+    if (!this.firestore) {
       this.currentUser = {
-        userId: 'DEV_OFFLINE',
-        name: 'First Last',
         email: 'dev-tester@example.com',
-        isPT: false,
-        ptUID: '',
-        groups: [],
+        firstName: 'Dev',
+        lastName: 'Tester',
+        groupID: [],
+        profilePic: '',
+        role: 'user',
+        username: 'devtester'
       };
-
-      this.username = 'username';
+      this.username = this.currentUser.username;
       this.profileImageUrl = null;
       this.isLoading = false;
       return;
     }
 
-    // Firebase path: load user doc
-    this.auth.onAuthStateChanged((fbUser) => {
-      if (!fbUser) {
-        this.currentUser = null;
-        this.username = null;
-        this.profileImageUrl = null;
-        this.isLoading = false;
-        return;
-      }
-
-      const userRef = doc(this.firestore!, 'users', fbUser.uid);
-      this.userSub?.unsubscribe();
-
-      this.userSub = docData(userRef).subscribe({
-        next: (u) => {
-          this.currentUser = (u as AppUser) ?? null;
-
-          // TEMP mapping (adjust once your schema is finalized)
-          // If your AppUser already has username/photoUrl, map them here.
-          // Otherwise these are placeholders.
-          this.username = (this.currentUser as any)?.username ?? this.username ?? 'username';
-          this.profileImageUrl = (this.currentUser as any)?.photoUrl ?? null;
-
-          this.isLoading = false;
-        },
-        error: (err) => {
-          console.error('[ProfileUserPage] Failed to load user:', err);
-          this.currentUser = null;
-          this.isLoading = false;
-        },
+    // Prefer auth uid if available; otherwise fall back to DEV_UID
+    if (this.auth) {
+      this.auth.onAuthStateChanged((fbUser) => {
+        const uidToLoad = fbUser?.uid ?? this.DEV_UID;
+        this.subscribeToUser(uidToLoad);
       });
-    });
+    } else {
+      this.subscribeToUser(this.DEV_UID);
+    }
   }
 
   ngOnDestroy(): void {
     this.userSub?.unsubscribe();
   }
 
-  // Display helpers
+  private subscribeToUser(uid: string): void {
+    const userRef = doc(this.firestore!, 'users', uid);
+
+    this.isLoading = true;
+    this.userSub?.unsubscribe();
+
+    this.userSub = docData(userRef).subscribe({
+      next: (u) => {
+        // Firestore doc does NOT include the docId; docId == uid now
+        this.currentUser = (u as AppUser) ?? null;
+
+        // Username
+        this.username = (this.currentUser as any)?.username ?? null;
+
+        // Profile image:
+        // You said the URL is stored under "profilepic" (lowercase).
+        // Also allow "profilePic" (camelCase) in case some docs use that.
+        const raw =
+          (this.currentUser as any)?.profilepic ??
+          (this.currentUser as any)?.profilePic ??
+          null;
+
+        this.profileImageUrl = typeof raw === 'string' && raw.trim().length > 0 ? raw.trim() : null;
+
+        this.isLoading = false;
+      },
+      error: (err) => {
+        console.error('[ProfileUserPage] Failed to load user:', err);
+        this.currentUser = null;
+        this.username = null;
+        this.profileImageUrl = null;
+        this.isLoading = false;
+      },
+    });
+  }
+
+  // Display helpers used in HTML
   get displayName(): string {
-    return this.currentUser?.name || 'First Last';
+    const first = (this.currentUser?.firstName || '').trim();
+    const last = (this.currentUser?.lastName || '').trim();
+
+    const full = `${first} ${last}`.trim();
+    return full || 'User';
   }
 
   // Top-right gear
   onSettingsClick(): void {
-    // TODO: route to a settings page when you create it
     console.log('Settings clicked');
-    // Example later:
     // this.router?.navigate(['settings']);
   }
 
-  // Stacked actions (wire these routes when the pages exist)
+  // Actions (wire routes when ready)
   goToGroups(): void {
     console.log('Groups clicked');
-    // this.router?.navigate(['groups']);
   }
-
   goToLogWorkout(): void {
     console.log('Log Workout clicked');
-    // this.router?.navigate(['log-workout']);
   }
-
   goToFindPT(): void {
     console.log('Find PT clicked');
-    // this.router?.navigate(['find-pt']);
   }
-
   goToStatues(): void {
     console.log('Statues clicked');
-    // this.router?.navigate(['statues']);
   }
-
   goToRegional(): void {
     console.log('Regional clicked');
-    // this.router?.navigate(['regional']);
   }
-
   goToAnalyzeWorkout(): void {
     console.log('Analyze Workout clicked');
-    // this.router?.navigate(['analyze-workout']);
   }
 }

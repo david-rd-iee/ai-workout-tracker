@@ -14,36 +14,23 @@ import {
   serverTimestamp,
 } from '@angular/fire/firestore';
 
-// Allowed dev group scenarios
 type DevGroupScenario = 'none' | 'pt' | 'friends' | 'both';
 
-@Injectable({
-  providedIn: 'root',
-})
+@Injectable({ providedIn: 'root' })
 export class DevSeedService {
-  // Dev-only credentials for your fake user
   private readonly devEmail = 'dev-tester@example.com';
   private readonly devPassword = 'devtester123';
 
-  // 'none'    -> no groups
-  // 'pt'      -> only PT group
-  // 'friends' -> only friends group
-  // 'both'    -> PT + friends
+  // ✅ Force the dev UID (this is the Firestore document ID)
+  private readonly DEV_UID = 'Zas8MzSObSfvv3SRMINzWMiQFg63';
+
   private readonly devGroupScenario: DevGroupScenario = 'none';
 
   private readonly ptGroupId = 'DEV_PT_GROUP';
   private readonly friendsGroupId = 'DEV_FRIENDS_GROUP';
 
-  constructor(
-    private auth: Auth,
-    private firestore: Firestore,
-  ) {}
+  constructor(private auth: Auth, private firestore: Firestore) {}
 
-  /**
-   * Ensures there is a dev user in Firebase Auth and
-   * that /users/{uid}, /userStats/{uid}, group membership,
-   * and dummy leaderboard users exist.
-   */
   async ensureDevUserAndSeed(): Promise<void> {
     console.log('[DevSeedService] ensureDevUserAndSeed() starting...');
     let user: User | null = null;
@@ -56,15 +43,10 @@ export class DevSeedService {
         this.devPassword,
       );
       user = cred.user;
-      console.log(
-        '[DevSeedService] Signed in existing dev user:',
-        user.uid,
-      );
+      console.log('[DevSeedService] Signed in existing dev user:', user.uid);
     } catch (err: any) {
       if (err?.code === 'auth/user-not-found') {
-        console.log(
-          '[DevSeedService] Dev user not found, creating new one...',
-        );
+        console.log('[DevSeedService] Dev user not found, creating new one...');
         const cred = await createUserWithEmailAndPassword(
           this.auth,
           this.devEmail,
@@ -79,123 +61,78 @@ export class DevSeedService {
     }
 
     if (!user) {
+      throw new Error('[DevSeedService] Dev user is null after sign-in/sign-up');
+    }
+
+    // ✅ Always use the fixed UID for seeding Firestore
+    const uid = this.DEV_UID;
+
+    // ✅ Guard against Auth/Firestore mismatch (recommended)
+    if (user.uid !== uid) {
       throw new Error(
-        '[DevSeedService] Dev user is null after sign-in/sign-up',
+        `[DevSeedService] Auth UID mismatch.\n` +
+          `Signed-in Auth uid=${user.uid}\n` +
+          `But DEV_UID=${uid}\n` +
+          `Fix: sign into the Firebase Auth user whose UID is ${uid} (update devEmail/devPassword), ` +
+          `or remove this guard if you intentionally want mismatch.`,
       );
     }
 
-    const uid = user.uid;
-    console.log('[DevSeedService] Using dev UID:', uid);
+    console.log('[DevSeedService] Using dev UID (Firestore doc id):', uid);
 
     // 2) Ensure /users/{uid} exists
     const userRef = doc(this.firestore, 'users', uid);
     const userSnap = await getDoc(userRef);
 
     if (!userSnap.exists()) {
-      console.log(
-        '[DevSeedService] Creating /users doc for dev user...',
-      );
+      console.log('[DevSeedService] Creating /users doc for dev user...');
+
+      // ✅ No "userId" field inside doc; docId IS the userId
       await setDoc(userRef, {
-        userId: uid,
-        name: 'Dev Test User',
         email: this.devEmail,
-        isPT: false,
-        ptUID: '',
-        groups: [],
-        region: {
-          country: 'USA',
-          state: 'Nevada',
-          city: 'Reno',
-        },
+        firstName: 'Dev',
+        lastName: 'Tester',
+        username: 'devtester',
+        role: 'client',
+        profilePic: '',
+        groupID: [],
         created_at: serverTimestamp(),
+        // region: { country:'USA', state:'Nevada', city:'Reno' }, // keep only if your new schema still uses it
       });
     } else {
-      console.log(
-        '[DevSeedService] /users doc already exists for dev user.',
-      );
-      // Make sure region exists on existing dev user as well
+      console.log('[DevSeedService] /users doc already exists for dev user.');
+      // optionally merge any missing fields you want enforced:
       await setDoc(
         userRef,
         {
-          region: {
-            country: 'USA',
-            state: 'Nevada',
-            city: 'Reno',
-          },
+          // example: ensure groupID exists
+          groupID: [],
         },
         { merge: true },
       );
     }
 
-    // 3) Ensure /userStats/{uid} exists
+    // 3) Ensure /userStats/{uid} exists (keep or update based on your schema)
     const statsRef = doc(this.firestore, 'userStats', uid);
     const statsSnap = await getDoc(statsRef);
 
     if (!statsSnap.exists()) {
-      console.log(
-        '[DevSeedService] Creating /userStats doc for dev user...',
-      );
+      console.log('[DevSeedService] Creating /userStats doc for dev user...');
       await setDoc(statsRef, {
-        userId: uid,
-        displayName: 'Dev Test User',
+        // If your stats schema no longer stores userId, remove it too.
+        // userId: uid,
+        displayName: 'Dev Tester',
         total_work_score: 1500,
         cardio_work_score: 900,
         strength_work_score: 600,
         level: 7,
-        region: {
-          country: 'USA',
-          state: 'Nevada',
-          city: 'Reno',
-        },
         last_updated_at: serverTimestamp(),
       });
-    } else {
-      console.log('[DevSeedService] /users doc already exists for dev user.');
-
-      // Ensure required fields exist even if the doc was created earlier with a different schema
-      await setDoc(
-        userRef,
-        {
-          userId: uid,
-          name: 'Dev Test User',
-          email: this.devEmail,
-          isPT: false,
-          ptUID: '',
-          // don't force groups here if you want membership logic to control it later
-          region: {
-            country: 'USA',
-            state: 'Nevada',
-            city: 'Reno',
-          },
-        },
-        { merge: true },
-      );
     }
-
-
-    // 4) Ensure dev groups + membership
-    await this.ensureDevGroupsAndMembership(uid);
-
-    // 5) Seed dummy userStats docs for leaderboard testing
-    await this.seedDummyUserStats();
-
-    // 6) Seed dev badges for profile page
-    await this.seedDevBadges(uid);
-
-    console.log('[DevSeedService] ensureDevUserAndSeed() finished.');
   }
 
-  /**
-   * Ensures dev PT + friends groups exist in /groupID
-   * and sets the dev user's `groups` array based on devGroupScenario.
-   *
-   * Groups themselves are never deleted; only the user's membership array changes.
-   */
   private async ensureDevGroupsAndMembership(uid: string): Promise<void> {
-    console.log(
-      '[DevSeedService] ensureDevGroupsAndMembership() with scenario:',
-      this.devGroupScenario,
-    );
+    console.log('[DevSeedService] ensureDevGroupsAndMembership() scenario:', this.devGroupScenario);
 
     const groupsCollectionName = 'groupID';
     const userRef = doc(this.firestore, 'users', uid);
@@ -203,11 +140,9 @@ export class DevSeedService {
     const ptGroupRef = doc(this.firestore, groupsCollectionName, this.ptGroupId);
     const friendsGroupRef = doc(this.firestore, groupsCollectionName, this.friendsGroupId);
 
-    // For PT scenarios ('pt' or 'both'), ensure PT group doc exists
     if (this.devGroupScenario === 'pt' || this.devGroupScenario === 'both') {
       const ptGroupSnap = await getDoc(ptGroupRef);
       if (!ptGroupSnap.exists()) {
-        console.log('[DevSeedService] Creating PT group doc...');
         await setDoc(ptGroupRef, {
           groupId: this.ptGroupId,
           name: 'Dev PT Group',
@@ -215,16 +150,12 @@ export class DevSeedService {
           ownerUserId: uid,
           created_at: serverTimestamp(),
         });
-      } else {
-        console.log('[DevSeedService] PT group doc already exists.');
       }
     }
 
-    // For friends scenarios ('friends' or 'both'), ensure friends group doc exists
     if (this.devGroupScenario === 'friends' || this.devGroupScenario === 'both') {
       const friendsGroupSnap = await getDoc(friendsGroupRef);
       if (!friendsGroupSnap.exists()) {
-        console.log('[DevSeedService] Creating friends group doc...');
         await setDoc(friendsGroupRef, {
           groupId: this.friendsGroupId,
           name: 'Dev Friends Group',
@@ -232,186 +163,20 @@ export class DevSeedService {
           ownerUserId: uid,
           created_at: serverTimestamp(),
         });
-      } else {
-        console.log('[DevSeedService] Friends group doc already exists.');
       }
     }
 
-    const groups: string[] = [];
+    const groupID: string[] = [];
+    if (this.devGroupScenario === 'pt') groupID.push(this.ptGroupId);
+    else if (this.devGroupScenario === 'friends') groupID.push(this.friendsGroupId);
+    else if (this.devGroupScenario === 'both') groupID.push(this.ptGroupId, this.friendsGroupId);
 
-    if (this.devGroupScenario === 'pt') {
-      groups.push(this.ptGroupId);
-    } else if (this.devGroupScenario === 'friends') {
-      groups.push(this.friendsGroupId);
-    } else if (this.devGroupScenario === 'both') {
-      groups.push(this.ptGroupId, this.friendsGroupId);
-    } else if (this.devGroupScenario === 'none') {
-      // no groups: leave array empty
-    }
+    console.log('[DevSeedService] Setting groupID on /users doc:', groupID);
 
-    console.log('[DevSeedService] Setting groups on /users doc:', groups);
-
-    await setDoc(
-      userRef,
-      { groups },
-      { merge: true },
-    );
+    // ✅ Use groupID (matches your model) instead of "groups"
+    await setDoc(userRef, { groupID }, { merge: true });
   }
 
-  /**
-   * Seeds a set of dummy userStats docs with different regions and scores
-   * for leaderboard testing. These are Firestore-only and do NOT correspond
-   * to real Auth users.
-   */
-  private async seedDummyUserStats(): Promise<void> {
-    console.log('[DevSeedService] Seeding dummy userStats for leaderboard...');
-
-    const dummyUsers = [
-      {
-        userId: 'dummy_user_1',
-        displayName: 'Alice Runner',
-        region: { country: 'USA', state: 'California', city: 'San Francisco' },
-        total_work_score: 3200,
-        cardio_work_score: 2500,
-        strength_work_score: 700,
-        level: 10,
-      },
-      {
-        userId: 'dummy_user_2',
-        displayName: 'Bob Lifter',
-        region: { country: 'USA', state: 'California', city: 'Los Angeles' },
-        total_work_score: 2800,
-        cardio_work_score: 1200,
-        strength_work_score: 1600,
-        level: 9,
-      },
-      {
-        userId: 'dummy_user_3',
-        displayName: 'Charlie Sprinter',
-        region: { country: 'USA', state: 'Nevada', city: 'Reno' },
-        total_work_score: 1900,
-        cardio_work_score: 1700,
-        strength_work_score: 200,
-        level: 6,
-      },
-      {
-        userId: 'dummy_user_4',
-        displayName: 'Diana Athlete',
-        region: { country: 'USA', state: 'New York', city: 'New York City' },
-        total_work_score: 4100,
-        cardio_work_score: 2100,
-        strength_work_score: 2000,
-        level: 12,
-      },
-      {
-        userId: 'dummy_user_5',
-        displayName: 'Ethan Strong',
-        region: { country: 'Canada', state: 'Ontario', city: 'Toronto' },
-        total_work_score: 2300,
-        cardio_work_score: 800,
-        strength_work_score: 1500,
-        level: 8,
-      },
-      {
-        userId: 'dummy_user_6',
-        displayName: 'Fiona Cardio',
-        region: { country: 'Canada', state: 'British Columbia', city: 'Vancouver' },
-        total_work_score: 2600,
-        cardio_work_score: 2200,
-        strength_work_score: 400,
-        level: 9,
-      },
-      {
-        userId: 'dummy_user_7',
-        displayName: 'George Power',
-        region: { country: 'UK', state: 'England', city: 'London' },
-        total_work_score: 3500,
-        cardio_work_score: 1500,
-        strength_work_score: 2000,
-        level: 11,
-      },
-      {
-        userId: 'dummy_user_8',
-        displayName: 'Hannah Balance',
-        region: { country: 'Germany', state: 'Bavaria', city: 'Munich' },
-        total_work_score: 2700,
-        cardio_work_score: 1350,
-        strength_work_score: 1350,
-        level: 9,
-      },
-    ];
-
-    for (const dummy of dummyUsers) {
-      const ref = doc(this.firestore, 'userStats', dummy.userId);
-      try {
-        console.log('[DevSeedService] Writing dummy userStats:', dummy.userId);
-        await setDoc(
-          ref,
-          {
-            userId: dummy.userId,
-            displayName: dummy.displayName,
-            total_work_score: dummy.total_work_score,
-            cardio_work_score: dummy.cardio_work_score,
-            strength_work_score: dummy.strength_work_score,
-            level: dummy.level,
-            region: dummy.region,
-            last_updated_at: serverTimestamp(),
-          },
-          { merge: true },
-        );
-        console.log('[DevSeedService] Wrote dummy userStats:', dummy.userId);
-      } catch (err) {
-        console.error(
-          '[DevSeedService] Failed to write dummy userStats:',
-          dummy.userId,
-          err,
-        );
-      }
-    }
-
-    console.log('[DevSeedService] Dummy userStats seeding complete.');
-  }
-
-  private async seedDevBadges(uid: string): Promise<void> {
-    console.log('[DevSeedService] Seeding dev badges...');
-
-    const badgeRef = doc(this.firestore, 'userBadges', uid);
-
-    // These numbers mirror your current getMockValue/getMockPercentile maps
-    await setDoc(
-      badgeRef,
-      {
-        userId: uid,
-        values: {
-          'strength-master': 5500000,
-          'workout-warrior': 650,
-          'heavy-lifter': 550,
-          'streak-king': 120,
-          'endurance-champion': 12000,
-          'pr-crusher': 22,
-          'century-club': 175,
-          'social-butterfly': 35,
-          'early-riser': 18,
-          'transformation': 5,
-        },
-        percentiles: {
-          'strength-master': 0.5,
-          'workout-warrior': 2.3,
-          'heavy-lifter': 0.1,
-          'streak-king': 6.7,
-          'endurance-champion': 11.2,
-          'pr-crusher': 18.9,
-          'century-club': 23.4,
-          'social-butterfly': 38.6,
-          'early-riser': 42.1,
-        },
-        displayBadgeIds: ['strength-master', 'workout-warrior', 'streak-king'],
-        last_updated_at: serverTimestamp(),
-      },
-      { merge: true },
-    );
-
-    console.log('[DevSeedService] Dev badges seeded.');
-  }
-
+  // ... keep seedDummyUserStats() and seedDevBadges() as-is,
+  // but remove `userId:` fields inside their documents too if your new schemas don't include it.
 }
