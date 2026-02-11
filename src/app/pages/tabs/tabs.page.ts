@@ -13,10 +13,8 @@ import { RouterLink, RouterLinkActive } from '@angular/router';
 import { addIcons } from 'ionicons';
 import {
   homeOutline,
-  peopleOutline,
-  podiumOutline,
+  calendarOutline,
   chatbubbleEllipsesSharp,
-  personOutline,
 } from 'ionicons/icons';
 
 @Component({
@@ -39,10 +37,8 @@ export class TabsPage {
   constructor() {
     addIcons({
       homeOutline,
-      peopleOutline,
-      podiumOutline,
+      calendarOutline,
       chatbubbleEllipsesSharp,
-      personOutline,
     });
   }
 }

@@ -1,0 +1,104 @@
+<div class="greek-statue" [class]="'size-' + size" [class.uncarved]="isUncarved">
+  <div class="statue-container">
+    <!-- Statue Icon with Gradient Background -->
+    <div class="statue-icon" [style.background]="statueGradient">
+      <!-- Custom Icon Image -->
+      <img 
+        *ngIf="statue.customIcon"
+        [src]="statue.customIcon" 
+        [alt]="statue.godName"
+        [class.uncarved-icon]="isUncarved"
+        class="custom-icon-img"
+      />
+      <!-- Ionicon -->
+      <ion-icon 
+        *ngIf="!statue.customIcon"
+        [name]="statue.icon" 
+        [class.uncarved-icon]="isUncarved"
+      ></ion-icon>
+      
+      <!-- Uncarved Overlay -->
+      <div class="uncarved-overlay" *ngIf="isUncarved">
+        <ion-icon name="lock-closed"></ion-icon>
+      </div>
+    </div>
+
+    <!-- Statue Info -->
+    <div class="statue-info">
+      <div class="statue-header">
+        <h3 class="god-name">{{ statue.godName }}</h3>
+        <p class="god-title">{{ statue.title }}</p>
+        <span class="carving-stage-label" *ngIf="currentTierConfig">
+          {{ currentTierConfig.displayName }}
+        </span>
+      </div>
+      
+      <!-- Current Stats -->
+      <div class="statue-stats" *ngIf="!isUncarved && statue.currentValue !== undefined">
+        <div class="current-value">
+          <strong>{{ formatValue(statue.currentValue) }}</strong> {{ statue.unit }}
+        </div>
+        
+        <!-- Carving Progress Percentage -->
+        <div class="carving-percentage" *ngIf="progress">
+          <ion-badge color="primary">
+            <ion-icon name="hammer-outline"></ion-icon>
+            {{ progress.carvingPercentage.toFixed(0) }}% Carved
+          </ion-badge>
+        </div>
+
+        <!-- Percentile Ranking -->
+        <div class="percentile" *ngIf="percentileText">
+          <ion-badge color="success">
+            <ion-icon name="trophy"></ion-icon>
+            {{ percentileText }}
+          </ion-badge>
+        </div>
+      </div>
+
+      <!-- Progress to Next Stage -->
+      <div class="progress-section" *ngIf="showProgress && progress">
+        <div class="progress-header">
+          <span class="progress-text">
+            {{ progress.nextLevel ? 'Next Stage: ' + tierConfig[progress.nextLevel].displayName : 'Divine Masterpiece!' }}
+          </span>
+          <span class="progress-value" *ngIf="progress.nextLevel && progress.currentLevel">
+            {{ formatValue((statue.currentValue || 0) - statue.tiers[progress.currentLevel!]) }} / {{ formatValue((progress.nextTierValue || 0) - statue.tiers[progress.currentLevel!]) }}
+          </span>
+          <span class="progress-value" *ngIf="progress.nextLevel && !progress.currentLevel">
+            {{ formatValue(statue.currentValue || 0) }} / {{ formatValue(progress.nextTierValue || 0) }}
+          </span>
+          <span class="progress-value" *ngIf="!progress.nextLevel">
+            {{ formatValue(statue.currentValue || 0) }} {{ statue.unit }}
+          </span>
+        </div>
+        <ion-progress-bar 
+          *ngIf="progress.nextLevel && progress.currentLevel"
+          [value]="progress.progressPercentage / 100"
+          [style.--progress-background]="tierConfig[progress.currentLevel].color"
+        ></ion-progress-bar>
+        <ion-progress-bar 
+          *ngIf="progress.nextLevel && !progress.currentLevel"
+          [value]="progress.progressPercentage / 100"
+          [style.--progress-background]="tierConfig['rough'].color"
+        ></ion-progress-bar>
+        <ion-progress-bar 
+          *ngIf="!progress.nextLevel && progress.currentLevel"
+          [value]="1"
+          [style.--progress-background]="tierConfig[progress.currentLevel].color"
+        ></ion-progress-bar>
+      </div>
+
+      <!-- Carving Stage Description -->
+      <div class="carving-stage" *ngIf="!isUncarved">
+        <p class="stage-description">
+          <ion-icon name="information-circle-outline"></ion-icon>
+          {{ carvingStageDescription }}
+        </p>
+      </div>
+
+      <p class="mythology-text">{{ statue.mythology }}</p>
+      <p class="statue-description">{{ statue.description }}</p>
+    </div>
+  </div>
+</div>

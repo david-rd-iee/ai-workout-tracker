@@ -1,0 +1,128 @@
+<app-header [title]="'Workout Details'" [showBack]="true"></app-header>
+
+<ion-content [fullscreen]="true">
+  <div class="background-gradient"></div>
+  
+  <div class="workout-details-container" *ngIf="workout">
+    <!-- Workout Header Card -->
+    <ion-card class="header-card">
+      <ion-card-content>
+        <div class="workout-header">
+          <div class="icon-container">
+            <ion-icon name="fitness"></ion-icon>
+          </div>
+          <div class="header-info">
+            <h1>{{ workout.title }}</h1>
+            <p class="workout-type" *ngIf="workout.type">{{ workout.type }}</p>
+          </div>
+        </div>
+      </ion-card-content>
+    </ion-card>
+
+    <!-- Workout Info -->
+    <ion-card class="info-card">
+      <ion-card-content>
+        <div class="info-grid">
+          <div class="info-item">
+            <ion-icon name="calendar"></ion-icon>
+            <div>
+              <p class="info-label">Date</p>
+              <p class="info-value">{{ workout.date | date:'EEE, MMM d, yyyy' }}</p>
+            </div>
+          </div>
+          <div class="info-item">
+            <ion-icon name="time"></ion-icon>
+            <div>
+              <p class="info-label">Time</p>
+              <p class="info-value">{{ workout.date | date:'h:mm a' }}</p>
+            </div>
+          </div>
+          <div class="info-item" *ngIf="workout.duration">
+            <ion-icon name="fitness"></ion-icon>
+            <div>
+              <p class="info-label">Duration</p>
+              <p class="info-value">{{ workout.duration }} min</p>
+            </div>
+          </div>
+        </div>
+      </ion-card-content>
+    </ion-card>
+
+    <!-- Exercises Widget (Collapsible) -->
+    <ion-card class="exercises-widget" button="true" (click)="toggleExercises()" *ngIf="workout.exercises && workout.exercises.length > 0">
+      <ion-card-content>
+        <div class="widget-header">
+          <div class="icon-container">
+            <ion-icon name="barbell"></ion-icon>
+          </div>
+          <div class="widget-info">
+            <h3>Exercises</h3>
+            <p>{{ workout.exercises.length }} exercises</p>
+          </div>
+          <ion-icon [name]="exercisesExpanded ? 'chevron-up' : 'chevron-down'" class="toggle-icon"></ion-icon>
+        </div>
+        
+        <div class="exercises-content" [class.expanded]="exercisesExpanded">
+          <div class="exercises-list">
+            <div class="exercise-item" *ngFor="let exercise of workout.exercises">
+              <div class="exercise-icon">
+                <ion-icon name="barbell" color="primary"></ion-icon>
+              </div>
+              <div class="exercise-details">
+                <h4>{{ exercise.name }}</h4>
+                <div class="exercise-stats">
+                  <span *ngIf="exercise.sets && exercise.reps">
+                    {{ exercise.sets }} sets × {{ exercise.reps }} reps
+                  </span>
+                  <span *ngIf="exercise.weight" class="weight">
+                    {{ exercise.weight }} {{ exercise.weightUnit || 'lbs' }}
+                  </span>
+                  <span *ngIf="exercise.duration">
+                    {{ exercise.duration }} min
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </ion-card-content>
+    </ion-card>
+
+    <!-- Previous Workouts -->
+    <ion-card class="previous-workouts-card" button="true" (click)="viewPreviousWorkouts()">
+      <ion-card-content>
+        <div class="card-content">
+          <div class="icon-container">
+            <ion-icon name="fitness"></ion-icon>
+          </div>
+          <div class="card-text">
+            <h3>Previous Workouts & Logs</h3>
+            <p>View your workout history</p>
+          </div>
+          <ion-icon name="chevron-forward" class="chevron"></ion-icon>
+        </div>
+      </ion-card-content>
+    </ion-card>
+
+    <!-- Notes -->
+    <ion-card class="notes-card" *ngIf="workout.notes">
+      <ion-card-header>
+        <ion-card-title>Notes</ion-card-title>
+      </ion-card-header>
+      <ion-card-content>
+        <p class="notes-text">{{ workout.notes }}</p>
+      </ion-card-content>
+    </ion-card>
+
+    <!-- Action Buttons -->
+    <div class="action-container">
+      <ion-button expand="block" size="large" (click)="startWorkout()">
+        Start This Workout
+      </ion-button>
+      <ion-button expand="block" size="large" fill="outline" (click)="logCustomWorkout()">
+        <ion-icon slot="start" name="add"></ion-icon>
+        Log Custom Workout
+      </ion-button>
+    </div>
+  </div>
+</ion-content>

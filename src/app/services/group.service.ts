@@ -82,7 +82,7 @@ export class GroupService {
   getUserGroups(uid: string): Observable<{ user: AppUser | undefined; groups: Group[] }> {
     return this.getUser(uid).pipe(
       switchMap((user) => {
-        const ids = user?.groups ?? [];
+        const ids = user?.groupID ?? [];
         return this.getGroupsByIds(ids).pipe(
           map((groups) => ({ user, groups }))
         );

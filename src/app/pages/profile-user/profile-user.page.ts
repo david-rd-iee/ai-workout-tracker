@@ -60,6 +60,7 @@ export class ProfileUserPage implements OnInit, OnDestroy {
     // If Firestore isn't available, show placeholder and don't crash
     if (!this.firestore) {
       this.currentUser = {
+        userId: this.DEV_UID,
         email: 'dev-tester@example.com',
         firstName: 'Dev',
         lastName: 'Tester',

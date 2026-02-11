@@ -7,8 +7,7 @@ import { IonHeader, IonToolbar, IonTitle, IonButtons, IonButton, IonIcon, IonCon
          IonRow, IonCol, IonSpinner, IonAvatar, IonDatetime, IonDatetimeButton, 
          IonModal, IonSelect, IonSelectOption } from '@ionic/angular/standalone';
 import { SessionData } from '../list-sessions/list-sessions.component';
-// import { SessionBookingService } from '../../../services/session-booking.service';
-type SessionBookingService = any;
+import { SessionBookingService } from '../../../services/session-booking.service';
 import { ChatsService } from '../../../services/chats.service';
 import { AccountService } from '../../../services/account/account.service';
 import { UserService } from '../../../services/account/user.service';

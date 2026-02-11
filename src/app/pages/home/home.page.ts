@@ -78,6 +78,7 @@ export class HomePage implements OnInit, OnDestroy {
     console.log("Firestore instance:", this.firestore);
     if (!this.firestore) {
       this.currentUser = {
+        userId: this.DEV_UID,
         email: 'dev-tester@example.com',
         firstName: 'Dev',
         lastName: 'Tester',

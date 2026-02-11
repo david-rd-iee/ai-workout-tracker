@@ -4,7 +4,7 @@ import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } 
 import { IonContent, IonInput, IonButton, IonIcon, IonSpinner, IonTextarea } from '@ionic/angular/standalone';
 import { Router } from '@angular/router';
 import { UserService } from 'src/app/services/account/user.service';
-import { trainerProfile } from 'src/app/Interfaces/Profiles/trainer';
+import { trainerProfile } from 'src/app/Interfaces/Profiles/Trainer';
 import { ROUTE_PATHS } from 'src/app/app.routes';
 import { PhoneInputComponent } from 'src/app/components/phone-input/phone-input.component';
 // import { AutocorrectDirective } from 'src/app/directives/autocorrect.directive';
