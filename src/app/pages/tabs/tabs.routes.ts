@@ -44,19 +44,9 @@ export const routes: Routes = [
         ],
       },
       {
-        path: 'groups',
-        loadComponent: () =>
-          import('../groups/groups.page').then(m => m.GroupsPage),
-      },
-      {
         path: 'leaderboard',
         loadComponent: () =>
           import('../leaderboard/leaderboard.component').then(m => m.LeaderboardComponent),
-      },
-      {
-        path: 'profile',
-        loadComponent: () =>
-          import('../profiles/client-profile/client-profile.page').then(m => m.ClientProfilePage),
       },
 
       // default inside /tabs → /tabs/home

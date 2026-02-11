@@ -1,5 +1,5 @@
 export interface AppUser {
-  userId: string;
+  /*userId: string;
   name: string;
   email: string;
   isPT: boolean;
@@ -8,4 +8,14 @@ export interface AppUser {
   height_cm?: number;
   weight_kg?: number;
   created_at?: any; // Firestore timestamp
+  */
+  userId: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  groupID: string[];
+  profilePic: string;
+  role: string;
+  username: string;
+
 }

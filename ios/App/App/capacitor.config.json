@@ -1,0 +1,14 @@
+{
+	"appId": "io.ionic.starter",
+	"appName": "ai-health-assistant",
+	"webDir": "www",
+	"packageClassList": [
+		"HttpPlugin",
+		"AppPlugin",
+		"CAPCameraPlugin",
+		"FilesystemPlugin",
+		"HapticsPlugin",
+		"KeyboardPlugin",
+		"StatusBarPlugin"
+	]
+}
