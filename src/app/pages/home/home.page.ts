@@ -75,6 +75,7 @@ export class HomePage implements OnInit, OnDestroy {
 
   async ngOnInit(): Promise<void> {
     // Keep the component test-friendly: if Firebase isn't wired up, just show a fallback.
+    console.log("Firestore instance:", this.firestore);
     if (!this.firestore) {
       this.currentUser = {
         email: 'dev-tester@example.com',
@@ -101,10 +102,12 @@ export class HomePage implements OnInit, OnDestroy {
       this.auth.onAuthStateChanged((fbUser) => {
         const uidToLoad = fbUser?.uid ?? this.DEV_UID;
         this.subscribeToUser(uidToLoad);
+        console.log("Auth user:", fbUser);
       });
     } else {
       // No Auth wired up -> just load dev doc directly.
       this.subscribeToUser(this.DEV_UID);
+        console.log("Auth user:", this.DEV_UID);
     }
   }
 

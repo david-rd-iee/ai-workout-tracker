@@ -20,8 +20,7 @@ type DevGroupScenario = 'none' | 'pt' | 'friends' | 'both';
 export class DevSeedService {
   private readonly devEmail = 'dev-tester@example.com';
   private readonly devPassword = 'devtester123';
-
-  // ✅ Force the dev UID (this is the Firestore document ID)
+  
   private readonly DEV_UID = 'Zas8MzSObSfvv3SRMINzWMiQFg63';
 
   private readonly devGroupScenario: DevGroupScenario = 'none';
