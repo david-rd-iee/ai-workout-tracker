@@ -1,20 +1,18 @@
 export interface AppUser {
-  /*userId: string;
-  name: string;
-  email: string;
-  isPT: boolean;
-  ptUID: string;
-  groups: string[];
-  height_cm?: number;
-  weight_kg?: number;
-  created_at?: any; // Firestore timestamp
-  */
-  userId: string;
-  email: string;
-  firstName: string;
-  lastName: string;
-  groupID: string[];
-  profilePic: string;
-  role: string;
-  username: string;
+  // Attached from Firestore docId via `docData(..., { idField: 'userId' })`
+  userId?: string;
+
+  email?: string;
+
+  firstName?: string;
+  lastName?: string;
+  username?: string;
+
+  role?: string; // "client", "trainer", etc.
+  groupID?: string[];
+
+  // URL stored in Firestore under "profilepic"
+  profilepic?: string;
+
+  created_at?: any; // Firestore timestamp if you use it
 }

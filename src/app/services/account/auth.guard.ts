@@ -1,53 +1,24 @@
-import { ActivatedRouteSnapshot, CanActivateFn, Router, RouterStateSnapshot } from '@angular/router';
+import { CanActivateFn, Router } from '@angular/router';
 import { AccountService } from './account.service';
 import { inject } from '@angular/core';
-import { UserService } from './user.service';
-
 
 export const authGuard: CanActivateFn = (route, state) => {
   const accountService = inject(AccountService);
-
   const router = inject(Router);
-  if (accountService.isLoggedIn()) {
-    return true;
-  } else {
-    router.navigate(['/login']);
-    return false;
-  }
-  
-};
 
-export const userTypeGuard: CanActivateFn = (route: ActivatedRouteSnapshot, state: RouterStateSnapshot) => {
-  const userService = inject(UserService);
-  const accountService = inject(AccountService);
-  const router = inject(Router);
-  
-  // Check if user is logged in and auth is ready
-  if (!accountService.isLoggedIn()() || !accountService.isAuthReady()()) {
+  // Wait for auth initialization to avoid flash redirects
+  const ready = accountService.isAuthReady()();
+  if (!ready) {
+    // If not ready, block navigation momentarily by redirecting to login
+    // (simple approach; we can improve later with a loading screen)
     router.navigate(['/login']);
     return false;
   }
 
-  const userType = userService.getUserInfo()()?.accountType;
-  const targetUrl = state.url;
+  const loggedIn = accountService.isLoggedIn()(); // <-- IMPORTANT
 
-  console.log('UserTypeGuard - Current user type:', userType);
+  if (loggedIn) return true;
 
-  if (!userType) {
-    console.log('No user type found, redirecting to profile creation');
-    router.navigate(['/profile-creation']);
-    return false;
-  }
-
-  if (userType === 'trainer') {
-    console.log('Redirecting trainer to:', `${targetUrl}/trainer`);
-    router.navigate([targetUrl, "trainer"]);
-    return false;
-  } else if (userType === 'client') {
-    console.log('Redirecting client to:', `${targetUrl}/client`);
-    router.navigate([targetUrl, "client"]);
-    return false;
-  }
-
+  router.navigate(['/login']);
   return false;
 };

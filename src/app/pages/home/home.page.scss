@@ -36,10 +36,11 @@ ion-content {
 
 
 .profile-avatar {
-  width: 100%;
-  height: 100%;
-  border-radius: 50%;
-  overflow: hidden;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .profile-avatar img {
@@ -48,19 +49,21 @@ ion-content {
   object-fit: cover;
 }
 
-
-
 .avatar-fallback {
-  height: 40px;
-  width: 40px;
-  border-radius: 50%;
+  width: 100%;
+  height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: 700;
-  color: #ffffff;
-  background: linear-gradient(135deg, #0d5eaf, #297fd1);
+
+  background: #0D5EAF;   // your Greek blue theme
+  color: white;
+  font-weight: 600;
+  font-size: 16px;
+
+  border-radius: 50%;
 }
+
 
 .greeting {
   flex: 1;

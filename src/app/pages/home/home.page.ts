@@ -23,12 +23,13 @@ import {
   constructOutline,
 } from 'ionicons/icons';
 
-import { Auth } from '@angular/fire/auth';
-import { Firestore, doc, docData } from '@angular/fire/firestore';
+import { Auth, onAuthStateChanged, User } from '@angular/fire/auth';
+import { Firestore, doc, docData, getDoc, setDoc, serverTimestamp } from '@angular/fire/firestore';
+import { authState } from 'rxfire/auth';
+import { switchMap, of } from 'rxjs';
 import { Subscription } from 'rxjs';
 
 import type { AppUser } from '../../models/user.model';
-import { DevSeedService } from '../../services/dev-seed.service';
 
 @Component({
   selector: 'app-home',
@@ -49,15 +50,11 @@ import { DevSeedService } from '../../services/dev-seed.service';
   ],
 })
 export class HomePage implements OnInit, OnDestroy {
-  private router = inject(Router, { optional: true });
-  private auth = inject(Auth, { optional: true });
-  private firestore = inject(Firestore, { optional: true });
-  private devSeed = inject(DevSeedService, { optional: true });
+  private router = inject(Router);
+  private auth = inject(Auth);
+  private firestore = inject(Firestore);
 
   private userSub?: Subscription;
-
-  // 👇 Your dev UID (Firestore doc ID)
-  private readonly DEV_UID = 'Zas8MzSObSfvv3SRMINzWMiQFg63';
 
   isLoadingUser = true;
   currentUser: AppUser | null = null;
@@ -73,58 +70,44 @@ export class HomePage implements OnInit, OnDestroy {
     });
   }
 
-  async ngOnInit(): Promise<void> {
-    // Keep the component test-friendly: if Firebase isn't wired up, just show a fallback.
-    console.log("Firestore instance:", this.firestore);
-    if (!this.firestore) {
-      this.currentUser = {
-        userId: this.DEV_UID,
-        email: 'dev-tester@example.com',
-        firstName: 'Dev',
-        lastName: 'Tester',
-        groupID: [],
-        profilePic: '',
-        role: 'user',
-        username: 'devtester',
-      };
+ngOnInit(): void {
+  this.userSub?.unsubscribe();
+
+  this.userSub = authState(this.auth).pipe(
+    switchMap((fbUser) => {
+      if (!fbUser) {
+        this.currentUser = null;
+        this.isLoadingUser = false;
+        return of(null);
+      }
+
+      const userRef = doc(this.firestore, 'users', fbUser.uid);
+      return docData(userRef, { idField: 'userId' });
+    })
+  ).subscribe({
+    next: (u) => {
+      this.currentUser = (u as any) ?? null;
       this.isLoadingUser = false;
-      return;
-    }
+    },
+    error: (err) => {
+      console.error(err);
+      this.currentUser = null;
+      this.isLoadingUser = false;
+    },
+  });
+}
 
-    // Run seeding (safe even if it no-ops) so your dev Firestore docs exist.
-    try {
-      await this.devSeed?.ensureDevUserAndSeed();
-    } catch (e) {
-      console.warn('[HomePage] Dev seeding failed (continuing):', e);
-    }
-
-    // If Auth exists, prefer the authed user; otherwise fall back to DEV_UID.
-    if (this.auth) {
-      this.auth.onAuthStateChanged((fbUser) => {
-        const uidToLoad = fbUser?.uid ?? this.DEV_UID;
-        this.subscribeToUser(uidToLoad);
-        console.log("Auth user:", fbUser);
-      });
-    } else {
-      // No Auth wired up -> just load dev doc directly.
-      this.subscribeToUser(this.DEV_UID);
-        console.log("Auth user:", this.DEV_UID);
-    }
-  }
 
   ngOnDestroy(): void {
     this.userSub?.unsubscribe();
   }
 
   private subscribeToUser(uid: string): void {
-    const userRef = doc(this.firestore!, 'users', uid);
-
+    const userRef = doc(this.firestore, 'users', uid);
     this.isLoadingUser = true;
-    this.userSub?.unsubscribe();
 
-    this.userSub = docData(userRef).subscribe({
+    this.userSub = docData(userRef, { idField: 'userId' }).subscribe({
       next: (u) => {
-        // u does NOT include doc id (uid) — that's the Firestore document ID now.
         this.currentUser = (u as AppUser) ?? null;
         this.isLoadingUser = false;
       },
@@ -136,8 +119,31 @@ export class HomePage implements OnInit, OnDestroy {
     });
   }
 
+  private async ensureUserDocExists(fbUser: User): Promise<void> {
+    const userRef = doc(this.firestore, 'users', fbUser.uid);
+    const snap = await getDoc(userRef);
+
+    if (!snap.exists()) {
+      // Minimal doc: sourced from Auth only; no fake names.
+      await setDoc(
+        userRef,
+        {
+          email: fbUser.email ?? '',
+          created_at: serverTimestamp(),
+          groupID: [],
+          // leave these unset/empty until onboarding/profile edit:
+          firstName: '',
+          lastName: '',
+          username: '',
+          role: 'client',
+          profilepic: '',
+        },
+        { merge: true },
+      );
+    }
+  }
+
   get greetingName(): string {
-    // Prefer firstName, then username, then fallback
     const first = (this.currentUser?.firstName || '').trim();
     const user = (this.currentUser?.username || '').trim();
     return first || user || 'there';
@@ -151,23 +157,15 @@ export class HomePage implements OnInit, OnDestroy {
   }
 
   get profileImageUrl(): string | null {
-    // Read from your Firestore user object.
-    const raw =
-      (this.currentUser as any)?.profilepic ??
-      (this.currentUser as any)?.profilePic ??
-      null;
-
-    return typeof raw === 'string' && raw.trim().length > 0
-      ? raw.trim()
-      : null;
+    const raw = (this.currentUser?.profilepic || '').trim();
+    return raw.length > 0 ? raw : null;
   }
 
-
   onProfileClick(): void {
-    this.router?.navigate(['profile-user']);
+    this.router.navigate(['profile-user']);
   }
 
   navigateTo(path: string): void {
-    this.router?.navigate([path]);
+    this.router.navigate([path]);
   }
 }
