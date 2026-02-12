@@ -1,6 +1,6 @@
 <ion-content class="ion-padding ion-safe-area">
   <div class="logo">
-    <img src="assets/icons/atlas.svg" alt="Atlas Logo" width="100">
+    <img src="assets/login:signin.png" alt="Atlas Logo" width="400">
   </div>
   <h1>ATLAS</h1>
   <form (ngSubmit)="onSignupSubmit()">
@@ -16,8 +16,15 @@
     
     <!-- Password mismatch error message -->
     <p *ngIf="passwordMismatch" class="error-message">Passwords do not match</p>
-    
-    <ion-button expand="block" color="primary" type="submit" [disabled]="passwordMismatch">Sign Up</ion-button>
+
+    <ion-text color="danger" *ngIf="errorMessage">
+      <p style="margin: 8px 4px 0;">{{ errorMessage }}</p>
+    </ion-text>
+
+    <ion-button expand="block" color="primary" type="submit"
+      [disabled]="passwordMismatch || isSubmitting">
+      Sign Up
+    </ion-button>
   </form>
 
   <!-- <ion-button expand="block" fill="outline" (click)="signUpWithGoogle()">

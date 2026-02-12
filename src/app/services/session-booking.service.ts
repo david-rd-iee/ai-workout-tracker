@@ -27,7 +27,9 @@ export class SessionBookingService {
         ...bookingData,
         bookingId,
         createdAt: new Date(),
-        duration: bookingData.duration || 30 // Default to 30 minutes if not specified
+        duration: bookingData.duration || 30, // Default to 30 minutes if not specified
+        price: bookingData.price || 75, // Default to $75 per session if not specified
+        status: bookingData.status || 'confirmed'
       });
       
       // Add to bookedSessions array in trainerAvailability document

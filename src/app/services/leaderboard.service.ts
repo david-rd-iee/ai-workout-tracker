@@ -112,7 +112,7 @@ export class LeaderboardService {
         entries.push({
           userId: uid,
           displayName:
-            stats.displayName || user?.name || user?.email || 'Unknown User',
+            stats.displayName || user?.username || user?.email || 'Unknown User',
           rank: 0, // we set this after sorting
           totalWorkScore: stats.total_work_score ?? 0,
           cardioWorkScore: stats.cardio_work_score ?? 0,

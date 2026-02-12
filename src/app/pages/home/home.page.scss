@@ -11,6 +11,7 @@ ion-content {
 // Welcome Section
 .welcome-section {
   margin-bottom: 24px;
+  text-align: center;
   
   h1 {
     font-size: 28px;
@@ -199,191 +200,116 @@ ion-content {
   margin-bottom: 24px;
   
   h2 {
-    font-size: 18px;
+    font-size: 20px;
     font-weight: 600;
     margin: 0 0 16px 0;
     color: var(--ion-color-dark);
   }
-  
+
   .session-card {
     margin-bottom: 12px;
-    background: white;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     
-    &:last-child {
-      margin-bottom: 0;
+    &:active {
+      transform: scale(0.99);
     }
-    
+
     ion-card-content {
       padding: 16px;
     }
-    
+
     .session-content {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 16px;
     }
-    
+
     .session-icon {
       width: 48px;
       height: 48px;
       border-radius: 50%;
-      background: linear-gradient(135deg, var(--ion-color-primary), var(--ion-color-primary-shade));
+      overflow: hidden;
       display: flex;
       align-items: center;
       justify-content: center;
-      flex-shrink: 0;
-      
+      background: rgba(var(--ion-color-primary-rgb), 0.1);
+
       ion-icon {
-        font-size: 24px;
-        color: white;
+        font-size: 32px;
+        color: var(--ion-color-primary);
       }
     }
-    
+
     .session-info {
       flex: 1;
-      min-width: 0;
-      
+
       h3 {
         font-size: 16px;
         font-weight: 600;
         margin: 0 0 4px 0;
         color: var(--ion-color-dark);
       }
-      
+
       .session-date {
-        font-size: 13px;
+        font-size: 14px;
         color: var(--ion-color-primary);
-        margin: 0 0 6px 0;
+        margin: 0 0 4px 0;
         font-weight: 500;
       }
-      
+
       .session-notes {
         font-size: 13px;
         color: var(--ion-color-medium);
         margin: 0;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
       }
     }
-    
+
     .chevron {
-      font-size: 20px;
+      font-size: 24px;
       color: var(--ion-color-medium);
-      flex-shrink: 0;
     }
   }
-}
 
-// Quick Stats Section
-.quick-stats {
-  h2 {
-    font-size: 18px;
-    font-weight: 600;
-    margin: 0 0 16px 0;
-    color: var(--ion-color-dark);
-  }
-  
-  .stats-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 12px;
-  }
-  
-  .stat-item {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 8px;
-    padding: 20px 12px;
-    background: white;
-    border-radius: 12px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-    cursor: pointer;
-    transition: all 0.2s ease;
-    
-    &:active {
-      transform: scale(0.95);
-    }
-    
-    ion-icon {
-      font-size: 28px;
-    }
-    
-    span {
-      font-size: 12px;
-      font-weight: 500;
-      color: var(--ion-color-dark);
-      text-align: center;
-    }
-  }
-}
-
-.background-gradient {
-  margin-bottom: 0px;
-
-  ion-card-content {
-    padding: 30px;
-    display: flex;
-    justify-content: center;
-  }
-}
-
-.welcome-section {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-
-  p {
-    font-size: 1em;
-    color: var(--ion-color-medium);
-    margin: 0;
-  }
-}
-
-.quick-links {
-  h2 {
-    font-size: 24px;
-    font-weight: 700;
-    margin-bottom: 16px;
-    color: #3880ff;
-    text-align: center;
-  }
-
-  ion-card {
-    margin: 12px 0;
-    cursor: pointer;
-    transition: transform 0.2s, box-shadow 0.2s;
-
-    &:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  .no-sessions-card {
+    ion-card-content {
+      padding: 24px;
     }
 
-    .card-content {
+    .no-sessions-content {
       display: flex;
+      flex-direction: column;
       align-items: center;
-      gap: 16px;
+      justify-content: center;
+      gap: 12px;
+      text-align: center;
 
       ion-icon {
         font-size: 48px;
-        min-width: 48px;
-      }
-
-      h3 {
-        margin: 0 0 4px 0;
-        font-size: 18px;
-        font-weight: 600;
+        color: var(--ion-color-medium);
+        opacity: 0.5;
       }
 
       p {
         margin: 0;
-        font-size: 14px;
+        font-size: 15px;
         color: var(--ion-color-medium);
       }
     }
+  }
+}
+
+// Custom message widget
+.custom-message {
+  margin-bottom: 20px;
+  padding: 16px;
+  background: rgba(var(--ion-color-primary-rgb), 0.1);
+  border-radius: 12px;
+  border-left: 4px solid var(--ion-color-primary);
+
+  p {
+    margin: 0;
+    font-size: 15px;
+    color: var(--ion-color-dark);
+    line-height: 1.5;
   }
 }
 

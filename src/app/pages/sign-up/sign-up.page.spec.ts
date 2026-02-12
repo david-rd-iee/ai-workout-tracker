@@ -5,7 +5,11 @@ describe('SignUpPage', () => {
   let component: SignUpPage;
   let fixture: ComponentFixture<SignUpPage>;
 
-  beforeEach(() => {
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [SignUpPage],
+    }).compileComponents();
+
     fixture = TestBed.createComponent(SignUpPage);
     component = fixture.componentInstance;
     fixture.detectChanges();

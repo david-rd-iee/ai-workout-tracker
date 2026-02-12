@@ -27,14 +27,14 @@ export const routes: Routes = [
               import('../chats/client-chats/client-chats.page').then(m => m.ClientChatsPage),
           },
           {
-            path: 'workout-chatbot',
-            loadComponent: () =>
-              import('../workout-chatbot/workout-chatbot.page').then(m => m.WorkoutChatbotPage),
-          },
-          {
             path: 'groups',
             loadComponent: () =>
               import('../groups/groups.page').then(m => m.GroupsPage),
+          },
+          {
+            path: 'workout-chatbot',
+            loadComponent: () =>
+              import('../workout-chatbot/workout-chatbot.page').then(m => m.WorkoutChatbotPage),
           },
           {
             path: '',
@@ -44,21 +44,10 @@ export const routes: Routes = [
         ],
       },
       {
-        path: 'groups',
-        loadComponent: () =>
-          import('../groups/groups.page').then(m => m.GroupsPage),
-      },
-      {
         path: 'leaderboard',
         loadComponent: () =>
           import('../leaderboard/leaderboard.component').then(m => m.LeaderboardComponent),
       },
-      {
-        path: 'profile',
-        loadComponent: () =>
-          import('../profiles/client-profile/client-profile.page').then(m => m.ClientProfilePage),
-      },
-
       // default inside /tabs → /tabs/home
       {
         path: '',

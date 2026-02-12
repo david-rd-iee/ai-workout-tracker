@@ -12,6 +12,13 @@ import {
   getDoc,
   setDoc,
   serverTimestamp,
+  collection,
+  query,
+  where,
+  getDocs,
+  Timestamp,
+  updateDoc,
+  addDoc,
 } from '@angular/fire/firestore';
 import { Database, ref, set, push, get } from '@angular/fire/database';
 import { ChatsService } from './chats.service';
@@ -1014,6 +1021,237 @@ export class DevSeedService {
     console.log('[DevSeedService] ✅ Client data synced to trainer!');
     console.log('[DevSeedService] Updated name:', `${clientData['firstName']} ${clientData['lastName']}`);
     console.log('[DevSeedService] Refresh the trainer home page to see changes');
+  }
+
+  /**
+   * Calculate and update client's workout streak based on logged workouts
+   * A streak is consecutive days with at least one workout logged
+   */
+  async calculateAndUpdateStreak(clientUid: string): Promise<void> {
+    console.log('[DevSeedService] 📊 Calculating workout streak for client:', clientUid);
+
+    try {
+      // Query all workout sessions for this client
+      const sessionsRef = collection(this.firestore, `workoutSessions/${clientUid}/sessions`);
+      const q = query(sessionsRef);
+      const querySnapshot = await getDocs(q);
+
+      if (querySnapshot.empty) {
+        console.log('[DevSeedService] No workout sessions found');
+        await this.updateClientStreak(clientUid, 0, null);
+        return;
+      }
+
+      // Get all workout dates and sort them
+      const workoutDates: Date[] = [];
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        if (data['date']) {
+          const date = data['date'].toDate ? data['date'].toDate() : new Date(data['date']);
+          workoutDates.push(date);
+        }
+      });
+
+      // Sort dates in descending order (most recent first)
+      workoutDates.sort((a, b) => b.getTime() - a.getTime());
+
+      // Calculate streak from most recent workout
+      let streak = 0;
+      let lastWorkoutDate = null;
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      for (let i = 0; i < workoutDates.length; i++) {
+        const workoutDate = new Date(workoutDates[i]);
+        workoutDate.setHours(0, 0, 0, 0);
+
+        if (i === 0) {
+          lastWorkoutDate = workoutDate;
+          // Check if most recent workout was today or yesterday
+          const daysDiff = Math.floor((today.getTime() - workoutDate.getTime()) / (1000 * 60 * 60 * 24));
+          if (daysDiff > 1) {
+            // Streak broken - last workout was more than 1 day ago
+            streak = 0;
+            break;
+          }
+          streak = 1;
+        } else {
+          const prevDate = new Date(workoutDates[i - 1]);
+          prevDate.setHours(0, 0, 0, 0);
+          const daysDiff = Math.floor((prevDate.getTime() - workoutDate.getTime()) / (1000 * 60 * 60 * 24));
+          
+          if (daysDiff === 1) {
+            // Consecutive day
+            streak++;
+          } else if (daysDiff === 0) {
+            // Same day, don't increment streak but continue
+            continue;
+          } else {
+            // Gap in streak
+            break;
+          }
+        }
+      }
+
+      await this.updateClientStreak(clientUid, streak, lastWorkoutDate);
+      console.log('[DevSeedService] ✅ Streak updated to:', streak, 'days');
+
+    } catch (error) {
+      console.error('[DevSeedService] Error calculating streak:', error);
+    }
+  }
+
+  private async updateClientStreak(clientUid: string, streak: number, lastWorkoutDate: Date | null): Promise<void> {
+    const clientRef = doc(this.firestore, 'clients', clientUid);
+    await setDoc(clientRef, {
+      currentStreak: streak,
+      lastWorkoutDate: lastWorkoutDate ? Timestamp.fromDate(lastWorkoutDate) : null,
+      streakUpdatedAt: serverTimestamp()
+    }, { merge: true });
+  }
+
+  /**
+   * Create a sample workout for a client
+   */
+  async createSampleWorkout(clientUid: string, daysFromNow: number = 1): Promise<void> {
+    console.log('[DevSeedService] 📝 Creating sample workout for client:', clientUid);
+
+    try {
+      const scheduledDate = new Date();
+      scheduledDate.setDate(scheduledDate.getDate() + daysFromNow);
+      scheduledDate.setHours(14, 0, 0, 0); // 2 PM
+
+      const workout = {
+        title: 'Upper Body Strength',
+        scheduledDate: Timestamp.fromDate(scheduledDate),
+        type: 'Strength Training',
+        duration: 60,
+        isComplete: false,
+        exercises: [
+          { name: 'Bench Press', sets: 4, reps: 8, weight: 135, weightUnit: 'lbs' },
+          { name: 'Pull-ups', sets: 3, reps: 10 },
+          { name: 'Shoulder Press', sets: 3, reps: 12, weight: 45, weightUnit: 'lbs' },
+          { name: 'Bicep Curls', sets: 3, reps: 15, weight: 25, weightUnit: 'lbs' }
+        ],
+        notes: 'Focus on form and controlled movements',
+        createdAt: serverTimestamp()
+      };
+
+      const workoutsRef = collection(this.firestore, `clientWorkouts/${clientUid}/workouts`);
+      const docRef = await addDoc(workoutsRef, workout);
+
+      console.log('[DevSeedService] ✅ Sample workout created with ID:', docRef.id);
+      console.log('[DevSeedService] Scheduled for:', scheduledDate.toLocaleString());
+
+    } catch (error) {
+      console.error('[DevSeedService] Error creating sample workout:', error);
+    }
+  }
+
+  /**
+   * Log a workout session (this will increase streak)
+   */
+  async logWorkoutSession(clientUid: string, daysAgo: number = 0): Promise<void> {
+    console.log('[DevSeedService] 💪 Logging workout session for client:', clientUid);
+
+    try {
+      const workoutDate = new Date();
+      workoutDate.setDate(workoutDate.getDate() - daysAgo);
+
+      const session = {
+        date: Timestamp.fromDate(workoutDate),
+        sessionType: 'Strength Training',
+        volume: 12500,
+        calories: 320,
+        exercises: [
+          { name: 'Bench Press', metric: '4 x 8 @ 135 lb', volume: 4320 },
+          { name: 'Pull-ups', metric: '3 x 10', volume: 3000 },
+          { name: 'Squats', metric: '4 x 12 @ 185 lb', volume: 8880 }
+        ],
+        notes: 'Great session!',
+        isComplete: true,
+        createdAt: serverTimestamp()
+      };
+
+      const sessionsRef = collection(this.firestore, `workoutSessions/${clientUid}/sessions`);
+      const docRef = await addDoc(sessionsRef, session);
+
+      console.log('[DevSeedService] ✅ Workout session logged with ID:', docRef.id);
+      console.log('[DevSeedService] Now run: window.devSeed.calculateAndUpdateStreak("' + clientUid + '")');
+
+    } catch (error) {
+      console.error('[DevSeedService] Error logging workout session:', error);
+    }
+  }
+
+  /**
+   * Update all bookings with trainer names from trainer documents
+   */
+  async updateBookingsWithTrainerInfo(): Promise<void> {
+    console.log('[DevSeedService] 🔄 Updating bookings with trainer info...');
+
+    try {
+      // Get all bookings
+      const bookingsRef = collection(this.firestore, 'bookings');
+      const querySnapshot = await getDocs(bookingsRef);
+
+      let updated = 0;
+      let skipped = 0;
+
+      for (const bookingDoc of querySnapshot.docs) {
+        const booking = bookingDoc.data();
+        const trainerId = booking['trainerId'];
+
+        if (!trainerId) {
+          console.log('[DevSeedService] Skipping booking', bookingDoc.id, '- no trainerId');
+          skipped++;
+          continue;
+        }
+
+        // Get trainer info
+        const trainerRef = doc(this.firestore, 'trainers', trainerId);
+        const trainerSnap = await getDoc(trainerRef);
+
+        if (!trainerSnap.exists()) {
+          console.log('[DevSeedService] Trainer not found:', trainerId);
+          skipped++;
+          continue;
+        }
+
+        const trainerData = trainerSnap.data();
+        const bookingRef = doc(this.firestore, 'bookings', bookingDoc.id);
+        
+        await updateDoc(bookingRef, {
+          trainerFirstName: trainerData['firstName'] || '',
+          trainerLastName: trainerData['lastName'] || '',
+          updatedAt: serverTimestamp()
+        });
+
+        console.log('[DevSeedService] ✅ Updated booking', bookingDoc.id, 'with trainer:', `${trainerData['firstName']} ${trainerData['lastName']}`);
+        updated++;
+      }
+
+      console.log('[DevSeedService] ✅ Bookings update complete!');
+      console.log('[DevSeedService] Updated:', updated, 'bookings');
+      console.log('[DevSeedService] Skipped:', skipped, 'bookings');
+
+    } catch (error) {
+      console.error('[DevSeedService] Error updating bookings:', error);
+    }
+  }
+
+  /**
+   * Add initial streak to a client (useful for testing)
+   */
+  async setClientStreak(clientUid: string, streak: number): Promise<void> {
+    console.log('[DevSeedService] Setting client streak to:', streak);
+    
+    try {
+      await this.updateClientStreak(clientUid, streak, new Date());
+      console.log('[DevSeedService] ✅ Client streak set to:', streak);
+    } catch (error) {
+      console.error('[DevSeedService] Error setting client streak:', error);
+    }
   }
 
 }

@@ -1,27 +1,43 @@
-// src/app/pages/home/home.page.ts
-import { Component, OnInit, computed, effect } from '@angular/core';
+import { Component, OnDestroy, OnInit, inject, computed, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
-import { HeaderComponent } from 'src/app/components/header/header.component';
-import { UserService } from 'src/app/services/account/user.service';
-import { IonContent, IonCard, IonCardContent, IonIcon, IonButton } from '@ionic/angular/standalone';
+import {
+  IonAvatar,
+  IonButton,
+  IonCard,
+  IonCardContent,
+  IonCardHeader,
+  IonCardTitle,
+  IonContent,
+  IonIcon,
+  IonSpinner,
+} from '@ionic/angular/standalone';
+
 import { addIcons } from 'ionicons';
-import { Firestore, doc, getDoc, onSnapshot } from '@angular/fire/firestore';
-import { AccountService } from 'src/app/services/account/account.service';
-import { 
-  personCircleOutline, 
-  trophyOutline, 
-  fitnessOutline, 
-  peopleOutline, 
+import {
   chatbubblesOutline,
+  fitnessOutline,
+  peopleOutline,
+  personCircleOutline,
+  personOutline,
+  trophyOutline,
+  constructOutline,
   addCircle,
   flame,
   calendarOutline,
   chevronForward,
-  personOutline,
   cashOutline,
   chevronBack
 } from 'ionicons/icons';
+
+import { Auth } from '@angular/fire/auth';
+import { Firestore, doc, docData, getDoc, setDoc, serverTimestamp, onSnapshot, collection, query, where, getDocs, Timestamp } from '@angular/fire/firestore';
+import { authState } from 'rxfire/auth';
+import { switchMap, of } from 'rxjs';
+import { Subscription } from 'rxjs';
+import { HeaderComponent } from 'src/app/components/header/header.component';
+
+import type { AppUser } from '../../models/user.model';
 
 interface Widget {
   id: string;
@@ -48,9 +64,9 @@ interface Exercise {
 interface NextWorkout {
   title: string;
   date: Date;
-  type?: string;
-  duration?: number;
-  exercises?: Exercise[];
+  type: string;
+  duration: number;
+  exercises: Exercise[];
   notes?: string;
 }
 
@@ -59,7 +75,7 @@ interface UpcomingSession {
   trainerName: string;
   date: Date;
   notes?: string;
-  duration?: number;
+  duration: number;
 }
 
 @Component({
@@ -67,106 +83,140 @@ interface UpcomingSession {
   standalone: true,
   templateUrl: './home.page.html',
   styleUrls: ['./home.page.scss'],
-  imports: [CommonModule, IonContent, IonCard, IonCardContent, IonIcon, IonButton, HeaderComponent],
+  imports: [
+    CommonModule,
+    IonContent,
+    IonAvatar,
+    IonButton,
+    IonSpinner,
+    IonCard,
+    IonCardHeader,
+    IonCardTitle,
+    IonCardContent,
+    IonIcon,
+    HeaderComponent,
+  ],
 })
-export class HomePage implements OnInit {
-  currentDate = new Date();
-  userName = computed(() => {
-    const userProfile = this.userService.getUserInfo()();
-    return userProfile?.firstName || 'User';
-  });
-  accountType = computed(() => {
-    const userProfile = this.userService.getUserInfo()();
-    return userProfile?.accountType || 'client';
-  });
-  currentStreak = 0;
-  nextWorkout: NextWorkout | null = null;
-  upcomingSessions: UpcomingSession[] = [];
-  
-  // Home page customization
-  homeConfig: HomePageConfig | null = null;
-  customMessage: string = '';
+export class HomePage implements OnInit, OnDestroy {
+  private router = inject(Router);
+  private auth = inject(Auth);
+  private firestore = inject(Firestore);
+
+  private userSub?: Subscription;
+
+  isLoadingUser = true;
+  currentUser: AppUser | null = null;
   
   // Trainer-specific data
   clients: any[] = [];
   currentMonthIndex = 0;
   monthlyRevenue: any[] = [];
   totalRevenue = 0;
+  
+  // Client-specific data
+  currentStreak = 0;
+  nextWorkout: NextWorkout | null = null;
+  upcomingSessions: UpcomingSession[] = [];
+  homeConfig: HomePageConfig | null = null;
+  customMessage: string = '';
+  
+  // Display properties
+  currentDate = new Date();
 
-  constructor(
-    private router: Router,
-    private userService: UserService,
-    private firestore: Firestore,
-    private accountService: AccountService
-  ) {
-    addIcons({ 
-      personCircleOutline, 
-      trophyOutline, 
-      fitnessOutline, 
-      peopleOutline, 
+  // Helper method to get user's first name for greeting
+  userName(): string {
+    return this.currentUser?.firstName || 'User';
+  }
+
+  constructor() {
+    addIcons({
+      constructOutline,
+      personCircleOutline,
+      personOutline,
+      trophyOutline,
+      fitnessOutline,
+      peopleOutline,
       chatbubblesOutline,
       addCircle,
       flame,
       calendarOutline,
       chevronForward,
-      personOutline,
       cashOutline,
       chevronBack
     });
-    
-    // Watch for profile changes and load appropriate data
-    effect(() => {
-      const userProfile = this.userService.getUserInfo()();
-      if (userProfile) {
-        console.log('User profile loaded, accountType:', userProfile.accountType);
-        if (userProfile.accountType === 'trainer') {
-          this.loadTrainerClients();
-        } else {
-          this.loadClientData();
+  }
+
+  ngOnInit(): void {
+    this.userSub?.unsubscribe();
+
+    this.userSub = authState(this.auth).pipe(
+      switchMap((fbUser) => {
+        if (!fbUser) {
+          this.currentUser = null;
+          this.isLoadingUser = false;
+          return of(null);
         }
-      }
+
+        // Try trainers collection first, then clients
+        const trainerRef = doc(this.firestore, 'trainers', fbUser.uid);
+        return docData(trainerRef, { idField: 'userId' }).pipe(
+          switchMap((trainer) => {
+            if (trainer) {
+              return of({ ...trainer, role: 'trainer' });
+            }
+            // If not a trainer, check clients collection
+            const clientRef = doc(this.firestore, 'clients', fbUser.uid);
+            return docData(clientRef, { idField: 'userId' }).pipe(
+              switchMap((client) => {
+                if (client) {
+                  return of({ ...client, role: 'client' });
+                }
+                return of(null);
+              })
+            );
+          })
+        );
+      })
+    ).subscribe({
+      next: (u) => {
+        this.currentUser = (u as any) ?? null;
+        this.isLoadingUser = false;
+        
+        console.log('Current user loaded:', this.currentUser);
+        
+        // Load appropriate data based on account type
+        if (this.currentUser) {
+          const role = (this.currentUser as any).role || 'client';
+          if (role === 'trainer') {
+            this.loadTrainerClients();
+          } else {
+            this.loadClientData();
+          }
+        }
+      },
+      error: (err) => {
+        console.error(err);
+        this.currentUser = null;
+        this.isLoadingUser = false;
+      },
     });
   }
 
-  ngOnInit() {
-    // Initial data load will be handled by the effect
+  ngOnDestroy(): void {
+    this.userSub?.unsubscribe();
   }
 
   async loadTrainerClients() {
     console.log('Loading trainer clients...');
     
-    const credentials = this.accountService.getCredentials()();
-    if (!credentials?.uid) {
-      console.error('No credentials available');
+    const trainerId = this.auth.currentUser?.uid;
+    if (!trainerId) {
+      console.error('No authenticated user');
       return;
     }
 
-    const trainerId = credentials.uid;
-    
-    // Generate revenue data for last 3 months and next 2 months
-    const today = new Date();
-    this.monthlyRevenue = [];
-    this.totalRevenue = 0;
-    
-    for (let i = -3; i <= 2; i++) {
-      const monthDate = new Date(today.getFullYear(), today.getMonth() + i, 1);
-      const revenue = i <= 0 ? Math.floor(Math.random() * 2000) + 3000 : 0; // Past/current months have revenue
-      
-      this.monthlyRevenue.push({
-        month: monthDate,
-        revenue: revenue,
-        sessions: i <= 0 ? Math.floor(revenue / 75) : 0,
-        isPast: i < 0,
-        isCurrent: i === 0,
-        isFuture: i > 0
-      });
-      
-      if (i <= 0) {
-        this.totalRevenue += revenue;
-      }
-    }
-    
-    this.currentMonthIndex = 3; // Current month is at index 3
+    // Calculate revenue from actual bookings
+    await this.calculateRevenueFromBookings(trainerId);
     
     // Set up real-time listener for clients (updates automatically!)
     try {
@@ -212,6 +262,71 @@ export class HomePage implements OnInit {
     }
   }
 
+  async calculateRevenueFromBookings(trainerId: string) {
+    try {
+      const today = new Date();
+      this.monthlyRevenue = [];
+      this.totalRevenue = 0;
+      
+      // Query all bookings for this trainer
+      const bookingsRef = collection(this.firestore, 'bookings');
+      const q = query(bookingsRef, where('trainerId', '==', trainerId));
+      const querySnapshot = await getDocs(q);
+      
+      // Group bookings by month
+      const revenueByMonth = new Map<string, { revenue: number; sessions: number }>();
+      
+      querySnapshot.forEach((doc) => {
+        const booking = doc.data() as any;
+        
+        // Only count completed or confirmed sessions
+        if (booking.status === 'completed' || booking.status === 'confirmed') {
+          const bookingDate = new Date(booking.startTimeUTC || booking.createdAt?.toDate() || new Date());
+          const monthKey = `${bookingDate.getFullYear()}-${bookingDate.getMonth()}`;
+          const price = booking.price || 75; // Default to $75 if no price set
+          
+          if (!revenueByMonth.has(monthKey)) {
+            revenueByMonth.set(monthKey, { revenue: 0, sessions: 0 });
+          }
+          
+          const monthData = revenueByMonth.get(monthKey)!;
+          monthData.revenue += price;
+          monthData.sessions += 1;
+        }
+      });
+      
+      // Generate monthly revenue data for last 3 months and next 2 months
+      for (let i = -3; i <= 2; i++) {
+        const monthDate = new Date(today.getFullYear(), today.getMonth() + i, 1);
+        const monthKey = `${monthDate.getFullYear()}-${monthDate.getMonth()}`;
+        const monthStats = revenueByMonth.get(monthKey) || { revenue: 0, sessions: 0 };
+        
+        this.monthlyRevenue.push({
+          month: monthDate,
+          revenue: monthStats.revenue,
+          sessions: monthStats.sessions,
+          isPast: i < 0,
+          isCurrent: i === 0,
+          isFuture: i > 0
+        });
+        
+        // Only add to total revenue for past and current months
+        if (i <= 0) {
+          this.totalRevenue += monthStats.revenue;
+        }
+      }
+      
+      this.currentMonthIndex = 3; // Current month is at index 3
+      console.log('💰 Revenue calculated from bookings:', this.totalRevenue);
+      
+    } catch (error) {
+      console.error('Error calculating revenue:', error);
+      // Fallback to empty revenue if query fails
+      this.monthlyRevenue = [];
+      this.totalRevenue = 0;
+    }
+  }
+
   loadUserData() {
     // Deprecated - keeping for backwards compatibility
     this.loadClientData();
@@ -234,94 +349,128 @@ export class HomePage implements OnInit {
   }
   
   async loadClientData() {
-    // Load home page customization from Firestore
-    const credentials = this.accountService.getCredentials()();
-    if (credentials?.uid) {
-      try {
-        const configRef = doc(this.firestore, `clientHomeConfigs/${credentials.uid}`);
-        const configSnap = await getDoc(configRef);
+    const clientId = this.auth.currentUser?.uid;
+    if (!clientId) return;
+
+    try {
+      // Load home page customization
+      const configRef = doc(this.firestore, `clientHomeConfigs/${clientId}`);
+      const configSnap = await getDoc(configRef);
+      
+      if (configSnap.exists()) {
+        this.homeConfig = configSnap.data() as HomePageConfig;
+        this.customMessage = this.homeConfig.customMessage || '';
+        console.log('Loaded home page configuration:', this.homeConfig);
+      }
+
+      // Load client profile to get streak data
+      const clientRef = doc(this.firestore, `clients/${clientId}`);
+      const clientSnap = await getDoc(clientRef);
+      
+      if (clientSnap.exists()) {
+        const clientData = clientSnap.data();
+        this.currentStreak = clientData['currentStreak'] || 0;
+        console.log('📊 Current streak:', this.currentStreak);
+      }
+
+      // Load next scheduled workout
+      await this.loadNextWorkout(clientId);
+
+      // Load upcoming trainer sessions from bookings
+      await this.loadUpcomingSessions(clientId);
+
+    } catch (error) {
+      console.error('Error loading client data:', error);
+    }
+  }
+
+  async loadNextWorkout(clientId: string) {
+    try {
+      // Query for next scheduled workout
+      const workoutsRef = collection(this.firestore, `clientWorkouts/${clientId}/workouts`);
+      const q = query(
+        workoutsRef,
+        where('scheduledDate', '>=', Timestamp.now()),
+        where('isComplete', '==', false)
+      );
+      
+      const querySnapshot = await getDocs(q);
+      
+      if (!querySnapshot.empty) {
+        // Get the first upcoming workout
+        const workoutDoc = querySnapshot.docs[0];
+        const workoutData = workoutDoc.data();
         
-        if (configSnap.exists()) {
-          this.homeConfig = configSnap.data() as HomePageConfig;
-          this.customMessage = this.homeConfig.customMessage || '';
-          console.log('Loaded home page configuration:', this.homeConfig);
-        } else {
-          console.log('No home page customization found, using defaults');
+        this.nextWorkout = {
+          title: workoutData['title'] || 'Workout',
+          date: workoutData['scheduledDate']?.toDate() || new Date(),
+          type: workoutData['type'] || 'Training',
+          duration: workoutData['duration'] || 60,
+          exercises: workoutData['exercises'] || [],
+          notes: workoutData['notes'] || ''
+        };
+        
+        console.log('📅 Next workout loaded:', this.nextWorkout.title);
+      } else {
+        this.nextWorkout = null;
+        console.log('No upcoming workouts scheduled');
+      }
+    } catch (error) {
+      console.error('Error loading next workout:', error);
+      this.nextWorkout = null;
+    }
+  }
+
+  async loadUpcomingSessions(clientId: string) {
+    try {
+      // Query bookings for this client
+      const bookingsRef = collection(this.firestore, 'bookings');
+      const q = query(
+        bookingsRef,
+        where('clientId', '==', clientId),
+        where('status', 'in', ['confirmed', 'pending'])
+      );
+      
+      const querySnapshot = await getDocs(q);
+      
+      this.upcomingSessions = [];
+      const now = new Date();
+      
+      querySnapshot.forEach((doc) => {
+        const booking = doc.data();
+        const sessionDate = new Date(booking['startTimeUTC']);
+        
+        // Only include future sessions
+        if (sessionDate > now) {
+          this.upcomingSessions.push({
+            id: doc.id,
+            trainerName: `${booking['trainerFirstName'] || ''} ${booking['trainerLastName'] || ''}`.trim() || 'Trainer',
+            date: sessionDate,
+            notes: booking['notes'] || '',
+            duration: booking['duration'] || 60
+          });
         }
-      } catch (error) {
-        console.error('Error loading home page config:', error);
-      }
-    }
-    
-    // TODO: Load actual streak data from service
-    this.currentStreak = 5; // Placeholder
-    
-    // Fake workout for demonstration
-    this.nextWorkout = {
-      title: 'Upper Body Strength',
-      date: new Date(Date.now() + 86400000), // Tomorrow
-      type: 'Strength Training',
-      duration: 60,
-      exercises: [
-        { name: 'Bench Press', sets: 4, reps: 8, weight: 135, weightUnit: 'lbs' },
-        { name: 'Pull-ups', sets: 3, reps: 10 },
-        { name: 'Shoulder Press', sets: 3, reps: 12, weight: 45, weightUnit: 'lbs' },
-        { name: 'Bicep Curls', sets: 3, reps: 15, weight: 25, weightUnit: 'lbs' },
-        { name: 'Tricep Dips', sets: 3, reps: 12 }
-      ],
-      notes: 'Focus on jerking it harder. No rest between sets.'
-    };
-
-    // TODO: Load upcoming sessions from booking service
-    // Placeholder data for demonstration
-    this.upcomingSessions = [
-      {
-        id: '1',
-        trainerName: 'John Smith',
-        date: new Date(Date.now() + 172800000), // 2 days from now
-        notes: 'Focus on jerking it harder. No rest between sets.',
-        duration: 60
-      },
-      {
-        id: '2',
-        trainerName: 'Sarah Johnson',
-        date: new Date(Date.now() + 432000000), // 5 days from now
-        notes: '😳',
-        duration: 45
-      }
-    ];
-  }
-
-  startWorkout() {
-    // Navigate to workout chatbot to start logging
-    this.router.navigate(['/tabs/chats/workout-chatbot']);
-  }
-
-  viewStreak() {
-    // TODO: Navigate to streak page (to be created)
-    // For now, navigate to profile which might show stats
-    this.router.navigate(['/tabs/profile']);
-  }
-
-  viewNextWorkout() {
-    if (this.nextWorkout) {
-      // Navigate to workout details page with workout data
-      this.router.navigate(['/workout-details'], { 
-        state: { workout: this.nextWorkout } 
       });
-    } else {
-      // Navigate to calendar to schedule a workout
-      this.router.navigate(['/tabs/calender']);
+      
+      // Sort by date (earliest first)
+      this.upcomingSessions.sort((a, b) => a.date.getTime() - b.date.getTime());
+      
+      console.log('📆 Loaded', this.upcomingSessions.length, 'upcoming sessions');
+    } catch (error) {
+      console.error('Error loading upcoming sessions:', error);
+      this.upcomingSessions = [];
     }
   }
 
-  viewSessionDetails(session: UpcomingSession) {
-    // Navigate to calendar to view session details
-    this.router.navigate(['/tabs/calender']);
+  // Helper methods from main branch
+  get greetingName(): string {
+    const first = (this.currentUser?.firstName || '').trim();
+    const user = (this.currentUser?.username || '').trim();
+    return first || user || 'there';
   }
-  
+
+  // Trainer-specific helper methods
   viewClientDetails(client: any) {
-    // Navigate to client details page
     this.router.navigate(['/client-details'], { 
       state: { client } 
     });
@@ -342,8 +491,27 @@ export class HomePage implements OnInit {
   get currentMonthData() {
     return this.monthlyRevenue[this.currentMonthIndex];
   }
-  
+
+  // Generic navigation
   navigateTo(path: string): void {
-    this.router?.navigate([path]);
+    this.router.navigate([path]);
+  }
+
+  startWorkout() {
+    this.router.navigate(['/tabs/chats/workout-chatbot']);
+  }
+
+  viewStreak() {
+    console.log('Viewing streak...');
+  }
+
+  viewNextWorkout() {
+    if (this.nextWorkout) {
+      console.log('Viewing next workout:', this.nextWorkout);
+    }
+  }
+
+  viewSessionDetails(session: UpcomingSession) {
+    console.log('Viewing session:', session);
   }
 }

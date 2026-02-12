@@ -1,0 +1,6 @@
+framework module CapacitorCommunityHttp {
+  umbrella header "CapacitorCommunityHttp-umbrella.h"
+
+  export *
+  module * { export * }
+}

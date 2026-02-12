@@ -1,4 +1,4 @@
-<app-header></app-header>
+<app-header [currentUser]="currentUser"></app-header>
 
 <ion-content [fullscreen]="true">
   <div class="background-gradient"></div>
@@ -11,7 +11,7 @@
     </div>
 
     <!-- CLIENT HOME PAGE -->
-    <ng-container *ngIf="accountType() === 'client'">
+    <ng-container *ngIf="currentUser?.role === 'client'">
       <!-- Custom Welcome Message -->
       <div class="custom-message" *ngIf="customMessage && isWidgetEnabled('welcome')">
         <p>{{ customMessage }}</p>
@@ -73,28 +73,40 @@
       </div>
 
       <!-- Upcoming Sessions -->
-      <div class="upcoming-sessions" *ngIf="isWidgetEnabled('upcoming-session') && upcomingSessions && upcomingSessions.length > 0">
+      <div class="upcoming-sessions" *ngIf="isWidgetEnabled('upcoming-session')">
         <h2>Upcoming Sessions</h2>
-        <ion-card class="session-card" *ngFor="let session of upcomingSessions" button="true" (click)="viewSessionDetails(session)">
-          <ion-card-content>
-            <div class="session-content">
-              <div class="session-icon">
-                <ion-icon name="person-outline"></ion-icon>
+        <ng-container *ngIf="upcomingSessions && upcomingSessions.length > 0; else noSessions">
+          <ion-card class="session-card" *ngFor="let session of upcomingSessions" button="true" (click)="viewSessionDetails(session)">
+            <ion-card-content>
+              <div class="session-content">
+                <div class="session-icon">
+                  <ion-icon name="person-outline"></ion-icon>
+                </div>
+                <div class="session-info">
+                  <h3>{{ session.trainerName }}</h3>
+                  <p class="session-date">{{ session.date | date:'EEE, MMM d · h:mm a' }}</p>
+                  <p class="session-notes" *ngIf="session.notes">{{ session.notes }}</p>
+                </div>
+                <ion-icon name="chevron-forward" class="chevron"></ion-icon>
               </div>
-              <div class="session-info">
-                <h3>{{ session.trainerName }}</h3>
-                <p class="session-date">{{ session.date | date:'EEE, MMM d · h:mm a' }}</p>
-                <p class="session-notes" *ngIf="session.notes">{{ session.notes }}</p>
+            </ion-card-content>
+          </ion-card>
+        </ng-container>
+        <ng-template #noSessions>
+          <ion-card class="no-sessions-card">
+            <ion-card-content>
+              <div class="no-sessions-content">
+                <ion-icon name="calendar-outline"></ion-icon>
+                <p>There are no upcoming sessions</p>
               </div>
-              <ion-icon name="chevron-forward" class="chevron"></ion-icon>
-            </div>
-          </ion-card-content>
-        </ion-card>
+            </ion-card-content>
+          </ion-card>
+        </ng-template>
       </div>
     </ng-container>
 
     <!-- TRAINER HOME PAGE -->
-    <ng-container *ngIf="accountType() === 'trainer'">
+    <ng-container *ngIf="currentUser?.role === 'trainer'">
       <!-- Monthly Revenue Card -->
       <ion-card class="revenue-card">
         <ion-card-content>
@@ -153,6 +165,30 @@
                 </div>
               </div>
               <ion-icon name="chevron-forward" class="chevron"></ion-icon>
+            </div>
+          </ion-card-content>
+        </ion-card>
+      </div>
+    </ng-container>
+
+    <!-- FALLBACK / PLACEHOLDER (when no account type or loading) -->
+    <ng-container *ngIf="!currentUser?.role">
+      <ion-card class="welcome-card">
+        <ion-card-content>
+          <div class="welcome-section">
+            <p>AI-Powered Workout Tracker</p>
+          </div>
+        </ion-card-content>
+      </ion-card>
+      <div class="placeholder-section">
+        <ion-card class="dynamic-placeholder">
+          <ion-card-header>
+            <ion-card-title>Dynamic Dashboard</ion-card-title>
+          </ion-card-header>
+          <ion-card-content>
+            <div class="placeholder-content">
+              <ion-icon name="construct-outline" size="large"></ion-icon>
+              <p>This is a placeholder for your dynamic homepage. Personalized workout stats, upcoming sessions, and AI recommendations will appear here soon.</p>
             </div>
           </ion-card-content>
         </ion-card>
