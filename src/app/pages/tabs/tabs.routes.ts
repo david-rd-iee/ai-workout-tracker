@@ -38,11 +38,6 @@ export const routes: Routes = [
           },
         ],
       },
-      {
-        path: 'leaderboard',
-        loadComponent: () =>
-          import('../leaderboard/leaderboard.component').then(m => m.LeaderboardComponent),
-      },
       // default inside /tabs → /tabs/home
       {
         path: '',

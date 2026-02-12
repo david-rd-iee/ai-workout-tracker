@@ -35,10 +35,21 @@ export const routes: Routes = [
       import('./pages/workout-details/workout-details.page').then((m) => m.WorkoutDetailsPage),
     canActivate: [authGuard],
   },
+  {
+  path: 'regional-leaderboard',
+  loadComponent: () =>
+    import('./pages/leaderboards/regional-leaderboard/regional-leaderboard.page')
+      .then(m => m.RegionalLeaderboardPage),
+},
+
 
   // Default: go to login first
   { path: '', redirectTo: 'login', pathMatch: 'full' },
 
   // Catch-all
   { path: '**', redirectTo: 'login' },
+  {
+    path: 'regional-leaderboard',
+    loadComponent: () => import('./pages/leaderboards/regional-leaderboard/regional-leaderboard.page').then( m => m.RegionalLeaderboardPage)
+  },
 ];

@@ -112,6 +112,6 @@ export class ProfileUserPage implements OnInit, OnDestroy {
   goToLogWorkout(): void { console.log('Log Workout clicked'); }
   goToFindPT(): void { console.log('Find PT clicked'); }
   goToStatues(): void { console.log('Statues clicked'); }
-  goToRegional(): void { console.log('Regional clicked'); }
+  goToRegional(): void { this.router.navigateByUrl('/regional-leaderboard'); }
   goToAnalyzeWorkout(): void { console.log('Analyze Workout clicked'); }
 }
