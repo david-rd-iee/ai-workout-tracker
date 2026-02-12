@@ -3,7 +3,7 @@ import { Component, OnInit, OnDestroy, CUSTOM_ELEMENTS_SCHEMA, ViewChild, Elemen
 const DEFAULT_ASSETS = { PROFILE_PHOTO: '' };
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { IonAvatar, IonChip, IonLabel, IonItem, IonList, IonNote, IonButton, IonIcon } from '@ionic/angular/standalone';
+import { IonAvatar, IonLabel, IonItem, IonList, IonNote } from '@ionic/angular/standalone';
 // import Swiper from 'swiper';
 import { Router } from '@angular/router';
 import { chevronForwardOutline, fitnessOutline } from 'ionicons/icons';
@@ -45,8 +45,6 @@ import { Chat } from 'src/app/Interfaces/Chats';
     IonAvatar,
     IonLabel,
     IonNote,
-    IonButton,
-    IonIcon,
     // MessageDateTimePipe,
     IonItem, IonList, CommonModule, FormsModule]
 })
