@@ -1,0 +1,155 @@
+<app-header></app-header>
+
+<ion-content [fullscreen]="true">
+  <div class="client-details-container">
+    <!-- Client Header Card -->
+    <ion-card class="client-header-card">
+      <ion-card-content>
+        <div class="client-header">
+          <div class="client-avatar-large">
+            <ion-icon name="person-circle" *ngIf="!client.profileImage"></ion-icon>
+            <img [src]="client.profileImage" *ngIf="client.profileImage" alt="{{ client.name }}">
+          </div>
+          <div class="client-header-info">
+            <h1>{{ client.name }}</h1>
+            <p class="client-stats">{{ client.totalSessions }} total sessions</p>
+            <p class="last-workout">Last workout: {{ client.lastWorkout | date:'MMM d, yyyy' }}</p>
+          </div>
+        </div>
+        <ion-button expand="block" color="success" (click)="customizeHomePage()">
+          <ion-icon name="create-outline" slot="start"></ion-icon>
+          Customize Client Home Page
+        </ion-button>
+      </ion-card-content>
+    </ion-card>
+
+    <!-- Segmented Navigation -->
+    <ion-segment [(ngModel)]="selectedTab" (ionChange)="segmentChanged($event)" mode="md">
+      <ion-segment-button value="overview">
+        <ion-label>Overview</ion-label>
+      </ion-segment-button>
+      <ion-segment-button value="appointments">
+        <ion-label>Appointments</ion-label>
+      </ion-segment-button>
+      <ion-segment-button value="payments">
+        <ion-label>Payments</ion-label>
+      </ion-segment-button>
+    </ion-segment>
+
+    <!-- Overview Tab -->
+    <div *ngIf="selectedTab === 'overview'" class="tab-content">
+      <!-- Quick Actions -->
+      <ion-card>
+        <ion-card-header>
+          <ion-card-title>Quick Actions</ion-card-title>
+        </ion-card-header>
+        <ion-card-content>
+          <ion-button expand="block" fill="outline" (click)="scheduleAppointment()">
+            <ion-icon name="calendar" slot="start"></ion-icon>
+            Schedule Appointment
+          </ion-button>
+          <ion-button expand="block" fill="outline" (click)="createWorkout()">
+            <ion-icon name="fitness" slot="start"></ion-icon>
+            Create Workout Plan
+          </ion-button>
+        </ion-card-content>
+      </ion-card>
+
+      <!-- Summary Stats -->
+      <ion-card>
+        <ion-card-header>
+          <ion-card-title>Client Summary</ion-card-title>
+        </ion-card-header>
+        <ion-card-content>
+          <div class="summary-grid">
+            <div class="summary-item">
+              <ion-icon name="calendar"></ion-icon>
+              <div>
+                <h3>Next Session</h3>
+                <p>{{ client.nextSession | date:'EEE, MMM d · h:mm a' }}</p>
+              </div>
+            </div>
+            <div class="summary-item">
+              <ion-icon name="fitness"></ion-icon>
+              <div>
+                <h3>Total Sessions</h3>
+                <p>{{ client.totalSessions }} completed</p>
+              </div>
+            </div>
+            <div class="summary-item">
+              <ion-icon name="card"></ion-icon>
+              <div>
+                <h3>Payment Status</h3>
+                <p>Up to date</p>
+              </div>
+            </div>
+          </div>
+        </ion-card-content>
+      </ion-card>
+    </div>
+
+    <!-- Appointments Tab -->
+    <div *ngIf="selectedTab === 'appointments'" class="tab-content">
+      <!-- Upcoming Appointments -->
+      <h2>Upcoming</h2>
+      <ion-card *ngFor="let appointment of upcomingAppointments" class="appointment-card">
+        <ion-card-content>
+          <div class="appointment-content">
+            <div class="appointment-icon">
+              <ion-icon name="calendar" color="primary"></ion-icon>
+            </div>
+            <div class="appointment-info">
+              <h3>{{ appointment.type }}</h3>
+              <p class="appointment-date">{{ appointment.date | date:'EEE, MMM d · h:mm a' }}</p>
+              <p class="appointment-duration">{{ appointment.duration }} minutes</p>
+            </div>
+            <span class="status-badge" [class.confirmed]="appointment.status === 'confirmed'" [class.pending]="appointment.status === 'pending'">
+              {{ appointment.status }}
+            </span>
+          </div>
+        </ion-card-content>
+      </ion-card>
+
+      <!-- Past Appointments -->
+      <h2>Past Sessions</h2>
+      <ion-card *ngFor="let appointment of pastAppointments" class="appointment-card past">
+        <ion-card-content>
+          <div class="appointment-content">
+            <div class="appointment-icon">
+              <ion-icon name="fitness"></ion-icon>
+            </div>
+            <div class="appointment-info">
+              <h3>{{ appointment.type }}</h3>
+              <p class="appointment-date">{{ appointment.date | date:'EEE, MMM d · h:mm a' }}</p>
+              <p class="appointment-duration">{{ appointment.duration }} minutes</p>
+            </div>
+            <ion-icon name="checkmark-circle" color="success"></ion-icon>
+          </div>
+        </ion-card-content>
+      </ion-card>
+    </div>
+
+    <!-- Payments Tab -->
+    <div *ngIf="selectedTab === 'payments'" class="tab-content">
+      <h2>Payment History</h2>
+      <ion-card *ngFor="let payment of payments" class="payment-card">
+        <ion-card-content>
+          <div class="payment-content">
+            <div class="payment-icon">
+              <ion-icon name="card" [color]="payment.status === 'paid' ? 'success' : 'warning'"></ion-icon>
+            </div>
+            <div class="payment-info">
+              <h3>${{ payment.amount }}</h3>
+              <p class="payment-date">{{ payment.date | date:'MMM d, yyyy' }}</p>
+              <p class="payment-method" *ngIf="payment.status === 'paid'">{{ payment.method }}</p>
+            </div>
+            <span class="status-badge" [class.paid]="payment.status === 'paid'" [class.pending]="payment.status === 'pending'">
+              {{ payment.status }}
+            </span>
+          </div>
+        </ion-card-content>
+      </ion-card>
+    </div>
+
+  </div>
+</ion-content>

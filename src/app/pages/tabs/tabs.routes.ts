@@ -32,6 +32,11 @@ export const routes: Routes = [
               import('../groups/groups.page').then(m => m.GroupsPage),
           },
           {
+            path: 'workout-chatbot',
+            loadComponent: () =>
+              import('../workout-chatbot/workout-chatbot.page').then(m => m.WorkoutChatbotPage),
+          },
+          {
             path: '',
             redirectTo: 'client-chats',
             pathMatch: 'full',

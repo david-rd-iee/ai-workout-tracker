@@ -17,6 +17,7 @@ export interface BookingRequest {
   time: string;
   endTime?: string;
   duration?: number; // Duration in minutes
+  price?: number; // Session price in dollars
   status: 'pending' | 'confirmed' | 'cancelled';
   createdAt: Date;
 }

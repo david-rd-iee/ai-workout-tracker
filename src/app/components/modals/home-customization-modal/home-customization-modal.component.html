@@ -1,0 +1,68 @@
+<ion-header>
+  <ion-toolbar color="primary">
+    <ion-title>Customize Home Page</ion-title>
+    <ion-buttons slot="end">
+      <ion-button (click)="dismiss()">
+        <ion-icon name="close"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding">
+  <div class="modal-content">
+    <p class="client-name">Customizing home page for: <strong>{{ clientName }}</strong></p>
+
+    <ion-card>
+      <ion-card-header>
+        <ion-card-title>Visible Widgets</ion-card-title>
+      </ion-card-header>
+      <ion-card-content>
+        <p class="instructions">
+          Toggle widgets on/off and drag to reorder them on the client's home page.
+        </p>
+        
+        <ion-list>
+          <ion-reorder-group [disabled]="false" (ionItemReorder)="handleReorder($event)">
+            <ion-item *ngFor="let widget of widgets">
+              <ion-reorder slot="start">
+                <ion-icon name="reorder-three"></ion-icon>
+              </ion-reorder>
+              <ion-label>
+                <h3>{{ widget.name }}</h3>
+              </ion-label>
+              <ion-toggle 
+                slot="end" 
+                [(ngModel)]="widget.enabled"
+              ></ion-toggle>
+            </ion-item>
+          </ion-reorder-group>
+        </ion-list>
+      </ion-card-content>
+    </ion-card>
+
+    <ion-card>
+      <ion-card-header>
+        <ion-card-title>Widget Preview</ion-card-title>
+      </ion-card-header>
+      <ion-card-content>
+        <div class="widget-preview">
+          <div *ngFor="let widget of widgets" class="preview-widget" [class.disabled]="!widget.enabled">
+            <div class="preview-order">{{ widget.order + 1 }}</div>
+            <div class="preview-content">
+              <strong>{{ widget.name }}</strong>
+              <span *ngIf="!widget.enabled" class="hidden-label">Hidden</span>
+            </div>
+          </div>
+        </div>
+      </ion-card-content>
+    </ion-card>
+  </div>
+</ion-content>
+
+<div class="modal-footer">
+  <ion-button expand="block" (click)="saveConfiguration()" color="primary" size="large">
+    <ion-icon name="save" slot="start"></ion-icon>
+    Save Configuration
+  </ion-button>
+</div>

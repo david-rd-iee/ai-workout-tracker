@@ -35,10 +35,24 @@ export const routes: Routes = [
       import('./pages/workout-details/workout-details.page').then((m) => m.WorkoutDetailsPage),
     canActivate: [authGuard],
   },
-
-  // Default: go to login first
-  { path: '', redirectTo: 'login', pathMatch: 'full' },
-
-  // Catch-all
-  { path: '**', redirectTo: 'login' },
+  {
+    path: 'client-details',
+    loadComponent: () =>
+      import('./pages/client-details/client-details.page').then((m) => m.ClientDetailsPage),
+  },
+  {
+    path: 'chat/:chatId',
+    loadComponent: () =>
+      import('./pages/chats/chat-detail/chat-detail.page').then((m) => m.ChatDetailPage),
+  },
+  {
+    path: '',
+    redirectTo: 'login',
+    pathMatch: 'full',
+  },
+  // If user manually types a bad URL → send to login
+  {
+    path: '**',
+    redirectTo: 'login',
+  },
 ];

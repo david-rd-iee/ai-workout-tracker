@@ -5,10 +5,11 @@ export interface BookingData {
   endTimeUTC: string;    // UTC ISO string
   timezone: string;      // IANA timezone (e.g., "America/Los_Angeles")
   duration: number;
-  status: 'confirmed' | 'cancelled' | 'pending';
+  status: 'confirmed' | 'cancelled' | 'pending' | 'completed';
   sessionType: 'online' | 'in-person';
   location?: string;
   meetingLink?: string;
+  price?: number;        // Session price in dollars
   createdAt: Date;
   clientFirstName?: string;
   clientLastName?: string;

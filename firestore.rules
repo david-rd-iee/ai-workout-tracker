@@ -393,6 +393,27 @@ service cloud.firestore {
       allow delete: if isSignedIn() && resource.data.admins.hasAny([request.auth.uid]);
     }
     
+    // Trainer Clients collection - manages trainer-client relationships
+    match /trainerClients/{trainerId} {
+      // Trainers can read and write their own client lists
+      allow read, write: if isOwner(trainerId);
+      
+      // Allow clients to read if they are in the clients array (for verification purposes)
+      allow read: if isSignedIn() && 
+        resource.data.clients.hasAny([{'clientId': request.auth.uid}]);
+    }
+    
+    // Client Home Configurations - allows trainers to customize client home pages
+    match /clientHomeConfigs/{clientId} {
+      // Allow the client to read their own home config
+      allow read: if isOwner(clientId);
+      
+      // Allow trainers to read/write if the client is assigned to them
+      // Note: This requires checking the client's trainerId field
+      allow read, write: if isSignedIn() && 
+        get(/databases/$(database)/documents/clients/$(clientId)).data.trainerId == request.auth.uid;
+    }
+    
     // DEBUG ONLY
     match /{document=**} {
       allow read, write: if true;

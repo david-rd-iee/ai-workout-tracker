@@ -1,0 +1,51 @@
+<ion-header [translucent]="true" class="ion-no-border">
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-back-button defaultHref="/tabs/chats" text=""></ion-back-button>
+    </ion-buttons>
+    <ion-title>{{ otherUserName }}</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true" class="chat-content">
+  <div class="messages-list">
+    <div 
+      *ngFor="let message of messages" 
+      class="message-row"
+      [class.sent]="isMyMessage(message)"
+      [class.received]="!isMyMessage(message)"
+    >
+      <div class="message-bubble">
+        <p>{{ message.text }}</p>
+        <span class="timestamp">{{ formatTimestamp(message.timestamp) }}</span>
+      </div>
+    </div>
+    
+    <div *ngIf="messages.length === 0" class="empty-state">
+      <p>No messages yet</p>
+      <span>Start the conversation!</span>
+    </div>
+  </div>
+</ion-content>
+
+<ion-footer class="ion-no-border">
+  <ion-toolbar>
+    <div class="input-wrapper">
+      <ion-textarea
+        [(ngModel)]="messageText"
+        placeholder="iMessage"
+        rows="1"
+        [autoGrow]="true"
+        class="message-input"
+      ></ion-textarea>
+      <ion-button 
+        (click)="sendMessage()" 
+        [disabled]="!messageText?.trim()"
+        shape="round"
+        class="send-button"
+      >
+        <ion-icon slot="icon-only" name="arrow-up"></ion-icon>
+      </ion-button>
+    </div>
+  </ion-toolbar>
+</ion-footer>

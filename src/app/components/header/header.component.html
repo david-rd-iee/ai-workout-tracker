@@ -8,10 +8,19 @@
         
         <ion-title><h2>{{title}}</h2></ion-title>
         
-        <!-- Always keep a button space on the right, even if no profile button -->
+        <!-- Profile Avatar Button -->
         <div class="button-space" *ngIf="showBack"></div>
-        <ion-button (click)="goToProfile()" *ngIf="!showBack" class="header-button right-button" fill="clear">
-          <ion-icon slot="icon-only" name="person-circle-outline"></ion-icon>
+        <ion-button (click)="goToProfile()" *ngIf="!showBack" class="profile-button" fill="clear">
+          <ion-avatar class="profile-avatar">
+            <img
+              *ngIf="profileImageUrl; else showFallback"
+              [src]="profileImageUrl"
+              alt="Profile pic"
+            />
+            <ng-template #showFallback>
+              <div class="avatar-fallback">{{ avatarInitial }}</div>
+            </ng-template>
+          </ion-avatar>
         </ion-button>
     </ion-toolbar>
   </ion-header>
