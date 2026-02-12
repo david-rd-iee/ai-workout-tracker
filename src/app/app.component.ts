@@ -48,18 +48,49 @@ export class AppComponent implements OnInit {
   }
 
   async ngOnInit() {
-    console.log('[AppComponent] ngOnInit');
+    console.log('[AppComponent] ngOnInit - VERSION 2.0');
+    // Dev seed can be run manually via console: window['devSeed'].ensureDevUserAndSeed()
+    
+    try {
+      // Check current auth state first (in case user is already logged in)
+      console.log('[AppComponent] Checking initial auth state...');
+      await this.handleAuthState();
+      
+      // Listen to auth state changes and handle navigation
+      this.accountService.authStateChanges$.subscribe(async (authState) => {
+        console.log('[AppComponent] Auth state changed event received:', authState);
+        await this.handleAuthState();
+      });
+    } catch (error) {
+      console.error('[AppComponent] Error in ngOnInit:', error);
+    }
+  }
 
-    if (!environment.production) {
-      console.log('[AppComponent] Running dev seed...');
-      try {
-        await this.devSeedService.ensureDevUserAndSeed();
-        console.log('[AppComponent] Dev seed finished.');
-      } catch (err) {
-        console.error('[AppComponent] Dev seed failed:', err);
+  private async handleAuthState() {
+    const isLoggedIn = this.accountService.isLoggedIn()();
+    console.log('[AppComponent] handleAuthState - isLoggedIn:', isLoggedIn);
+    
+    if (isLoggedIn) {
+      console.log('[AppComponent] User authenticated, loading profile...');
+      const profileLoaded = await this.userService.loadUserProfile();
+      console.log('[AppComponent] Profile loaded:', profileLoaded);
+      
+      if (profileLoaded) {
+        // Only navigate if not already on a valid authenticated route
+        const currentUrl = this.router.url;
+        console.log('[AppComponent] Current URL:', currentUrl);
+        if (currentUrl === '/login' || currentUrl === '/' || currentUrl === '/sign-up') {
+          console.log('[AppComponent] Navigating to /tabs...');
+          await this.router.navigate(['/tabs'], { replaceUrl: true });
+        } else {
+          console.log('[AppComponent] Already on authenticated route, not navigating');
+        }
+      } else {
+        console.log('[AppComponent] No profile found, navigating to profile creation...');
+        await this.router.navigate(['/profile-creation'], { replaceUrl: true });
       }
     } else {
-      console.log('[AppComponent] Skipping dev seed (production env).');
+      console.log('[AppComponent] User not authenticated');
     }
   }
 }

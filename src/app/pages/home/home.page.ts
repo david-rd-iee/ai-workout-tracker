@@ -6,7 +6,7 @@ import { HeaderComponent } from 'src/app/components/header/header.component';
 import { UserService } from 'src/app/services/account/user.service';
 import { IonContent, IonCard, IonCardContent, IonIcon, IonButton } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
-import { Firestore, doc, getDoc } from '@angular/fire/firestore';
+import { Firestore, doc, getDoc, onSnapshot } from '@angular/fire/firestore';
 import { AccountService } from 'src/app/services/account/account.service';
 import { 
   personCircleOutline, 
@@ -168,28 +168,46 @@ export class HomePage implements OnInit {
     
     this.currentMonthIndex = 3; // Current month is at index 3
     
-    // Load real clients from Firestore
+    // Set up real-time listener for clients (updates automatically!)
     try {
       const trainerClientsRef = doc(this.firestore, 'trainerClients', trainerId);
-      const trainerClientsSnap = await getDoc(trainerClientsRef);
       
-      if (trainerClientsSnap.exists()) {
-        const data = trainerClientsSnap.data();
-        this.clients = (data['clients'] || []).map((client: any) => ({
-          id: client.clientId,
-          name: client.clientName || 'Unknown Client',
-          profileImage: client.profileImage || '',
-          nextSession: client.nextSession ? new Date(client.nextSession) : new Date(Date.now() + 86400000),
-          totalSessions: client.totalSessions || 0,
-          lastWorkout: client.lastSession ? new Date(client.lastSession) : new Date(Date.now() - 172800000)
-        }));
-        console.log('Loaded', this.clients.length, 'real clients from Firestore');
-      } else {
-        console.log('No clients found for this trainer');
+      // Use onSnapshot for real-time updates
+      onSnapshot(trainerClientsRef, (snapshot) => {
+        if (snapshot.exists()) {
+          const data = snapshot.data();
+          this.clients = (data['clients'] || []).map((client: any) => {
+            // Support both new (firstName/lastName) and old (clientName) formats
+            let displayName = '';
+            if (client.firstName || client.lastName) {
+              displayName = `${client.firstName || ''} ${client.lastName || ''}`.trim();
+            } else if (client.clientName) {
+              displayName = client.clientName;
+            }
+            displayName = displayName || 'Unknown Client';
+            
+            return {
+              id: client.clientId,
+              firstName: client.firstName || '',
+              lastName: client.lastName || '',
+              name: displayName,
+              profileImage: client.profileImage || '',
+              nextSession: client.nextSession ? new Date(client.nextSession) : new Date(Date.now() + 86400000),
+              totalSessions: client.totalSessions || 0,
+              lastWorkout: client.lastSession ? new Date(client.lastSession) : new Date(Date.now() - 172800000)
+            };
+          });
+          console.log('📊 Real-time update: Loaded', this.clients.length, 'clients');
+        } else {
+          console.log('No clients found for this trainer');
+          this.clients = [];
+        }
+      }, (error) => {
+        console.error('Error listening to trainer clients:', error);
         this.clients = [];
-      }
+      });
     } catch (error) {
-      console.error('Error loading trainer clients:', error);
+      console.error('Error setting up real-time listener:', error);
       this.clients = [];
     }
   }

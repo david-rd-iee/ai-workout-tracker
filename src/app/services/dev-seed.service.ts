@@ -569,17 +569,23 @@ export class DevSeedService {
     const trainerClientsRef = doc(this.firestore, 'trainerClients', trainerUid);
     const trainerClientsSnap = await getDoc(trainerClientsRef);
 
+    // Re-fetch client data to get the latest (in case it was just created)
+    const updatedClientSnap = await getDoc(clientRef);
+    const clientData = updatedClientSnap.data();
+    const clientInfo = {
+      clientId: clientUid,
+      firstName: clientData?.['firstName'] || '',
+      lastName: clientData?.['lastName'] || '',
+      clientEmail: this.devEmail,
+      joinedDate: new Date().toISOString(),
+      totalSessions: 12,
+      lastSession: new Date(Date.now() - 172800000).toISOString()
+    };
+
     if (!trainerClientsSnap.exists()) {
       await setDoc(trainerClientsRef, {
         trainerId: trainerUid,
-        clients: [{
-          clientId: clientUid,
-          clientName: 'Dev Tester',
-          clientEmail: this.devEmail,
-          joinedDate: new Date().toISOString(),
-          totalSessions: 12,
-          lastSession: new Date(Date.now() - 172800000).toISOString()
-        }],
+        clients: [clientInfo],
         updatedAt: new Date()
       });
     } else {
@@ -587,14 +593,7 @@ export class DevSeedService {
       const clientExists = existingClients.some((c: any) => c.clientId === clientUid);
       
       if (!clientExists) {
-        existingClients.push({
-          clientId: clientUid,
-          clientName: 'Dev Tester',
-          clientEmail: this.devEmail,
-          joinedDate: new Date().toISOString(),
-          totalSessions: 12,
-          lastSession: new Date(Date.now() - 172800000).toISOString()
-        });
+        existingClients.push(clientInfo);
         
         await setDoc(trainerClientsRef, {
           clients: existingClients,
@@ -659,6 +658,362 @@ export class DevSeedService {
     } catch (error) {
       console.error('[DevSeedService] Error creating trainer-client chat:', error);
     }
+  }
+
+  /**
+   * Connect any client to any trainer by their UIDs
+   * Use this to establish trainer-client relationships
+   * 
+   * @param clientUid - The UID of the client
+   * @param trainerUid - The UID of the trainer
+   */
+  async connectClientToTrainerByUID(clientUid: string, trainerUid: string): Promise<void> {
+    console.log('[DevSeedService] Connecting client to trainer...');
+    console.log('[DevSeedService] Client UID:', clientUid);
+    console.log('[DevSeedService] Trainer UID:', trainerUid);
+
+    // Get client data
+    const clientRef = doc(this.firestore, 'clients', clientUid);
+    const clientSnap = await getDoc(clientRef);
+
+    if (!clientSnap.exists()) {
+      throw new Error(`Client with UID ${clientUid} not found in /clients collection`);
+    }
+
+    const clientData = clientSnap.data();
+
+    // Get trainer data
+    const trainerRef = doc(this.firestore, 'trainers', trainerUid);
+    const trainerSnap = await getDoc(trainerRef);
+
+    if (!trainerSnap.exists()) {
+      throw new Error(`Trainer with UID ${trainerUid} not found in /trainers collection`);
+    }
+
+    // Update client profile with trainerId
+    await setDoc(clientRef, {
+      trainerId: trainerUid,
+      updatedAt: new Date()
+    }, { merge: true });
+    console.log('[DevSeedService] Updated client profile with trainer connection');
+
+    // Add client to trainer's clients list
+    const trainerClientsRef = doc(this.firestore, 'trainerClients', trainerUid);
+    const trainerClientsSnap = await getDoc(trainerClientsRef);
+
+    const clientInfo = {
+      clientId: clientUid,
+      firstName: clientData['firstName'] || '',
+      lastName: clientData['lastName'] || '',
+      clientEmail: clientData['email'] || '',
+      joinedDate: new Date().toISOString(),
+      totalSessions: 0,
+      lastSession: null
+    };
+
+    if (!trainerClientsSnap.exists()) {
+      await setDoc(trainerClientsRef, {
+        trainerId: trainerUid,
+        clients: [clientInfo],
+        updatedAt: new Date()
+      });
+    } else {
+      const existingClients = trainerClientsSnap.data()['clients'] || [];
+      const clientExists = existingClients.some((c: any) => c.clientId === clientUid);
+      
+      if (!clientExists) {
+        existingClients.push(clientInfo);
+        
+        await setDoc(trainerClientsRef, {
+          clients: existingClients,
+          updatedAt: new Date()
+        }, { merge: true });
+      } else {
+        console.log('[DevSeedService] Client already in trainer\'s client list');
+      }
+    }
+
+    // Create a chat between trainer and client
+    await this.createTrainerClientChat(trainerUid, clientUid);
+    
+    console.log('[DevSeedService] ✅ Connection complete!');
+    console.log('[DevSeedService] Client', `${clientInfo.firstName} ${clientInfo.lastName}`.trim(), 'is now connected to trainer');
+  }
+
+  /**
+   * Migrate an orphaned Firestore client document to a new Auth user
+   * Use this when you have a Firestore client doc but no Auth user
+   * 
+   * @param orphanedClientUid - The UID of the orphaned client document in Firestore
+   * @param newEmail - Email for the new Auth user
+   * @param newPassword - Password for the new Auth user
+   * @returns The new UID of the migrated client
+   */
+  async migrateOrphanedClient(
+    orphanedClientUid: string,
+    newEmail: string,
+    newPassword: string
+  ): Promise<string> {
+    console.log('[DevSeedService] Migrating orphaned client...');
+    console.log('[DevSeedService] Old UID:', orphanedClientUid);
+
+    // Get the orphaned client data
+    const orphanedClientRef = doc(this.firestore, 'clients', orphanedClientUid);
+    const orphanedClientSnap = await getDoc(orphanedClientRef);
+
+    if (!orphanedClientSnap.exists()) {
+      throw new Error(`No client document found with UID ${orphanedClientUid}`);
+    }
+
+    const orphanedData = orphanedClientSnap.data();
+    console.log('[DevSeedService] Found orphaned client data:', orphanedData);
+
+    // Create new Auth user
+    const userCred = await createUserWithEmailAndPassword(
+      this.auth,
+      newEmail,
+      newPassword
+    );
+    const newUid = userCred.user.uid;
+    console.log('[DevSeedService] Created new Auth user with UID:', newUid);
+
+    // Copy data to new UID document
+    const newClientRef = doc(this.firestore, 'clients', newUid);
+    await setDoc(newClientRef, {
+      ...orphanedData,
+      email: newEmail, // Update email to match new auth
+      createdAt: orphanedData['createdAt'] || new Date(),
+      updatedAt: new Date(),
+      migratedFrom: orphanedClientUid, // Track migration
+    });
+    console.log('[DevSeedService] Created new client document at:', newUid);
+
+    // If client was connected to a trainer, update the trainer's client list
+    const trainerId = orphanedData['trainerId'];
+    if (trainerId) {
+      console.log('[DevSeedService] Updating trainer client list...');
+      const trainerClientsRef = doc(this.firestore, 'trainerClients', trainerId);
+      const trainerClientsSnap = await getDoc(trainerClientsRef);
+
+      if (trainerClientsSnap.exists()) {
+        const clients = trainerClientsSnap.data()['clients'] || [];
+        const updatedClients = clients.map((c: any) => {
+          if (c.clientId === orphanedClientUid) {
+            return {
+              ...c,
+              clientId: newUid,
+              firstName: orphanedData['firstName'] || c.firstName || '',
+              lastName: orphanedData['lastName'] || c.lastName || '',
+              clientEmail: newEmail,
+            };
+          }
+          return c;
+        });
+
+        await setDoc(trainerClientsRef, {
+          clients: updatedClients,
+          updatedAt: new Date()
+        }, { merge: true });
+        console.log('[DevSeedService] Updated trainer client list');
+      }
+    }
+
+    console.log('[DevSeedService] ✅ Migration complete!');
+    console.log('[DevSeedService] New email:', newEmail);
+    console.log('[DevSeedService] New password:', newPassword);
+    console.log('[DevSeedService] New UID:', newUid);
+    console.log('[DevSeedService] Old document still exists at:', orphanedClientUid);
+    console.log('[DevSeedService] You can delete the old document manually if needed');
+
+    return newUid;
+  }
+
+  /**
+   * Disconnect a client from their trainer
+   * Removes the trainer-client relationship
+   * 
+   * @param clientUid - The UID of the client
+   * @param trainerUid - The UID of the trainer (optional, will be looked up if not provided)
+   * @param deleteChat - Whether to also delete the chat between them (default: false)
+   */
+  async disconnectClientFromTrainer(clientUid: string, trainerUid?: string, deleteChat: boolean = false): Promise<void> {
+    console.log('[DevSeedService] Disconnecting client from trainer...');
+    console.log('[DevSeedService] Client UID:', clientUid);
+
+    // Get client data
+    const clientRef = doc(this.firestore, 'clients', clientUid);
+    const clientSnap = await getDoc(clientRef);
+
+    if (!clientSnap.exists()) {
+      throw new Error(`Client with UID ${clientUid} not found in /clients collection`);
+    }
+
+    const clientData = clientSnap.data();
+    const actualTrainerId = trainerUid || clientData['trainerId'];
+
+    if (!actualTrainerId) {
+      console.log('[DevSeedService] Client has no trainer assigned, nothing to disconnect');
+      return;
+    }
+
+    console.log('[DevSeedService] Trainer UID:', actualTrainerId);
+
+    // Remove trainerId from client document
+    await setDoc(clientRef, {
+      trainerId: null,
+      updatedAt: new Date()
+    }, { merge: true });
+    console.log('[DevSeedService] Removed trainer from client profile');
+
+    // Remove client from trainer's clients list
+    const trainerClientsRef = doc(this.firestore, 'trainerClients', actualTrainerId);
+    const trainerClientsSnap = await getDoc(trainerClientsRef);
+
+    if (trainerClientsSnap.exists()) {
+      const clients = trainerClientsSnap.data()['clients'] || [];
+      const updatedClients = clients.filter((c: any) => c.clientId !== clientUid);
+
+      await setDoc(trainerClientsRef, {
+        clients: updatedClients,
+        updatedAt: new Date()
+      }, { merge: true });
+      console.log('[DevSeedService] Removed client from trainer\'s client list');
+    }
+
+    // Optionally delete chat
+    if (deleteChat) {
+      await this.deleteChat(actualTrainerId, clientUid);
+    }
+
+    console.log('[DevSeedService] ✅ Disconnection complete!');
+    if (!deleteChat) {
+      console.log('[DevSeedService] Note: Chat history between trainer and client still exists');
+      console.log('[DevSeedService] Call with deleteChat=true to remove chat');
+    }
+  }
+
+  /**
+   * Delete the chat between a trainer and client
+   * 
+   * @param trainerId - The UID of the trainer
+   * @param clientId - The UID of the client
+   */
+  async deleteChat(trainerId: string, clientId: string): Promise<void> {
+    console.log('[DevSeedService] Deleting chat between trainer and client...');
+    console.log('[DevSeedService] Trainer UID:', trainerId);
+    console.log('[DevSeedService] Client UID:', clientId);
+
+    try {
+      // Find the chat ID by looking through trainer's chats
+      const trainerChatsRef = ref(this.db, `userChats/${trainerId}`);
+      const trainerChatsSnapshot = await get(trainerChatsRef);
+      
+      let chatIdToDelete: string | null = null;
+
+      if (trainerChatsSnapshot.exists()) {
+        const trainerChatsData = trainerChatsSnapshot.val();
+        
+        // Find the chat with this client
+        for (const chatId in trainerChatsData) {
+          const chatRef = ref(this.db, `chats/${chatId}`);
+          const chatSnapshot = await get(chatRef);
+          
+          if (chatSnapshot.exists()) {
+            const chatData = chatSnapshot.val();
+            if (chatData.participants && chatData.participants.includes(clientId)) {
+              chatIdToDelete = chatId;
+              console.log('[DevSeedService] Found chat to delete:', chatId);
+              break;
+            }
+          }
+        }
+      }
+
+      if (!chatIdToDelete) {
+        console.log('[DevSeedService] No chat found between trainer and client');
+        return;
+      }
+
+      // Delete the chat data
+      const chatRef = ref(this.db, `chats/${chatIdToDelete}`);
+      await set(chatRef, null);
+      console.log('[DevSeedService] Deleted chat data');
+
+      // Delete chat reference from trainer's userChats
+      const trainerChatRefToDelete = ref(this.db, `userChats/${trainerId}/${chatIdToDelete}`);
+      await set(trainerChatRefToDelete, null);
+      console.log('[DevSeedService] Removed chat from trainer\'s chat list');
+
+      // Delete chat reference from client's userChats
+      const clientChatRefToDelete = ref(this.db, `userChats/${clientId}/${chatIdToDelete}`);
+      await set(clientChatRefToDelete, null);
+      console.log('[DevSeedService] Removed chat from client\'s chat list');
+
+      console.log('[DevSeedService] ✅ Chat deleted successfully!');
+    } catch (error) {
+      console.error('[DevSeedService] Error deleting chat:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Sync client information from /clients to /trainerClients
+   * Use this when a client's name or email changes to update the trainer's view
+   * 
+   * @param clientUid - The UID of the client to sync
+   */
+  async syncClientToTrainer(clientUid: string): Promise<void> {
+    console.log('[DevSeedService] Syncing client data to trainer...');
+    console.log('[DevSeedService] Client UID:', clientUid);
+
+    // Get client data from source of truth
+    const clientRef = doc(this.firestore, 'clients', clientUid);
+    const clientSnap = await getDoc(clientRef);
+
+    if (!clientSnap.exists()) {
+      throw new Error(`Client with UID ${clientUid} not found in /clients collection`);
+    }
+
+    const clientData = clientSnap.data();
+    const trainerId = clientData['trainerId'];
+
+    if (!trainerId) {
+      console.log('[DevSeedService] Client has no trainer assigned, nothing to sync');
+      return;
+    }
+
+    console.log('[DevSeedService] Trainer UID:', trainerId);
+
+    // Update client info in trainer's clients list
+    const trainerClientsRef = doc(this.firestore, 'trainerClients', trainerId);
+    const trainerClientsSnap = await getDoc(trainerClientsRef);
+
+    if (!trainerClientsSnap.exists()) {
+      console.log('[DevSeedService] No trainerClients document found');
+      return;
+    }
+
+    const clients = trainerClientsSnap.data()['clients'] || [];
+    const updatedClients = clients.map((c: any) => {
+      if (c.clientId === clientUid) {
+        return {
+          ...c,
+          firstName: clientData['firstName'] || '',
+          lastName: clientData['lastName'] || '',
+          clientEmail: clientData['email'] || c.clientEmail,
+        };
+      }
+      return c;
+    });
+
+    await setDoc(trainerClientsRef, {
+      clients: updatedClients,
+      updatedAt: new Date()
+    }, { merge: true });
+
+    console.log('[DevSeedService] ✅ Client data synced to trainer!');
+    console.log('[DevSeedService] Updated name:', `${clientData['firstName']} ${clientData['lastName']}`);
+    console.log('[DevSeedService] Refresh the trainer home page to see changes');
   }
 
 }
