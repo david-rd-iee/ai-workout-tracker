@@ -40,9 +40,7 @@ export const routes: Routes = [
   loadComponent: () =>
     import('./pages/leaderboards/regional-leaderboard/regional-leaderboard.page')
       .then(m => m.RegionalLeaderboardPage),
-},
-
-
+  },
   // Default: go to login first
   { path: '', redirectTo: 'login', pathMatch: 'full' },
 
