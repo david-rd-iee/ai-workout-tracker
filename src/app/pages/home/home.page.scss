@@ -8,7 +8,90 @@ ion-content {
   margin: 0 auto;
 }
 
-// Welcome Section
+.top-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.profile-button {
+  --border-width: 2px;
+  --border-style: solid;
+  --border-color: #D49A3B;
+
+  --border-radius: 50%;
+  --background: transparent;
+
+  width: 48px;
+  height: 48px;
+
+  padding: 0;
+
+  /* IMPORTANT */
+  --padding-start: 0;
+  --padding-end: 0;
+  --padding-top: 0;
+  --padding-bottom: 0;
+}
+
+
+
+.profile-avatar {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.profile-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.avatar-fallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background: #0D5EAF;   // your Greek blue theme
+  color: white;
+  font-weight: 600;
+  font-size: 16px;
+
+  border-radius: 50%;
+}
+
+.greeting {
+  flex: 1;
+}
+
+.greeting-line {
+  display: flex;
+  align-items: center;
+  min-height: 40px;
+}
+
+.greeting h1 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 800;
+}
+
+.welcome-card {
+  margin-bottom: 0px;
+
+  ion-card-content {
+    padding: 30px;
+    display: flex;
+    justify-content: center;
+  }
+}
+
 .welcome-section {
   margin-bottom: 24px;
   text-align: center;

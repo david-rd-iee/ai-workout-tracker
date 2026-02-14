@@ -3,7 +3,6 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Firestore, doc, getDoc, setDoc } from '@angular/fire/firestore';
 import { 
-  IonModal, 
   IonHeader, 
   IonToolbar, 
   IonTitle, 
@@ -47,7 +46,6 @@ interface HomePageConfig {
   imports: [
     CommonModule,
     FormsModule,
-    IonModal,
     IonHeader,
     IonToolbar,
     IonTitle,

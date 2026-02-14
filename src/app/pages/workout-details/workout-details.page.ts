@@ -1,7 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule, Location } from '@angular/common';
 import { Router } from '@angular/router';
-import { IonContent, IonCard, IonCardContent, IonCardHeader, IonCardTitle, IonButton, IonIcon, IonChip, IonLabel } from '@ionic/angular/standalone';
+import { IonContent, IonCard, IonCardContent, IonCardHeader, IonCardTitle, IonButton, IonIcon } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
 import { arrowBack, calendar, time, fitness, checkmarkCircle, barbell, chevronForward, add, chevronDown, chevronUp } from 'ionicons/icons';
 import { HeaderComponent } from 'src/app/components/header/header.component';
@@ -38,8 +38,6 @@ interface WorkoutDetails {
     IonCardTitle,
     IonButton, 
     IonIcon,
-    IonChip,
-    IonLabel,
     HeaderComponent
   ],
 })

@@ -1,14 +1,11 @@
 import { Component } from '@angular/core';
 import {
   IonTabs,
-  IonRouterOutlet,
   IonTabBar,
   IonTabButton,
   IonIcon,
   IonLabel
 } from '@ionic/angular/standalone';
-
-import { RouterLink, RouterLinkActive } from '@angular/router';
 
 import { addIcons } from 'ionicons';
 import {
@@ -24,13 +21,10 @@ import {
   styleUrls: ['./tabs.page.scss'],
   imports: [
     IonTabs,
-    IonRouterOutlet,
     IonTabBar,
     IonTabButton,
     IonIcon,
     IonLabel,
-    RouterLink,
-    RouterLinkActive,
   ],
 })
 export class TabsPage {

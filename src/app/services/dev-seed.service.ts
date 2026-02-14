@@ -1,4 +1,3 @@
-// src/app/services/dev-seed.service.ts
 import { Injectable } from '@angular/core';
 import {
   Auth,
@@ -1253,5 +1252,4 @@ export class DevSeedService {
       console.error('[DevSeedService] Error setting client streak:', error);
     }
   }
-
 }

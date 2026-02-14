@@ -2,7 +2,6 @@ import { Component, OnInit, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { 
-  IonModal, 
   IonHeader, 
   IonToolbar, 
   IonTitle, 
@@ -14,7 +13,6 @@ import {
   IonCardHeader,
   IonCardTitle,
   IonCardContent,
-  IonList,
   IonItem,
   IonLabel,
   IonInput,
@@ -49,7 +47,6 @@ interface Workout {
   imports: [
     CommonModule,
     FormsModule,
-    IonModal,
     IonHeader,
     IonToolbar,
     IonTitle,
@@ -61,7 +58,6 @@ interface Workout {
     IonCardHeader,
     IonCardTitle,
     IonCardContent,
-    IonList,
     IonItem,
     IonLabel,
     IonInput,

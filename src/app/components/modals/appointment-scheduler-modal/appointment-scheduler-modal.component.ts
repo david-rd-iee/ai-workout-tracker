@@ -2,7 +2,6 @@ import { Component, OnInit, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { 
-  IonModal, 
   IonHeader, 
   IonToolbar, 
   IonTitle, 
@@ -16,7 +15,6 @@ import {
   IonCardContent,
   IonItem,
   IonLabel,
-  IonInput,
   IonDatetime,
   IonSelect,
   IonSelectOption,
@@ -44,7 +42,6 @@ interface AppointmentData {
   imports: [
     CommonModule,
     FormsModule,
-    IonModal,
     IonHeader,
     IonToolbar,
     IonTitle,
@@ -58,7 +55,6 @@ interface AppointmentData {
     IonCardContent,
     IonItem,
     IonLabel,
-    IonInput,
     IonDatetime,
     IonSelect,
     IonSelectOption,

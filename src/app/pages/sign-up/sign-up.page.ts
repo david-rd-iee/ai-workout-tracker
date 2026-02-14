@@ -2,12 +2,10 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {
   IonContent,
-  IonHeader,
   IonItem,
   IonInput,
   IonButton,
   IonIcon,
-  IonToolbar,
   IonText,
 } from '@ionic/angular/standalone';
 import { Platform } from '@ionic/angular';
@@ -26,12 +24,10 @@ import { addIcons } from 'ionicons';
     FormsModule,
     RouterLink,
     IonContent,
-    IonHeader,
     IonItem,
     IonInput,
     IonButton,
     IonIcon,
-    IonToolbar,
     IonText,
   ],
 })

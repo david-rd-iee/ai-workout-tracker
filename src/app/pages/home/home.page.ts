@@ -2,7 +2,6 @@ import { Component, OnDestroy, OnInit, inject, computed, signal } from '@angular
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import {
-  IonAvatar,
   IonButton,
   IonCard,
   IonCardContent,
@@ -10,7 +9,6 @@ import {
   IonCardTitle,
   IonContent,
   IonIcon,
-  IonSpinner,
 } from '@ionic/angular/standalone';
 
 import { addIcons } from 'ionicons';
@@ -86,9 +84,7 @@ interface UpcomingSession {
   imports: [
     CommonModule,
     IonContent,
-    IonAvatar,
     IonButton,
-    IonSpinner,
     IonCard,
     IonCardHeader,
     IonCardTitle,

@@ -1,0 +1,112 @@
+<ion-content class="lb-content">
+  <!-- Top area: back + title pill -->
+  <div class="topbar">
+    <ion-button class="back-btn" fill="clear" (click)="goBack()">
+      <ion-icon name="arrowBackOutline"></ion-icon>
+    </ion-button>
+
+    <div class="title-pill">LeaderBoard</div>
+  </div>
+
+  <!-- Region selector row -->
+  <div class="region-row">
+    <div class="region-pill">
+      <div class="region-left">Region:</div>
+
+      <ion-select
+        class="region-select"
+        interface="popover"
+        [(ngModel)]="scope"
+        (ionChange)="refresh()"
+      >
+        <ion-select-option value="city">City</ion-select-option>
+        <ion-select-option value="state">State</ion-select-option>
+        <ion-select-option value="country">Country</ion-select-option>
+      </ion-select>
+
+      <div class="region-value">{{ regionLabel() }}</div>
+    </div>
+  </div>
+
+  <!-- Stats card (placeholder graph area) -->
+  <ion-card class="stats-card">
+    <div class="stats-title">Stats</div>
+    <div class="stats-graph">
+      <!-- placeholder - swap with real chart later -->
+      <div class="graph-placeholder">
+        <div class="graph-curve"></div>
+        <div class="graph-axis">
+          <span>-2σ</span><span>-1σ</span><span>μ</span><span>+1σ</span><span>+2σ</span>
+        </div>
+      </div>
+    </div>
+  </ion-card>
+
+  <!-- Members card -->
+  <ion-card class="members-card">
+    <div class="members-toolbar">
+      <ion-select
+        class="small-select"
+        interface="popover"
+        [(ngModel)]="metric"
+        (ionChange)="refresh()"
+      >
+        <ion-select-option value="total">Sort</ion-select-option>
+        <ion-select-option value="total">Total</ion-select-option>
+        <ion-select-option value="cardio">Cardio</ion-select-option>
+        <ion-select-option value="strength">Strength</ion-select-option>
+      </ion-select>
+
+      <div class="members-title">Members</div>
+
+      <ion-select
+        class="small-select"
+        interface="popover"
+        [(ngModel)]="roleFilter"
+        (ionChange)="refresh()"
+      >
+        <ion-select-option value="ALL">Type: All</ion-select-option>
+        <ion-select-option value="TRAINER">Type: Trainer</ion-select-option>
+        <ion-select-option value="USER">Type: User</ion-select-option>
+      </ion-select>
+    </div>
+
+    <div class="members-body">
+      <div class="loading-row" *ngIf="loading">
+        <ion-spinner name="crescent"></ion-spinner>
+        <div>Loading…</div>
+      </div>
+
+      <div class="error-row" *ngIf="!loading && errorMsg">
+        {{ errorMsg }}
+      </div>
+
+      <ion-list class="members-list" *ngIf="!loading && !errorMsg">
+        <div class="member-row" *ngFor="let e of entries">
+          <div class="member-left">
+            <ion-avatar class="avatar">
+              <img
+                [src]="e.profilePicUrl || 'assets/placeholder-avatar.png'"
+                alt="profile"
+              />
+            </ion-avatar>
+
+            <div class="member-name">
+              <div class="name-main">
+                {{ e.username || e.displayName || 'User' }}
+              </div>
+              <div class="name-sub" *ngIf="e.role === 'TRAINER'">
+                Trainer: [PT]
+              </div>
+            </div>
+          </div>
+
+          <div class="member-right">
+            <div class="rank">Rank: #{{ e.rank }}</div>
+            <div class="score">{{ metricLabel() }}: {{ scoreFor(e) }}</div>
+          </div>
+        </div>
+      </ion-list>
+    </div>
+  </ion-card>
+</ion-content>
