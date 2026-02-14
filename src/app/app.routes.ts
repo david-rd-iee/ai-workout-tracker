@@ -58,6 +58,12 @@ export const routes: Routes = [
       import('./pages/chats/chat-detail/chat-detail.page').then((m) => m.ChatDetailPage),
   },
   {
+    path: 'leaderboard/:groupID',
+    loadComponent: () =>
+      import('./pages/leaderboards/leaderboard/leaderboard.page').then((m) => m.LeaderboardPage),
+    canActivate: [authGuard],
+  },
+  {
     path: '',
     redirectTo: 'login',
     pathMatch: 'full',

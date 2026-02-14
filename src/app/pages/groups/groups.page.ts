@@ -67,7 +67,11 @@ export class GroupsPage implements OnInit, OnDestroy {
   }
 
   openGroup(group: Group): void {
-    console.log('[GroupsPage] openGroup not implemented yet:', group.groupId);
+    this.searchModalOpen = false;
+    this.navCtrl.navigateForward(`/leaderboard/${group.groupId}`, {
+      animated: true,
+      animationDirection: 'forward',
+    });
   }
 
   get filteredAllGroups(): Group[] {

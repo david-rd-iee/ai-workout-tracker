@@ -9,4 +9,5 @@ export interface Group {
   ownerUserId: string;
   created_at: Timestamp;
   groupImage?: string;
+  userIDs: string[];
 }

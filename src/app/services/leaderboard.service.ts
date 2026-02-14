@@ -256,40 +256,33 @@ export class LeaderboardService {
   ): Promise<LeaderboardEntry[]> {
     console.log('[LeaderboardService] getGroupLeaderboard', { groupId, metric });
 
-    // 1) find all users whose `groups` array contains this groupId
-    const usersRef = collection(this.firestore, 'users');
-    const q = query(usersRef, where('groups', 'array-contains', groupId));
-    const userSnap = await getDocs(q);
-
-    console.log(
-      '[LeaderboardService] users in group snapshot size:',
-      userSnap.size
-    );
-
-    if (userSnap.empty) {
-      console.log('[LeaderboardService] No users found in group', groupId);
+    // 1) Read group doc and use group.userIDs as the source of membership.
+    const groupRef = doc(this.firestore, 'groupID', groupId);
+    const groupSnap = await getDoc(groupRef);
+    if (!groupSnap.exists()) {
+      console.log('[LeaderboardService] Group not found:', groupId);
       return [];
     }
 
-    const userIds: string[] = [];
-    const usersById: Record<string, AppUser> = {};
+    const groupData = groupSnap.data() as { userIDs?: string[] };
+    const userIds = Array.isArray(groupData.userIDs) ? groupData.userIDs : [];
 
-    userSnap.forEach((d) => {
-      const data = d.data() as AppUser;
-      const uid = d.id;
-      userIds.push(uid);
-      usersById[uid] = { ...data, userId: uid };
-    });
+    if (userIds.length === 0) {
+      console.log('[LeaderboardService] Group has no userIDs:', groupId);
+      return [];
+    }
 
-    console.log('[LeaderboardService] userIds in group:', userIds);
-
-    // 2) For each user, pull their userStats doc
+    // 2) For each userId, pull /users + /userStats docs
     const entries: LeaderboardEntry[] = [];
 
     await Promise.all(
       userIds.map(async (uid) => {
+        const userRef = doc(this.firestore, 'users', uid);
         const statsRef = doc(this.firestore, 'userStats', uid);
-        const statsSnap = await getDoc(statsRef);
+        const [userSnap, statsSnap] = await Promise.all([
+          getDoc(userRef),
+          getDoc(statsRef),
+        ]);
 
         if (!statsSnap.exists()) {
           console.warn(
@@ -300,7 +293,9 @@ export class LeaderboardService {
         }
 
         const stats = statsSnap.data() as any;
-        const user = usersById[uid];
+        const user = userSnap.exists()
+          ? ({ ...userSnap.data(), userId: uid } as AppUser)
+          : undefined;
         const scores = this.readScores(stats);
 
         entries.push({
