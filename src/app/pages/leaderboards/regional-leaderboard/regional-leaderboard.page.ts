@@ -1,56 +1,27 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnDestroy, OnInit, inject } from '@angular/core';
-import { Router } from '@angular/router';
 import {
   NavController,
-  IonAvatar,
-  IonButton,
-  IonCard,
   IonContent,
-  IonIcon,
-  IonList,
-  IonSelect,
-  IonSelectOption,
-  IonSpinner } from '@ionic/angular/standalone';
-
-import { addIcons } from 'ionicons';
-import { arrowBackOutline, caretDownOutline } from 'ionicons/icons';
+} from '@ionic/angular/standalone';
 
 import { Auth, onAuthStateChanged, User } from '@angular/fire/auth';
 import { Firestore, doc, docData } from '@angular/fire/firestore';
 import { Subscription } from 'rxjs';
 
-import { FormsModule } from '@angular/forms';
-
 import { LeaderboardService, LeaderboardEntry, Metric } from '../../../services/leaderboard.service';
-
-type RegionScope = 'city' | 'state' | 'country';
-type DistributionPoint = {
-  binIndex: number;
-  xPercent: number;
-  yPercent: number;
-  count: number;
-  userIds: string[];
-  rangeLabel: string;
-};
+import {
+  DistributionPoint,
+  LeaderboardScope,
+  LeaderboardShellComponent,
+} from '../../../components/leaderboard-shell/leaderboard-shell.component';
 
 @Component({
   selector: 'app-regional-leaderboard',
   standalone: true,
   templateUrl: './regional-leaderboard.page.html',
   styleUrls: ['./regional-leaderboard.page.scss'],
-  imports: [CommonModule,
-    FormsModule,
-    IonContent,
-    IonButton,
-    IonIcon,
-    IonCard,
-    IonSelect,
-    IonSelectOption,
-    IonList,
-    IonAvatar,
-    IonSpinner,
-  ],
+  imports: [CommonModule, IonContent, LeaderboardShellComponent],
 })
 export class RegionalLeaderboardPage implements OnInit, OnDestroy {
   private auth = inject(Auth);
@@ -69,7 +40,7 @@ export class RegionalLeaderboardPage implements OnInit, OnDestroy {
   userRegion: any = null;
 
   // UI controls
-  scope: RegionScope = 'city';
+  scope: LeaderboardScope = 'city';
   metric: Metric = 'total';
 
   // Data
@@ -78,10 +49,7 @@ export class RegionalLeaderboardPage implements OnInit, OnDestroy {
   distributionPoints: DistributionPoint[] = [];
   selectedPointBin: number | null = null;
   selectedPointUserIds = new Set<string>();
-
-  constructor() {
-    addIcons({ arrowBackOutline, caretDownOutline });
-  }
+  constructor() {}
 
   ngOnInit() {
     onAuthStateChanged(this.auth, (u) => {
@@ -189,12 +157,6 @@ export class RegionalLeaderboardPage implements OnInit, OnDestroy {
       return this.userRegion.stateName || this.userRegion.stateCode || 'Unknown state';
     }
     return this.userRegion.cityName || this.userRegion.cityId || 'Unknown city';
-  }
-
-  metricLabel(): string {
-    if (this.metric === 'cardio') return 'Cardio';
-    if (this.metric === 'strength') return 'Strength';
-    return 'Total';
   }
 
   scoreFor(e: LeaderboardEntry): number {

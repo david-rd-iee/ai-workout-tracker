@@ -3,21 +3,9 @@ import { Component, OnInit, inject } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import {
   NavController,
-  IonAvatar,
-  IonButton,
-  IonCard,
   IonContent,
-  IonIcon,
-  IonList,
-  IonSelect,
-  IonSelectOption,
-  IonSpinner,
 } from '@ionic/angular/standalone';
-import { FormsModule } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
-
-import { addIcons } from 'ionicons';
-import { arrowBackOutline } from 'ionicons/icons';
 
 import {
   LeaderboardService,
@@ -25,34 +13,17 @@ import {
   Metric,
 } from '../../../services/leaderboard.service';
 import { GroupService } from '../../../services/group.service';
-
-type DistributionPoint = {
-  binIndex: number;
-  xPercent: number;
-  yPercent: number;
-  count: number;
-  userIds: string[];
-  rangeLabel: string;
-};
+import {
+  DistributionPoint,
+  LeaderboardShellComponent,
+} from '../../../components/leaderboard-shell/leaderboard-shell.component';
 
 @Component({
   selector: 'app-leaderboard',
   standalone: true,
   templateUrl: './leaderboard.page.html',
   styleUrls: ['./leaderboard.page.scss'],
-  imports: [
-    CommonModule,
-    FormsModule,
-    IonContent,
-    IonButton,
-    IonIcon,
-    IonCard,
-    IonSelect,
-    IonSelectOption,
-    IonList,
-    IonAvatar,
-    IonSpinner,
-  ],
+  imports: [CommonModule, IonContent, LeaderboardShellComponent],
 })
 export class LeaderboardPage implements OnInit {
   private route = inject(ActivatedRoute);
@@ -73,9 +44,7 @@ export class LeaderboardPage implements OnInit {
   selectedPointBin: number | null = null;
   selectedPointUserIds = new Set<string>();
 
-  constructor() {
-    addIcons({ arrowBackOutline });
-  }
+  constructor() {}
 
   async ngOnInit(): Promise<void> {
     const groupId = this.route.snapshot.paramMap.get('groupID');
@@ -116,12 +85,6 @@ export class LeaderboardPage implements OnInit {
       animated: true,
       animationDirection: 'back',
     });
-  }
-
-  metricLabel(): string {
-    if (this.metric === 'cardio') return 'Cardio';
-    if (this.metric === 'strength') return 'Strength';
-    return 'Total';
   }
 
   scoreFor(e: LeaderboardEntry): number {

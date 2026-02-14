@@ -104,6 +104,23 @@ export class LeaderboardService {
     };
   }
 
+  private readProfilePic(source: any): string | undefined {
+    const candidates = [
+      source?.profilePicUrl,
+      source?.profilepic,
+      source?.profileImage,
+      source?.profileImageUrl,
+      source?.avatarUrl,
+    ];
+
+    for (const value of candidates) {
+      const raw = typeof value === 'string' ? value.trim() : '';
+      if (raw.length > 0) return raw;
+    }
+
+    return undefined;
+  }
+
   // -----------------------------
   // Main leaderboard (all users)
   // -----------------------------
@@ -123,7 +140,7 @@ export class LeaderboardService {
             level: s.level,
             region: s.region,
             username: s.username,
-            profilePicUrl: s.profilePicUrl ?? s.profilePicUrl?.toString?.(),
+            profilePicUrl: this.readProfilePic(s),
             role: s.role,
           };
         })
@@ -237,7 +254,7 @@ export class LeaderboardService {
       level: stats.level,
       region: stats.region,
       username: stats.username,
-      profilePicUrl: stats.profilePicUrl,
+      profilePicUrl: this.readProfilePic(stats),
       role: stats.role,
     };
   }
@@ -307,7 +324,7 @@ export class LeaderboardService {
           level: stats.level,
           region: stats.region,
           username: stats.username ?? user?.username,
-          profilePicUrl: stats.profilePicUrl,
+          profilePicUrl: this.readProfilePic(stats) ?? this.readProfilePic(user),
           role: stats.role,
         });
       })

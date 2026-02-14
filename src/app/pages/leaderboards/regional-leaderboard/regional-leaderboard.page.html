@@ -1,121 +1,20 @@
 <ion-content class="lb-content">
-  <div class="topbar">
-    <ion-button class="back-btn" fill="clear" (click)="goBack()">
-      <ion-icon name="arrow-back-outline"></ion-icon>
-    </ion-button>
-    <div class="title-pill">Regional Leaderboard</div>
-    <div class="topbar-spacer" aria-hidden="true"></div>
-  </div>
-
-  <ion-card class="stats-card">
-    <div class="stats-title">Stats</div>
-    <div class="stats-graph">
-      <div class="graph-region-label">{{ graphRegionTitle() }}</div>
-      <div class="graph-placeholder">
-        <svg
-          *ngIf="distributionCurvePath; else noChartData"
-          class="distribution-svg"
-          viewBox="0 0 100 100"
-          preserveAspectRatio="none"
-        >
-          <path class="distribution-curve" [attr.d]="distributionCurvePath"></path>
-
-          <g class="distribution-points">
-            <g
-              *ngFor="let point of distributionPoints"
-              class="distribution-point"
-              [class.point-selected]="isPointSelected(point)"
-              (click)="onDistributionPointClick(point)"
-            >
-              <circle
-                [attr.cx]="point.xPercent"
-                [attr.cy]="point.yPercent"
-                [attr.r]="2.3 + (point.count > 1 ? 0.65 : 0)"
-              ></circle>
-              <text
-                *ngIf="point.count > 1"
-                [attr.x]="point.xPercent"
-                [attr.y]="point.yPercent - 3.5"
-              >
-                {{ point.count }}
-              </text>
-              <title>{{ point.rangeLabel }} ({{ point.count }} players)</title>
-            </g>
-          </g>
-        </svg>
-
-        <ng-template #noChartData>
-          <div class="chart-empty-msg">Load players to view the distribution.</div>
-        </ng-template>
-      </div>
-    </div>
-  </ion-card>
-
-  <ion-card class="members-card">
-    <div class="members-toolbar">
-      <ion-select
-        class="small-select"
-        interface="popover"
-        [(ngModel)]="metric"
-        (ionChange)="refresh()"
-      >
-        <ion-select-option value="total">Sort: Total</ion-select-option>
-        <ion-select-option value="cardio">Sort: Cardio</ion-select-option>
-        <ion-select-option value="strength">Sort: Strength</ion-select-option>
-      </ion-select>
-
-      <div class="members-title">Members</div>
-
-      <ion-select
-        class="small-select"
-        interface="popover"
-        [(ngModel)]="scope"
-        (ionChange)="refresh()"
-      >
-        <ion-select-option value="city">Region: City</ion-select-option>
-        <ion-select-option value="state">Region: State</ion-select-option>
-        <ion-select-option value="country">Region: Country</ion-select-option>
-      </ion-select>
-    </div>
-
-    <div class="members-body">
-      <div class="loading-row" *ngIf="loading">
-        <ion-spinner name="crescent"></ion-spinner>
-        <div>Loading...</div>
-      </div>
-
-      <div class="error-row" *ngIf="!loading && errorMsg">
-        {{ errorMsg }}
-      </div>
-
-      <ion-list class="members-list" *ngIf="!loading && !errorMsg">
-        <div
-          class="member-row"
-          *ngFor="let e of entries"
-          [class.row-highlighted]="isEntryHighlighted(e)"
-        >
-          <div class="member-left">
-            <ion-avatar class="avatar">
-              <img
-                [src]="e.profilePicUrl || 'assets/placeholder-avatar.png'"
-                alt="profile"
-              />
-            </ion-avatar>
-
-            <div class="member-name">
-              <div class="name-main">
-                {{ e.username || e.displayName || 'User' }}
-              </div>
-              <div class="name-sub" *ngIf="e.role === 'TRAINER'">Trainer: [PT]</div>
-            </div>
-          </div>
-
-          <div class="member-right">
-            <div class="rank">Rank: #{{ e.rank }}</div>
-            <div class="score">{{ metricLabel() }}: {{ scoreFor(e) }}</div>
-          </div>
-        </div>
-      </ion-list>
-    </div>
-  </ion-card>
+  <app-leaderboard-shell
+    [title]="'Regional Leaderboard'"
+    [graphLabel]="graphRegionTitle()"
+    [loading]="loading"
+    [errorMsg]="errorMsg"
+    [metric]="metric"
+    [scope]="scope"
+    [showScopeSelect]="true"
+    [entries]="entries"
+    [distributionCurvePath]="distributionCurvePath"
+    [distributionPoints]="distributionPoints"
+    [selectedPointBin]="selectedPointBin"
+    [highlightedUserIds]="selectedPointUserIds"
+    (back)="goBack()"
+    (metricChange)="metric = $event; refresh()"
+    (scopeChange)="scope = $event; refresh()"
+    (distributionPointClick)="onDistributionPointClick($event)"
+  ></app-leaderboard-shell>
 </ion-content>
