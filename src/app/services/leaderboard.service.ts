@@ -168,44 +168,48 @@ export class LeaderboardService {
         ? 'strengthWorkScore'
         : 'totalWorkScore';
 
-    // Build query constraints
-    const constraints: any[] = [
+    // Build filter constraints
+    const filterConstraints: any[] = [
       where('region.countryCode', '==', regional.countryCode),
     ];
 
     if (regional.scope === 'state' || regional.scope === 'city') {
-      constraints.push(where('region.stateCode', '==', regional.stateCode));
+      filterConstraints.push(where('region.stateCode', '==', regional.stateCode));
     }
 
     if (regional.scope === 'city') {
-      constraints.push(where('region.cityId', '==', regional.cityId));
+      filterConstraints.push(where('region.cityId', '==', regional.cityId));
     }
 
-    // orderBy must come after where constraints in query() builder
-    constraints.push(orderBy(orderField, 'desc'));
-    constraints.push(fsLimit(maxResults));
+    let entries: LeaderboardEntry[] = [];
 
-    const q = query(statsRef, ...constraints);
-    const snap = await getDocs(q);
+    try {
+      // Primary path: server-side sort + limit (requires composite indexes)
+      const q = query(
+        statsRef,
+        ...filterConstraints,
+        orderBy(orderField, 'desc'),
+        fsLimit(maxResults)
+      );
+      const snap = await getDocs(q);
+      entries = snap.docs.map((d) => this.mapStatsDocToEntry(d.id, d.data()));
+    } catch (err: any) {
+      if (!this.isMissingIndexError(err)) {
+        throw err;
+      }
 
-    const entries: LeaderboardEntry[] = [];
-
-    snap.forEach((d) => {
-      const stats = d.data() as any;
-      const scores = this.readScores(stats);
-
-      entries.push({
-        userId: d.id, // doc ID = UID
-        displayName: stats.displayName ?? stats.username ?? 'Anonymous',
-        rank: 0,
-        ...scores,
-        level: stats.level,
-        region: stats.region,
-        username: stats.username,
-        profilePicUrl: stats.profilePicUrl,
-        role: stats.role,
-      });
-    });
+      // Fallback path for dev/test projects without composite indexes:
+      // fetch filtered rows, then sort/limit in-memory.
+      console.warn(
+        '[LeaderboardService] Missing composite index for regional query; using client-side sort fallback.'
+      );
+      const q = query(statsRef, ...filterConstraints);
+      const snap = await getDocs(q);
+      entries = snap.docs.map((d) => this.mapStatsDocToEntry(d.id, d.data()));
+      const metricField = this.metricToField(metric);
+      entries.sort((a, b) => ((b as any)[metricField] ?? 0) - ((a as any)[metricField] ?? 0));
+      entries = entries.slice(0, maxResults);
+    }
 
     // Assign ranks (already ordered by Firestore, but rank is local)
     entries.forEach((e, idx) => (e.rank = idx + 1));
@@ -221,6 +225,26 @@ export class LeaderboardService {
     );
 
     return entries;
+  }
+
+  private mapStatsDocToEntry(userId: string, stats: any): LeaderboardEntry {
+    const scores = this.readScores(stats);
+    return {
+      userId,
+      displayName: stats.displayName ?? stats.username ?? 'Anonymous',
+      rank: 0,
+      ...scores,
+      level: stats.level,
+      region: stats.region,
+      username: stats.username,
+      profilePicUrl: stats.profilePicUrl,
+      role: stats.role,
+    };
+  }
+
+  private isMissingIndexError(err: any): boolean {
+    const message = String(err?.message ?? '').toLowerCase();
+    return err?.code === 'failed-precondition' && message.includes('index');
   }
 
   // -----------------------------

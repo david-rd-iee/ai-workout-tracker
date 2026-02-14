@@ -118,3 +118,325 @@ ion-input, ion-textarea {
   -ms-user-select: text;
   user-select: text;
 }
+
+/* Shared auth page styles */
+app-login,
+app-sign-up {
+  .logo {
+    text-align: center;
+    margin-top: 15vh;
+    margin-bottom: 30px;
+  }
+
+  form {
+    margin-bottom: 20px;
+  }
+
+  ion-button {
+    margin-top: 20px;
+  }
+
+  ion-item {
+    margin-bottom: 10px;
+    --border-width: 1px;
+    --border-color: #aeaeae;
+    --border-radius: 8px;
+
+    &.ion-focused {
+      --border-color: #aeaeae;
+    }
+
+    &.ion-invalid {
+      --border-color: #aeaeae;
+    }
+  }
+
+  .login,
+  .sign-up {
+    text-align: center;
+    margin-top: 20px;
+  }
+
+  .login a,
+  .sign-up a {
+    color: var(--ion-color-primary);
+    text-decoration: none;
+  }
+}
+
+/* Shared calendar page styles */
+app-client-calendar,
+app-trainer-calendar {
+  ion-datetime {
+    margin: auto;
+  }
+
+  .trainings-container {
+    padding: 16px;
+
+    ion-card-title {
+      font-size: 1.2rem;
+      font-weight: 500;
+    }
+
+    ion-item {
+      --padding-start: 0;
+
+      h2 {
+        font-weight: bold;
+        margin-bottom: 4px;
+      }
+
+      h3 {
+        color: var(--ion-color-primary);
+        margin-bottom: 4px;
+      }
+
+      p {
+        color: var(--ion-color-medium);
+      }
+    }
+  }
+
+  .loading-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 200px;
+
+    p {
+      margin-top: 16px;
+      color: var(--ion-color-medium);
+    }
+  }
+}
+
+/* Shared create-profile form styles */
+app-profile-create-client .create-client-content,
+app-profile-create-trainer .create-trainer-content {
+  --background: #f8fafc;
+  --padding-top: 0;
+  --padding-bottom: 0;
+}
+
+app-profile-create-client,
+app-profile-create-trainer {
+  .form-container {
+    max-width: 500px;
+    margin: 20px auto;
+    padding: 24px 20px;
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  }
+
+  .form-header {
+    text-align: center;
+    margin-bottom: 32px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid #e2e8f0;
+
+    h2 {
+      color: #1e293b;
+      font-size: 28px;
+      font-weight: 700;
+      margin: 0 0 8px 0;
+    }
+
+    p {
+      color: #64748b;
+      font-size: 16px;
+      margin: 0;
+    }
+  }
+
+  .form-field {
+    margin-bottom: 24px;
+
+    &:last-of-type {
+      margin-bottom: 32px;
+    }
+  }
+
+  .modern-input {
+    --background: #ffffff;
+    --border-color: #e2e8f0;
+    --border-radius: 12px;
+    --border-width: 1.5px;
+    --highlight-color-focused: #3b82f6;
+    --color: #1e293b;
+    --placeholder-color: #94a3b8;
+    --padding-start: 16px;
+    --padding-end: 16px;
+    --min-height: 56px;
+
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    transition: all 0.2s ease-in-out;
+    margin-bottom: 0;
+
+    &:hover {
+      --border-color: #cbd5e1;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    &.ion-focused {
+      --border-color: #3b82f6;
+      --border-width: 2px;
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+
+    &.ion-invalid.ion-touched {
+      --border-color: #ef4444;
+      --border-width: 2px;
+      box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+    }
+  }
+
+  ion-input,
+  ion-select {
+    --color: #1e293b;
+    --placeholder-color: #94a3b8;
+    font-size: 16px;
+    font-weight: 500;
+  }
+
+  ion-label {
+    color: #374151;
+    font-weight: 600;
+    font-size: 14px;
+  }
+
+  .phone-input {
+    &.field-error app-phone-input ion-input {
+      --border-color: #ef4444;
+      --border-width: 2px;
+      box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+    }
+
+    app-phone-input {
+      width: 100%;
+      display: block;
+
+      ion-input {
+        --background: #ffffff;
+        --border-color: #e2e8f0;
+        --border-radius: 12px;
+        --border-width: 1.5px;
+        --highlight-color-focused: #3b82f6;
+        --color: #1e293b;
+        --placeholder-color: #94a3b8;
+        --padding-start: 16px;
+        --padding-end: 16px;
+        --min-height: 56px;
+
+        border-radius: 12px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        transition: all 0.2s ease-in-out;
+        margin-bottom: 0;
+
+        &:hover {
+          --border-color: #cbd5e1;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        &.ion-focused {
+          --border-color: #3b82f6;
+          --border-width: 2px;
+          box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+      }
+    }
+  }
+
+  .validation-errors {
+    margin: 0 0 24px 0;
+    padding: 16px;
+    border-radius: 12px;
+    background: #fef2f2;
+    border: 1.5px solid #fecaca;
+
+    .error-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+
+      ion-icon {
+        font-size: 20px;
+        --color: #dc2626;
+      }
+
+      h4 {
+        color: #dc2626;
+        margin: 0;
+        font-size: 16px;
+        font-weight: 600;
+      }
+    }
+
+    ul {
+      margin: 0;
+      padding-left: 24px;
+    }
+
+    li {
+      color: #b91c1c;
+      margin-bottom: 6px;
+      font-size: 14px;
+      font-weight: 500;
+
+      &:last-child {
+        margin-bottom: 0;
+      }
+    }
+  }
+
+  .submit-section {
+    margin-top: 32px;
+    padding-top: 24px;
+    border-top: 1px solid #e2e8f0;
+
+    .submit-button {
+      --background: #3b82f6;
+      --color: white;
+      --border-radius: 12px;
+      --padding-top: 16px;
+      --padding-bottom: 16px;
+
+      font-size: 16px;
+      font-weight: 600;
+      margin: 0;
+      height: 56px;
+
+      &:disabled {
+        --background: #e2e8f0;
+        --color: #94a3b8;
+      }
+
+      ion-spinner {
+        --color: white;
+        margin-right: 8px;
+      }
+    }
+  }
+}
+
+@media (max-width: 768px) {
+  app-profile-create-client .form-container,
+  app-profile-create-trainer .form-container {
+    margin: 10px;
+    padding: 20px 16px;
+  }
+
+  app-profile-create-client .form-header h2,
+  app-profile-create-trainer .form-header h2 {
+    font-size: 24px;
+  }
+
+  app-profile-create-client .form-field,
+  app-profile-create-trainer .form-field {
+    margin-bottom: 20px;
+  }
+}

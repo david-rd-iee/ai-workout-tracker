@@ -56,16 +56,3 @@ ion-segment-button {
     }
   }
 }
-
-.background-gradient {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-image: url('/assets/backgrounds/BlurryGradientLight.svg');
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-  z-index: -1;
-}
