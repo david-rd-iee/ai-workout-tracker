@@ -16,4 +16,7 @@ export interface AppUser {
   profileImage?: string;
 
   created_at?: any; // Firestore timestamp if you use it
+
+  ptUID?: string;
+  ownedGroupID?: string;
 }

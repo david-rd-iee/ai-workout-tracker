@@ -10,6 +10,8 @@
       <button
         type="button"
         [class.active]="selectedTab === 'training'"
+        [class.disabled]="!trainingEnabled"
+        [disabled]="!trainingEnabled"
         (click)="selectTab('training')"
       >
         Training
@@ -26,9 +28,31 @@
 
   <section class="groups-content">
     <ng-container *ngIf="selectedTab === 'training'; else friendsTab">
-      <div class="group-card placeholder-card">
-        training leaderboard not implemented yet
+      <div class="state-message" *ngIf="trainingLoading">
+        <ion-spinner name="crescent"></ion-spinner>
       </div>
+
+      <div class="state-message" *ngIf="!trainingLoading && !trainingEnabled">
+        Training leaderboard unavailable.
+      </div>
+
+      <app-leaderboard-shell
+        *ngIf="!trainingLoading && trainingEnabled && trainingGroup"
+        [showTopbar]="false"
+        [title]="trainingTitle"
+        [graphLabel]="trainingTitle"
+        [loading]="trainingLeaderboardLoading"
+        [errorMsg]="trainingLeaderboardError || ''"
+        [metric]="trainingMetric"
+        [showScopeSelect]="false"
+        [entries]="trainingEntries"
+        [distributionCurvePath]="trainingDistributionCurvePath"
+        [distributionPoints]="trainingDistributionPoints"
+        [selectedPointBin]="trainingSelectedPointBin"
+        [highlightedUserIds]="trainingSelectedPointUserIds"
+        (metricChange)="onTrainingMetricChange($event)"
+        (distributionPointClick)="onTrainingDistributionPointClick($event)"
+      ></app-leaderboard-shell>
     </ng-container>
 
     <ng-template #friendsTab>
@@ -63,7 +87,13 @@
     </ng-template>
   </section>
 
-  <button class="add-group-btn" type="button" (click)="openGroupSearch()" aria-label="Search groups">
+  <button
+    *ngIf="selectedTab === 'friends'"
+    class="add-group-btn"
+    type="button"
+    (click)="openGroupSearch()"
+    aria-label="Search groups"
+  >
     <ion-icon name="add-outline"></ion-icon>
   </button>
 </ion-content>

@@ -45,6 +45,7 @@ export type DistributionPoint = {
   ],
 })
 export class LeaderboardShellComponent {
+  @Input() showTopbar = true;
   @Input() title = 'Leaderboard';
   @Input() graphLabel = 'Stats';
   @Input() loading = false;

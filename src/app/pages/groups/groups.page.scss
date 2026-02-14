@@ -54,6 +54,12 @@
     background: #317fc9;
     color: #0d1a2a;
   }
+
+  button.disabled {
+    background: #c5ccd3;
+    color: #6a7178;
+    cursor: not-allowed;
+  }
 }
 
 .groups-content {

@@ -1,5 +1,5 @@
 <div class="lb-shell">
-  <div class="topbar">
+  <div class="topbar" *ngIf="showTopbar">
     <ion-button class="back-btn" fill="clear" (click)="back.emit()">
       <ion-icon name="arrow-back-outline"></ion-icon>
     </ion-button>
