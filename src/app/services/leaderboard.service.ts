@@ -121,6 +121,11 @@ export class LeaderboardService {
     return undefined;
   }
 
+  private isTrainerRole(role: unknown): boolean {
+    const value = String(role ?? '').trim().toLowerCase();
+    return value === 'trainer';
+  }
+
   // -----------------------------
   // Main leaderboard (all users)
   // -----------------------------
@@ -129,21 +134,23 @@ export class LeaderboardService {
 
     return collectionData(statsRef, { idField: 'userId' }).pipe(
       map((docs) =>
-        (docs as (UserStats & { userId: string })[]).map((s: any) => {
-          const scores = this.readScores(s);
+        (docs as (UserStats & { userId: string })[])
+          .filter((s: any) => !this.isTrainerRole(s?.role))
+          .map((s: any) => {
+            const scores = this.readScores(s);
 
-          return {
-            userId: s.userId,
-            displayName: s.displayName ?? 'Anonymous',
-            rank: 0,
-            ...scores,
-            level: s.level,
-            region: s.region,
-            username: s.username,
-            profilePicUrl: this.readProfilePic(s),
-            role: s.role,
-          };
-        })
+            return {
+              userId: s.userId,
+              displayName: s.displayName ?? 'Anonymous',
+              rank: 0,
+              ...scores,
+              level: s.level,
+              region: s.region,
+              username: s.username,
+              profilePicUrl: this.readProfilePic(s),
+              role: s.role,
+            };
+          })
       )
     );
   }
@@ -228,7 +235,8 @@ export class LeaderboardService {
       entries = entries.slice(0, maxResults);
     }
 
-    // Assign ranks (already ordered by Firestore, but rank is local)
+    // Exclude trainers, then assign ranks.
+    entries = entries.filter((e) => !this.isTrainerRole(e.role));
     entries.forEach((e, idx) => (e.rank = idx + 1));
 
     console.log(
@@ -315,7 +323,7 @@ export class LeaderboardService {
           : undefined;
         const scores = this.readScores(stats);
 
-        entries.push({
+        const entry: LeaderboardEntry = {
           userId: uid,
           displayName:
             stats.displayName || user?.username || user?.email || 'Unknown User',
@@ -326,7 +334,13 @@ export class LeaderboardService {
           username: stats.username ?? user?.username,
           profilePicUrl: this.readProfilePic(stats) ?? this.readProfilePic(user),
           role: stats.role,
-        });
+        };
+
+        if (this.isTrainerRole(entry.role ?? user?.role)) {
+          return;
+        }
+
+        entries.push(entry);
       })
     );
 
