@@ -8,7 +8,7 @@ export interface AppUser {
   lastName?: string;
   username?: string;
 
-  role?: string; // "client", "trainer", etc.
+  isPT: boolean; // "client", "trainer", etc.
   groupID?: string[];
 
   // URL stored in Firestore under "profilepic", some parts use profileImage, so this was the easiest to implment

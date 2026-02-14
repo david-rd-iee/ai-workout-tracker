@@ -121,8 +121,19 @@ export class LeaderboardService {
     return undefined;
   }
 
-  private isTrainerRole(role: unknown): boolean {
-    const value = String(role ?? '').trim().toLowerCase();
+  private isTrainerRole(source: unknown): boolean {
+    if (typeof source === 'boolean') {
+      return source;
+    }
+
+    if (source && typeof source === 'object') {
+      const candidate = source as { isPT?: unknown; role?: unknown };
+      if (candidate.isPT === true) return true;
+      const roleValue = String(candidate.role ?? '').trim().toLowerCase();
+      return roleValue === 'trainer';
+    }
+
+    const value = String(source ?? '').trim().toLowerCase();
     return value === 'trainer';
   }
 
@@ -135,7 +146,7 @@ export class LeaderboardService {
     return collectionData(statsRef, { idField: 'userId' }).pipe(
       map((docs) =>
         (docs as (UserStats & { userId: string })[])
-          .filter((s: any) => !this.isTrainerRole(s?.role))
+          .filter((s: any) => !this.isTrainerRole(s))
           .map((s: any) => {
             const scores = this.readScores(s);
 
@@ -236,7 +247,7 @@ export class LeaderboardService {
     }
 
     // Exclude trainers, then assign ranks.
-    entries = entries.filter((e) => !this.isTrainerRole(e.role));
+    entries = entries.filter((e) => !this.isTrainerRole(e));
     entries.forEach((e, idx) => (e.rank = idx + 1));
 
     console.log(
@@ -336,7 +347,7 @@ export class LeaderboardService {
           role: stats.role,
         };
 
-        if (this.isTrainerRole(entry.role ?? user?.role)) {
+        if (this.isTrainerRole({ isPT: user?.isPT ?? stats?.isPT, role: entry.role })) {
           return;
         }
 

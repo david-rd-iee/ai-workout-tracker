@@ -134,7 +134,7 @@ export class ProfileUserPage implements OnInit, OnDestroy {
         this.isLoading = false;
 
         // Load statues after user is loaded
-        if (this.currentUser?.userId && this.currentUser?.role !== 'trainer') {
+        if (this.currentUser?.userId && this.currentUser?.isPT !== true) {
           this.loadGreekStatuesFromFirestore(this.currentUser.userId);
         }
       },

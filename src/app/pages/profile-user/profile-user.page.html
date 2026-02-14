@@ -21,7 +21,7 @@
     </div>
 
     <!-- Greek Statues Section (Hidden for trainers) -->
-    <ion-card *ngIf="currentUser?.role !== 'trainer'" class="statues-card">
+    <ion-card *ngIf="currentUser?.isPT !== true" class="statues-card">
       <ion-list lines="full">
         <ion-item>
           <ion-icon slot="start" name="fitness" color="primary"></ion-icon>

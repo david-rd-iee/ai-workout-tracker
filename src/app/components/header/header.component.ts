@@ -87,6 +87,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
         userId: uid,
         firstName: typeof data?.firstName === 'string' ? data.firstName : undefined,
         username: typeof data?.username === 'string' ? data.username : undefined,
+        isPT: data?.isPT === true,
         profilepic: typeof data?.profilepic === 'string' ? data.profilepic : undefined,
         profileImage: typeof data?.profileImage === 'string' ? data.profileImage : undefined,
       };

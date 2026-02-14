@@ -158,14 +158,14 @@ export class HomePage implements OnInit, OnDestroy {
         return docData(trainerRef, { idField: 'userId' }).pipe(
           switchMap((trainer) => {
             if (trainer) {
-              return of({ ...trainer, role: 'trainer' });
+              return of({ ...trainer, isPT: true });
             }
             // If not a trainer, check clients collection
             const clientRef = doc(this.firestore, 'clients', fbUser.uid);
             return docData(clientRef, { idField: 'userId' }).pipe(
               switchMap((client) => {
                 if (client) {
-                  return of({ ...client, role: 'client' });
+                  return of({ ...client, isPT: false });
                 }
                 return of(null);
               })
@@ -187,8 +187,7 @@ export class HomePage implements OnInit, OnDestroy {
         
         // Load appropriate data based on account type
         if (this.currentUser) {
-          const role = (this.currentUser as any).role || 'client';
-          if (role === 'trainer') {
+          if (this.currentUser.isPT === true) {
             this.loadTrainerClients();
           } else {
             this.loadClientData();
