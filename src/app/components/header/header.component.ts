@@ -38,8 +38,17 @@ export class HeaderComponent {
   }
 
   get profileImageUrl(): string | null {
-    const raw = (this.currentUser?.profilepic || '').trim();
-    return raw.length > 0 ? raw : null;
+    const candidates = [
+      this.currentUser?.profilepic,
+      this.currentUser?.profileImage,
+    ];
+
+    for (const value of candidates) {
+      const raw = (value || '').trim();
+      if (raw.length > 0) return raw;
+    }
+
+    return null;
   }
 
   goToProfile() {

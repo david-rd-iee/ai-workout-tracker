@@ -13,6 +13,8 @@ export interface AppUser {
 
   // URL stored in Firestore under "profilepic"
   profilepic?: string;
+  // Some collections store it as "profileImage"
+  profileImage?: string;
 
   created_at?: any; // Firestore timestamp if you use it
 }

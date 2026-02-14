@@ -179,6 +179,11 @@ export class HomePage implements OnInit, OnDestroy {
         this.isLoadingUser = false;
         
         console.log('Current user loaded:', this.currentUser);
+
+        // Home pulls from trainers/clients, but profile image is often stored in users/{uid}.
+        if (this.currentUser?.userId) {
+          void this.hydrateHeaderProfileFields(this.currentUser.userId);
+        }
         
         // Load appropriate data based on account type
         if (this.currentUser) {
@@ -196,6 +201,30 @@ export class HomePage implements OnInit, OnDestroy {
         this.isLoadingUser = false;
       },
     });
+  }
+
+  private async hydrateHeaderProfileFields(uid: string): Promise<void> {
+    try {
+      const userRef = doc(this.firestore, 'users', uid);
+      const userSnap = await getDoc(userRef);
+
+      if (!userSnap.exists()) return;
+      if (!this.currentUser || this.currentUser.userId !== uid) return;
+
+      const userData = userSnap.data() as any;
+      const usersProfilepic = typeof userData?.profilepic === 'string' ? userData.profilepic.trim() : '';
+      const usersProfileImage = typeof userData?.profileImage === 'string' ? userData.profileImage.trim() : '';
+      const usersUsername = typeof userData?.username === 'string' ? userData.username.trim() : '';
+
+      this.currentUser = {
+        ...this.currentUser,
+        profilepic: usersProfilepic || this.currentUser.profilepic,
+        profileImage: usersProfileImage || this.currentUser.profileImage,
+        username: usersUsername || this.currentUser.username,
+      };
+    } catch (error) {
+      console.error('Error hydrating header profile fields:', error);
+    }
   }
 
   ngOnDestroy(): void {
