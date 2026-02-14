@@ -1,5 +1,5 @@
-import { Component, Input } from '@angular/core';
-import { IonHeader, IonToolbar, IonButton, IonIcon, IonTitle, IonAvatar } from '@ionic/angular/standalone';
+import { Component, Input, inject } from '@angular/core';
+import { IonHeader, IonToolbar, IonButton, IonIcon, IonTitle, IonAvatar, NavController } from '@ionic/angular/standalone';
 import { Router } from '@angular/router';
 import { CommonModule, Location } from '@angular/common';
 import { addIcons } from 'ionicons';
@@ -19,6 +19,8 @@ export class HeaderComponent {
   @Input() transparent: boolean = true;
   @Input() backHref?: string; // Optional: if provided, navigate to this route instead of using history
   @Input() currentUser: AppUser | null = null;
+
+  private navCtrl = inject(NavController);
 
   constructor(private router: Router, private location: Location) {
     addIcons({
@@ -41,15 +43,15 @@ export class HeaderComponent {
   }
 
   goToProfile() {
-    this.router.navigate(['/profile-user']);
+    this.navCtrl.navigateForward('/profile-user', { animated: false });
   }
   goBack() {
     // If backHref is provided, use it instead of browser history
     if (this.backHref) {
-      this.router.navigate([this.backHref]);
+      this.navCtrl.navigateBack(this.backHref, { animated: false });
     } else {
       // Otherwise use browser history
-      this.location.back();
+      this.navCtrl.back({ animated: false });
     }
   }
 }
