@@ -2,7 +2,6 @@ import { Component, OnInit, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { 
-  IonModal, 
   IonHeader, 
   IonToolbar, 
   IonTitle, 
@@ -24,7 +23,7 @@ import {
   ModalController
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
-import { close, calendar, time } from 'ionicons/icons';
+import { close, calendar, time, fitness, calendarOutline, fitnessOutline, cashOutline, documentTextOutline, checkmarkCircle, personCircle, barbell, flash, walk, medal, rocket, nutrition, library } from 'ionicons/icons';
 
 interface AppointmentData {
   clientId: string;
@@ -33,6 +32,7 @@ interface AppointmentData {
   time: string;
   duration: number;
   sessionType: string;
+  price?: number;
   notes?: string;
 }
 
@@ -44,7 +44,6 @@ interface AppointmentData {
   imports: [
     CommonModule,
     FormsModule,
-    IonModal,
     IonHeader,
     IonToolbar,
     IonTitle,
@@ -76,6 +75,7 @@ export class AppointmentSchedulerModalComponent implements OnInit {
     time: '09:00',
     duration: 60,
     sessionType: 'Strength Training',
+    price: 75,
     notes: ''
   };
 
@@ -105,7 +105,7 @@ export class AppointmentSchedulerModalComponent implements OnInit {
   minDate: string = new Date().toISOString();
 
   constructor(private modalController: ModalController) {
-    addIcons({ close, calendar, time });
+    addIcons({ close, calendar, time, fitness, calendarOutline, fitnessOutline, cashOutline, documentTextOutline, checkmarkCircle, personCircle, barbell, flash, walk, medal, rocket, nutrition, library });
   }
 
   ngOnInit() {
@@ -131,6 +131,22 @@ export class AppointmentSchedulerModalComponent implements OnInit {
     const period = hourNum >= 12 ? 'PM' : 'AM';
     const displayHour = hourNum > 12 ? hourNum - 12 : hourNum === 0 ? 12 : hourNum;
     return `${displayHour}:${minute} ${period}`;
+  }
+
+  getSessionIcon(type: string): string {
+    const iconMap: { [key: string]: string } = {
+      'Strength Training': 'barbell',
+      'HIIT Session': 'flash',
+      'Cardio & Core': 'walk',
+      'Upper Body Focus': 'fitness',
+      'Lower Body Focus': 'fitness',
+      'Full Body Workout': 'medal',
+      'Mobility & Flexibility': 'body',
+      'Sports Performance': 'rocket',
+      'Weight Loss Focus': 'nutrition',
+      'Muscle Building': 'library'
+    };
+    return iconMap[type] || 'fitness';
   }
 
   dismiss() {

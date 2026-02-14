@@ -11,14 +11,27 @@
 
 <ion-content class="ion-padding">
   <div class="modal-content">
-    <p class="client-name">Creating workout for: <strong>{{ clientName }}</strong></p>
+    <!-- Client Header -->
+    <div class="client-header">
+      <div class="client-avatar">
+        <ion-icon name="person-circle"></ion-icon>
+      </div>
+      <div class="client-info">
+        <h2>{{ clientName }}</h2>
+        <p>Design a custom workout plan</p>
+      </div>
+    </div>
 
-    <ion-card>
+    <!-- Workout Info Section -->
+    <ion-card class="section-card">
       <ion-card-header>
-        <ion-card-title>Workout Details</ion-card-title>
+        <div class="card-header-with-icon">
+          <ion-icon name="information-circle-outline" color="primary"></ion-icon>
+          <ion-card-title>Workout Info</ion-card-title>
+        </div>
       </ion-card-header>
       <ion-card-content>
-        <ion-item>
+        <ion-item lines="none">
           <ion-label position="stacked">Workout Name *</ion-label>
           <ion-input 
             [(ngModel)]="workout.name" 
@@ -27,101 +40,139 @@
           ></ion-input>
         </ion-item>
 
-        <ion-item>
+        <ion-item lines="none">
           <ion-label position="stacked">Description</ion-label>
           <ion-textarea 
             [(ngModel)]="workout.description" 
-            placeholder="Add notes or instructions for this workout"
+            placeholder="Add goals, intensity level, or special notes..."
             rows="3"
           ></ion-textarea>
         </ion-item>
       </ion-card-content>
     </ion-card>
 
-    <ion-card>
+    <!-- Exercises Section -->
+    <ion-card class="section-card">
       <ion-card-header>
-        <ion-card-title>Exercises</ion-card-title>
+        <div class="card-header-with-icon">
+          <ion-icon name="fitness-outline" color="success"></ion-icon>
+          <ion-card-title>Exercises ({{ workout.exercises.length }})</ion-card-title>
+        </div>
       </ion-card-header>
       <ion-card-content>
-        <div *ngFor="let exercise of workout.exercises; let i = index" class="exercise-item">
-          <div class="exercise-header">
-            <h4>Exercise {{ i + 1 }}</h4>
-            <ion-button 
-              fill="clear" 
-              color="danger" 
-              size="small" 
-              (click)="removeExercise(i)"
-              *ngIf="workout.exercises.length > 1"
-            >
-              <ion-icon name="remove" slot="icon-only"></ion-icon>
-            </ion-button>
+        <div *ngFor="let exercise of workout.exercises; let i = index" class="exercise-card">
+          <div class="exercise-number">
+            <span>{{ i + 1 }}</span>
           </div>
+          <div class="exercise-content">
+            <div class="exercise-header">
+              <ion-icon name="barbell" color="primary"></ion-icon>
+              <h4>Exercise {{ i + 1 }}</h4>
+              <ion-button 
+                fill="clear" 
+                color="danger" 
+                size="small" 
+                (click)="removeExercise(i)"
+                *ngIf="workout.exercises.length > 1"
+                class="remove-btn"
+              >
+                <ion-icon name="trash" slot="icon-only"></ion-icon>
+              </ion-button>
+            </div>
 
-          <ion-item>
-            <ion-label position="stacked">Exercise Name *</ion-label>
-            <ion-select 
-              [(ngModel)]="exercise.name" 
-              placeholder="Select or type exercise"
-              interface="action-sheet"
-            >
-              <ion-select-option *ngFor="let ex of commonExercises" [value]="ex">
-                {{ ex }}
-              </ion-select-option>
-            </ion-select>
-          </ion-item>
-
-          <div class="exercise-grid">
-            <ion-item>
-              <ion-label position="stacked">Sets</ion-label>
-              <ion-input 
-                [(ngModel)]="exercise.sets" 
-                type="number" 
-                min="1"
-                placeholder="3"
-              ></ion-input>
+            <ion-item lines="none">
+              <ion-label position="stacked">Exercise Name *</ion-label>
+              <ion-select 
+                [(ngModel)]="exercise.name" 
+                placeholder="Select exercise"
+                interface="action-sheet"
+              >
+                <ion-select-option *ngFor="let ex of commonExercises" [value]="ex">
+                  {{ ex }}
+                </ion-select-option>
+              </ion-select>
             </ion-item>
 
-            <ion-item>
-              <ion-label position="stacked">Reps</ion-label>
-              <ion-input 
-                [(ngModel)]="exercise.reps" 
-                type="text"
-                placeholder="8-12"
-              ></ion-input>
-            </ion-item>
+            <div class="exercise-details-grid">
+              <ion-item lines="none">
+                <ion-label position="stacked">Sets</ion-label>
+                <ion-input 
+                  [(ngModel)]="exercise.sets" 
+                  type="number" 
+                  min="1"
+                  placeholder="3"
+                ></ion-input>
+              </ion-item>
 
-            <ion-item>
-              <ion-label position="stacked">Weight (optional)</ion-label>
-              <ion-input 
-                [(ngModel)]="exercise.weight" 
-                type="text"
-                placeholder="135 lbs"
-              ></ion-input>
+              <ion-item lines="none">
+                <ion-label position="stacked">Reps</ion-label>
+                <ion-input 
+                  [(ngModel)]="exercise.reps" 
+                  type="text"
+                  placeholder="8-12"
+                ></ion-input>
+              </ion-item>
+
+              <ion-item lines="none">
+                <ion-label position="stacked">Weight</ion-label>
+                <ion-input 
+                  [(ngModel)]="exercise.weight" 
+                  type="text"
+                  placeholder="135 lbs"
+                ></ion-input>
+              </ion-item>
+            </div>
+
+            <ion-item lines="none">
+              <ion-label position="stacked">Notes (form cues, tempo, etc.)</ion-label>
+              <ion-textarea 
+                [(ngModel)]="exercise.notes" 
+                placeholder="e.g., Slow eccentric, pause at bottom..."
+                rows="2"
+              ></ion-textarea>
             </ion-item>
           </div>
-
-          <ion-item>
-            <ion-label position="stacked">Notes (optional)</ion-label>
-            <ion-textarea 
-              [(ngModel)]="exercise.notes" 
-              placeholder="Form cues, tempo, rest time, etc."
-              rows="2"
-            ></ion-textarea>
-          </ion-item>
         </div>
 
-        <ion-button expand="block" fill="outline" (click)="addExercise()" class="add-exercise-btn">
-          <ion-icon name="add" slot="start"></ion-icon>
-          Add Exercise
+        <ion-button 
+          expand="block" 
+          fill="outline" 
+          (click)="addExercise()" 
+          class="add-exercise-btn"
+        >
+          <ion-icon name="add-circle" slot="start"></ion-icon>
+          Add Another Exercise
         </ion-button>
       </ion-card-content>
     </ion-card>
+
+    <!-- Summary Section -->
+    <div class="workout-summary">
+      <h3>
+        <ion-icon name="list-circle-outline"></ion-icon>
+        Workout Summary
+      </h3>
+      <div class="summary-content">
+        <div class="summary-stat">
+          <span class="stat-label">Total Exercises</span>
+          <span class="stat-value">{{ workout.exercises.length }}</span>
+        </div>
+        <div class="summary-stat">
+          <span class="stat-label">Total Sets</span>
+          <span class="stat-value">{{ getTotalSets() }}</span>
+        </div>
+        <div class="summary-stat">
+          <span class="stat-label">Est. Duration</span>
+          <span class="stat-value">{{ getEstimatedDuration() }} min</span>
+        </div>
+      </div>
+    </div>
   </div>
 </ion-content>
 
 <div class="modal-footer">
-  <ion-button expand="block" (click)="saveWorkout()" color="primary" size="large">
-    <ion-icon name="save" slot="start"></ion-icon>
+  <ion-button expand="block" (click)="saveWorkout()" color="primary" size="large" class="save-btn">
+    <ion-icon name="checkmark-circle" slot="start"></ion-icon>
     Save Workout Plan
   </ion-button>
 </div>

@@ -27,7 +27,7 @@ import { Chat } from 'src/app/Interfaces/Chats';
         detail="true"
       >
         <ion-avatar slot="start">
-          <img [src]="bearProfile || 'assets/icon/favicon.png'" alt="Profile" />
+          <img [src]="(chat.userProfile?.()?.profileImage || chat.userProfile?.()?.profilepic) || 'assets/icon/favicon.png'" alt="Profile" />
         </ion-avatar>
         <ion-label>
           <h2>{{ chat.userProfile?.()?.firstName || 'Loading...' }} {{ chat.userProfile?.()?.lastName || '' }}</h2>

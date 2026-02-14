@@ -21,15 +21,28 @@ import {
 } from '@ionic/angular/standalone';
 
 import { Auth, onAuthStateChanged } from '@angular/fire/auth';
-import { Firestore, doc, docData, getDoc, setDoc } from '@angular/fire/firestore';
-import { Subscription } from 'rxjs';
+import { Firestore, doc, getDoc, setDoc, collection, query, where, getDocs } from '@angular/fire/firestore';
+import { effect } from '@angular/core';
 
-import type { AppUser } from '../../models/user.model';
+import { UserService } from '../../services/account/user.service';
+import type { trainerProfile } from '../../Interfaces/Profiles/Trainer';
+import type { clientProfile } from '../../Interfaces/Profiles/client';
 import { addIcons } from 'ionicons';
 import {
   settingsOutline,
   createOutline,
   fitness,
+  statsChart,
+  trophy,
+  star,
+  peopleOutline,
+  searchOutline,
+  trophyOutline,
+  mapOutline,
+  analyticsOutline,
+  people,
+  school,
+  cash,
 } from 'ionicons/icons';
 import {
   GreekStatue,
@@ -66,20 +79,27 @@ export class ProfileUserPage implements OnInit, OnDestroy {
   private modalCtrl = inject(ModalController);
   private loadingCtrl = inject(LoadingController);
   private toastCtrl = inject(ToastController);
-
-  private userSub?: Subscription;
+  private userService = inject(UserService);
 
   isLoading = true;
-  currentUser: AppUser | null = null;
+  currentUser: (trainerProfile | clientProfile) | null = null;
 
   profileImageUrl: string | null = null;
-  username: string | null = null;
 
   // Greek Statue properties
   allStatues: GreekStatue[] = [];
   displayStatues: GreekStatue[] = [];
   displayStatueIds: string[] = [];
   currentSlideIndex: number = 0;
+
+  // Trainer Stats properties
+  trainerStats = {
+    totalClients: 0,
+    totalSessions: 0,
+    longestStandingClient: { name: '', durationDays: 0 },
+    topPerformingClient: { name: '', improvement: '' },
+    totalRevenue: 0
+  };
 
   get carvedStatuesCount(): number {
     return this.allStatues.filter(s => s.currentLevel).length;
@@ -90,60 +110,60 @@ export class ProfileUserPage implements OnInit, OnDestroy {
       settingsOutline,
       createOutline,
       fitness,
+      statsChart,
+      trophy,
+      star,
+      peopleOutline,
+      searchOutline,
+      trophyOutline,
+      mapOutline,
+      analyticsOutline,
+      people,
+      school,
+      cash,
+    });
+
+    // Use the UserService's signal to get user data
+    effect(() => {
+      const userInfo = this.userService.getUserInfo()();
+      
+      console.log('[ProfileUserPage] User info from service:', userInfo);
+      console.log('[ProfileUserPage] Account type:', userInfo?.accountType);
+      
+      if (userInfo) {
+        this.currentUser = userInfo;
+        
+        const pic = ((this.currentUser as any)?.profileImage || (this.currentUser as any)?.profilepic || '').trim();
+        this.profileImageUrl = pic.length > 0 ? pic : null;
+        
+        this.isLoading = false;
+        
+        // Load role-specific data
+        const uid = this.auth.currentUser?.uid;
+        if (uid) {
+          if (this.currentUser.accountType === 'trainer') {
+            console.log('[ProfileUserPage] Loading trainer stats for:', uid);
+            this.loadTrainerStats(uid);
+            this.loadTrainerStatues(uid);
+          } else {
+            console.log('[ProfileUserPage] Loading client statues for:', uid);
+            this.loadGreekStatuesFromFirestore(uid);
+          }
+        }
+      } else {
+        this.currentUser = null;
+        this.profileImageUrl = null;
+        this.isLoading = false;
+      }
     });
   }
 
   ngOnInit(): void {
-    onAuthStateChanged(this.auth, (fbUser) => {
-      this.userSub?.unsubscribe();
-
-      if (!fbUser) {
-        this.currentUser = null;
-        this.username = null;
-        this.profileImageUrl = null;
-        this.isLoading = false;
-
-        // Optional: route to login
-        // this.router.navigate(['login']);
-        return;
-      }
-
-      this.subscribeToUser(fbUser.uid);
-    });
+    // Effect is now in constructor
   }
 
   ngOnDestroy(): void {
-    this.userSub?.unsubscribe();
-  }
-
-  private subscribeToUser(uid: string): void {
-    const userRef = doc(this.firestore, 'users', uid);
-
-    this.isLoading = true;
-    this.userSub = docData(userRef, { idField: 'userId' }).subscribe({
-      next: (u) => {
-        this.currentUser = (u as AppUser) ?? null;
-
-        this.username = (this.currentUser?.username || '').trim() || null;
-
-        const pic = (this.currentUser?.profilepic || '').trim();
-        this.profileImageUrl = pic.length > 0 ? pic : null;
-
-        this.isLoading = false;
-
-        // Load statues after user is loaded
-        if (this.currentUser?.userId && this.currentUser?.role !== 'trainer') {
-          this.loadGreekStatuesFromFirestore(this.currentUser.userId);
-        }
-      },
-      error: (err) => {
-        console.error('[ProfileUserPage] Failed to load user:', err);
-        this.currentUser = null;
-        this.username = null;
-        this.profileImageUrl = null;
-        this.isLoading = false;
-      },
-    });
+    // No subscriptions to clean up
   }
 
   get displayName(): string {
@@ -171,6 +191,157 @@ export class ProfileUserPage implements OnInit, OnDestroy {
     this.currentSlideIndex = event.detail[0].activeIndex;
   }
 
+  private async loadTrainerStats(trainerId: string): Promise<void> {
+    try {
+      console.log('[ProfileUserPage] Loading trainer stats for:', trainerId);
+
+      // Get all bookings for this trainer
+      const bookingsRef = collection(this.firestore, 'bookings');
+      const trainerBookingsQuery = query(
+        bookingsRef,
+        where('trainerId', '==', trainerId)
+      );
+      const bookingsSnap = await getDocs(trainerBookingsQuery);
+      
+      console.log('[ProfileUserPage] Total bookings found:', bookingsSnap.size);
+      
+      const completedSessions = bookingsSnap.docs.filter(doc => 
+        doc.data()['status'] === 'completed'
+      );
+      this.trainerStats.totalSessions = completedSessions.length;
+
+      console.log('[ProfileUserPage] Completed sessions:', completedSessions.length);
+
+      // Calculate total revenue
+      this.trainerStats.totalRevenue = completedSessions.reduce((sum, doc) => {
+        return sum + (doc.data()['price'] || 0);
+      }, 0);
+
+      // Get all clients for this trainer from trainerClients collection
+      const trainerClientsRef = doc(this.firestore, 'trainerClients', trainerId);
+      const trainerClientsSnap = await getDoc(trainerClientsRef);
+      
+      let clients: any[] = [];
+      if (trainerClientsSnap.exists()) {
+        const data = trainerClientsSnap.data();
+        clients = data?.['clients'] || [];
+        this.trainerStats.totalClients = clients.length;
+        console.log('[ProfileUserPage] Found clients in trainerClients:', clients.length, clients);
+      } else {
+        this.trainerStats.totalClients = 0;
+        console.log('[ProfileUserPage] No trainerClients document found');
+      }
+
+      // Find longest standing client
+      let longestClient = { name: 'N/A', durationDays: 0 };
+      const now = new Date();
+      
+      for (const client of clients) {
+        const joinedDate = client.joinedDate ? new Date(client.joinedDate) : null;
+        if (joinedDate) {
+          const durationMs = now.getTime() - joinedDate.getTime();
+          const durationDays = Math.floor(durationMs / (1000 * 60 * 60 * 24));
+          
+          if (durationDays > longestClient.durationDays) {
+            const firstName = client.firstName || '';
+            const lastName = client.lastName || '';
+            longestClient = {
+              name: `${firstName} ${lastName}`.trim() || 'Unknown Client',
+              durationDays
+            };
+          }
+        }
+      }
+      this.trainerStats.longestStandingClient = longestClient;
+
+      // Find top performing client (most sessions completed)
+      const clientSessionCounts: { [clientId: string]: { name: string, count: number } } = {};
+      
+      for (const booking of completedSessions) {
+        const clientId = booking.data()['clientId'];
+        const clientFirstName = booking.data()['clientFirstName'] || '';
+        const clientLastName = booking.data()['clientLastName'] || '';
+        const clientName = `${clientFirstName} ${clientLastName}`.trim() || 'Unknown Client';
+        
+        if (!clientSessionCounts[clientId]) {
+          clientSessionCounts[clientId] = { name: clientName, count: 0 };
+        }
+        clientSessionCounts[clientId].count++;
+      }
+
+      let topClient = { name: 'N/A', improvement: '0 sessions' };
+      let maxSessions = 0;
+      
+      for (const clientId in clientSessionCounts) {
+        if (clientSessionCounts[clientId].count > maxSessions) {
+          maxSessions = clientSessionCounts[clientId].count;
+          topClient = {
+            name: clientSessionCounts[clientId].name,
+            improvement: `${maxSessions} sessions`
+          };
+        }
+      }
+      this.trainerStats.topPerformingClient = topClient;
+
+      console.log('[ProfileUserPage] Trainer stats loaded:', this.trainerStats);
+    } catch (error) {
+      console.error('[ProfileUserPage] Error loading trainer stats:', error);
+    }
+  }
+
+  private async loadTrainerStatues(trainerId: string): Promise<void> {
+    try {
+      const badgeRef = doc(this.firestore, 'userBadges', trainerId);
+      const badgeSnap = await getDoc(badgeRef);
+
+      // Calculate statue values from trainer stats
+      const statueValues: { [key: string]: number } = {
+        'zeus-mentor': this.trainerStats.totalClients,
+        'athena-wisdom': this.trainerStats.totalSessions,
+        'hermes-prosperity': this.trainerStats.totalRevenue
+      };
+
+      let displayStatueIds: string[] = [];
+      let percentiles: { [key: string]: number } = {};
+
+      if (badgeSnap.exists()) {
+        const data = badgeSnap.data() as any;
+        displayStatueIds = data.displayStatueIds || data.displayBadgeIds || [];
+        percentiles = data.percentiles || {};
+      } else {
+        // Default display statues for trainers
+        displayStatueIds = ['zeus-mentor', 'athena-wisdom', 'hermes-prosperity'];
+      }
+
+      this.displayStatueIds = displayStatueIds;
+
+      // Filter to trainer-specific statues only
+      const trainerStatueIds = ['zeus-mentor', 'athena-wisdom', 'hermes-prosperity'];
+      this.allStatues = GREEK_STATUES
+        .filter(statue => trainerStatueIds.includes(statue.id))
+        .map(statue => {
+          const currentValue = statueValues[statue.id] || 0;
+          const percentile = percentiles[statue.id];
+          const level = calculateStatueLevel(statue, currentValue || 0);
+          
+          return {
+            ...statue,
+            currentValue,
+            percentile,
+            currentLevel: level || undefined,
+          };
+        });
+
+      this.updateDisplayStatues();
+      console.log('[ProfileUserPage] Loaded trainer statues:', this.allStatues);
+    } catch (error) {
+      console.error('[ProfileUserPage] Error loading trainer statues:', error);
+      this.allStatues = [];
+      this.displayStatueIds = [];
+      this.displayStatues = [];
+    }
+  }
+
   private async loadGreekStatuesFromFirestore(userId: string): Promise<void> {
     try {
       const badgeRef = doc(this.firestore, 'userBadges', userId);
@@ -190,19 +361,24 @@ export class ProfileUserPage implements OnInit, OnDestroy {
       // Support both old and new field names
       this.displayStatueIds = data.displayStatueIds || data.displayBadgeIds || [];
 
+      // Filter out trainer-specific statues for clients
+      const trainerStatueIds = ['zeus-mentor', 'athena-wisdom', 'hermes-prosperity'];
+      
       // Merge Firestore progress into GREEK_STATUES definition
-      this.allStatues = GREEK_STATUES.map(statue => {
-        const currentValue = values[statue.id] ?? 0;
-        const percentile = percentiles[statue.id];
+      this.allStatues = GREEK_STATUES
+        .filter(statue => !trainerStatueIds.includes(statue.id))
+        .map(statue => {
+          const currentValue = values[statue.id] ?? 0;
+          const percentile = percentiles[statue.id];
 
-        const level = calculateStatueLevel(statue, currentValue || 0);
-        return {
-          ...statue,
-          currentValue,
-          percentile,
-          currentLevel: level || undefined,
-        };
-      });
+          const level = calculateStatueLevel(statue, currentValue || 0);
+          return {
+            ...statue,
+            currentValue,
+            percentile,
+            currentLevel: level || undefined,
+          };
+        });
 
       this.updateDisplayStatues();
       console.log('[ProfileUserPage] Loaded statues from Firestore:', this.allStatues);
@@ -243,7 +419,7 @@ export class ProfileUserPage implements OnInit, OnDestroy {
   }
 
   async saveDisplayStatues() {
-    const uid = this.currentUser?.userId;
+    const uid = this.currentUser?.id || this.auth.currentUser?.uid;
     if (!uid) {
       this.showToast('Not signed in');
       return;

@@ -3,7 +3,6 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Firestore, doc, getDoc, setDoc } from '@angular/fire/firestore';
 import { 
-  IonModal, 
   IonHeader, 
   IonToolbar, 
   IonTitle, 
@@ -15,20 +14,17 @@ import {
   IonCardHeader,
   IonCardTitle,
   IonCardContent,
-  IonList,
-  IonItem,
-  IonLabel,
   IonToggle,
-  IonReorder,
-  IonReorderGroup,
   ModalController
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
-import { close, save, reorderThree } from 'ionicons/icons';
+import { close, save, checkmarkCircle, personCircle, gridOutline, eyeOutline, alertCircleOutline, flame, calendar, barbell } from 'ionicons/icons';
 
 interface Widget {
   id: string;
   name: string;
+  description: string;
+  icon: string;
   enabled: boolean;
   order: number;
 }
@@ -47,7 +43,6 @@ interface HomePageConfig {
   imports: [
     CommonModule,
     FormsModule,
-    IonModal,
     IonHeader,
     IonToolbar,
     IonTitle,
@@ -59,12 +54,7 @@ interface HomePageConfig {
     IonCardHeader,
     IonCardTitle,
     IonCardContent,
-    IonList,
-    IonItem,
-    IonLabel,
-    IonToggle,
-    IonReorder,
-    IonReorderGroup
+    IonToggle
   ],
 })
 export class HomeCustomizationModalComponent implements OnInit {
@@ -72,27 +62,40 @@ export class HomeCustomizationModalComponent implements OnInit {
   @Input() clientName!: string;
 
   widgets: Widget[] = [
-    { id: 'welcome', name: 'Welcome Message', enabled: true, order: 0 },
-    { id: 'streak', name: 'Current Streak', enabled: true, order: 1 },
-    { id: 'next-workout', name: 'Next Workout', enabled: true, order: 2 },
-    { id: 'upcoming-session', name: 'Upcoming Session', enabled: true, order: 3 },
-    { id: 'progress-chart', name: 'Progress Chart', enabled: false, order: 4 },
-    { id: 'achievements', name: 'Recent Achievements', enabled: false, order: 5 },
-    { id: 'nutrition', name: 'Nutrition Tracker', enabled: false, order: 6 },
-    { id: 'goals', name: 'Current Goals', enabled: false, order: 7 }
+    { 
+      id: 'streak', 
+      name: 'Current Streak', 
+      description: 'Shows active workout streak',
+      icon: 'flame',
+      enabled: true, 
+      order: 0 
+    },
+    { 
+      id: 'upcoming-session', 
+      name: 'Upcoming Session', 
+      description: 'Next scheduled training session',
+      icon: 'calendar',
+      enabled: true, 
+      order: 1 
+    },
+    { 
+      id: 'next-workout', 
+      name: 'Next Workout', 
+      description: 'Next assigned workout plan',
+      icon: 'barbell',
+      enabled: true, 
+      order: 2 
+    }
   ];
-
-  customMessage: string = '';
 
   constructor(
     private modalController: ModalController,
     private firestore: Firestore
   ) {
-    addIcons({ close, save, reorderThree });
+    addIcons({ close, save, checkmarkCircle, personCircle, gridOutline, eyeOutline, alertCircleOutline, flame, calendar, barbell });
   }
 
   ngOnInit() {
-    // TODO: Load existing configuration from Firestore
     this.loadClientHomeConfig();
   }
 
@@ -103,8 +106,17 @@ export class HomeCustomizationModalComponent implements OnInit {
       
       if (configSnap.exists()) {
         const config = configSnap.data() as HomePageConfig;
-        this.widgets = config.widgets;
-        this.customMessage = config.customMessage || '';
+        
+        // Filter to only include allowed widget IDs
+        const allowedIds = ['streak', 'upcoming-session', 'next-workout'];
+        const savedWidgets = config.widgets.filter(w => allowedIds.includes(w.id));
+        
+        // Merge saved settings with defaults
+        this.widgets = this.widgets.map(defaultWidget => {
+          const saved = savedWidgets.find(w => w.id === defaultWidget.id);
+          return saved || defaultWidget;
+        });
+        
         console.log('Loaded home config for client:', this.clientId);
       } else {
         console.log('No existing config found, using defaults');
@@ -114,27 +126,18 @@ export class HomeCustomizationModalComponent implements OnInit {
     }
   }
 
-  handleReorder(event: any) {
-    const itemMove = this.widgets.splice(event.detail.from, 1)[0];
-    this.widgets.splice(event.detail.to, 0, itemMove);
-    
-    // Update order values
-    this.widgets.forEach((widget, index) => {
-      widget.order = index;
-    });
-
-    event.detail.complete();
-  }
-
   dismiss() {
     this.modalController.dismiss();
+  }
+
+  getEnabledWidgets(): Widget[] {
+    return this.widgets.filter(w => w.enabled).sort((a, b) => a.order - b.order);
   }
 
   async saveConfiguration() {
     const config: HomePageConfig = {
       clientId: this.clientId,
-      widgets: this.widgets,
-      customMessage: this.customMessage
+      widgets: this.widgets
     };
 
     try {

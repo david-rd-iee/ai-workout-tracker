@@ -1,6 +1,6 @@
 <ion-header>
   <ion-toolbar color="primary">
-    <ion-title>Schedule Appointment</ion-title>
+    <ion-title>Schedule Session</ion-title>
     <ion-buttons slot="end">
       <ion-button (click)="dismiss()">
         <ion-icon name="close"></ion-icon>
@@ -11,104 +11,159 @@
 
 <ion-content class="ion-padding">
   <div class="modal-content">
-    <p class="client-name">Scheduling for: <strong>{{ clientName }}</strong></p>
+    <!-- Client Header -->
+    <div class="client-header">
+      <div class="client-avatar">
+        <ion-icon name="person-circle"></ion-icon>
+      </div>
+      <div class="client-info">
+        <h2>{{ clientName }}</h2>
+        <p>Schedule a training session</p>
+      </div>
+    </div>
 
-    <ion-card>
+    <!-- Date & Time Section -->
+    <ion-card class="section-card">
       <ion-card-header>
-        <ion-card-title>Appointment Details</ion-card-title>
+        <div class="card-header-with-icon">
+          <ion-icon name="calendar-outline" color="primary"></ion-icon>
+          <ion-card-title>When</ion-card-title>
+        </div>
       </ion-card-header>
       <ion-card-content>
-        <!-- Date Selection -->
-        <ion-item>
-          <ion-label position="stacked">Date</ion-label>
-          <ion-datetime
-            [(ngModel)]="appointment.date"
-            presentation="date"
-            [min]="minDate"
-            class="date-picker"
-          ></ion-datetime>
-        </ion-item>
+        <div class="datetime-grid">
+          <ion-item lines="none" class="datetime-item">
+            <ion-label position="stacked">Date</ion-label>
+            <ion-datetime
+              [(ngModel)]="appointment.date"
+              presentation="date"
+              [min]="minDate"
+              class="date-picker"
+            ></ion-datetime>
+          </ion-item>
 
-        <!-- Time Selection -->
-        <ion-item>
-          <ion-label position="stacked">Start Time</ion-label>
-          <ion-select 
-            [(ngModel)]="appointment.time" 
-            placeholder="Select time"
-            interface="action-sheet"
+          <div class="time-duration-row">
+            <ion-item lines="none" class="half-width">
+              <ion-label position="stacked">Start Time</ion-label>
+              <ion-select 
+                [(ngModel)]="appointment.time" 
+                placeholder="Select time"
+                interface="action-sheet"
+              >
+                <ion-select-option *ngFor="let slot of timeSlots" [value]="slot">
+                  {{ formatTimeSlot(slot) }}
+                </ion-select-option>
+              </ion-select>
+            </ion-item>
+
+            <ion-item lines="none" class="half-width">
+              <ion-label position="stacked">Duration</ion-label>
+              <ion-select 
+                [(ngModel)]="appointment.duration" 
+                placeholder="Duration"
+                interface="popover"
+              >
+                <ion-select-option *ngFor="let dur of durations" [value]="dur.value">
+                  {{ dur.label }}
+                </ion-select-option>
+              </ion-select>
+            </ion-item>
+          </div>
+        </div>
+      </ion-card-content>
+    </ion-card>
+
+    <!-- Session Type Section -->
+    <ion-card class="section-card">
+      <ion-card-header>
+        <div class="card-header-with-icon">
+          <ion-icon name="fitness-outline" color="success"></ion-icon>
+          <ion-card-title>Session Type</ion-card-title>
+        </div>
+      </ion-card-header>
+      <ion-card-content>
+        <div class="session-types-grid">
+          <div 
+            *ngFor="let type of sessionTypes" 
+            class="session-type-card"
+            [class.selected]="appointment.sessionType === type"
+            (click)="appointment.sessionType = type"
           >
-            <ion-select-option *ngFor="let slot of timeSlots" [value]="slot">
-              {{ formatTimeSlot(slot) }}
-            </ion-select-option>
-          </ion-select>
-        </ion-item>
+            <ion-icon [name]="getSessionIcon(type)"></ion-icon>
+            <span>{{ type }}</span>
+          </div>
+        </div>
+      </ion-card-content>
+    </ion-card>
 
-        <!-- Duration Selection -->
-        <ion-item>
-          <ion-label position="stacked">Duration</ion-label>
-          <ion-select 
-            [(ngModel)]="appointment.duration" 
-            placeholder="Select duration"
-            interface="popover"
-          >
-            <ion-select-option *ngFor="let dur of durations" [value]="dur.value">
-              {{ dur.label }}
-            </ion-select-option>
-          </ion-select>
+    <!-- Price Section -->
+    <ion-card class="section-card">
+      <ion-card-header>
+        <div class="card-header-with-icon">
+          <ion-icon name="cash-outline" color="tertiary"></ion-icon>
+          <ion-card-title>Session Price</ion-card-title>
+        </div>
+      </ion-card-header>
+      <ion-card-content>
+        <ion-item lines="none">
+          <ion-label position="stacked">Price ($)</ion-label>
+          <ion-input 
+            [(ngModel)]="appointment.price" 
+            type="number"
+            placeholder="75"
+          ></ion-input>
         </ion-item>
+      </ion-card-content>
+    </ion-card>
 
-        <!-- Session Type -->
-        <ion-item>
-          <ion-label position="stacked">Session Type</ion-label>
-          <ion-select 
-            [(ngModel)]="appointment.sessionType" 
-            placeholder="Select session type"
-            interface="action-sheet"
-          >
-            <ion-select-option *ngFor="let type of sessionTypes" [value]="type">
-              {{ type }}
-            </ion-select-option>
-          </ion-select>
-        </ion-item>
-
-        <!-- Notes -->
-        <ion-item>
-          <ion-label position="stacked">Notes (optional)</ion-label>
+    <!-- Notes Section -->
+    <ion-card class="section-card">
+      <ion-card-header>
+        <div class="card-header-with-icon">
+          <ion-icon name="document-text-outline" color="warning"></ion-icon>
+          <ion-card-title>Session Notes</ion-card-title>
+        </div>
+      </ion-card-header>
+      <ion-card-content>
+        <ion-item lines="none">
           <ion-textarea 
             [(ngModel)]="appointment.notes" 
-            placeholder="Add any special instructions or focus areas"
-            rows="3"
+            placeholder="Add focus areas, client goals, or special instructions..."
+            rows="4"
+            class="notes-textarea"
           ></ion-textarea>
         </ion-item>
       </ion-card-content>
     </ion-card>
 
-    <!-- Summary Card -->
-    <ion-card class="summary-card">
-      <ion-card-header>
-        <ion-card-title>Appointment Summary</ion-card-title>
-      </ion-card-header>
-      <ion-card-content>
-        <div class="summary-item">
-          <ion-icon name="calendar"></ion-icon>
-          <span>{{ appointment.date | date:'EEEE, MMMM d, yyyy' }}</span>
+    <!-- Summary Preview -->
+    <div class="summary-preview">
+      <h3>Session Summary</h3>
+      <div class="summary-content">
+        <div class="summary-row">
+          <ion-icon name="calendar" color="primary"></ion-icon>
+          <span>{{ appointment.date | date:'EEEE, MMM d, yyyy' }}</span>
         </div>
-        <div class="summary-item">
-          <ion-icon name="time"></ion-icon>
-          <span>{{ formatTimeSlot(appointment.time) }} ({{ appointment.duration }} min)</span>
+        <div class="summary-row">
+          <ion-icon name="time" color="primary"></ion-icon>
+          <span>{{ formatTimeSlot(appointment.time) }} • {{ appointment.duration }} min</span>
         </div>
-        <div class="summary-item">
-          <ion-icon name="fitness"></ion-icon>
+        <div class="summary-row">
+          <ion-icon name="fitness" color="success"></ion-icon>
           <span>{{ appointment.sessionType }}</span>
         </div>
-      </ion-card-content>
-    </ion-card>
+        <div class="summary-row" *ngIf="appointment.price">
+          <ion-icon name="cash" color="tertiary"></ion-icon>
+          <span>${{ appointment.price }}</span>
+        </div>
+      </div>
+    </div>
   </div>
 </ion-content>
 
 <div class="modal-footer">
-  <ion-button expand="block" (click)="scheduleAppointment()" color="primary" size="large">
-    <ion-icon name="calendar" slot="start"></ion-icon>
-    Confirm Appointment
+  <ion-button expand="block" (click)="scheduleAppointment()" color="primary" size="large" class="confirm-btn">
+    <ion-icon name="checkmark-circle" slot="start"></ion-icon>
+    Confirm Session
   </ion-button>
 </div>

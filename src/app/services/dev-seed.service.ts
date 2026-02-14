@@ -433,6 +433,36 @@ export class DevSeedService {
     console.log('[DevSeedService] Greek statues seeded successfully.');
   }
 
+  async seedTrainerBadges(uid: string): Promise<void> {
+    console.log('[DevSeedService] Seeding trainer statues...');
+
+    const badgeRef = doc(this.firestore, 'userBadges', uid);
+
+    // Trainer statue progress values
+    await setDoc(
+      badgeRef,
+      {
+        userId: uid,
+        values: {
+          'zeus-mentor': 42,           // Zeus - Mentor (Polished level - 30-50 clients)
+          'athena-wisdom': 1250,       // Athena - Wisdom (Gilded level - 1000-2500 sessions)
+          'hermes-prosperity': 62500,  // Hermes - Prosperity (Polished level - $50k-100k revenue)
+        },
+        percentiles: {
+          'zeus-mentor': 8.5,         // Top 8.5%
+          'athena-wisdom': 5.2,       // Top 5.2%
+          'hermes-prosperity': 12.3,  // Top 12.3%
+        },
+        displayStatueIds: ['zeus-mentor', 'athena-wisdom', 'hermes-prosperity'],
+        displayBadgeIds: ['zeus-mentor', 'athena-wisdom', 'hermes-prosperity'],
+        last_updated_at: serverTimestamp(),
+      },
+      { merge: true },
+    );
+
+    console.log('[DevSeedService] Trainer statues seeded successfully.');
+  }
+
   /**
    * Creates a dev trainer user with complete profile
    */

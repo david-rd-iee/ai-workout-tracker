@@ -2,7 +2,6 @@ import { Component, OnInit, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { 
-  IonModal, 
   IonHeader, 
   IonToolbar, 
   IonTitle, 
@@ -14,7 +13,6 @@ import {
   IonCardHeader,
   IonCardTitle,
   IonCardContent,
-  IonList,
   IonItem,
   IonLabel,
   IonInput,
@@ -24,7 +22,7 @@ import {
   ModalController
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
-import { close, add, remove, save } from 'ionicons/icons';
+import { close, add, remove, save, checkmarkCircle, personCircle, informationCircleOutline, fitnessOutline, barbell, addCircle, trash, listCircleOutline } from 'ionicons/icons';
 
 interface Exercise {
   name: string;
@@ -49,7 +47,6 @@ interface Workout {
   imports: [
     CommonModule,
     FormsModule,
-    IonModal,
     IonHeader,
     IonToolbar,
     IonTitle,
@@ -61,7 +58,6 @@ interface Workout {
     IonCardHeader,
     IonCardTitle,
     IonCardContent,
-    IonList,
     IonItem,
     IonLabel,
     IonInput,
@@ -99,7 +95,7 @@ export class WorkoutBuilderModalComponent implements OnInit {
   ];
 
   constructor(private modalController: ModalController) {
-    addIcons({ close, add, remove, save });
+    addIcons({ close, add, remove, save, checkmarkCircle, personCircle, informationCircleOutline, fitnessOutline, barbell, addCircle, trash, listCircleOutline });
   }
 
   ngOnInit() {
@@ -119,6 +115,16 @@ export class WorkoutBuilderModalComponent implements OnInit {
 
   removeExercise(index: number) {
     this.workout.exercises.splice(index, 1);
+  }
+
+  getTotalSets(): number {
+    return this.workout.exercises.reduce((total, exercise) => total + (exercise.sets || 0), 0);
+  }
+
+  getEstimatedDuration(): number {
+    // Rough estimate: 3-4 minutes per set (including rest)
+    const totalSets = this.getTotalSets();
+    return Math.ceil(totalSets * 3.5);
   }
 
   dismiss() {

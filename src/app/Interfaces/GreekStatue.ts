@@ -296,8 +296,67 @@ export const GREEK_STATUES: GreekStatue[] = [
       gilded: 500,
       divine: 600
     }
+  },
+  // Trainer-specific statues
+  {
+    id: 'zeus-mentor',
+    godName: 'Zeus',
+    title: 'King of Olympus - Master Mentor',
+    icon: 'people',
+    description: 'Total clients trained',
+    mythology: 'King of the gods, guiding others to greatness',
+    category: 'milestone',
+    metric: 'totalClients',
+    unit: 'clients',
+    tiers: {
+      rough: 5,
+      outlined: 15,
+      detailed: 30,
+      polished: 50,
+      gilded: 100,
+      divine: 200
+    }
+  },
+  {
+    id: 'athena-wisdom',
+    godName: 'Athena',
+    title: 'Goddess of Wisdom',
+    icon: 'school',
+    description: 'Total training sessions completed',
+    mythology: 'Goddess of wisdom and strategic warfare',
+    category: 'consistency',
+    metric: 'totalTrainingSessions',
+    unit: 'sessions',
+    tiers: {
+      rough: 50,
+      outlined: 200,
+      detailed: 500,
+      polished: 1000,
+      gilded: 2500,
+      divine: 5000
+    }
+  },
+  {
+    id: 'hermes-prosperity',
+    godName: 'Hermes',
+    title: 'God of Commerce',
+    icon: 'cash',
+    description: 'Total revenue generated',
+    mythology: 'Messenger god and patron of commerce and trade',
+    category: 'milestone',
+    metric: 'totalRevenue',
+    unit: '$',
+    tiers: {
+      rough: 1000,
+      outlined: 5000,
+      detailed: 15000,
+      polished: 50000,
+      gilded: 100000,
+      divine: 250000
+    }
   }
 ];
+
 
 // Helper function to calculate statue level based on current value
 export function calculateStatueLevel(statue: GreekStatue, currentValue: number): StatueLevel | null {
