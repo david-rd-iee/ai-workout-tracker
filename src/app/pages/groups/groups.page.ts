@@ -94,6 +94,10 @@ export class GroupsPage implements OnInit, OnDestroy {
     });
   }
 
+  onSearchGroupPressed(_group: Group): void {
+    // Reserved for future join/request flow.
+  }
+
   get filteredAllGroups(): Group[] {
     const q = this.searchQuery.trim().toLowerCase();
     const base = this.allGroups.filter(

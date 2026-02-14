@@ -135,7 +135,7 @@
           class="search-result-item"
           type="button"
           *ngFor="let group of filteredAllGroups"
-          (click)="openGroup(group)"
+          (click)="onSearchGroupPressed(group)"
         >
           <img
             [src]="group.groupImage || 'assets/icons/Icon.png'"
