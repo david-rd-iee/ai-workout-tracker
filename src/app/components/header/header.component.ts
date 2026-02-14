@@ -1,4 +1,4 @@
-import { Component, Input, OnDestroy, OnInit, inject } from '@angular/core';
+import { Component, Input, inject, OnInit, effect } from '@angular/core';
 import { IonHeader, IonToolbar, IonButton, IonIcon, IonTitle, IonAvatar, NavController } from '@ionic/angular/standalone';
 import { Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
@@ -7,6 +7,7 @@ import { chevronBackOutline, personOutline, personCircleOutline } from 'ionicons
 import { Auth, onAuthStateChanged } from '@angular/fire/auth';
 import { Firestore, doc, getDoc } from '@angular/fire/firestore';
 import type { AppUser } from '../../models/user.model';
+import { UserService } from '../../services/account/user.service';
 
 @Component({
   selector: 'app-header',
@@ -15,7 +16,7 @@ import type { AppUser } from '../../models/user.model';
   standalone: true,
   imports: [IonToolbar, IonHeader, IonButton, IonIcon, IonTitle, IonAvatar, CommonModule]
 })
-export class HeaderComponent implements OnInit, OnDestroy {
+export class HeaderComponent implements OnInit {
   @Input() title: string = 'ATLAS';
   @Input() showBack: boolean = false;
   @Input() transparent: boolean = true;
@@ -23,10 +24,8 @@ export class HeaderComponent implements OnInit, OnDestroy {
   @Input() currentUser: AppUser | null = null;
 
   private navCtrl = inject(NavController);
-  private auth = inject(Auth);
-  private firestore = inject(Firestore);
-  private unsubscribeAuth?: () => void;
-  private fallbackUser: AppUser | null = null;
+  private userService = inject(UserService);
+  private loadedUser: any = null;
 
   constructor(private router: Router) {
     addIcons({
@@ -34,6 +33,37 @@ export class HeaderComponent implements OnInit, OnDestroy {
       personOutline,
       personCircleOutline
     });
+
+    // Load user data from service if not provided via Input
+    effect(() => {
+      if (!this.currentUser) {
+        const userInfo = this.userService.getUserInfo()();
+        if (userInfo) {
+          // Map profileImage to profilepic for compatibility
+          this.loadedUser = {
+            ...userInfo,
+            profilepic: (userInfo as any).profileImage || (userInfo as any).profilepic
+          };
+        }
+      }
+    });
+  }
+
+  ngOnInit() {
+    // Initial load if currentUser not provided
+    if (!this.currentUser) {
+      const userInfo = this.userService.getUserInfo()();
+      if (userInfo) {
+        this.loadedUser = {
+          ...userInfo,
+          profilepic: (userInfo as any).profileImage || (userInfo as any).profilepic
+        };
+      }
+    }
+  }
+
+  private get effectiveUser(): any {
+    return this.currentUser || this.loadedUser;
   }
 
   ngOnInit(): void {
@@ -56,44 +86,18 @@ export class HeaderComponent implements OnInit, OnDestroy {
   }
 
   get avatarInitial(): string {
-    const first = (this.resolvedUser?.firstName || '').trim();
-    const user = (this.resolvedUser?.username || '').trim();
-    const source = first || user;
+    const user = this.effectiveUser;
+    const first = (user?.firstName || '').trim();
+    const username = (user?.username || '').trim();
+    const source = first || username;
     return source ? source[0].toUpperCase() : '?';
   }
 
   get profileImageUrl(): string | null {
-    const candidates = [
-      this.resolvedUser?.profilepic,
-      this.resolvedUser?.profileImage,
-    ];
-
-    for (const value of candidates) {
-      const raw = (value || '').trim();
-      if (raw.length > 0) return raw;
-    }
-
-    return null;
-  }
-
-  private async loadFallbackUser(uid: string): Promise<void> {
-    try {
-      const userRef = doc(this.firestore, 'users', uid);
-      const userSnap = await getDoc(userRef);
-      if (!userSnap.exists()) return;
-
-      const data = userSnap.data() as any;
-      this.fallbackUser = {
-        userId: uid,
-        firstName: typeof data?.firstName === 'string' ? data.firstName : undefined,
-        username: typeof data?.username === 'string' ? data.username : undefined,
-        isPT: data?.isPT === true,
-        profilepic: typeof data?.profilepic === 'string' ? data.profilepic : undefined,
-        profileImage: typeof data?.profileImage === 'string' ? data.profileImage : undefined,
-      };
-    } catch (error) {
-      console.error('Failed to load header fallback user:', error);
-    }
+    const user = this.effectiveUser;
+    // Support both property names for compatibility
+    const raw = ((user as any)?.profileImage || (user as any)?.profilepic || '').trim();
+    return raw.length > 0 ? raw : null;
   }
 
   goToProfile() {

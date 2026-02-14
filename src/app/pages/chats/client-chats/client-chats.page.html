@@ -9,7 +9,7 @@
       detail="true"
     >
       <ion-avatar slot="start">
-        <img [src]="bearProfile || 'assets/icon/favicon.png'" alt="Profile" />
+        <img [src]="(chat.userProfile?.()?.profileImage || chat.userProfile?.()?.profilepic) || 'assets/icon/favicon.png'" alt="Profile" />
       </ion-avatar>
       <ion-label>
         <h2>{{ chat.displayName || 'Chat' }}</h2>

@@ -251,7 +251,7 @@ export class ListSessionsComponent implements OnInit, OnChanges {
       if ((userType === 'trainer' && session.trainerId === userId) || 
           (userType === 'client' && session.clientId === userId)) {
         session.otherPartyName = `${profile.firstName} ${profile.lastName}`;
-        session.otherPartyImage = profile.profileImage || '';
+        session.otherPartyImage = (profile as any).profileImage || (profile as any).profilepic || '';
         session.otherPartyType = userType === 'trainer' ? 'Trainer' : 'Client';
         session.isProfileLoading = false;
       }

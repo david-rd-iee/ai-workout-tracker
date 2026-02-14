@@ -11,48 +11,74 @@
 
 <ion-content class="ion-padding">
   <div class="modal-content">
-    <p class="client-name">Customizing home page for: <strong>{{ clientName }}</strong></p>
+    <!-- Client Header -->
+    <div class="client-header">
+      <div class="client-avatar">
+        <ion-icon name="person-circle"></ion-icon>
+      </div>
+      <div class="client-info">
+        <h2>{{ clientName }}</h2>
+        <p>Personalize their home page experience</p>
+      </div>
+    </div>
 
-    <ion-card>
+    <!-- Widgets Section -->
+    <ion-card class="widgets-card">
       <ion-card-header>
-        <ion-card-title>Visible Widgets</ion-card-title>
+        <div class="card-header-with-icon">
+          <ion-icon name="grid-outline" color="primary"></ion-icon>
+          <ion-card-title>Home Page Widgets</ion-card-title>
+        </div>
+        <p class="subtitle">Select which widgets to display on the home page</p>
       </ion-card-header>
       <ion-card-content>
-        <p class="instructions">
-          Toggle widgets on/off and drag to reorder them on the client's home page.
-        </p>
-        
-        <ion-list>
-          <ion-reorder-group [disabled]="false" (ionItemReorder)="handleReorder($event)">
-            <ion-item *ngFor="let widget of widgets">
-              <ion-reorder slot="start">
-                <ion-icon name="reorder-three"></ion-icon>
-              </ion-reorder>
-              <ion-label>
-                <h3>{{ widget.name }}</h3>
-              </ion-label>
+        <div class="widgets-grid">
+          <div 
+            *ngFor="let widget of widgets" 
+            class="widget-toggle-card"
+            [class.enabled]="widget.enabled"
+            (click)="widget.enabled = !widget.enabled"
+          >
+            <div class="widget-icon">
+              <ion-icon [name]="widget.icon"></ion-icon>
+            </div>
+            <div class="widget-info">
+              <h3>{{ widget.name }}</h3>
+              <p>{{ widget.description }}</p>
+            </div>
+            <div class="widget-toggle">
               <ion-toggle 
-                slot="end" 
                 [(ngModel)]="widget.enabled"
+                (click)="$event.stopPropagation()"
               ></ion-toggle>
-            </ion-item>
-          </ion-reorder-group>
-        </ion-list>
+            </div>
+          </div>
+        </div>
       </ion-card-content>
     </ion-card>
 
-    <ion-card>
+    <!-- Preview Section -->
+    <ion-card class="preview-card">
       <ion-card-header>
-        <ion-card-title>Widget Preview</ion-card-title>
+        <div class="card-header-with-icon">
+          <ion-icon name="eye-outline" color="success"></ion-icon>
+          <ion-card-title>Preview</ion-card-title>
+        </div>
+        <p class="subtitle">How the home page will look</p>
       </ion-card-header>
       <ion-card-content>
-        <div class="widget-preview">
-          <div *ngFor="let widget of widgets" class="preview-widget" [class.disabled]="!widget.enabled">
-            <div class="preview-order">{{ widget.order + 1 }}</div>
-            <div class="preview-content">
-              <strong>{{ widget.name }}</strong>
-              <span *ngIf="!widget.enabled" class="hidden-label">Hidden</span>
-            </div>
+        <div class="preview-list">
+          <div 
+            *ngFor="let widget of getEnabledWidgets(); let i = index" 
+            class="preview-item"
+          >
+            <span class="preview-number">{{ i + 1 }}</span>
+            <ion-icon [name]="widget.icon" color="primary"></ion-icon>
+            <span class="preview-name">{{ widget.name }}</span>
+          </div>
+          <div *ngIf="getEnabledWidgets().length === 0" class="empty-state">
+            <ion-icon name="alert-circle-outline"></ion-icon>
+            <p>No widgets enabled. Enable at least one widget above.</p>
           </div>
         </div>
       </ion-card-content>
@@ -61,8 +87,8 @@
 </ion-content>
 
 <div class="modal-footer">
-  <ion-button expand="block" (click)="saveConfiguration()" color="primary" size="large">
-    <ion-icon name="save" slot="start"></ion-icon>
+  <ion-button expand="block" (click)="saveConfiguration()" color="primary" size="large" class="save-btn">
+    <ion-icon name="checkmark-circle" slot="start"></ion-icon>
     Save Configuration
   </ion-button>
 </div>

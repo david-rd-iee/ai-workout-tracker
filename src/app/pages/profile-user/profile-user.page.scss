@@ -316,3 +316,107 @@ ion-header {
     font-size: 0.85em;
   }
 }
+
+/* Trainer Stats Styles */
+.trainer-stats-card {
+  margin-top: 18px;
+  background: #FFFFFF;
+  border: 2px solid rgba(184, 168, 152, 0.3);
+  box-shadow: 0 2px 12px rgba(139, 115, 85, 0.2);
+
+  ion-list {
+    background: transparent;
+  }
+
+  ion-item {
+    --background: transparent;
+    --border-color: rgba(212, 175, 55, 0.2);
+  }
+
+  h2 {
+    font-family: 'Georgia', serif;
+    font-weight: 700;
+    color: #8B6F47;
+  }
+
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+    padding: 8px;
+  }
+
+  .stat-item {
+    background: linear-gradient(135deg, #F5F5F5, #FFFFFF);
+    padding: 20px;
+    border-radius: 12px;
+    border: 2px solid rgba(212, 175, 55, 0.2);
+    box-shadow: 0 2px 8px rgba(139, 115, 85, 0.1);
+    text-align: center;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+
+    &:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(139, 115, 85, 0.2);
+    }
+
+    &.highlight {
+      grid-column: span 2;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      text-align: left;
+      background: linear-gradient(135deg, #FFF9E6, #FFFEF9);
+      border-color: rgba(212, 175, 55, 0.4);
+    }
+  }
+
+  .stat-value {
+    font-size: 2.5em;
+    font-weight: 700;
+    background: linear-gradient(135deg, #D4AF37, #8B7355);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-family: 'Georgia', serif;
+    line-height: 1;
+    margin-bottom: 8px;
+  }
+
+  .stat-label {
+    font-size: 0.9em;
+    color: #8B7355;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .stat-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #D4AF37, #FFE55C);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    box-shadow: 0 4px 12px rgba(212, 175, 55, 0.3);
+
+    ion-icon {
+      font-size: 32px;
+      color: #FFFFFF;
+    }
+  }
+
+  .stat-info {
+    flex: 1;
+  }
+
+  .stat-value-small {
+    font-size: 1.3em;
+    font-weight: 700;
+    color: #8B6F47;
+    font-family: 'Georgia', serif;
+    margin-bottom: 4px;
+  }
+}

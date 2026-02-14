@@ -13,6 +13,7 @@ import {
 
 import { addIcons } from 'ionicons';
 import {
+  personCircle,
   chatbubblesOutline,
   fitnessOutline,
   peopleOutline,
@@ -175,6 +176,10 @@ export class HomePage implements OnInit, OnDestroy {
       })
     ).subscribe({
       next: (u) => {
+        // Map profileImage to profilepic for backward compatibility
+        if (u && (u as any).profileImage && !(u as any).profilepic) {
+          (u as any).profilepic = (u as any).profileImage;
+        }
         this.currentUser = (u as any) ?? null;
         this.isLoadingUser = false;
         

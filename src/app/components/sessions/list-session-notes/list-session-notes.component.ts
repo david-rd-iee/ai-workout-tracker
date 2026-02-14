@@ -170,7 +170,7 @@ export class ListSessionNotesComponent implements OnInit {
       this.processedNotes[index] = {
         ...this.processedNotes[index],
         otherPartyName: profile.firstName + ' ' + profile.lastName,
-        otherPartyImage: profile.profileImage || '',
+        otherPartyImage: (profile as any).profileImage || (profile as any).profilepic || '',
         otherPartyType: type,
         isProfileLoading: false
       };

@@ -4,7 +4,7 @@ import { Router } from '@angular/router';
 import { IonContent, IonCard, IonCardContent, IonCardHeader, IonCardTitle, IonButton, IonIcon, IonSegment, IonSegmentButton, IonLabel, ModalController } from '@ionic/angular/standalone';
 import { FormsModule } from '@angular/forms';
 import { addIcons } from 'ionicons';
-import { arrowBack, calendar, personCircle, fitness, card, createOutline } from 'ionicons/icons';
+import { arrowBack, calendar, personCircle, fitness, card, createOutline, trophy, chatbubbles, barbell, heart, body, checkmarkCircle, flag, walk } from 'ionicons/icons';
 import { HeaderComponent } from 'src/app/components/header/header.component';
 import { WorkoutBuilderModalComponent } from 'src/app/components/modals/workout-builder-modal/workout-builder-modal.component';
 import { AppointmentSchedulerModalComponent } from 'src/app/components/modals/appointment-scheduler-modal/appointment-scheduler-modal.component';
@@ -35,7 +35,20 @@ export class ClientDetailsPage implements OnInit {
   client: any = null;
   selectedTab: string = 'overview';
 
-  // Fake data for demonstration
+  // Overview stats
+  currentStreak: number = 7;
+  paymentStatus: string = 'Paid';
+
+  // Progress tracking data
+  strengthProgress: number = 75;
+  cardioProgress: number = 68;
+  bodyProgress: number = 82;
+
+  activeGoals: any[] = [];
+  personalRecords: any[] = [];
+  recentActivity: any[] = [];
+
+  // Appointments and payments
   upcomingAppointments: any[] = [];
   pastAppointments: any[] = [];
   payments: any[] = [];
@@ -45,7 +58,7 @@ export class ClientDetailsPage implements OnInit {
     private location: Location,
     private modalController: ModalController
   ) {
-    addIcons({ arrowBack, calendar, personCircle, fitness, card, createOutline });
+    addIcons({ arrowBack, calendar, personCircle, fitness, card, createOutline, trophy, chatbubbles, barbell, heart, body, checkmarkCircle, flag, walk });
 
     // Get client data from navigation state
     const navigation = this.router.getCurrentNavigation();
@@ -125,6 +138,25 @@ export class ClientDetailsPage implements OnInit {
         method: 'N/A'
       }
     ];
+
+    // Load progress data
+    this.activeGoals = [
+      { title: 'Bench Press 200 lbs', target: '200 lbs', progress: 85 },
+      { title: 'Run 5K in under 25 min', target: '25:00', progress: 70 },
+      { title: 'Lose 10 lbs', target: '10 lbs', progress: 60 }
+    ];
+
+    this.personalRecords = [
+      { exercise: 'Bench Press', value: '185 lbs', date: new Date(Date.now() - 604800000), icon: 'barbell' },
+      { exercise: 'Squat', value: '225 lbs', date: new Date(Date.now() - 1209600000), icon: 'fitness' },
+      { exercise: '5K Run', value: '26:45', date: new Date(Date.now() - 259200000), icon: 'walk' }
+    ];
+
+    this.recentActivity = [
+      { title: 'Completed workout: Upper Body', date: new Date(Date.now() - 172800000), icon: 'checkmark-circle', color: 'success' },
+      { title: 'New personal record: Bench Press', date: new Date(Date.now() - 604800000), icon: 'trophy', color: 'warning' },
+      { title: 'Goal updated: 5K time', date: new Date(Date.now() - 1209600000), icon: 'flag', color: 'primary' }
+    ];
   }
 
   goBack() {
@@ -187,5 +219,10 @@ export class ClientDetailsPage implements OnInit {
       console.log('Workout created:', data);
       // TODO: Show success message
     }
+  }
+
+  viewMessages() {
+    // Navigate to the chat page with this client
+    this.router.navigate(['/tabs/chats']);
   }
 }
