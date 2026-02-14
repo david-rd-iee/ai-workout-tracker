@@ -19,6 +19,7 @@ import {
   LoadingController,
   ToastController,
 } from '@ionic/angular/standalone';
+import { NavController } from '@ionic/angular';
 
 import { Auth, onAuthStateChanged } from '@angular/fire/auth';
 import { Firestore, doc, docData, getDoc, setDoc } from '@angular/fire/firestore';
@@ -61,6 +62,7 @@ import { HeaderComponent } from '../../components/header/header.component';
 })
 export class ProfileUserPage implements OnInit, OnDestroy {
   private router = inject(Router);
+  private navCtrl = inject(NavController);
   private auth = inject(Auth);
   private firestore = inject(Firestore);
   private modalCtrl = inject(ModalController);
@@ -158,7 +160,12 @@ export class ProfileUserPage implements OnInit, OnDestroy {
     // this.router.navigate(['settings']);
   }
 
-  goToGroups(): void { console.log('Groups clicked'); }
+  goToGroups(): void {
+    this.navCtrl.navigateForward('/groups', {
+      animated: true,
+      animationDirection: 'forward',
+    });
+  }
   goToLogWorkout(): void { this.router.navigate(['/tabs/chats/workout-chatbot']); }
   goToFindPT(): void { console.log('Find PT clicked'); }
   goToStatues(): void { console.log('Statues clicked'); }

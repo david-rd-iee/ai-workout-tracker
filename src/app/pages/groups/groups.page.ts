@@ -1,193 +1,84 @@
-// src/app/pages/groups/groups.page.ts
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { IonicModule, AlertController } from '@ionic/angular';
-import { FormsModule } from '@angular/forms';
-import { addIcons } from 'ionicons';
-import { informationCircleOutline } from 'ionicons/icons';
-
-import { GroupService } from '../../services/group.service';
-import { Group } from '../../models/groups.model';
-import { AppUser } from '../../models/user.model';
-
-import { Auth, onAuthStateChanged } from '@angular/fire/auth';
+import { IonicModule, NavController } from '@ionic/angular';
 import { Subscription } from 'rxjs';
-import { Router } from '@angular/router';
+import { addIcons } from 'ionicons';
+import { arrowBackOutline } from 'ionicons/icons';
 
-import {
-  LeaderboardService,
-  LeaderboardEntry,
-  Metric,
-} from '../../services/leaderboard.service';
+import { Group } from '../../models/groups.model';
+import { GroupService } from '../../services/group.service';
+import { AccountService } from '../../services/account/account.service';
 
 @Component({
   selector: 'app-groups',
   standalone: true,
   templateUrl: './groups.page.html',
   styleUrls: ['./groups.page.scss'],
-  imports: [CommonModule, IonicModule, FormsModule],
+  imports: [CommonModule, IonicModule],
 })
 export class GroupsPage implements OnInit, OnDestroy {
-  appUser?: AppUser;
-  groups: Group[] = [];
+  private navCtrl = inject(NavController);
+  private groupService = inject(GroupService);
+  private accountService = inject(AccountService);
+
+  selectedTab: 'training' | 'friends' = 'friends';
   loading = true;
   errorMessage: string | null = null;
+  friendGroups: Group[] = [];
 
-  hasGroups = false;
-  hasPT = false;
+  private groupsSub?: Subscription;
+  private authSub?: Subscription;
 
-  // 🔹 Group leaderboard state
-  selectedGroup: Group | null = null;
-  groupMetricSort: Metric = 'total';
-  groupEntries: LeaderboardEntry[] = [];
-  groupLeaderboardLoading = false;
-  groupLeaderboardError: string | null = null;
-
-  private authUnsub?: () => void;
-  private sub?: Subscription;
-
-  constructor(
-    private auth: Auth,
-    private groupService: GroupService,
-    private alertCtrl: AlertController,
-    private router: Router,
-    private leaderboardService: LeaderboardService
-  ) {
-    addIcons({ informationCircleOutline });
+  constructor() {
+    addIcons({ arrowBackOutline });
   }
 
   ngOnInit(): void {
-    // Watch auth state and load user's groups
-    this.authUnsub = onAuthStateChanged(this.auth, (user) => {
-      this.sub?.unsubscribe();
-
-      if (!user) {
-        this.appUser = undefined;
-        this.groups = [];
-        this.hasGroups = false;
-        this.hasPT = false;
-        this.loading = false;
-        return;
-      }
-
-      this.loading = true;
-      this.errorMessage = null;
-
-      this.sub = this.groupService.getUserGroups(user.uid).subscribe({
-        next: ({ user: appUser, groups }) => {
-          this.appUser = appUser;
-          this.groups = groups;
-
-          this.hasGroups = groups.some((g) => !g.isPTGroup);
-          this.hasPT = groups.some((g) => g.isPTGroup);
-
-          this.loading = false;
-        },
-        error: (err) => {
-          console.error('[GroupsPage] Failed to load user groups', err);
-          this.errorMessage = 'Could not load your groups.';
-          this.loading = false;
-        },
-      });
-    });
-  }
-
-  // 🔹 When a group is clicked - navigate to group chat
-  openGroupChat(group: Group) {
-    // TODO: Create dedicated group chat page
-    // For now, navigate to workout-chatbot as placeholder
-    // When group chat is implemented, use: this.router.navigate(['/group-chat', group.groupId]);
-    console.log('Opening chat for group:', group.name);
-    this.router.navigate(['/tabs/chats/workout-chatbot']);
-  }
-
-  // 🔹 When info icon is clicked - show group details
-  viewGroupInfo(group: Group, event: Event) {
-    // Prevent the item click from firing
-    event.stopPropagation();
-    
-    // Show group details in right panel
-    this.selectedGroup = group;
-    this.groupMetricSort = 'total';
-    this.loadGroupLeaderboard();
-  }
-
-  // 🔹 Legacy method - kept for compatibility
-  async onGroupSelected(group: Group) {
-    this.selectedGroup = group;
-    this.groupMetricSort = 'total';
-    await this.loadGroupLeaderboard();
-  }
-
-  // 🔹 Load leaderboard for currently selected group
-  async loadGroupLeaderboard() {
-    if (!this.selectedGroup) return;
-
-    this.groupLeaderboardLoading = true;
-    this.groupLeaderboardError = null;
-
-    try {
-      this.groupEntries = await this.leaderboardService.getGroupLeaderboard(
-        this.selectedGroup.groupId,
-        this.groupMetricSort
-      );
-    } catch (err) {
-      console.error('[GroupsPage] Failed to load group leaderboard', err);
-      this.groupLeaderboardError = 'Failed to load group leaderboard.';
-      this.groupEntries = [];
-    } finally {
-      this.groupLeaderboardLoading = false;
+    const uid = this.accountService.getCredentials()().uid;
+    if (uid) {
+      this.subscribeToGroups(uid);
+      return;
     }
-  }
 
-  // 🔹 Called when user changes metric sort (ion-select with ngModel)
-  async onGroupMetricSortChange() {
-    await this.loadGroupLeaderboard();
-  }
-
-  // 🔹 Create group button handler (tweak to your routing/flow)
-  async onCreateGroup() {
-    const alert = await this.alertCtrl.create({
-      header: 'Create Friends Group',
-      inputs: [
-        {
-          name: 'name',
-          type: 'text',
-          placeholder: 'Group name',
-        },
-      ],
-      buttons: [
-        {
-          text: 'Cancel',
-          role: 'cancel',
-        },
-        {
-          text: 'Create',
-          handler: async (data) => {
-            const name = (data?.name || '').trim();
-            if (!name || !this.appUser?.userId) return;
-
-            try {
-              await this.groupService.createGroupForOwner(
-                this.appUser.userId,
-                name,
-                false // friends group, not PT group
-              );
-            } catch (err) {
-              console.error('[GroupsPage] Failed to create group', err);
-            }
-          },
-        },
-      ],
+    this.loading = false;
+    this.authSub = this.accountService.authStateChanges$.subscribe(({ user, isAuthenticated }) => {
+      if (!isAuthenticated || !user?.uid) return;
+      this.subscribeToGroups(user.uid);
     });
+  }
 
-    await alert.present();
+  selectTab(tab: 'training' | 'friends'): void {
+    this.selectedTab = tab;
+  }
+
+  goBack(): void {
+    this.navCtrl.navigateBack('/profile-user', {
+      animated: true,
+      animationDirection: 'back',
+    });
+  }
+
+  private subscribeToGroups(uid: string): void {
+    this.groupsSub?.unsubscribe();
+    this.loading = true;
+    this.errorMessage = null;
+
+    this.groupsSub = this.groupService.getUserGroups(uid).subscribe({
+      next: ({ groups }) => {
+        this.friendGroups = groups.filter((group) => !group.isPTGroup);
+        this.loading = false;
+      },
+      error: (err) => {
+        console.error('[GroupsPage] Failed to load groups:', err);
+        this.friendGroups = [];
+        this.errorMessage = 'Could not load your groups.';
+        this.loading = false;
+      },
+    });
   }
 
   ngOnDestroy(): void {
-    this.sub?.unsubscribe();
-    if (this.authUnsub) {
-      this.authUnsub();
-    }
+    this.groupsSub?.unsubscribe();
+    this.authSub?.unsubscribe();
   }
 }

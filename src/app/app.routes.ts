@@ -30,6 +30,12 @@ export const routes: Routes = [
     canActivate: [authGuard],
   },
   {
+    path: 'groups',
+    loadComponent: () =>
+      import('./pages/groups/groups.page').then((m) => m.GroupsPage),
+    canActivate: [authGuard],
+  },
+  {
   path: 'regional-leaderboard',
   loadComponent: () =>
     import('./pages/leaderboards/regional-leaderboard/regional-leaderboard.page')

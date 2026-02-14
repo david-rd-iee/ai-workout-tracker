@@ -21,6 +21,8 @@ export const appNavAnimation: AnimationBuilder = (_baseEl: any, opts: any): Anim
 
   const enteringIsProfile = containsSelector(enteringEl, 'app-profile-user');
   const leavingIsProfile = containsSelector(leavingEl, 'app-profile-user');
+  const enteringIsGroups = containsSelector(enteringEl, 'app-groups');
+  const leavingIsGroups = containsSelector(leavingEl, 'app-groups');
   const enteringIsWorkoutChatbot = containsSelector(enteringEl, 'app-workout-chatbot');
   const leavingIsWorkoutChatbot = containsSelector(leavingEl, 'app-workout-chatbot');
   const enteringIsTabs = containsSelector(enteringEl, 'app-tabs');
@@ -32,9 +34,13 @@ export const appNavAnimation: AnimationBuilder = (_baseEl: any, opts: any): Anim
     isBack && enteringIsProfile && (leavingIsWorkoutChatbot || leavingIsTabs);
   const isProfileWorkoutTransition =
     isProfileToWorkoutTransition || isWorkoutToProfileTransition;
+  const isProfileGroupsTransition =
+    (enteringIsProfile && leavingIsGroups) ||
+    (leavingIsProfile && enteringIsGroups);
 
   // Use vertical animation for any transition that enters or leaves profile.
-  const useProfileVerticalTransition = enteringIsProfile || leavingIsProfile;
+  const useProfileVerticalTransition =
+    (enteringIsProfile || leavingIsProfile) && !isProfileGroupsTransition;
 
   //duration keep at 620, I like it
   const rootAnimation = createAnimation().duration(620).easing('cubic-bezier(0.32, 0.72, 0, 1)');

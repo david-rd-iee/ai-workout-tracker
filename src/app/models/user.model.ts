@@ -11,9 +11,8 @@ export interface AppUser {
   role?: string; // "client", "trainer", etc.
   groupID?: string[];
 
-  // URL stored in Firestore under "profilepic"
+  // URL stored in Firestore under "profilepic", some parts use profileImage, so this was the easiest to implment
   profilepic?: string;
-  // Some collections store it as "profileImage"
   profileImage?: string;
 
   created_at?: any; // Firestore timestamp if you use it
