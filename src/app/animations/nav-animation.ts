@@ -1,0 +1,90 @@
+import { Animation, AnimationBuilder, createAnimation } from '@ionic/core';
+
+function getIonPageElement(element: HTMLElement): HTMLElement {
+  if (!element) return element;
+  if (element.classList.contains('ion-page')) return element;
+
+  const page = element.querySelector(':scope > .ion-page');
+  return (page as HTMLElement) ?? element;
+}
+
+function containsSelector(element: HTMLElement | undefined, selector: string): boolean {
+  if (!element) return false;
+  if (element.matches(selector)) return true;
+  return !!element.querySelector(selector);
+}
+
+export const appNavAnimation: AnimationBuilder = (_baseEl: any, opts: any): Animation => {
+  const enteringEl = getIonPageElement(opts.enteringEl);
+  const leavingEl = opts.leavingEl ? getIonPageElement(opts.leavingEl) : undefined;
+  const isBack = opts.direction === 'back';
+
+  const enteringIsProfile = containsSelector(enteringEl, 'app-profile-user');
+  const leavingIsProfile = containsSelector(leavingEl, 'app-profile-user');
+
+  // Use vertical animation for any transition that enters or leaves profile.
+  const useProfileVerticalTransition = enteringIsProfile || leavingIsProfile;
+
+  //duration keep at 620, I like it
+  const rootAnimation = createAnimation().duration(620).easing('cubic-bezier(0.32, 0.72, 0, 1)');
+  const enteringAnimation = createAnimation().addElement(enteringEl);
+  const leavingAnimation = leavingEl ? createAnimation().addElement(leavingEl) : createAnimation();
+
+  // Ionic marks entering pages as invisible; remove it before animating
+  // to avoid a black flash while the leaving page moves away.
+  enteringAnimation.beforeRemoveClass('ion-page-invisible');
+
+  if (useProfileVerticalTransition) {
+    if (isBack) {
+      enteringAnimation
+        .beforeStyles({ transform: 'translateY(0)', opacity: '1' })
+        .fromTo('opacity', '1', '1')
+        .afterClearStyles(['transform', 'opacity']);
+
+      leavingAnimation
+        .beforeStyles({ transform: 'translateY(0)', opacity: '1' })
+        .fromTo('transform', 'translateY(0)', 'translateY(-100%)')
+        .afterClearStyles(['transform', 'opacity']);
+    } else {
+      enteringAnimation
+        .beforeStyles({ transform: 'translateY(-100%)', opacity: '1' })
+        .fromTo('transform', 'translateY(-100%)', 'translateY(0)')
+        .fromTo('opacity', '1', '1')
+        .afterClearStyles(['transform', 'opacity']);
+
+      leavingAnimation
+        .beforeStyles({ transform: 'translateY(0)', opacity: '1' })
+        .afterClearStyles(['transform', 'opacity']);
+    }
+
+    return rootAnimation.addAnimation([enteringAnimation, leavingAnimation]);
+  }
+
+  // Fallback transition for non-profile routes
+  if (isBack) {
+    enteringAnimation
+      .beforeStyles({ transform: 'translateX(-30%)', opacity: '0.95' })
+      .fromTo('transform', 'translateX(-30%)', 'translateX(0)')
+      .fromTo('opacity', '0.95', '1')
+      .afterClearStyles(['transform', 'opacity']);
+
+    leavingAnimation
+      .beforeStyles({ transform: 'translateX(0)', opacity: '1' })
+      .fromTo('transform', 'translateX(0)', 'translateX(100%)')
+      .fromTo('opacity', '1', '1')
+      .afterClearStyles(['transform', 'opacity']);
+  } else {
+    enteringAnimation
+      .beforeStyles({ transform: 'translateX(100%)', opacity: '1' })
+      .fromTo('transform', 'translateX(100%)', 'translateX(0)')
+      .afterClearStyles(['transform', 'opacity']);
+
+    leavingAnimation
+      .beforeStyles({ transform: 'translateX(0)', opacity: '1' })
+      .fromTo('transform', 'translateX(0)', 'translateX(-30%)')
+      .fromTo('opacity', '1', '0.95')
+      .afterClearStyles(['transform', 'opacity']);
+  }
+
+  return rootAnimation.addAnimation([enteringAnimation, leavingAnimation]);
+};
