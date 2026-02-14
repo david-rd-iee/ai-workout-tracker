@@ -40,7 +40,7 @@
       ></ion-textarea>
       <ion-button 
         (click)="sendMessage()" 
-        [disabled]="!messageText?.trim()"
+        [disabled]="!messageText.trim()"
         shape="round"
         class="send-button"
       >

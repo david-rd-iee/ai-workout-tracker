@@ -27,11 +27,6 @@ export const routes: Routes = [
               import('../chats/client-chats/client-chats.page').then(m => m.ClientChatsPage),
           },
           {
-            path: 'groups',
-            loadComponent: () =>
-              import('../groups/groups.page').then(m => m.GroupsPage),
-          },
-          {
             path: 'workout-chatbot',
             loadComponent: () =>
               import('../workout-chatbot/workout-chatbot.page').then(m => m.WorkoutChatbotPage),
@@ -42,11 +37,6 @@ export const routes: Routes = [
             pathMatch: 'full',
           },
         ],
-      },
-      {
-        path: 'leaderboard',
-        loadComponent: () =>
-          import('../leaderboard/leaderboard.component').then(m => m.LeaderboardComponent),
       },
       // default inside /tabs → /tabs/home
       {

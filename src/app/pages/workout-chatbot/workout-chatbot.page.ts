@@ -3,16 +3,8 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import {
-  IonHeader,
-  IonToolbar,
-  IonTitle,
-  IonContent,
-  IonFooter,
-  IonItem,
   IonInput,
   IonButton,
-  IonList,
-  IonLabel,
   IonIcon,
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
@@ -46,16 +38,8 @@ interface ChatMessage {
   imports: [
     CommonModule,
     FormsModule,
-    IonHeader,
-    IonToolbar,
-    IonTitle,
-    IonContent,
-    IonFooter,
-    IonItem,
     IonInput,
     IonButton,
-    IonList,
-    IonLabel,
     IonIcon,
   ],
 })

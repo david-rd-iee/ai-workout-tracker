@@ -4,7 +4,7 @@
       expand="block"
       (click)="navigateToWorkoutSummary()"
       class="workout-summary-button"
-      [disabled]="!session?.isComplete || !session.exercises?.length"
+      [disabled]="!session.isComplete || !session.exercises.length"
     >
       <ion-icon slot="start" name="fitness-outline"></ion-icon>
       View Workout Summary

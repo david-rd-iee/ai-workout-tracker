@@ -1,131 +1,151 @@
-<div class="groups-container">
-  <!-- Left Column: Group List -->
-  <div class="groups-list">
-    <!-- Loading -->
-    <div class="ion-text-center ion-padding" *ngIf="loading">
-      <ion-spinner name="crescent"></ion-spinner>
+<ion-content [fullscreen]="true" class="groups-page">
+  <section class="top-panel">
+    <button class="back-btn" type="button" (click)="goBack()" aria-label="Go back">
+      <ion-icon name="arrow-back-outline"></ion-icon>
+    </button>
+
+    <h1>Groups</h1>
+
+    <div class="tab-toggle">
+      <button
+        type="button"
+        [class.active]="selectedTab === 'training'"
+        [class.disabled]="!trainingEnabled"
+        [disabled]="!trainingEnabled"
+        (click)="selectTab('training')"
+      >
+        Training
+      </button>
+      <button
+        type="button"
+        [class.active]="selectedTab === 'friends'"
+        (click)="selectTab('friends')"
+      >
+        Friends
+      </button>
     </div>
+  </section>
 
-    <!-- Error -->
-    <ion-text color="danger" class="ion-padding" *ngIf="!loading && errorMessage">
-      {{ errorMessage }}
-    </ion-text>
-
-    <!-- No user logged in -->
-    <ng-container *ngIf="!loading && !appUser">
-      <div class="empty-state">
-        <p>You must be logged in to view groups.</p>
+  <section class="groups-content">
+    <ng-container *ngIf="selectedTab === 'training'; else friendsTab">
+      <div class="state-message" *ngIf="trainingLoading">
+        <ion-spinner name="crescent"></ion-spinner>
       </div>
+
+      <div class="state-message" *ngIf="!trainingLoading && !trainingEnabled">
+        Training leaderboard unavailable.
+      </div>
+
+      <app-leaderboard-shell
+        *ngIf="!trainingLoading && trainingEnabled && trainingGroup"
+        [showTopbar]="false"
+        [title]="trainingTitle"
+        [graphLabel]="trainingTitle"
+        [loading]="trainingLeaderboardLoading"
+        [errorMsg]="trainingLeaderboardError || ''"
+        [metric]="trainingMetric"
+        [showScopeSelect]="false"
+        [entries]="trainingEntries"
+        [distributionCurvePath]="trainingDistributionCurvePath"
+        [distributionPoints]="trainingDistributionPoints"
+        [selectedPointBin]="trainingSelectedPointBin"
+        [highlightedUserIds]="trainingSelectedPointUserIds"
+        (metricChange)="onTrainingMetricChange($event)"
+        (distributionPointClick)="onTrainingDistributionPointClick($event)"
+      ></app-leaderboard-shell>
     </ng-container>
 
-    <!-- Content when user exists -->
-    <ng-container *ngIf="!loading && appUser">
-      <!-- If the user has neither PT nor friend groups -->
-      <ng-container *ngIf="!hasGroups && !hasPT">
-        <div class="empty-state">
-          <h3>No Groups Found</h3>
-          <p>You are not currently part of any group.</p>
-          <ion-button expand="block" (click)="onCreateGroup()">Create a Group</ion-button>
-        </div>
-      </ng-container>
+    <ng-template #friendsTab>
+      <div class="state-message" *ngIf="loading">
+        <ion-spinner name="crescent"></ion-spinner>
+      </div>
 
-      <!-- List of groups -->
-      <ion-list *ngIf="hasGroups || hasPT" lines="none">
-        <ion-item
-          button
-          *ngFor="let g of groups"
-          (click)="openGroupChat(g)"
-          class="group-item"
+      <div class="state-message error" *ngIf="!loading && errorMessage">
+        {{ errorMessage }}
+      </div>
+
+      <div class="state-message" *ngIf="!loading && !errorMessage && friendGroups.length === 0">
+        You are not in any friend groups yet.
+      </div>
+
+      <div class="card-list" *ngIf="!loading && !errorMessage && friendGroups.length > 0">
+        <button
+          class="group-card group-card-button"
+          type="button"
+          *ngFor="let group of friendGroups"
+          (click)="openGroup(group)"
         >
-          <div class="group-avatar" slot="start">
-            <ion-icon [name]="g.isPTGroup ? 'fitness' : 'people'"></ion-icon>
-          </div>
-          <ion-label>
-            <h2>{{ g.name }}</h2>
-            <p>{{ g.isPTGroup ? 'PT Group' : 'Friends Group' }}</p>
-          </ion-label>
-          <ion-button fill="clear" slot="end" (click)="viewGroupInfo(g, $event)" class="info-button">
-            <ion-icon name="information-circle-outline" slot="icon-only"></ion-icon>
-          </ion-button>
-        </ion-item>
-      </ion-list>
-    </ng-container>
-  </div>
-
-  <!-- Right Column: Group Details -->
-  <div class="group-details" [class.has-selection]="selectedGroup">
-    <ng-container *ngIf="selectedGroup; else noSelection">
-      <!-- Group Header -->
-      <div class="detail-header">
-        <div class="group-icon">
-          <ion-icon [name]="selectedGroup.isPTGroup ? 'fitness' : 'people'"></ion-icon>
-        </div>
-        <h1>{{ selectedGroup.name }}</h1>
-        <p class="group-type">{{ selectedGroup.isPTGroup ? 'PT Group' : 'Friends Group' }}</p>
-      </div>
-
-      <!-- Group Leaderboard -->
-      <div class="detail-content">
-        <div class="section-header">
-          <h2>Leaderboard</h2>
-        </div>
-
-        <!-- Workout Type Sort -->
-        <ion-item lines="none" class="filter-item">
-          <ion-label>Workout Type</ion-label>
-          <ion-select
-            [(ngModel)]="groupMetricSort"
-            (ionChange)="onGroupMetricSortChange()"
-            interface="popover"
-          >
-            <ion-select-option value="total">Total (All Work)</ion-select-option>
-            <ion-select-option value="cardio">Cardio</ion-select-option>
-            <ion-select-option value="strength">Strength</ion-select-option>
-          </ion-select>
-        </ion-item>
-
-        <!-- Loading spinner -->
-        <div class="ion-text-center ion-padding" *ngIf="groupLeaderboardLoading">
-          <ion-spinner name="crescent"></ion-spinner>
-        </div>
-
-        <!-- Error -->
-        <ion-text color="danger" class="ion-padding" *ngIf="!groupLeaderboardLoading && groupLeaderboardError">
-          {{ groupLeaderboardError }}
-        </ion-text>
-
-        <!-- Leaderboard List -->
-        <ion-list *ngIf="!groupLeaderboardLoading && !groupLeaderboardError" class="leaderboard-list">
-          <ion-item *ngFor="let entry of groupEntries" class="leaderboard-item">
-            <div class="rank" slot="start">#{{ entry.rank }}</div>
-            <ion-label>
-              <h3>{{ entry.displayName }}</h3>
-              <p>
-                Total: {{ entry.totalWorkScore }}
-                &nbsp;·&nbsp;
-                Cardio: {{ entry.cardioWorkScore }}
-                &nbsp;·&nbsp;
-                Strength: {{ entry.strengthWorkScore }}
-              </p>
-              <p *ngIf="entry.level !== undefined" class="level">Level: {{ entry.level }}</p>
-            </ion-label>
-          </ion-item>
-
-          <!-- No members -->
-          <div *ngIf="groupEntries.length === 0" class="empty-state">
-            <p>No members with stats yet.</p>
-          </div>
-        </ion-list>
-      </div>
-    </ng-container>
-
-    <!-- No Group Selected State -->
-    <ng-template #noSelection>
-      <div class="no-selection">
-        <ion-icon name="people-outline" class="empty-icon"></ion-icon>
-        <h2>Select a Group</h2>
-        <p>Choose a group from the list to view details and leaderboard</p>
+          <img
+            [src]="group.groupImage || 'assets/icons/Icon.png'"
+            (error)="$any($event.target).src = 'assets/icons/Icon.png'"
+            alt=""
+            aria-hidden="true"
+          />
+          <p>{{ group.name }}</p>
+        </button>
       </div>
     </ng-template>
-  </div>
-</div>
+  </section>
+
+  <button
+    *ngIf="selectedTab === 'friends'"
+    class="add-group-btn"
+    type="button"
+    (click)="openGroupSearch()"
+    aria-label="Search groups"
+  >
+    <ion-icon name="add-outline"></ion-icon>
+  </button>
+</ion-content>
+
+<ion-modal [isOpen]="searchModalOpen" (didDismiss)="closeGroupSearch()">
+  <ng-template>
+    <ion-header>
+      <ion-toolbar>
+        <ion-title>Find Groups</ion-title>
+        <ion-buttons slot="end">
+          <ion-button fill="clear" (click)="closeGroupSearch()" aria-label="Close">
+            <ion-icon name="close-outline" slot="icon-only"></ion-icon>
+          </ion-button>
+        </ion-buttons>
+      </ion-toolbar>
+    </ion-header>
+
+    <ion-content class="search-modal-content ion-padding">
+      <ion-searchbar
+        [(ngModel)]="searchQuery"
+        placeholder="Search group name"
+        autocapitalize="off"
+      ></ion-searchbar>
+
+      <div class="state-message" *ngIf="allGroupsLoading">
+        <ion-spinner name="crescent"></ion-spinner>
+      </div>
+
+      <div class="state-message error" *ngIf="!allGroupsLoading && allGroupsError">
+        {{ allGroupsError }}
+      </div>
+
+      <div class="state-message" *ngIf="!allGroupsLoading && !allGroupsError && filteredAllGroups.length === 0">
+        No groups found.
+      </div>
+
+      <div class="search-results" *ngIf="!allGroupsLoading && !allGroupsError && filteredAllGroups.length > 0">
+        <button
+          class="search-result-item"
+          type="button"
+          *ngFor="let group of filteredAllGroups"
+          (click)="onSearchGroupPressed(group)"
+        >
+          <img
+            [src]="group.groupImage || 'assets/icons/Icon.png'"
+            (error)="$any($event.target).src = 'assets/icons/Icon.png'"
+            alt=""
+            aria-hidden="true"
+          />
+          <span>{{ group.name }}</span>
+        </button>
+      </div>
+    </ion-content>
+  </ng-template>
+</ion-modal>

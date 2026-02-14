@@ -8,4 +8,6 @@ export interface Group {
   isPTGroup: boolean;
   ownerUserId: string;
   created_at: Timestamp;
+  groupImage?: string;
+  userIDs: string[];
 }

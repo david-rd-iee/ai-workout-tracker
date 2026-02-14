@@ -1,13 +1,11 @@
-import { Component, OnInit, OnDestroy, CUSTOM_ELEMENTS_SCHEMA, ViewChild, ElementRef, Signal, inject } from '@angular/core';
+import { Component, OnInit, OnDestroy, ViewChild, ElementRef, inject } from '@angular/core';
 // import { DEFAULT_ASSETS } from '../../../../assets/exports/assets.constants';
 const DEFAULT_ASSETS = { PROFILE_PHOTO: '' };
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { IonAvatar, IonChip, IonLabel, IonItem, IonList, IonNote, IonButton, IonIcon } from '@ionic/angular/standalone';
+import { IonAvatar, IonLabel, IonItem, IonList, IonNote } from '@ionic/angular/standalone';
 // import Swiper from 'swiper';
 import { Router } from '@angular/router';
-import { chevronForwardOutline, fitnessOutline } from 'ionicons/icons';
-import { addIcons } from 'ionicons';
 // import { TruncatePipe } from 'src/app/pipes/truncate.pipe';
 import { AccountService } from 'src/app/services/account/account.service';
 import { ChatsService } from 'src/app/services/chats.service';
@@ -50,8 +48,6 @@ import { Chat } from 'src/app/Interfaces/Chats';
     IonAvatar,
     IonLabel,
     IonNote,
-    IonButton,
-    IonIcon,
     // MessageDateTimePipe,
     IonItem, IonList, CommonModule, FormsModule]
 })
@@ -70,12 +66,7 @@ export class ClientChatsPage implements OnInit, OnDestroy {
 
 
 
-  constructor() {
-    addIcons({
-      chevronForwardOutline,
-      fitnessOutline
-    });
-  }
+  constructor() {}
 
   ngOnInit() {
     console.log('[ClientChatsPage] Initializing...');

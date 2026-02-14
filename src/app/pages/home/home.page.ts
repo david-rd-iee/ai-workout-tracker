@@ -2,7 +2,6 @@ import { Component, OnDestroy, OnInit, inject, computed, signal } from '@angular
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import {
-  IonAvatar,
   IonButton,
   IonCard,
   IonCardContent,
@@ -10,7 +9,6 @@ import {
   IonCardTitle,
   IonContent,
   IonIcon,
-  IonSpinner,
 } from '@ionic/angular/standalone';
 
 import { addIcons } from 'ionicons';
@@ -87,9 +85,7 @@ interface UpcomingSession {
   imports: [
     CommonModule,
     IonContent,
-    IonAvatar,
     IonButton,
-    IonSpinner,
     IonCard,
     IonCardHeader,
     IonCardTitle,
@@ -163,14 +159,14 @@ export class HomePage implements OnInit, OnDestroy {
         return docData(trainerRef, { idField: 'userId' }).pipe(
           switchMap((trainer) => {
             if (trainer) {
-              return of({ ...trainer, role: 'trainer' });
+              return of({ ...trainer, isPT: true });
             }
             // If not a trainer, check clients collection
             const clientRef = doc(this.firestore, 'clients', fbUser.uid);
             return docData(clientRef, { idField: 'userId' }).pipe(
               switchMap((client) => {
                 if (client) {
-                  return of({ ...client, role: 'client' });
+                  return of({ ...client, isPT: false });
                 }
                 return of(null);
               })
@@ -188,11 +184,15 @@ export class HomePage implements OnInit, OnDestroy {
         this.isLoadingUser = false;
         
         console.log('Current user loaded:', this.currentUser);
+
+        // Home pulls from trainers/clients, but profile image is often stored in users/{uid}.
+        if (this.currentUser?.userId) {
+          void this.hydrateHeaderProfileFields(this.currentUser.userId);
+        }
         
         // Load appropriate data based on account type
         if (this.currentUser) {
-          const role = (this.currentUser as any).role || 'client';
-          if (role === 'trainer') {
+          if (this.currentUser.isPT === true) {
             this.loadTrainerClients();
           } else {
             this.loadClientData();
@@ -205,6 +205,30 @@ export class HomePage implements OnInit, OnDestroy {
         this.isLoadingUser = false;
       },
     });
+  }
+
+  private async hydrateHeaderProfileFields(uid: string): Promise<void> {
+    try {
+      const userRef = doc(this.firestore, 'users', uid);
+      const userSnap = await getDoc(userRef);
+
+      if (!userSnap.exists()) return;
+      if (!this.currentUser || this.currentUser.userId !== uid) return;
+
+      const userData = userSnap.data() as any;
+      const usersProfilepic = typeof userData?.profilepic === 'string' ? userData.profilepic.trim() : '';
+      const usersProfileImage = typeof userData?.profileImage === 'string' ? userData.profileImage.trim() : '';
+      const usersUsername = typeof userData?.username === 'string' ? userData.username.trim() : '';
+
+      this.currentUser = {
+        ...this.currentUser,
+        profilepic: usersProfilepic || this.currentUser.profilepic,
+        profileImage: usersProfileImage || this.currentUser.profileImage,
+        username: usersUsername || this.currentUser.username,
+      };
+    } catch (error) {
+      console.error('Error hydrating header profile fields:', error);
+    }
   }
 
   ngOnDestroy(): void {

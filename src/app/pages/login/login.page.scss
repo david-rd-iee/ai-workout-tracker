@@ -1,38 +1,5 @@
-.logo {
-    text-align: center;
-    margin-top: 15vh;
-    margin-bottom: 30px;
-  }
 h1 {
     text-align: center;
     font-size: 24px;
     margin-bottom: 20px;
 }
-form {
-    margin-bottom: 20px;
-}
-ion-item {
-  margin-bottom: 10px;
-  --border-width: 1px;
-  --border-color: #AEAEAE;
-  --border-radius: 8px;
-
-  &.ion-focused {
-    --border-color: #AEAEAE;
-  }
-
-  &.ion-invalid {
-    --border-color: #AEAEAE;
-  }
-}
-ion-button {
-    margin-top: 20px;
-  }
-.sign-up {
-    text-align: center;
-    margin-top: 20px;
-  }
-.sign-up a {
-    color: var(--ion-color-primary);
-    text-decoration: none;
-  }

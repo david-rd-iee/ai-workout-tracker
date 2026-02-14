@@ -1,0 +1,18 @@
+<ion-content class="lb-content">
+  <app-leaderboard-shell
+    [title]="groupName + ' Leaderboard'"
+    [graphLabel]="groupName"
+    [loading]="loading"
+    [errorMsg]="errorMsg"
+    [metric]="metric"
+    [showScopeSelect]="false"
+    [entries]="entries"
+    [distributionCurvePath]="distributionCurvePath"
+    [distributionPoints]="distributionPoints"
+    [selectedPointBin]="selectedPointBin"
+    [highlightedUserIds]="selectedPointUserIds"
+    (back)="goBack()"
+    (metricChange)="metric = $event; refresh()"
+    (distributionPointClick)="onDistributionPointClick($event)"
+  ></app-leaderboard-shell>
+</ion-content>

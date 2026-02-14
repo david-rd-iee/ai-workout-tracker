@@ -1,0 +1,133 @@
+<div class="lb-shell">
+  <div class="topbar" *ngIf="showTopbar">
+    <ion-button class="back-btn" fill="clear" (click)="back.emit()">
+      <ion-icon name="arrow-back-outline"></ion-icon>
+    </ion-button>
+    <div class="title-pill">{{ title }}</div>
+    <div class="topbar-spacer" aria-hidden="true"></div>
+  </div>
+
+  <ion-card class="stats-card">
+    <div class="stats-title">Stats</div>
+    <div class="stats-graph">
+      <div class="graph-region-label">{{ graphLabel }}</div>
+      <div class="graph-placeholder">
+        <svg
+          *ngIf="distributionCurvePath; else noChartData"
+          class="distribution-svg"
+          viewBox="0 0 100 100"
+          preserveAspectRatio="none"
+        >
+          <path class="distribution-curve" [attr.d]="distributionCurvePath"></path>
+
+          <g class="distribution-points">
+            <g
+              *ngFor="let point of distributionPoints"
+              class="distribution-point"
+              [class.point-selected]="isPointSelected(point)"
+              (click)="distributionPointClick.emit(point)"
+            >
+              <circle
+                [attr.cx]="point.xPercent"
+                [attr.cy]="point.yPercent"
+                [attr.r]="2.3 + (point.count > 1 ? 0.65 : 0)"
+              ></circle>
+              <text
+                *ngIf="point.count > 1"
+                [attr.x]="point.xPercent"
+                [attr.y]="point.yPercent - 3.5"
+              >
+                {{ point.count }}
+              </text>
+              <title>{{ point.rangeLabel }} ({{ point.count }} players)</title>
+            </g>
+          </g>
+        </svg>
+
+        <ng-template #noChartData>
+          <div class="chart-empty-msg">Load players to view the distribution.</div>
+        </ng-template>
+      </div>
+    </div>
+  </ion-card>
+
+  <ion-card class="members-card">
+    <div class="members-toolbar" [class.single-control]="!showScopeSelect">
+      <ion-select
+        class="small-select"
+        interface="popover"
+        [ngModel]="metric"
+        (ngModelChange)="onMetricChange($event)"
+      >
+        <ion-select-option value="total">Sort: Total</ion-select-option>
+        <ion-select-option value="cardio">Sort: Cardio</ion-select-option>
+        <ion-select-option value="strength">Sort: Strength</ion-select-option>
+      </ion-select>
+
+      <div class="members-title">Members</div>
+
+      <ng-container *ngIf="showScopeSelect; else toolbarSpacer">
+        <ion-select
+          class="small-select"
+          interface="popover"
+          [ngModel]="scope"
+          (ngModelChange)="onScopeChange($event)"
+        >
+          <ion-select-option value="city">Region: City</ion-select-option>
+          <ion-select-option value="state">Region: State</ion-select-option>
+          <ion-select-option value="country">Region: Country</ion-select-option>
+        </ion-select>
+      </ng-container>
+
+      <ng-template #toolbarSpacer>
+        <div class="members-toolbar-spacer" aria-hidden="true"></div>
+      </ng-template>
+    </div>
+
+    <div class="members-body">
+      <div class="loading-row" *ngIf="loading">
+        <ion-spinner name="crescent"></ion-spinner>
+        <div>Loading...</div>
+      </div>
+
+      <div class="error-row" *ngIf="!loading && errorMsg">
+        {{ errorMsg }}
+      </div>
+
+      <ion-list class="members-list" *ngIf="!loading && !errorMsg">
+        <div
+          class="member-row"
+          *ngFor="let e of entries"
+          [class.row-highlighted]="isEntryHighlighted(e)"
+        >
+          <div class="member-left">
+            <ion-avatar class="avatar">
+              <ng-container *ngIf="hasAvatar(e); else avatarFallback">
+                <img
+                  [src]="avatarUrl(e)"
+                  alt="profile"
+                  (error)="onAvatarError(e)"
+                />
+              </ng-container>
+              <ng-template #avatarFallback>
+                <div class="avatar-fallback">{{ avatarInitial(e) }}</div>
+              </ng-template>
+            </ion-avatar>
+
+            <div class="member-name">
+              <div class="name-main">
+                {{ e.username || e.displayName || 'User' }}
+              </div>
+              <div class="name-sub" *ngIf="e.role === 'TRAINER'">Trainer: [PT]</div>
+            </div>
+          </div>
+
+          <div class="member-right">
+            <div class="rank">Rank: #{{ e.rank }}</div>
+            <div class="score">{{ metricLabel() }}: {{ scoreFor(e) }}</div>
+          </div>
+        </div>
+      </ion-list>
+    </div>
+  </ion-card>
+</div>

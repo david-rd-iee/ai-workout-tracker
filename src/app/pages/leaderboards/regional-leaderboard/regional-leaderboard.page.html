@@ -1,0 +1,20 @@
+<ion-content class="lb-content">
+  <app-leaderboard-shell
+    [title]="'Regional Leaderboard'"
+    [graphLabel]="graphRegionTitle()"
+    [loading]="loading"
+    [errorMsg]="errorMsg"
+    [metric]="metric"
+    [scope]="scope"
+    [showScopeSelect]="true"
+    [entries]="entries"
+    [distributionCurvePath]="distributionCurvePath"
+    [distributionPoints]="distributionPoints"
+    [selectedPointBin]="selectedPointBin"
+    [highlightedUserIds]="selectedPointUserIds"
+    (back)="goBack()"
+    (metricChange)="metric = $event; refresh()"
+    (scopeChange)="scope = $event; refresh()"
+    (distributionPointClick)="onDistributionPointClick($event)"
+  ></app-leaderboard-shell>
+</ion-content>

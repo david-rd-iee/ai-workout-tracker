@@ -11,7 +11,7 @@
     </div>
 
     <!-- CLIENT HOME PAGE -->
-    <ng-container *ngIf="currentUser?.role === 'client'">
+    <ng-container *ngIf="currentUser?.isPT === false">
       <!-- Custom Welcome Message -->
       <div class="custom-message" *ngIf="customMessage && isWidgetEnabled('welcome')">
         <p>{{ customMessage }}</p>
@@ -106,7 +106,7 @@
     </ng-container>
 
     <!-- TRAINER HOME PAGE -->
-    <ng-container *ngIf="currentUser?.role === 'trainer'">
+    <ng-container *ngIf="currentUser?.isPT === true">
       <!-- Monthly Revenue Card -->
       <ion-card class="revenue-card">
         <ion-card-content>
@@ -172,7 +172,7 @@
     </ng-container>
 
     <!-- FALLBACK / PLACEHOLDER (when no account type or loading) -->
-    <ng-container *ngIf="!currentUser?.role">
+    <ng-container *ngIf="currentUser?.isPT === undefined">
       <ion-card class="welcome-card">
         <ion-card-content>
           <div class="welcome-section">

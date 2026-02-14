@@ -30,6 +30,18 @@ export const routes: Routes = [
     canActivate: [authGuard],
   },
   {
+    path: 'groups',
+    loadComponent: () =>
+      import('./pages/groups/groups.page').then((m) => m.GroupsPage),
+    canActivate: [authGuard],
+  },
+  {
+  path: 'regional-leaderboard',
+  loadComponent: () =>
+    import('./pages/leaderboards/regional-leaderboard/regional-leaderboard.page')
+      .then(m => m.RegionalLeaderboardPage),
+  },
+  {
     path: 'workout-details',
     loadComponent: () =>
       import('./pages/workout-details/workout-details.page').then((m) => m.WorkoutDetailsPage),
@@ -46,6 +58,12 @@ export const routes: Routes = [
       import('./pages/chats/chat-detail/chat-detail.page').then((m) => m.ChatDetailPage),
   },
   {
+    path: 'leaderboard/:groupID',
+    loadComponent: () =>
+      import('./pages/leaderboards/leaderboard/leaderboard.page').then((m) => m.LeaderboardPage),
+    canActivate: [authGuard],
+  },
+  {
     path: '',
     redirectTo: 'login',
     pathMatch: 'full',
@@ -54,5 +72,5 @@ export const routes: Routes = [
   {
     path: '**',
     redirectTo: 'login',
-  },
+  }
 ];

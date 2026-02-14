@@ -74,20 +74,11 @@ export class AppComponent implements OnInit {
       console.log('[AppComponent] User authenticated, loading profile...');
       const profileLoaded = await this.userService.loadUserProfile();
       console.log('[AppComponent] Profile loaded:', profileLoaded);
-      
-      if (profileLoaded) {
-        // Only navigate if not already on a valid authenticated route
-        const currentUrl = this.router.url;
-        console.log('[AppComponent] Current URL:', currentUrl);
-        if (currentUrl === '/login' || currentUrl === '/' || currentUrl === '/sign-up') {
-          console.log('[AppComponent] Navigating to /tabs...');
-          await this.router.navigate(['/tabs'], { replaceUrl: true });
-        } else {
-          console.log('[AppComponent] Already on authenticated route, not navigating');
-        }
-      } else {
-        console.log('[AppComponent] No profile found, navigating to profile creation...');
-        await this.router.navigate(['/profile-creation'], { replaceUrl: true });
+
+      // Do not auto-navigate authenticated users on app startup.
+      // Login and signup pages handle navigation after explicit user actions.
+      if (!profileLoaded) {
+        console.log('[AppComponent] No profile found, waiting for explicit navigation.');
       }
     } else {
       console.log('[AppComponent] User not authenticated');
