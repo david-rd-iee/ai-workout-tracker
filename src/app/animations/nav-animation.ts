@@ -21,6 +21,17 @@ export const appNavAnimation: AnimationBuilder = (_baseEl: any, opts: any): Anim
 
   const enteringIsProfile = containsSelector(enteringEl, 'app-profile-user');
   const leavingIsProfile = containsSelector(leavingEl, 'app-profile-user');
+  const enteringIsWorkoutChatbot = containsSelector(enteringEl, 'app-workout-chatbot');
+  const leavingIsWorkoutChatbot = containsSelector(leavingEl, 'app-workout-chatbot');
+  const enteringIsTabs = containsSelector(enteringEl, 'app-tabs');
+  const leavingIsTabs = containsSelector(leavingEl, 'app-tabs');
+
+  const isProfileToWorkoutTransition =
+    !isBack && leavingIsProfile && (enteringIsWorkoutChatbot || enteringIsTabs);
+  const isWorkoutToProfileTransition =
+    isBack && enteringIsProfile && (leavingIsWorkoutChatbot || leavingIsTabs);
+  const isProfileWorkoutTransition =
+    isProfileToWorkoutTransition || isWorkoutToProfileTransition;
 
   // Use vertical animation for any transition that enters or leaves profile.
   const useProfileVerticalTransition = enteringIsProfile || leavingIsProfile;
@@ -35,6 +46,35 @@ export const appNavAnimation: AnimationBuilder = (_baseEl: any, opts: any): Anim
   enteringAnimation.beforeRemoveClass('ion-page-invisible');
 
   if (useProfileVerticalTransition) {
+    if (isProfileWorkoutTransition) {
+      if (isBack) {
+        // Workout -> Profile: profile stays on top and slides down.
+        enteringAnimation
+          .beforeStyles({ transform: 'translateY(-100%)', opacity: '1', 'z-index': '101' })
+          .fromTo('transform', 'translateY(-100%)', 'translateY(0)')
+          .fromTo('opacity', '1', '1')
+          .afterClearStyles(['transform', 'opacity', 'z-index']);
+
+        leavingAnimation
+          .beforeStyles({ transform: 'translateY(0)', opacity: '1' })
+          .fromTo('opacity', '1', '1')
+          .afterClearStyles(['transform', 'opacity', 'z-index']);
+      } else {
+        // Profile -> Workout: profile stays on top and slides up.
+        enteringAnimation
+          .beforeStyles({ transform: 'translateY(0)', opacity: '1' })
+          .fromTo('opacity', '1', '1')
+          .afterClearStyles(['transform', 'opacity']);
+
+        leavingAnimation
+          .beforeStyles({ transform: 'translateY(0)', opacity: '1', 'z-index': '101' })
+          .fromTo('transform', 'translateY(0)', 'translateY(-100%)')
+          .afterClearStyles(['transform', 'opacity', 'z-index']);
+      }
+
+      return rootAnimation.addAnimation([enteringAnimation, leavingAnimation]);
+    }
+
     if (isBack) {
       enteringAnimation
         .beforeStyles({ transform: 'translateY(0)', opacity: '1' })
