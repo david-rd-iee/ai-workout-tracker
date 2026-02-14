@@ -5,6 +5,7 @@ import {
   doc,
   docData,
   getDoc,
+  getDocs,
   collection,
   addDoc,
   updateDoc,
@@ -73,6 +74,19 @@ export class GroupService {
     return from(Promise.all(promises)).pipe(
       map((groups) => groups.filter((g): g is Group => !!g))
     );
+  }
+
+  /**
+   * Get all groups once from Firestore.
+   */
+  async getAllGroupsOnce(): Promise<Group[]> {
+    const colRef = collection(this.firestore, this.groupsCollectionName);
+    const snap = await getDocs(colRef);
+
+    return snap.docs.map((docSnap) => {
+      const data = docSnap.data() as Omit<Group, 'groupId'>;
+      return { groupId: docSnap.id, ...data };
+    });
   }
 
   /**

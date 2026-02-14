@@ -16,9 +16,10 @@ describe('GroupsPage', () => {
   };
   const groupServiceMock = {
     getUserGroups: () => of({ user: { groupID: [] }, groups: [] }),
+    getAllGroupsOnce: () => Promise.resolve([]),
   };
   const navControllerMock = {
-    back: jasmine.createSpy('back'),
+    navigateBack: jasmine.createSpy('navigateBack'),
   };
 
   beforeEach(() => {
