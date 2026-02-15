@@ -215,14 +215,7 @@ export class ChatDetailPage implements OnInit, OnDestroy {
   }
 
   isMyMessage(message: Message): boolean {
-    const isMine = message.senderId === this.currentUserId;
-    console.log('[ChatDetailPage] isMyMessage:', {
-      messageText: message.text.substring(0, 20),
-      messageSenderId: message.senderId,
-      currentUserId: this.currentUserId,
-      isMine
-    });
-    return isMine;
+    return message.senderId === this.currentUserId;
   }
 
   formatTimestamp(timestamp: string): string {
