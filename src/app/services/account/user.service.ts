@@ -101,6 +101,32 @@ export class UserService {
       if (userDoc.exists()) {
         const userData = userDoc.data() as trainerProfile | clientProfile;
         userData.email = this.accountService.getCredentials()().email;
+        
+        console.log('[UserService] Raw user data from Firestore:', userData);
+        console.log('[UserService] Profile image fields:', {
+          profileImage: (userData as any).profileImage,
+          profilepic: (userData as any).profilepic,
+          accountType: userData.accountType
+        });
+        
+        // If profileImage is missing, try to load from users collection as fallback
+        if (!(userData as any).profileImage && !(userData as any).profilepic) {
+          console.log('[UserService] No profile image in collection, checking users fallback...');
+          try {
+            const usersDoc = await getDoc(doc(this.firestore, 'users', userID));
+            if (usersDoc.exists()) {
+              const usersData = usersDoc.data();
+              const fallbackImage = usersData?.['profileImage'] || usersData?.['profilepic'];
+              if (fallbackImage) {
+                console.log('[UserService] Found profile image in users collection:', fallbackImage);
+                (userData as any).profileImage = fallbackImage;
+              }
+            }
+          } catch (error) {
+            console.error('[UserService] Error checking users collection for profile image:', error);
+          }
+        }
+        
         this.userInfo.set(userData);
         console.log('User profile loaded successfully:', userData.accountType, userData.firstName);
         
@@ -133,14 +159,40 @@ export class UserService {
     const collection = accountType === 'trainer' ? this.TRAINERS_COLLECTION : this.CLIENTS_COLLECTION;
     const userRef = doc(this.firestore, `${collection}/${userId}`);
 
-    console.log('Fetching user:', userId, accountType);
+    console.log('[UserService] Fetching user by ID:', userId, accountType);
     getDoc(userRef)
-      .then((docSnap) => {
+      .then(async (docSnap) => {
         if (docSnap.exists()) {
           const userData = docSnap.data() as trainerProfile | clientProfile;
+          
+          // If profileImage is missing, try to load from users collection as fallback
+          if (!(userData as any).profileImage && !(userData as any).profilepic) {
+            console.log(`[UserService] No profile image for ${userId}, checking users fallback...`);
+            try {
+              const usersDoc = await getDoc(doc(this.firestore, 'users', userId));
+              if (usersDoc.exists()) {
+                const usersData = usersDoc.data();
+                const fallbackImage = usersData?.['profileImage'] || usersData?.['profilepic'];
+                if (fallbackImage) {
+                  console.log(`[UserService] Found profile image in users collection:`, fallbackImage);
+                  (userData as any).profileImage = fallbackImage;
+                }
+              }
+            } catch (error) {
+              console.error(`[UserService] Error checking users collection:`, error);
+            }
+          }
+          
+          console.log('[UserService] User data loaded for', userId, ':', {
+            name: `${userData.firstName} ${userData.lastName}`,
+            profileImage: (userData as any).profileImage,
+            profilepic: (userData as any).profilepic,
+            accountType: userData.accountType
+          });
           userSignal.set(userData);
           console.log('User loaded successfully:', userData);
         } else {
+          console.log('[UserService] No user found for ID:', userId, 'in collection:', collection);
           userSignal.set(null);
         }
       })
@@ -170,17 +222,41 @@ export class UserService {
 
   async getUserProfileDirectly(uid: string, accountType: 'trainer' | 'client'): Promise<trainerProfile | clientProfile | null> {
     try {
-      console.log(`Getting ${accountType} profile directly for uid:`, uid);
+      console.log(`[UserService] Getting ${accountType} profile directly for uid:`, uid);
       const collection = accountType === 'trainer' ? this.TRAINERS_COLLECTION : this.CLIENTS_COLLECTION;
       const docRef = doc(this.firestore, `${collection}/${uid}`);
       const docSnap = await getDoc(docRef);
       
       if (docSnap.exists()) {
         const userData = docSnap.data() as (trainerProfile | clientProfile);
-        console.log(`${accountType} profile data retrieved:`, userData);
+        
+        // If profileImage is missing, try to load from users collection as fallback
+        if (!(userData as any).profileImage && !(userData as any).profilepic) {
+          console.log(`[UserService] No profile image in ${accountType} collection, checking users fallback...`);
+          try {
+            const usersDoc = await getDoc(doc(this.firestore, 'users', uid));
+            if (usersDoc.exists()) {
+              const usersData = usersDoc.data();
+              const fallbackImage = usersData?.['profileImage'] || usersData?.['profilepic'];
+              if (fallbackImage) {
+                console.log(`[UserService] Found profile image in users collection:`, fallbackImage);
+                (userData as any).profileImage = fallbackImage;
+              }
+            }
+          } catch (error) {
+            console.error(`[UserService] Error checking users collection for profile image:`, error);
+          }
+        }
+        
+        console.log(`[UserService] ${accountType} profile data retrieved:`, {
+          name: `${userData.firstName} ${userData.lastName}`,
+          profileImage: (userData as any).profileImage,
+          profilepic: (userData as any).profilepic,
+          fullData: userData
+        });
         return userData;
       } else {
-        console.log(`No ${accountType} profile found for uid:`, uid);
+        console.log(`[UserService] No ${accountType} profile found for uid:`, uid);
         return null;
       }
     } catch (error) {

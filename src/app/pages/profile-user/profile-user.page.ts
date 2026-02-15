@@ -136,6 +136,12 @@ export class ProfileUserPage implements OnInit, OnDestroy {
         this.currentUser = userInfo;
         
         const pic = ((this.currentUser as any)?.profileImage || (this.currentUser as any)?.profilepic || '').trim();
+        console.log('[ProfileUserPage] Profile image data:', {
+          profileImage: (this.currentUser as any)?.profileImage,
+          profilepic: (this.currentUser as any)?.profilepic,
+          finalPic: pic,
+          userData: userInfo
+        });
         this.profileImageUrl = pic.length > 0 ? pic : null;
         
         this.isLoading = false;

@@ -340,13 +340,12 @@ export class ClientProfilePage implements OnInit {
     try {
       const updatedProfile: Partial<clientProfile> = {};
 
-      // Temporarily disabled - updateClientProfile method doesn't exist
-      // await this.userService.updateClientProfile(
-      //   this.userId(),
-      //   updatedProfile,
-      //   this.selectedFile || undefined
-      // );
-      console.warn('Update profile temporarily disabled');
+      // Save profile with image if one was selected
+      await this.userService.updateClientProfile(
+        this.userId(),
+        updatedProfile,
+        this.selectedFile || undefined
+      );
 
       this.originalProfileImage = this.clientInfo.profileImage;
       this.selectedFile = null;

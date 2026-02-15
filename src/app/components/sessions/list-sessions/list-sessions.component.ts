@@ -250,8 +250,15 @@ export class ListSessionsComponent implements OnInit, OnChanges {
     for (const session of this.processedSessions) {
       if ((userType === 'trainer' && session.trainerId === userId) || 
           (userType === 'client' && session.clientId === userId)) {
+        const profileImage = (profile as any).profileImage || (profile as any).profilepic || '';
+        console.log('[ListSessions] Updating session with profile:', {
+          userId,
+          userType,
+          profileImage,
+          profileData: profile
+        });
         session.otherPartyName = `${profile.firstName} ${profile.lastName}`;
-        session.otherPartyImage = (profile as any).profileImage || (profile as any).profilepic || '';
+        session.otherPartyImage = profileImage;
         session.otherPartyType = userType === 'trainer' ? 'Trainer' : 'Client';
         session.isProfileLoading = false;
       }

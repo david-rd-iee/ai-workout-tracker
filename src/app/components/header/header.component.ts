@@ -4,8 +4,6 @@ import { Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { addIcons } from 'ionicons';
 import { chevronBackOutline, personOutline, personCircleOutline } from 'ionicons/icons';
-import { Auth, onAuthStateChanged } from '@angular/fire/auth';
-import { Firestore, doc, getDoc } from '@angular/fire/firestore';
 import type { AppUser } from '../../models/user.model';
 import { UserService } from '../../services/account/user.service';
 
@@ -64,25 +62,6 @@ export class HeaderComponent implements OnInit {
 
   private get effectiveUser(): any {
     return this.currentUser || this.loadedUser;
-  }
-
-  ngOnInit(): void {
-    this.unsubscribeAuth = onAuthStateChanged(this.auth, (fbUser) => {
-      if (!fbUser) {
-        this.fallbackUser = null;
-        return;
-      }
-
-      void this.loadFallbackUser(fbUser.uid);
-    });
-  }
-
-  ngOnDestroy(): void {
-    this.unsubscribeAuth?.();
-  }
-
-  private get resolvedUser(): AppUser | null {
-    return this.currentUser ?? this.fallbackUser;
   }
 
   get avatarInitial(): string {
