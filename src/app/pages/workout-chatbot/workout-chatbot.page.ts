@@ -1,18 +1,13 @@
 // imports
+import { WorkoutLogService } from '../../services/workout-log.service';
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import {
-  IonInput,
-  IonButton,
-  IonIcon,
-} from '@ionic/angular/standalone';
+import { IonInput, IonButton, IonIcon } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
 import { fitnessOutline } from 'ionicons/icons';
 
-import {
-  WorkoutSessionPerformance,
-} from '../../models/workout-session.model';
+import { WorkoutSessionPerformance } from '../../models/workout-session.model';
 
 import { Router } from '@angular/router';
 import {
@@ -35,18 +30,16 @@ interface ChatMessage {
   standalone: true,
   templateUrl: './workout-chatbot.page.html',
   styleUrls: ['./workout-chatbot.page.scss'],
-  imports: [
-    CommonModule,
-    FormsModule,
-    IonInput,
-    IonButton,
-    IonIcon,
-  ],
+  imports: [CommonModule, FormsModule, IonInput, IonButton, IonIcon],
 })
 export class WorkoutChatbotPage implements OnInit {
   userInput = '';
   messages: ChatMessage[] = [];
   isLoading = false;
+
+  // Save guards
+  hasSavedWorkout = false;
+  isSavingWorkout = false;
 
   // structured session/summary object the AI can update
   session: WorkoutSessionPerformance = {
@@ -61,19 +54,23 @@ export class WorkoutChatbotPage implements OnInit {
 
   constructor(
     private router: Router,
-    private workoutChatService: WorkoutChatService
+    private workoutChatService: WorkoutChatService,
+    private workoutLogService: WorkoutLogService
   ) {
     addIcons({ fitnessOutline });
   }
 
   ngOnInit() {
+    // New page load = new workout attempt
+    this.hasSavedWorkout = false;
+    this.isSavingWorkout = false;
+
     this.addBotMessage(
       "Hey! Ready to log your workout? Tell me your first exercise (name, sets, reps, weight) and I’ll organize everything for your trainer."
     );
   }
 
   // helpers:
-
   addBotMessage(text: string) {
     this.messages.push({ from: 'bot', text });
   }
@@ -91,38 +88,39 @@ export class WorkoutChatbotPage implements OnInit {
   }
 
   async handleSend() {
-    console.log('handleSend() called, raw input =', this.userInput);
     const text = this.userInput.trim();
-    if (!text) {
-      console.log('Empty or whitespace-only message, ignoring.');
-      return;
-    }
+    if (!text) return;
 
     // show user message immediately
     this.addUserMessage(text);
     this.userInput = '';
-
     this.isLoading = true;
 
     try {
-      const response: ChatResponse =
-        await this.workoutChatService.sendMessage({
-          message: text,
-          session: this.session,
-          history: this.buildHistory(),
-        });
+      const response: ChatResponse = await this.workoutChatService.sendMessage({
+        message: text,
+        session: this.session,
+        history: this.buildHistory(),
+      });
 
-      // update session if backend/AI changed it
+      // If the previous session was complete, and now it's not complete,
+      // assume user is starting a new workout -> allow saving again.
+      const wasComplete = !!this.session?.isComplete;
+
       if (response.updatedSession) {
         this.session = response.updatedSession as WorkoutSessionPerformance;
-        console.log('Updated session:', this.session);
+      }
+
+      const isNowComplete = !!this.session?.isComplete;
+
+      if (wasComplete && !isNowComplete) {
+        this.hasSavedWorkout = false;
       }
 
       // show bot reply
       if (response.botMessage) {
         this.addBotMessage(response.botMessage);
       } else {
-        // fallback if backend didn't send text
         this.addBotMessage(
           'I received your message, but there was no reply text. Check the backend response format.'
         );
@@ -137,8 +135,33 @@ export class WorkoutChatbotPage implements OnInit {
     }
   }
 
-  navigateToWorkoutSummary() {
-    // pass the current AI-built summary to the summary page
+  async navigateToWorkoutSummary() {
+    // Don’t allow multiple clicks while saving
+    if (this.isSavingWorkout) return;
+
+    if (!this.session?.isComplete) {
+      this.addBotMessage(
+        'Finish logging your workout first, then I’ll save it and show the summary.'
+      );
+      return;
+    }
+
+    if (!this.hasSavedWorkout) {
+      this.isSavingWorkout = true;
+      try {
+        await this.workoutLogService.saveCompletedWorkout(this.session);
+        this.hasSavedWorkout = true;
+      } catch (err) {
+        console.error('Failed to save workout:', err);
+        this.addBotMessage(
+          'I had trouble saving your workout. Please try again.'
+        );
+        return;
+      } finally {
+        this.isSavingWorkout = false;
+      }
+    }
+
     this.router.navigate(['/workout-summary'], {
       state: { summary: this.session },
     });

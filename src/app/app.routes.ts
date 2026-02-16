@@ -48,6 +48,14 @@ export const routes: Routes = [
     canActivate: [authGuard],
   },
   {
+    path: 'workout-summary',
+    loadComponent: () =>
+      import('./pages/workout-summary/workout-summary.page').then(
+        (m) => m.WorkoutSummaryPage
+      ),
+    canActivate: [authGuard],
+  },
+  {
     path: 'client-details',
     loadComponent: () =>
       import('./pages/client-details/client-details.page').then((m) => m.ClientDetailsPage),
