@@ -6,6 +6,7 @@ import { NavController, Platform } from '@ionic/angular';
 import { BehaviorSubject, Subject } from 'rxjs';
 import { Router } from '@angular/router';
 import firebase from 'firebase/compat/app';
+import { Firestore, doc, getDoc, setDoc, serverTimestamp } from '@angular/fire/firestore';
 // Import for Capacitor plugins
 import { registerPlugin } from '@capacitor/core';
 
@@ -46,9 +47,33 @@ export class AccountService {
     private afAuth: AngularFireAuth,
     private navCtrl: NavController,
     private router: Router,
-    private platform: Platform
+    private platform: Platform,
+    private firestore: Firestore
   ) {
     this.initializeAuth();
+  }
+
+  private async ensureUsersDocument(uid: string, email: string | null): Promise<void> {
+    const userRef = doc(this.firestore, 'users', uid);
+    const userSnap = await getDoc(userRef);
+
+    if (userSnap.exists()) {
+      return;
+    }
+
+    await setDoc(userRef, {
+      userId: uid,
+      email: email ?? '',
+      name: 'New User',
+      isPT: false,
+      ptUID: '',
+      groups: [],
+      profileImage: '',
+      profilepic: '',
+      created_at: serverTimestamp(),
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
   }
 
   private async initializeAuth() {
@@ -96,6 +121,7 @@ export class AccountService {
       if (!userCredential.user) {
         return false;
       }
+      await this.ensureUsersDocument(userCredential.user.uid, userCredential.user.email ?? email);
       this.credentials.set({ uid: userCredential.user.uid, email: email });
       return true;
     } catch (e) {
@@ -211,6 +237,7 @@ export class AccountService {
 
       // Set the credentials
       const email = userCredential.user.email || appleResponse.email || '';
+      await this.ensureUsersDocument(userCredential.user.uid, email);
       this.credentials.set({ uid: userCredential.user.uid, email: email });
       
       console.log('Apple Sign In successful', userCredential.user);
