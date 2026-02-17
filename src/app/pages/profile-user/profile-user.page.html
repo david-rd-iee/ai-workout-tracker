@@ -6,13 +6,20 @@
 
     <!-- Profile hero -->
     <div class="profile-hero">
-      <div class="avatar-wrap">
-        <img
-          class="avatar-img"
-          [src]="profileImageUrl || 'assets/user_icons/default_icon.png'"
-          alt="Profile"
-        />
-      </div>
+      <button
+        type="button"
+        class="avatar-button"
+        (click)="onProfileImageClick()"
+        aria-label="Profile image actions"
+      >
+        <div class="avatar-wrap">
+          <img
+            class="avatar-img"
+            [src]="profileImageUrl"
+            alt="Profile"
+          />
+        </div>
+      </button>
 
       <div class="identity">
         <div class="full-name">{{ displayName }}</div>

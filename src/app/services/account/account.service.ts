@@ -64,7 +64,9 @@ export class AccountService {
     await setDoc(userRef, {
       userId: uid,
       email: email ?? '',
-      name: 'New User',
+      firstName: '',
+      lastName: '',
+      username: '',
       isPT: false,
       ptUID: '',
       groups: [],
