@@ -72,6 +72,13 @@ export const routes: Routes = [
     canActivate: [authGuard],
   },
   {
+    path: 'workout-history',
+    loadComponent: () =>
+      import('./pages/workout-history/workout-history.page').then(
+        (m) => m.WorkoutHistoryPage
+      ),
+  },
+  {
     path: '',
     redirectTo: 'login',
     pathMatch: 'full',
