@@ -217,12 +217,12 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: #f2ead9;
+  background: #eef6ff;
   border-radius: 14px;
   padding: 10px 10px;
   margin-bottom: 10px;
   box-shadow: 0 8px 14px rgba(0, 0, 0, 0.14);
-  border: 2px solid rgba(190, 140, 40, 0.7);
+  border: 2px solid #2f7fce;
   cursor: pointer;
   transition: transform 0.15s ease;
 }
@@ -237,8 +237,8 @@
 }
 
 .member-row.row-highlighted {
-  border-color: #2f7fce;
-  background: #eef6ff;
+  border-color: rgba(190, 140, 40, 0.7);
+  background: #f2ead9;
 }
 
 .member-left {

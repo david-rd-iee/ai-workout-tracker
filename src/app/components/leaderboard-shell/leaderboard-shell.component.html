@@ -35,10 +35,15 @@
             [yAxis]="false"
             [showGridLines]="false"
             [gradient]="true"
-            [autoScale]="true"
+            [autoScale]="false"
             [timeline]="false"
             [animations]="true"
             [tooltipDisabled]="true"
+            [xScaleMin]="chartXMin"
+            [xScaleMax]="chartXMax"
+            [yScaleMin]="chartYMin"
+            [yScaleMax]="chartYMax"
+            [roundDomains]="false"
           ></ngx-charts-area-chart>
 
           <div class="distribution-point-overlay">
@@ -49,7 +54,7 @@
               [class.point-selected]="isPointSelected(point)"
               [class.point-single]="point.count <= 1"
               [style.left.%]="point.xPercent"
-              [style.top.%]="point.yPercent"
+              [style.top.%]="dotTopPercent(point)"
               [attr.title]="point.rangeLabel + ' (' + point.count + ' players)'"
               (click)="onDistributionPointTapped($event, point)"
             >

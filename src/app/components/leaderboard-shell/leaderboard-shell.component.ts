@@ -98,7 +98,12 @@ export class LeaderboardShellComponent implements OnChanges, AfterViewInit, OnDe
   @Output() memberClick = new EventEmitter<LeaderboardEntry>();
 
   distributionChartResults: DistributionChartSeries[] = [];
+  private distributionCurveSeries: DistributionChartDatum[] = [];
   chartView: [number, number] = [320, 170];
+  readonly chartXMin = 4;
+  readonly chartXMax = 96;
+  readonly chartYMin = 0;
+  readonly chartYMax = 100;
   readonly chartScaleType = ScaleType.Ordinal;
   readonly chartColorScheme: Color = {
     name: 'leaderboardDistribution',
@@ -181,6 +186,14 @@ export class LeaderboardShellComponent implements OnChanges, AfterViewInit, OnDe
     return point.binIndex;
   }
 
+  dotTopPercent(point: DistributionPoint): number {
+    const interpolated = this.interpolateCurveValue(point.xPercent);
+    if (interpolated === null) {
+      return point.yPercent;
+    }
+    return 100 - interpolated;
+  }
+
   avatarUrl(entry: LeaderboardEntry): string | null {
     const raw = (entry.profilePicUrl || '').trim();
     return raw.length > 0 ? raw : null;
@@ -201,6 +214,7 @@ export class LeaderboardShellComponent implements OnChanges, AfterViewInit, OnDe
 
   private buildChartResults(path: string): DistributionChartSeries[] {
     const series = this.parseCurvePath(path);
+    this.distributionCurveSeries = series;
     if (series.length === 0) {
       return [];
     }
@@ -236,6 +250,40 @@ export class LeaderboardShellComponent implements OnChanges, AfterViewInit, OnDe
     }
 
     return series;
+  }
+
+  private interpolateCurveValue(xPercent: number): number | null {
+    const series = this.distributionCurveSeries;
+    if (series.length === 0) {
+      return null;
+    }
+
+    if (xPercent <= series[0].name) {
+      return series[0].value;
+    }
+
+    const last = series[series.length - 1];
+    if (xPercent >= last.name) {
+      return last.value;
+    }
+
+    for (let i = 1; i < series.length; i += 1) {
+      const prev = series[i - 1];
+      const next = series[i];
+      if (xPercent > next.name) {
+        continue;
+      }
+
+      const deltaX = next.name - prev.name;
+      if (deltaX <= 1e-6) {
+        return next.value;
+      }
+
+      const t = (xPercent - prev.name) / deltaX;
+      return prev.value + (next.value - prev.value) * t;
+    }
+
+    return last.value;
   }
 
   private syncChartView(): void {

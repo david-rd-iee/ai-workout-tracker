@@ -197,6 +197,22 @@ export class LeaderboardPage implements OnInit {
     }
     this.distributionCurvePath = samples.join(' ');
 
+    if (this.entries.length === 1) {
+      const entry = this.entries[0];
+      const score = this.scoreFor(entry);
+      this.distributionPoints = [
+        {
+          binIndex: 0,
+          xPercent: toXPct(score),
+          yPercent: toYPct(score),
+          count: 1,
+          userIds: [entry.userId],
+          rangeLabel: `${Math.round(score)}-${Math.round(score)}`,
+        },
+      ];
+      return;
+    }
+
     const binCount = Math.min(12, Math.max(6, Math.round(Math.sqrt(this.entries.length))));
     const binWidth = scoreSpan / binCount;
     const bins = Array.from({ length: binCount }, () => [] as LeaderboardEntry[]);
