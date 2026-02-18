@@ -2,8 +2,8 @@ import { Injectable, signal, Signal, computed } from '@angular/core';
 import { AngularFireAuth } from '@angular/fire/compat/auth';
 import { credentials } from '../../interfaces/profiles/credentials';
 type Credentials = credentials;
-import { NavController, Platform } from '@ionic/angular';
-import { BehaviorSubject, Subject } from 'rxjs';
+import { Platform } from '@ionic/angular';
+import { Subject } from 'rxjs';
 import { Router } from '@angular/router';
 import firebase from 'firebase/compat/app';
 import { Firestore, doc, getDoc, setDoc, serverTimestamp } from '@angular/fire/firestore';
@@ -45,7 +45,6 @@ export class AccountService {
 
   constructor(
     private afAuth: AngularFireAuth,
-    private navCtrl: NavController,
     private router: Router,
     private platform: Platform,
     private firestore: Firestore
@@ -85,17 +84,13 @@ export class AccountService {
 
       this.afAuth.authState.subscribe(async (user) => {
         if (user && user.uid) {
-          console.log('Auth state changed - user authenticated:', user.uid);
           this.credentials.set({ uid: user.uid, email: user.email || '' });
           
           // Emit authentication state change event
           this.authStateChange$.next({ user, isAuthenticated: true });
-          
-          console.log('User authenticated, emitted auth state change event');
-          // Don't navigate here - let the component/service that handles profile loading do the navigation
         } else {
           this.credentials.set({ uid: '', email: '' });
-          // this.navCtrl.navigateRoot('/login'); // Temporarily disabled for testing
+          this.authStateChange$.next({ user: null, isAuthenticated: false });
         }
         this.authInitialized.set(true);
       });
@@ -137,16 +132,13 @@ export class AccountService {
     try {
 
       const userCredential = await this.afAuth.signInWithEmailAndPassword(email, password);
-      console.log('User credential:', userCredential);
       if (userCredential.user === null) {
-        console.log('Login error', userCredential.user);  
         return false;
       }
 
       this.credentials.set({ uid: userCredential.user.uid, email: email });
       return true;
     } catch (e) {
-      console.log('Login error', e);
       return false;
     }
   }
@@ -208,19 +200,16 @@ export class AccountService {
     try {
       // Only proceed if on iOS platform
       if (!this.platform.is('ios')) {
-        console.log('Apple Sign In is only available on iOS devices');
         return false;
       }
 
       // Use the Capacitor Apple Login plugin
       const result = await SignInWithApple.Authorize();
-      console.log('Apple Sign In raw result:', result);
       
       // The plugin returns data in a 'response' object
       const appleResponse = result.response || result;
       
       if (!appleResponse || !appleResponse.identityToken) {
-        console.log('Apple Sign In failed: No identity token');
         return false;
       }
 
@@ -234,7 +223,6 @@ export class AccountService {
       const userCredential = await this.afAuth.signInWithCredential(credential);
       
       if (!userCredential.user) {
-        console.log('Apple Sign In failed: No user returned');
         return false;
       }
 
@@ -242,8 +230,6 @@ export class AccountService {
       const email = userCredential.user.email || appleResponse.email || '';
       await this.ensureUsersDocument(userCredential.user.uid, email);
       this.credentials.set({ uid: userCredential.user.uid, email: email });
-      
-      console.log('Apple Sign In successful', userCredential.user);
       return true;
     } catch (error) {
       console.error('Apple Sign In error:', error);

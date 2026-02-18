@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, ViewChild, ElementRef, inject } from '@angular/core';
+import { Component, OnInit, ViewChild, ElementRef, inject } from '@angular/core';
 // import { DEFAULT_ASSETS } from '../../../../assets/exports/assets.constants';
 const DEFAULT_ASSETS = { PROFILE_PHOTO: '' };
 import { CommonModule } from '@angular/common';
@@ -10,7 +10,7 @@ import { Router } from '@angular/router';
 import { AccountService } from 'src/app/services/account/account.service';
 import { ChatsService } from 'src/app/services/chats.service';
 import { UserService } from 'src/app/services/account/user.service';
-import { Observable, Subject, takeUntil, filter } from 'rxjs';
+import { Observable } from 'rxjs';
 import { Chat } from 'src/app/Interfaces/Chats';
 // import { MessageDateTimePipe } from 'src/app/pipes/message-date-time.pipe';
 
@@ -51,8 +51,7 @@ import { Chat } from 'src/app/Interfaces/Chats';
     // MessageDateTimePipe,
     IonItem, IonList, CommonModule, FormsModule]
 })
-export class ClientChatsPage implements OnInit, OnDestroy {
-  private destroy$ = new Subject<void>();
+export class ClientChatsPage implements OnInit {
   bearProfile = DEFAULT_ASSETS.PROFILE_PHOTO;
   @ViewChild('swiper') swiperRef: ElementRef | undefined;
   swiper?: any; // Swiper;
@@ -69,34 +68,39 @@ export class ClientChatsPage implements OnInit, OnDestroy {
   constructor() {}
 
   ngOnInit() {
-    console.log('[ClientChatsPage] Initializing...');
-    const credentials = this.accountService.getCredentials()();
-    const userProfile = this.userService.getUserInfo()();
-    
-    console.log('[ClientChatsPage] Credentials:', credentials?.uid);
-    console.log('[ClientChatsPage] User profile:', userProfile?.accountType);
-    
-    if (credentials?.uid && userProfile?.accountType) {
-      // Reset chats service to allow re-initialization
-      this.chatsService.resetInitialization();
-      this.initializeChats(credentials.uid, userProfile.accountType as 'trainer' | 'client');
-    }
+    void this.initializeChatsForCurrentUser();
   }
 
-  private initializeChats(userId: string, userType: 'trainer' | 'client') {
-    console.log('[ClientChatsPage] Calling initializeUserChats with:', userId, userType);
+  ionViewWillEnter(): void {
+    void this.initializeChatsForCurrentUser();
+  }
+
+  ionViewDidLeave(): void {
+    this.chatsService.resetInitialization();
+  }
+
+  private async initializeChatsForCurrentUser(): Promise<void> {
+    const credentials = this.accountService.getCredentials()();
+    if (!credentials?.uid) {
+      return;
+    }
+
+    let userProfile = this.userService.getUserInfo()();
+    if (!userProfile?.accountType) {
+      await this.userService.loadUserProfile();
+      userProfile = this.userService.getUserInfo()();
+    }
+
+    if (!userProfile?.accountType) {
+      return;
+    }
+
+    this.initializeChats(credentials.uid, userProfile.accountType as 'trainer' | 'client');
+  }
+
+  private initializeChats(userId: string, userType: 'trainer' | 'client'): void {
     this.chatsService.initializeUserChats(userId, userType);
     this.chats$ = this.chatsService.chats$;
-    
-    // Subscribe to see what's being emitted
-    this.chats$.pipe(takeUntil(this.destroy$)).subscribe(chats => {
-      console.log('[ClientChatsPage] Received chats:', chats.length, chats);
-    });
-  }
-
-  ngOnDestroy() {
-    this.destroy$.next();
-    this.destroy$.complete();
   }
 
   swiperReady() {

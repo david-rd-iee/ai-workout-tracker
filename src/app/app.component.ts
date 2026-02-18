@@ -1,11 +1,12 @@
 // src/app/app.component.ts
-import { Component, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
 import { IonApp, IonRouterOutlet } from '@ionic/angular/standalone';
 import { DevSeedService } from './services/dev-seed.service';
 import { AccountService } from './services/account/account.service';
 import { UserService } from './services/account/user.service';
 import { environment } from '../environments/environment';
+import { Subscription } from 'rxjs';
 
 @Component({
   selector: 'app-root',
@@ -13,7 +14,10 @@ import { environment } from '../environments/environment';
   templateUrl: 'app.component.html',
   imports: [IonApp, IonRouterOutlet],
 })
-export class AppComponent implements OnInit {
+export class AppComponent implements OnInit, OnDestroy {
+  private authStateSub?: Subscription;
+  private profileLoadInFlight: Promise<boolean> | null = null;
+  private loadedProfileUid: string | null = null;
 
   constructor(
     private devSeedService: DevSeedService,
@@ -31,16 +35,10 @@ export class AppComponent implements OnInit {
       (window as any).loginAndNavigate = async (email: string, password: string) => {
         const success = await this.accountService.login(email, password);
         if (success) {
-          console.log('Login successful, loading profile...');
           const profileLoaded = await this.userService.loadUserProfile();
           if (profileLoaded) {
-            console.log('Profile loaded, navigating to tabs...');
             await this.router.navigate(['/tabs']);
-          } else {
-            console.log('No profile found, navigate to profile creation');
           }
-        } else {
-          console.log('Login failed');
         }
         return success;
       };
@@ -48,40 +46,45 @@ export class AppComponent implements OnInit {
   }
 
   async ngOnInit() {
-    console.log('[AppComponent] ngOnInit - VERSION 2.0');
-    // Dev seed can be run manually via console: window['devSeed'].ensureDevUserAndSeed()
-    
     try {
-      // Check current auth state first (in case user is already logged in)
-      console.log('[AppComponent] Checking initial auth state...');
       await this.handleAuthState();
-      
-      // Listen to auth state changes and handle navigation
-      this.accountService.authStateChanges$.subscribe(async (authState) => {
-        console.log('[AppComponent] Auth state changed event received:', authState);
-        await this.handleAuthState();
+
+      this.authStateSub = this.accountService.authStateChanges$.subscribe(() => {
+        void this.handleAuthState();
       });
     } catch (error) {
       console.error('[AppComponent] Error in ngOnInit:', error);
     }
   }
 
-  private async handleAuthState() {
-    const isLoggedIn = this.accountService.isLoggedIn()();
-    console.log('[AppComponent] handleAuthState - isLoggedIn:', isLoggedIn);
-    
-    if (isLoggedIn) {
-      console.log('[AppComponent] User authenticated, loading profile...');
-      const profileLoaded = await this.userService.loadUserProfile();
-      console.log('[AppComponent] Profile loaded:', profileLoaded);
+  ngOnDestroy(): void {
+    this.authStateSub?.unsubscribe();
+  }
 
-      // Do not auto-navigate authenticated users on app startup.
-      // Login and signup pages handle navigation after explicit user actions.
-      if (!profileLoaded) {
-        console.log('[AppComponent] No profile found, waiting for explicit navigation.');
+  private async handleAuthState() {
+    const uid = (this.accountService.getCredentials()().uid || '').trim();
+    if (!uid) {
+      this.loadedProfileUid = null;
+      return;
+    }
+
+    if (this.loadedProfileUid === uid) {
+      return;
+    }
+
+    if (this.profileLoadInFlight) {
+      await this.profileLoadInFlight;
+      return;
+    }
+
+    this.profileLoadInFlight = this.userService.loadUserProfile();
+    try {
+      const loaded = await this.profileLoadInFlight;
+      if (loaded) {
+        this.loadedProfileUid = uid;
       }
-    } else {
-      console.log('[AppComponent] User not authenticated');
+    } finally {
+      this.profileLoadInFlight = null;
     }
   }
 }

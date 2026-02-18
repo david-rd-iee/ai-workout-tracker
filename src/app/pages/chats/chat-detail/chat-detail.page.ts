@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, ViewChild, ElementRef } from '@angular/core';
+import { Component, OnInit, OnDestroy, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
@@ -20,7 +20,6 @@ import { ChatsService } from 'src/app/services/chats.service';
 import { UserService } from 'src/app/services/account/user.service';
 import { AccountService } from 'src/app/services/account/account.service';
 import { Message } from 'src/app/Interfaces/Chats';
-import { Subject, takeUntil } from 'rxjs';
 import { ref, onValue, get } from '@angular/fire/database';
 import { Database } from '@angular/fire/database';
 
@@ -54,7 +53,7 @@ export class ChatDetailPage implements OnInit, OnDestroy {
   messageText: string = '';
   messages: Message[] = [];
   
-  private destroy$ = new Subject<void>();
+  private messagesUnsubscribe: (() => void) | null = null;
 
   constructor(
     private route: ActivatedRoute,
@@ -75,21 +74,16 @@ export class ChatDetailPage implements OnInit, OnDestroy {
     const credentials = this.accountService.getCredentials()();
     this.currentUserId = credentials?.uid || '';
     
-    console.log('[ChatDetailPage] Current user ID:', this.currentUserId);
-    
     // Get other user ID from navigation state or route
     const navigation = this.router.getCurrentNavigation();
     if (navigation?.extras?.state) {
       this.otherUserId = navigation.extras.state['otherUserId'];
     }
     
-    console.log('[ChatDetailPage] Other user ID from nav:', this.otherUserId);
-    
     if (this.chatId) {
       // If we don't have otherUserId, get it from the chat data
       if (!this.otherUserId) {
         await this.loadOtherUserIdFromChat();
-        console.log('[ChatDetailPage] Other user ID from chat:', this.otherUserId);
       }
       
       this.loadMessages();
@@ -115,14 +109,15 @@ export class ChatDetailPage implements OnInit, OnDestroy {
   }
 
   ngOnDestroy() {
-    this.destroy$.next();
-    this.destroy$.complete();
+    this.messagesUnsubscribe?.();
+    this.messagesUnsubscribe = null;
   }
 
   loadMessages() {
     const messagesRef = ref(this.db, `chats/${this.chatId}/messages`);
-    
-    onValue(messagesRef, (snapshot) => {
+
+    this.messagesUnsubscribe?.();
+    this.messagesUnsubscribe = onValue(messagesRef, (snapshot) => {
       this.messages = [];
       
       snapshot.forEach((childSnapshot) => {
@@ -136,12 +131,6 @@ export class ChatDetailPage implements OnInit, OnDestroy {
         new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
       );
       
-      console.log('[ChatDetailPage] Loaded messages:', this.messages.map(m => ({
-        text: m.text.substring(0, 20),
-        senderId: m.senderId,
-        isMine: m.senderId === this.currentUserId
-      })));
-      
       // Scroll to bottom after messages load
       setTimeout(() => {
         this.scrollToBottom();
@@ -154,7 +143,6 @@ export class ChatDetailPage implements OnInit, OnDestroy {
 
   async loadOtherUserName() {
     if (!this.otherUserId) {
-      console.log('No other user ID available');
       return;
     }
     
@@ -181,11 +169,6 @@ export class ChatDetailPage implements OnInit, OnDestroy {
     }
 
     try {
-      console.log('[ChatDetailPage] sendMessage - About to send message with:', {
-        chatId: this.chatId,
-        senderId: this.currentUserId,
-        text: this.messageText.trim()
-      });
       await this.chatsService.sendMessage(this.chatId, this.currentUserId, this.messageText.trim());
       this.messageText = '';
       
@@ -204,14 +187,11 @@ export class ChatDetailPage implements OnInit, OnDestroy {
     }
   }
 
-  private async markMessagesAsRead() {
-    // Mark all messages from the other user as read
-    for (const message of this.messages) {
-      if (message.senderId !== this.currentUserId && !message.read) {
-        // TODO: Implement mark as read in ChatsService if needed
-        // For now, this happens automatically on the backend
-      }
+  private markMessagesAsRead(): void {
+    if (!this.chatId || !this.currentUserId) {
+      return;
     }
+    void this.chatsService.markAllMessagesAsRead(this.chatId, this.currentUserId);
   }
 
   isMyMessage(message: Message): boolean {

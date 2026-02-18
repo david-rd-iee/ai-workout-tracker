@@ -12,6 +12,7 @@ import {
 import { Platform } from '@ionic/angular';
 import { FormsModule } from '@angular/forms';
 import { AccountService } from '../../services/account/account.service';
+import { UserService } from '../../services/account/user.service';
 import { Router, RouterLink } from '@angular/router';
 import { addIcons } from 'ionicons';
 
@@ -43,6 +44,7 @@ export class LoginPage implements OnInit {
 
   constructor(
     private accountService: AccountService,
+    private userService: UserService,
     private platform: Platform,
     private router: Router
   ) {
@@ -73,7 +75,12 @@ export class LoginPage implements OnInit {
         return;
       }
 
-      // If you also have an auth-state listener elsewhere, this is still fine.
+      const profileLoaded = await this.userService.loadUserProfile();
+      if (!profileLoaded) {
+        await this.router.navigateByUrl('/complete-profile', { replaceUrl: true });
+        return;
+      }
+
       await this.router.navigateByUrl('/tabs', { replaceUrl: true });
     } catch (err) {
       console.error(err);
@@ -93,6 +100,13 @@ export class LoginPage implements OnInit {
         this.errorMessage = 'Failed to login with Apple.';
         return;
       }
+
+      const profileLoaded = await this.userService.loadUserProfile();
+      if (!profileLoaded) {
+        await this.router.navigateByUrl('/complete-profile', { replaceUrl: true });
+        return;
+      }
+
       await this.router.navigateByUrl('/tabs', { replaceUrl: true });
     } catch (err) {
       console.error(err);

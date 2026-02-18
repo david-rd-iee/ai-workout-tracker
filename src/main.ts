@@ -4,7 +4,7 @@ import {
   RouteReuseStrategy,
   provideRouter,
   withPreloading,
-  PreloadAllModules,
+  NoPreloading,
 } from '@angular/router';
 import { IonicRouteStrategy, provideIonicAngular } from '@ionic/angular/standalone';
 import { routes } from './app/app.routes';
@@ -37,7 +37,7 @@ bootstrapApplication(AppComponent, {
     { provide: RouteReuseStrategy, useClass: IonicRouteStrategy },
     { provide: FIREBASE_OPTIONS, useValue: environment.firebaseConfig },
     provideIonicAngular({ mode: 'ios', navAnimation: appNavAnimation }),
-    provideRouter(routes, withPreloading(PreloadAllModules)),
+    provideRouter(routes, withPreloading(NoPreloading)),
     provideFirebaseApp(() => initializeApp(environment.firebaseConfig)),
     provideFirestore(() => getFirestore()),
     provideDatabase(() => getDatabase()),

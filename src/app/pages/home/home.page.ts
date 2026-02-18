@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit, inject, computed, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import {
@@ -30,7 +30,7 @@ import {
 } from 'ionicons/icons';
 
 import { Auth } from '@angular/fire/auth';
-import { Firestore, doc, docData, getDoc, setDoc, serverTimestamp, onSnapshot, collection, query, where, getDocs, Timestamp } from '@angular/fire/firestore';
+import { Firestore, doc, docData, getDoc, onSnapshot, collection, query, where, getDocs, Timestamp, limit } from '@angular/fire/firestore';
 import { authState } from 'rxfire/auth';
 import { switchMap, of } from 'rxjs';
 import { Subscription } from 'rxjs';
@@ -100,6 +100,9 @@ export class HomePage implements OnInit, OnDestroy {
   private firestore = inject(Firestore);
 
   private userSub?: Subscription;
+  private trainerClientsUnsubscribe: (() => void) | null = null;
+  private activeUserDataKey: string | null = null;
+  private hydratedHeaderUid: string | null = null;
 
   isLoadingUser = true;
   currentUser: AppUser | null = null;
@@ -184,23 +187,43 @@ export class HomePage implements OnInit, OnDestroy {
       })
     ).subscribe({
       next: (u) => {
-        this.currentUser = (u as any) ?? null;
+        const nextUser = (u as AppUser | null) ?? null;
+        const nextUserKey = nextUser ? `${nextUser.userId}:${nextUser.isPT ? 'trainer' : 'client'}` : null;
+        const roleChanged = nextUserKey !== this.activeUserDataKey;
+
+        this.currentUser = nextUser;
         this.isLoadingUser = false;
-        
-        console.log('Current user loaded:', this.currentUser);
 
         // Home pulls from trainers/clients, but profile image is often stored in users/{uid}.
-        if (this.currentUser?.userId) {
+        if (this.currentUser?.userId && this.hydratedHeaderUid !== this.currentUser.userId) {
+          this.hydratedHeaderUid = this.currentUser.userId;
           void this.hydrateHeaderProfileFields(this.currentUser.userId);
         }
-        
-        // Load appropriate data based on account type
-        if (this.currentUser) {
-          if (this.currentUser.isPT === true) {
-            this.loadTrainerClients();
-          } else {
-            this.loadClientData();
-          }
+
+        if (!this.currentUser) {
+          this.activeUserDataKey = null;
+          this.hydratedHeaderUid = null;
+          this.stopTrainerClientsListener();
+          this.clearRoleData();
+          return;
+        }
+
+        if (!roleChanged) {
+          return;
+        }
+
+        this.activeUserDataKey = nextUserKey;
+        this.clearRoleData();
+        const userId = this.currentUser.userId;
+        if (!userId) {
+          return;
+        }
+
+        if (this.currentUser.isPT === true) {
+          void this.loadTrainerClients(userId);
+        } else {
+          this.stopTrainerClientsListener();
+          void this.loadClientData(userId);
         }
       },
       error: (err) => {
@@ -239,26 +262,42 @@ export class HomePage implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.userSub?.unsubscribe();
+    this.stopTrainerClientsListener();
   }
 
-  async loadTrainerClients() {
-    console.log('Loading trainer clients...');
-    
-    const trainerId = this.auth.currentUser?.uid;
-    if (!trainerId) {
-      console.error('No authenticated user');
-      return;
-    }
+  private stopTrainerClientsListener(): void {
+    this.trainerClientsUnsubscribe?.();
+    this.trainerClientsUnsubscribe = null;
+  }
+
+  private clearRoleData(): void {
+    this.clients = [];
+    this.monthlyRevenue = [];
+    this.totalRevenue = 0;
+    this.currentStreak = 0;
+    this.nextWorkout = null;
+    this.upcomingSessions = [];
+    this.homeConfig = null;
+    this.customMessage = '';
+    this.currentMonthIndex = 0;
+  }
+
+  async loadTrainerClients(trainerId: string) {
+    if (!trainerId) return;
 
     // Calculate revenue from actual bookings
     await this.calculateRevenueFromBookings(trainerId);
-    
-    // Set up real-time listener for clients (updates automatically!)
+
+    this.stopTrainerClientsListener();
+
     try {
       const trainerClientsRef = doc(this.firestore, 'trainerClients', trainerId);
-      
-      // Use onSnapshot for real-time updates
-      onSnapshot(trainerClientsRef, (snapshot) => {
+
+      this.trainerClientsUnsubscribe = onSnapshot(trainerClientsRef, (snapshot) => {
+        if (this.activeUserDataKey !== `${trainerId}:trainer`) {
+          return;
+        }
+
         if (snapshot.exists()) {
           const data = snapshot.data();
           this.clients = (data['clients'] || []).map((client: any) => {
@@ -282,9 +321,7 @@ export class HomePage implements OnInit, OnDestroy {
               lastWorkout: client.lastSession ? new Date(client.lastSession) : new Date(Date.now() - 172800000)
             };
           });
-          console.log('📊 Real-time update: Loaded', this.clients.length, 'clients');
         } else {
-          console.log('No clients found for this trainer');
           this.clients = [];
         }
       }, (error) => {
@@ -300,8 +337,8 @@ export class HomePage implements OnInit, OnDestroy {
   async calculateRevenueFromBookings(trainerId: string) {
     try {
       const today = new Date();
-      this.monthlyRevenue = [];
-      this.totalRevenue = 0;
+      const monthlyRevenue: any[] = [];
+      let totalRevenue = 0;
       
       // Query all bookings for this trainer
       const bookingsRef = collection(this.firestore, 'bookings');
@@ -336,7 +373,7 @@ export class HomePage implements OnInit, OnDestroy {
         const monthKey = `${monthDate.getFullYear()}-${monthDate.getMonth()}`;
         const monthStats = revenueByMonth.get(monthKey) || { revenue: 0, sessions: 0 };
         
-        this.monthlyRevenue.push({
+        monthlyRevenue.push({
           month: monthDate,
           revenue: monthStats.revenue,
           sessions: monthStats.sessions,
@@ -347,24 +384,33 @@ export class HomePage implements OnInit, OnDestroy {
         
         // Only add to total revenue for past and current months
         if (i <= 0) {
-          this.totalRevenue += monthStats.revenue;
+          totalRevenue += monthStats.revenue;
         }
       }
-      
+
+      if (this.activeUserDataKey !== `${trainerId}:trainer`) {
+        return;
+      }
+
+      this.monthlyRevenue = monthlyRevenue;
+      this.totalRevenue = totalRevenue;
       this.currentMonthIndex = 3; // Current month is at index 3
-      console.log('💰 Revenue calculated from bookings:', this.totalRevenue);
       
     } catch (error) {
       console.error('Error calculating revenue:', error);
-      // Fallback to empty revenue if query fails
-      this.monthlyRevenue = [];
-      this.totalRevenue = 0;
+      if (this.activeUserDataKey === `${trainerId}:trainer`) {
+        this.monthlyRevenue = [];
+        this.totalRevenue = 0;
+      }
     }
   }
 
   loadUserData() {
     // Deprecated - keeping for backwards compatibility
-    this.loadClientData();
+    const clientId = this.currentUser?.userId || this.auth.currentUser?.uid;
+    if (clientId) {
+      void this.loadClientData(clientId);
+    }
   }
   
   isWidgetEnabled(widgetId: string): boolean {
@@ -383,29 +429,27 @@ export class HomePage implements OnInit, OnDestroy {
     return widget ? widget.order : 999;
   }
   
-  async loadClientData() {
-    const clientId = this.auth.currentUser?.uid;
+  async loadClientData(clientId: string) {
     if (!clientId) return;
+    const roleKey = `${clientId}:client`;
 
     try {
       // Load home page customization
       const configRef = doc(this.firestore, `clientHomeConfigs/${clientId}`);
       const configSnap = await getDoc(configRef);
       
-      if (configSnap.exists()) {
+      if (configSnap.exists() && this.activeUserDataKey === roleKey) {
         this.homeConfig = configSnap.data() as HomePageConfig;
         this.customMessage = this.homeConfig.customMessage || '';
-        console.log('Loaded home page configuration:', this.homeConfig);
       }
 
       // Load client profile to get streak data
       const clientRef = doc(this.firestore, `clients/${clientId}`);
       const clientSnap = await getDoc(clientRef);
       
-      if (clientSnap.exists()) {
+      if (clientSnap.exists() && this.activeUserDataKey === roleKey) {
         const clientData = clientSnap.data();
         this.currentStreak = clientData['currentStreak'] || 0;
-        console.log('📊 Current streak:', this.currentStreak);
       }
 
       // Load next scheduled workout
@@ -426,14 +470,23 @@ export class HomePage implements OnInit, OnDestroy {
       const q = query(
         workoutsRef,
         where('scheduledDate', '>=', Timestamp.now()),
-        where('isComplete', '==', false)
+        where('isComplete', '==', false),
+        limit(10)
       );
       
       const querySnapshot = await getDocs(q);
+      const roleKey = `${clientId}:client`;
+      if (this.activeUserDataKey !== roleKey) {
+        return;
+      }
       
       if (!querySnapshot.empty) {
-        // Get the first upcoming workout
-        const workoutDoc = querySnapshot.docs[0];
+        const workoutDoc = querySnapshot.docs
+          .sort((a, b) => {
+            const aTime = a.data()['scheduledDate']?.toDate?.()?.getTime?.() ?? Number.MAX_SAFE_INTEGER;
+            const bTime = b.data()['scheduledDate']?.toDate?.()?.getTime?.() ?? Number.MAX_SAFE_INTEGER;
+            return aTime - bTime;
+          })[0];
         const workoutData = workoutDoc.data();
         
         this.nextWorkout = {
@@ -444,11 +497,8 @@ export class HomePage implements OnInit, OnDestroy {
           exercises: workoutData['exercises'] || [],
           notes: workoutData['notes'] || ''
         };
-        
-        console.log('📅 Next workout loaded:', this.nextWorkout.title);
       } else {
         this.nextWorkout = null;
-        console.log('No upcoming workouts scheduled');
       }
     } catch (error) {
       console.error('Error loading next workout:', error);
@@ -463,10 +513,15 @@ export class HomePage implements OnInit, OnDestroy {
       const q = query(
         bookingsRef,
         where('clientId', '==', clientId),
-        where('status', 'in', ['confirmed', 'pending'])
+        where('status', 'in', ['confirmed', 'pending']),
+        limit(20)
       );
       
       const querySnapshot = await getDocs(q);
+      const roleKey = `${clientId}:client`;
+      if (this.activeUserDataKey !== roleKey) {
+        return;
+      }
       
       this.upcomingSessions = [];
       const now = new Date();
@@ -489,8 +544,6 @@ export class HomePage implements OnInit, OnDestroy {
       
       // Sort by date (earliest first)
       this.upcomingSessions.sort((a, b) => a.date.getTime() - b.date.getTime());
-      
-      console.log('📆 Loaded', this.upcomingSessions.length, 'upcoming sessions');
     } catch (error) {
       console.error('Error loading upcoming sessions:', error);
       this.upcomingSessions = [];
@@ -536,17 +589,11 @@ export class HomePage implements OnInit, OnDestroy {
     this.router.navigate(['/tabs/chats/workout-chatbot']);
   }
 
-  viewStreak() {
-    console.log('Viewing streak...');
-  }
+  viewStreak() {}
 
   viewNextWorkout() {
-    if (this.nextWorkout) {
-      console.log('Viewing next workout:', this.nextWorkout);
-    }
+    if (!this.nextWorkout) return;
   }
 
-  viewSessionDetails(session: UpcomingSession) {
-    console.log('Viewing session:', session);
-  }
+  viewSessionDetails(_session: UpcomingSession) {}
 }

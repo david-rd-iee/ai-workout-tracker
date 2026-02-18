@@ -32,16 +32,16 @@ export class HeaderComponent implements OnInit {
       personCircleOutline
     });
 
-    // Load user data from service if not provided via Input
+    // Keep fallback user data in sync from UserService.
     effect(() => {
-      if (!this.currentUser) {
-        const userInfo = this.userService.getUserInfo()();
-        if (userInfo) {
-          this.loadedUser = {
-            ...userInfo,
-            profilepic: (userInfo as any).profilepic
-          };
-        }
+      const userInfo = this.userService.getUserInfo()();
+      if (userInfo) {
+        this.loadedUser = {
+          ...userInfo,
+          profilepic: (userInfo as any).profilepic
+        };
+      } else {
+        this.loadedUser = null;
       }
     });
   }
@@ -72,12 +72,19 @@ export class HeaderComponent implements OnInit {
   }
 
   get profilepicUrl(): string | null {
-    const user = this.effectiveUser;
-    const raw = ((user as any)?.profilepic || '').trim();
-    return raw.length > 0 ? raw : null;
+    const fromInput = ((this.currentUser as any)?.profilepic || '').trim();
+    if (fromInput.length > 0) {
+      return fromInput;
+    }
+
+    const fromLoadedUser = ((this.loadedUser as any)?.profilepic || '').trim();
+    return fromLoadedUser.length > 0 ? fromLoadedUser : null;
   }
 
   goToProfile() {
+    if (this.router.url.startsWith('/profile-user')) {
+      return;
+    }
     this.navCtrl.navigateForward('/profile-user', {
       animated: true,
       animationDirection: 'forward',

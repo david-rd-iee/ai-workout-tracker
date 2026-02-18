@@ -1,9 +1,8 @@
 import { Injectable } from '@angular/core';
 import { Database, ref, push, set, onValue, query, orderByChild, get } from '@angular/fire/database';
-import { firstValueFrom, Observable, BehaviorSubject } from 'rxjs';
-import { Chat, ChatRequest, Message } from '../Interfaces/Chats';
+import { Observable, BehaviorSubject } from 'rxjs';
+import { Chat, Message } from '../Interfaces/Chats';
 import { UserService } from './account/user.service';
-import { AccountService } from './account/account.service';
 import { NotificationService } from './notification.service';
 
 @Injectable({
@@ -13,11 +12,15 @@ export class ChatsService {
   private chatsSubject = new BehaviorSubject<Chat[]>([]);
   public chats$ = this.chatsSubject.asObservable();
   private initialized = false;
+  private initializedUserKey: string | null = null;
+  private userChatsUnsubscribe: (() => void) | null = null;
+  private chatUnsubscribes = new Map<string, () => void>();
+  private chatCache = new Map<string, Chat>();
+  private profileSignalCache = new Map<string, ReturnType<UserService['getUserById']>>();
   
   constructor(
     private db: Database, 
     private userService: UserService, 
-    private accountService: AccountService,
     private notificationService: NotificationService
   ) { }
 
@@ -94,7 +97,6 @@ export class ChatsService {
 
   // Send a message in a chat
   async sendMessage(chatId: string, senderId: string, text: string): Promise<void> {
-    console.log('Sending message:', text, chatId, senderId);
     const messageRef = ref(this.db, `chats/${chatId}/messages`);
     const newMessageRef = push(messageRef);
 
@@ -125,7 +127,6 @@ export class ChatsService {
         
         if (recipientId) {
           // Get sender's name to include in the notification
-          const currentUser = this.userService.getCurrentUser()();
           const userProfile = this.userService.getUserInfo()();
           
           // Default sender name if we can't get the profile
@@ -143,7 +144,6 @@ export class ChatsService {
           
           // Increment unread message count and get the new count for badge
           const unreadCount = await this.userService.incrementUnreadMessageCount(recipientId, recipientAccountType);
-          console.log(`Incremented unread message count for ${recipientId} (${recipientAccountType}) to: ${unreadCount}`);
           
           // Send the notification with sender name as title and message as body
           await this.notificationService.sendNotification(
@@ -158,8 +158,6 @@ export class ChatsService {
               badge: unreadCount // Include the badge count
             }
           );
-          
-          console.log(`Notification sent to user ${recipientId} with badge count ${unreadCount}`);
         }
       }   
 
@@ -171,90 +169,120 @@ export class ChatsService {
 
   // Initialize user chats
   initializeUserChats(userId: string, userType: 'trainer' | 'client'): void {
-    console.log('[ChatsService] Initializing chats for user:', userId, 'type:', userType, 'already initialized:', this.initialized);
-    
-    // Guard clause to prevent multiple initializations
-    if (this.initialized) {
-      console.log('[ChatsService] Already initialized, skipping');
+    const nextUserKey = `${userId}:${userType}`;
+    if (this.initialized && this.initializedUserKey === nextUserKey) {
       return;
     }
-      
-    // Create reference to user's chats in Firebase
-    const userChatsRef = ref(this.db, `userChats/${userId}`);
-    console.log('[ChatsService] Listening to:', `userChats/${userId}`);
-      
-    // Listen for changes to user's chats
-    onValue(userChatsRef, (snapshot) => {
-      console.log('[ChatsService] Received snapshot, exists:', snapshot.exists());
-      const chats: Chat[] = [];
-      const promises: Promise<void>[] = [];
-  
-      // For each chat ID in userChats
-      snapshot.forEach((childSnapshot) => {
-        const chatId = childSnapshot.key!;
-        console.log('[ChatsService] Found chat ID:', chatId);
-          
-        // Create a promise to fetch each chat's details
-        const promise = new Promise<void>((resolve) => {
-          const chatRef = ref(this.db, `chats/${chatId}`);
-          // Get chat data
-          onValue(chatRef, (chatSnapshot) => {
-            if (chatSnapshot.exists()) {
-              console.log('[ChatsService] Chat data for', chatId, ':', chatSnapshot.val());
-              // Find if chat already exists in array
-              const existingChatIndex = chats.findIndex(c => c.chatId === chatId);
-              const chatData = { ...chatSnapshot.val(), chatId };
-              
-              // Get the other participant's ID (not the current user)
-              const otherUserId = chatData.participants.find((id: string) => id !== userId);
-              if (otherUserId) {
-                // Determine if the other user is a trainer or client
-                // Since we're in a chat, if current user is trainer, other must be client and vice versa
-                const otherUserType = userType === 'trainer' ? 'client' : 'trainer';
-                
-                // Get the other user's profile
-                chatData.userProfile = this.userService.getUserById(otherUserId, otherUserType);
-              }
-              
-              // Check for unread messages
-              chatData.hasUnreadMessages = false;
-              if (chatData.messages) {
-                // Check if there are any unread messages from the other user
-                Object.values(chatData.messages).forEach((message: any) => {
-                  if (message.senderId !== userId && !message.read) {
-                    chatData.hasUnreadMessages = true;
-                  }
-                });
-              }
-                
-              // Update or add chat to array
-              if (existingChatIndex > -1) {
-                chats[existingChatIndex] = chatData;
-              } else {
-                chats.push(chatData);
-              }
-            }
-            resolve();
-          });
-        });
-          
-        promises.push(promise);
-      });
-  
-      // When all chat data is fetched, update the BehaviorSubject
-      Promise.all(promises).then(() => {
-        console.log('[ChatsService] Emitting', chats.length, 'chats');
-        this.chatsSubject.next(chats);
-      });
-    });
-  
+
+    this.teardownListeners();
+    this.chatCache.clear();
     this.initialized = true;
+    this.initializedUserKey = nextUserKey;
+
+    const userChatsRef = ref(this.db, `userChats/${userId}`);
+
+    this.userChatsUnsubscribe = onValue(userChatsRef, (snapshot) => {
+      const nextChatIds = new Set<string>();
+      snapshot.forEach((childSnapshot) => {
+        const chatId = childSnapshot.key;
+        if (chatId) {
+          nextChatIds.add(chatId);
+        }
+      });
+
+      for (const [chatId, unsubscribe] of this.chatUnsubscribes) {
+        if (!nextChatIds.has(chatId)) {
+          unsubscribe();
+          this.chatUnsubscribes.delete(chatId);
+          this.chatCache.delete(chatId);
+        }
+      }
+
+      for (const chatId of nextChatIds) {
+        if (!this.chatUnsubscribes.has(chatId)) {
+          this.attachChatListener(chatId, userId, userType);
+        }
+      }
+
+      this.emitChats();
+    });
+  }
+
+  private attachChatListener(chatId: string, userId: string, userType: 'trainer' | 'client'): void {
+    const chatRef = ref(this.db, `chats/${chatId}`);
+    const unsubscribe = onValue(chatRef, (chatSnapshot) => {
+      if (!chatSnapshot.exists()) {
+        this.chatCache.delete(chatId);
+        this.emitChats();
+        return;
+      }
+
+      const chatData = { ...chatSnapshot.val(), chatId } as Chat & {
+        userProfile?: ReturnType<UserService['getUserById']>;
+        hasUnreadMessages?: boolean;
+      };
+
+      const otherUserId = chatData.participants?.find((id: string) => id !== userId);
+      if (otherUserId) {
+        const otherUserType = userType === 'trainer' ? 'client' : 'trainer';
+        chatData.userProfile = this.getUserProfileSignal(otherUserId, otherUserType);
+      }
+
+      let hasUnreadMessages = false;
+      if (chatData.messages) {
+        Object.values(chatData.messages).forEach((message: any) => {
+          if (message.senderId !== userId && !message.read) {
+            hasUnreadMessages = true;
+          }
+        });
+      }
+      chatData.hasUnreadMessages = hasUnreadMessages;
+
+      this.chatCache.set(chatId, chatData);
+      this.emitChats();
+    });
+
+    this.chatUnsubscribes.set(chatId, unsubscribe);
+  }
+
+  private emitChats(): void {
+    const chats = Array.from(this.chatCache.values()).sort((a, b) => {
+      const aTime = Date.parse(a.lastMessageTime || '') || 0;
+      const bTime = Date.parse(b.lastMessageTime || '') || 0;
+      return bTime - aTime;
+    });
+    this.chatsSubject.next(chats);
+  }
+
+  private teardownListeners(): void {
+    this.userChatsUnsubscribe?.();
+    this.userChatsUnsubscribe = null;
+
+    for (const unsubscribe of this.chatUnsubscribes.values()) {
+      unsubscribe();
+    }
+    this.chatUnsubscribes.clear();
+  }
+
+  private getUserProfileSignal(userId: string, userType: 'trainer' | 'client') {
+    const key = `${userType}:${userId}`;
+    const cached = this.profileSignalCache.get(key);
+    if (cached) {
+      return cached;
+    }
+
+    const signalRef = this.userService.getUserById(userId, userType);
+    this.profileSignalCache.set(key, signalRef);
+    return signalRef;
   }
   
   // Reset initialization state (useful when logging out/switching users)
   resetInitialization(): void {
-    console.log('[ChatsService] Resetting initialization');
+    this.teardownListeners();
     this.initialized = false;
+    this.initializedUserKey = null;
+    this.chatCache.clear();
+    this.profileSignalCache.clear();
     this.chatsSubject.next([]);
   }
 
@@ -264,7 +292,7 @@ export class ChatsService {
     const messagesQuery = query(messagesRef, orderByChild('timestamp'));
 
     return new Observable(subscriber => {
-      onValue(messagesQuery, (snapshot) => {
+      const unsubscribe = onValue(messagesQuery, (snapshot) => {
         const messages: Message[] = [];
         snapshot.forEach((childSnapshot) => {
           const message: Message = {
@@ -275,6 +303,8 @@ export class ChatsService {
         });
         subscriber.next(messages);
       });
+
+      return () => unsubscribe();
     });
   }
 
@@ -333,8 +363,6 @@ export class ChatsService {
           silent: true // Mark as silent notification
         }
       );
-      
-      console.log(`Reset badge count for user ${userId} (${accountType})`);
     } catch (error) {
       console.error('Error resetting badge count:', error);
     }

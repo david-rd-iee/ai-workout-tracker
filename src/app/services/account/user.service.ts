@@ -1,12 +1,10 @@
-import { Injectable, signal, computed, Signal, effect, inject } from '@angular/core';
+import { Injectable, signal, computed, Signal, effect } from '@angular/core';
 import { AccountService } from './account.service';
 import { trainerProfile } from '../../Interfaces/Profiles/Trainer';
 import { clientProfile } from '../../Interfaces/Profiles/client';
-import { Firestore, collection, collectionData, addDoc, setDoc, getDoc, doc, onSnapshot, CollectionReference, query, updateDoc } from '@angular/fire/firestore';
-import { Storage, ref, uploadBytes, getDownloadURL } from '@angular/fire/storage';
-import { NavController } from '@ionic/angular';
-import { Observable, from, of } from 'rxjs';
-import { map, switchMap } from 'rxjs/operators';
+import { Firestore, setDoc, getDoc, doc, updateDoc } from '@angular/fire/firestore';
+import { Observable, of } from 'rxjs';
+import { map } from 'rxjs/operators';
 import { FileUploadService } from '../file-upload.service';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 
@@ -17,28 +15,20 @@ export class UserService {
   private userInfo = signal<trainerProfile | clientProfile | null>(null);
   private readonly TRAINERS_COLLECTION = 'trainers';
   private readonly CLIENTS_COLLECTION = 'clients';
+  private profileLoadPromise: Promise<boolean> | null = null;
+  private loadedProfileUid: string | null = null;
 
   constructor(
     private accountService: AccountService,
     private firestore: Firestore,
-    private navCtrl: NavController,
-    private storage: Storage,
     private fileUploadService: FileUploadService
-  ) { 
-    console.log('UserService constructor called');
-    
+  ) {
     effect(() => {
       if (!this.accountService.isLoggedIn()()) {
         this.userInfo.set(null);
+        this.loadedProfileUid = null;
+        this.profileLoadPromise = null;
       }
-    });
-    
-    // Listen to authentication state changes for logging purposes
-    // Navigation is now handled by AppComponent after version check
-    console.log('UserService setting up auth state subscription');
-    this.accountService.authStateChanges$.subscribe(async (authState) => {
-      console.log('UserService received auth state change:', authState);
-      // Don't navigate here - AppComponent handles navigation after version check
     });
   }
 
@@ -61,7 +51,6 @@ export class UserService {
 
       const userDocRef = doc(this.firestore, `${collection}/${userID}`);
       await setDoc(userDocRef, profileData);
-      console.log(`${formData.accountType} profile created successfully`);
       return true;
     } else {
       throw new Error('User ID not found');
@@ -69,84 +58,67 @@ export class UserService {
   }
 
   async loadUserProfile(): Promise<boolean> {
+    if (!this.accountService.isLoggedIn()()) {
+      return false;
+    }
+
+    const credentials = this.accountService.getCredentials()();
+    const userID = (credentials?.uid || '').trim();
+    if (!userID) {
+      throw new Error('User ID not found');
+    }
+
+    if (this.loadedProfileUid === userID && this.userInfo()) {
+      return true;
+    }
+
+    if (this.profileLoadPromise) {
+      return this.profileLoadPromise;
+    }
+
+    this.profileLoadPromise = this.loadUserProfileInternal(userID, credentials?.email || '');
     try {
-      // Check if user is actually logged in first
-      if (!this.accountService.isLoggedIn()()) {
-        console.log('User not logged in, cannot load profile');
-        return false;
-      }
+      return await this.profileLoadPromise;
+    } finally {
+      this.profileLoadPromise = null;
+    }
+  }
 
-      const credentials = this.accountService.getCredentials()();
-      const userID = credentials?.uid;
-      console.log('Loading user profile for UID:', userID);
-      
-      if (!userID || userID.trim() === '') {
-        console.error('User ID not found in credentials or is empty');
-        console.log('Current credentials:', credentials);
-        throw new Error('User ID not found');
-      }
+  private async loadUserProfileInternal(userID: string, email: string): Promise<boolean> {
+    let userDoc = await getDoc(doc(this.firestore, `${this.TRAINERS_COLLECTION}/${userID}`));
 
-      console.log('Attempting to load from trainers collection...');
-      // Try loading from trainers collection first
-      let userDoc = await getDoc(doc(this.firestore, `${this.TRAINERS_COLLECTION}/${userID}`));
-      console.log('Trainers collection query result:', userDoc.exists());
+    if (!userDoc.exists()) {
+      userDoc = await getDoc(doc(this.firestore, `${this.CLIENTS_COLLECTION}/${userID}`));
+    }
 
-      // If not found in trainers, try clients collection
-      if (!userDoc.exists()) {
-        console.log('Not found in trainers, trying clients collection...');
-        userDoc = await getDoc(doc(this.firestore, `${this.CLIENTS_COLLECTION}/${userID}`));
-        console.log('Clients collection query result:', userDoc.exists());
-      }
+    if (!userDoc.exists()) {
+      this.userInfo.set(null);
+      this.loadedProfileUid = null;
+      return false;
+    }
 
-      if (userDoc.exists()) {
-        const userData = userDoc.data() as trainerProfile | clientProfile;
-        userData.email = this.accountService.getCredentials()().email;
-        
-        console.log('[UserService] Raw user data from Firestore:', userData);
-        console.log('[UserService] Profile image fields:', {
-          profilepic: (userData as any).profilepic,
-          accountType: userData.accountType
-        });
-        
-        // If profilepic is missing, try to load from users collection as fallback
-        if (!(userData as any).profilepic) {
-          console.log('[UserService] No profile image in collection, checking users fallback...');
-          try {
-            const usersDoc = await getDoc(doc(this.firestore, 'users', userID));
-            if (usersDoc.exists()) {
-              const usersData = usersDoc.data();
-              const fallbackImage = usersData?.['profilepic'];
-              if (fallbackImage) {
-                console.log('[UserService] Found profile image in users collection:', fallbackImage);
-                (userData as any).profilepic = fallbackImage;
-              }
-            }
-          } catch (error) {
-            console.error('[UserService] Error checking users collection for profile image:', error);
+    const userData = userDoc.data() as trainerProfile | clientProfile;
+    userData.email = email;
+
+    // If profilepic is missing, load from users collection as fallback.
+    if (!(userData as any).profilepic) {
+      try {
+        const usersDoc = await getDoc(doc(this.firestore, 'users', userID));
+        if (usersDoc.exists()) {
+          const usersData = usersDoc.data();
+          const fallbackImage = usersData?.['profilepic'];
+          if (fallbackImage) {
+            (userData as any).profilepic = fallbackImage;
           }
         }
-        
-        this.userInfo.set(userData);
-        console.log('User profile loaded successfully:', userData.accountType, userData.firstName);
-        
-        // Debug: Verify the signal was set correctly
-        const currentUserInfo = this.userInfo();
-        console.log('UserInfo signal after setting:', currentUserInfo);
-        console.log('UserInfo signal accountType after setting:', currentUserInfo?.accountType);
-        
-        return true;
-      } else {
-        console.log('No profile found in either collection - user needs to create profile');
-        // this.navCtrl.navigateRoot('/profile-creation'); // Temporarily disabled for testing
-        return false;
+      } catch (error) {
+        console.error('[UserService] Error checking users collection for profile image:', error);
       }
-    } catch (error) {
-      console.error('Error in loadUserProfile:', error);
-      console.error('Error type:', typeof error);
-      console.error('Error message:', error instanceof Error ? error.message : 'Unknown error');
-      console.error('Full error object:', JSON.stringify(error, null, 2));
-      throw error;
     }
+
+    this.userInfo.set(userData);
+    this.loadedProfileUid = userID;
+    return true;
   }
 
   getUserInfo(): Signal<trainerProfile | clientProfile | null> {
@@ -158,7 +130,6 @@ export class UserService {
     const collection = accountType === 'trainer' ? this.TRAINERS_COLLECTION : this.CLIENTS_COLLECTION;
     const userRef = doc(this.firestore, `${collection}/${userId}`);
 
-    console.log('[UserService] Fetching user by ID:', userId, accountType);
     getDoc(userRef)
       .then(async (docSnap) => {
         if (docSnap.exists()) {
@@ -166,14 +137,12 @@ export class UserService {
           
           // If profilepic is missing, try to load from users collection as fallback
           if (!(userData as any).profilepic) {
-            console.log(`[UserService] No profile image for ${userId}, checking users fallback...`);
             try {
               const usersDoc = await getDoc(doc(this.firestore, 'users', userId));
               if (usersDoc.exists()) {
                 const usersData = usersDoc.data();
                 const fallbackImage = usersData?.['profilepic'];
                 if (fallbackImage) {
-                  console.log(`[UserService] Found profile image in users collection:`, fallbackImage);
                   (userData as any).profilepic = fallbackImage;
                 }
               }
@@ -182,15 +151,8 @@ export class UserService {
             }
           }
           
-          console.log('[UserService] User data loaded for', userId, ':', {
-            name: `${userData.firstName} ${userData.lastName}`,
-            profilepic: (userData as any).profilepic,
-            accountType: userData.accountType
-          });
           userSignal.set(userData);
-          console.log('User loaded successfully:', userData);
         } else {
-          console.log('[UserService] No user found for ID:', userId, 'in collection:', collection);
           userSignal.set(null);
         }
       })
@@ -211,7 +173,6 @@ export class UserService {
 
       const docRef = doc(this.firestore, `${this.CLIENTS_COLLECTION}/${uid}`);
       await updateDoc(docRef, profileData);
-      console.log('Client profile updated successfully');
     } catch (error) {
       console.error('Error updating client profile:', error);
       throw error;
@@ -220,7 +181,6 @@ export class UserService {
 
   async getUserProfileDirectly(uid: string, accountType: 'trainer' | 'client'): Promise<trainerProfile | clientProfile | null> {
     try {
-      console.log(`[UserService] Getting ${accountType} profile directly for uid:`, uid);
       const collection = accountType === 'trainer' ? this.TRAINERS_COLLECTION : this.CLIENTS_COLLECTION;
       const docRef = doc(this.firestore, `${collection}/${uid}`);
       const docSnap = await getDoc(docRef);
@@ -230,14 +190,12 @@ export class UserService {
         
         // If profilepic is missing, try to load from users collection as fallback
         if (!(userData as any).profilepic) {
-          console.log(`[UserService] No profile image in ${accountType} collection, checking users fallback...`);
           try {
             const usersDoc = await getDoc(doc(this.firestore, 'users', uid));
             if (usersDoc.exists()) {
               const usersData = usersDoc.data();
               const fallbackImage = usersData?.['profilepic'];
               if (fallbackImage) {
-                console.log(`[UserService] Found profile image in users collection:`, fallbackImage);
                 (userData as any).profilepic = fallbackImage;
               }
             }
@@ -246,14 +204,8 @@ export class UserService {
           }
         }
         
-        console.log(`[UserService] ${accountType} profile data retrieved:`, {
-          name: `${userData.firstName} ${userData.lastName}`,
-          profilepic: (userData as any).profilepic,
-          fullData: userData
-        });
         return userData;
       } else {
-        console.log(`[UserService] No ${accountType} profile found for uid:`, uid);
         return null;
       }
     } catch (error) {
@@ -264,8 +216,6 @@ export class UserService {
 
   async uploadClientImage(uid: string, file: File): Promise<string> {
     try {
-      console.log('Starting client image upload for uid:', uid);
-      
       // Use the new FileUploadService for more reliable uploads
       const storagePath = `client-images/${uid}`;
       return await this.fileUploadService.uploadFile(storagePath, file);
@@ -324,8 +274,6 @@ export class UserService {
       
       // Update the unread message count
       await updateDoc(docRef, { unreadMessageCount: newCount });
-      
-      console.log(`Incremented unread message count for ${userId} to ${newCount}`);
       return newCount;
     } catch (error) {
       console.error('Error incrementing unread message count:', error);
@@ -345,8 +293,6 @@ export class UserService {
       
       // Reset the unread message count to 0
       await updateDoc(docRef, { unreadMessageCount: 0 });
-      
-      console.log(`Reset unread message count for ${userId}`);
     } catch (error) {
       console.error('Error resetting unread message count:', error);
     }
@@ -377,11 +323,8 @@ export class UserService {
       const email = credentials?.email;
       
       if (!uid || !phoneNumber) {
-        console.log('Missing UID or phone number for profile linking');
         return null;
       }
-
-      console.log('Attempting to link profile by phone:', phoneNumber);
       
       // Use the modified linkProfile function with phone number
       const functions = getFunctions(undefined, 'us-west1');
@@ -390,10 +333,8 @@ export class UserService {
       const data = result.data as any;
       
       if (data.success && data.linkedProfiles > 0) {
-        console.log(`Successfully linked ${data.linkedProfiles} profile(s) by phone number`);
         return data.profileData;
       } else {
-        console.log('No partial profiles found to link by phone number');
         return null;
       }
     } catch (error) {

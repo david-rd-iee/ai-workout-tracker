@@ -42,8 +42,7 @@ export const appNavAnimation: AnimationBuilder = (_baseEl: any, opts: any): Anim
   const useProfileVerticalTransition =
     (enteringIsProfile || leavingIsProfile) && !isProfileGroupsTransition;
 
-  //duration keep at 620, I like it
-  const rootAnimation = createAnimation().duration(620).easing('cubic-bezier(0.32, 0.72, 0, 1)');
+  const rootAnimation = createAnimation().duration(420).easing('cubic-bezier(0.32, 0.72, 0, 1)');
   const enteringAnimation = createAnimation().addElement(enteringEl);
   const leavingAnimation = leavingEl ? createAnimation().addElement(leavingEl) : createAnimation();
 
@@ -56,25 +55,22 @@ export const appNavAnimation: AnimationBuilder = (_baseEl: any, opts: any): Anim
       if (isBack) {
         // Workout -> Profile: profile stays on top and slides down.
         enteringAnimation
-          .beforeStyles({ transform: 'translateY(-100%)', opacity: '1', 'z-index': '101' })
-          .fromTo('transform', 'translateY(-100%)', 'translateY(0)')
-          .fromTo('opacity', '1', '1')
+          .beforeStyles({ transform: 'translate3d(0, -100%, 0)', opacity: '1', 'z-index': '101' })
+          .fromTo('transform', 'translate3d(0, -100%, 0)', 'translate3d(0, 0, 0)')
           .afterClearStyles(['transform', 'opacity', 'z-index']);
 
         leavingAnimation
-          .beforeStyles({ transform: 'translateY(0)', opacity: '1' })
-          .fromTo('opacity', '1', '1')
+          .beforeStyles({ transform: 'translate3d(0, 0, 0)', opacity: '1' })
           .afterClearStyles(['transform', 'opacity', 'z-index']);
       } else {
         // Profile -> Workout: profile stays on top and slides up.
         enteringAnimation
-          .beforeStyles({ transform: 'translateY(0)', opacity: '1' })
-          .fromTo('opacity', '1', '1')
+          .beforeStyles({ transform: 'translate3d(0, 0, 0)', opacity: '1' })
           .afterClearStyles(['transform', 'opacity']);
 
         leavingAnimation
-          .beforeStyles({ transform: 'translateY(0)', opacity: '1', 'z-index': '101' })
-          .fromTo('transform', 'translateY(0)', 'translateY(-100%)')
+          .beforeStyles({ transform: 'translate3d(0, 0, 0)', opacity: '1', 'z-index': '101' })
+          .fromTo('transform', 'translate3d(0, 0, 0)', 'translate3d(0, -100%, 0)')
           .afterClearStyles(['transform', 'opacity', 'z-index']);
       }
 
@@ -83,23 +79,21 @@ export const appNavAnimation: AnimationBuilder = (_baseEl: any, opts: any): Anim
 
     if (isBack) {
       enteringAnimation
-        .beforeStyles({ transform: 'translateY(0)', opacity: '1' })
-        .fromTo('opacity', '1', '1')
+        .beforeStyles({ transform: 'translate3d(0, 0, 0)', opacity: '1' })
         .afterClearStyles(['transform', 'opacity']);
 
       leavingAnimation
-        .beforeStyles({ transform: 'translateY(0)', opacity: '1' })
-        .fromTo('transform', 'translateY(0)', 'translateY(-100%)')
+        .beforeStyles({ transform: 'translate3d(0, 0, 0)', opacity: '1' })
+        .fromTo('transform', 'translate3d(0, 0, 0)', 'translate3d(0, -100%, 0)')
         .afterClearStyles(['transform', 'opacity']);
     } else {
       enteringAnimation
-        .beforeStyles({ transform: 'translateY(-100%)', opacity: '1' })
-        .fromTo('transform', 'translateY(-100%)', 'translateY(0)')
-        .fromTo('opacity', '1', '1')
+        .beforeStyles({ transform: 'translate3d(0, -100%, 0)', opacity: '1' })
+        .fromTo('transform', 'translate3d(0, -100%, 0)', 'translate3d(0, 0, 0)')
         .afterClearStyles(['transform', 'opacity']);
 
       leavingAnimation
-        .beforeStyles({ transform: 'translateY(0)', opacity: '1' })
+        .beforeStyles({ transform: 'translate3d(0, 0, 0)', opacity: '1' })
         .afterClearStyles(['transform', 'opacity']);
     }
 
@@ -109,25 +103,24 @@ export const appNavAnimation: AnimationBuilder = (_baseEl: any, opts: any): Anim
   // Fallback transition for non-profile routes
   if (isBack) {
     enteringAnimation
-      .beforeStyles({ transform: 'translateX(-30%)', opacity: '0.95' })
-      .fromTo('transform', 'translateX(-30%)', 'translateX(0)')
+      .beforeStyles({ transform: 'translate3d(-30%, 0, 0)', opacity: '0.95' })
+      .fromTo('transform', 'translate3d(-30%, 0, 0)', 'translate3d(0, 0, 0)')
       .fromTo('opacity', '0.95', '1')
       .afterClearStyles(['transform', 'opacity']);
 
     leavingAnimation
-      .beforeStyles({ transform: 'translateX(0)', opacity: '1' })
-      .fromTo('transform', 'translateX(0)', 'translateX(100%)')
-      .fromTo('opacity', '1', '1')
+      .beforeStyles({ transform: 'translate3d(0, 0, 0)', opacity: '1' })
+      .fromTo('transform', 'translate3d(0, 0, 0)', 'translate3d(100%, 0, 0)')
       .afterClearStyles(['transform', 'opacity']);
   } else {
     enteringAnimation
-      .beforeStyles({ transform: 'translateX(100%)', opacity: '1' })
-      .fromTo('transform', 'translateX(100%)', 'translateX(0)')
+      .beforeStyles({ transform: 'translate3d(100%, 0, 0)', opacity: '1' })
+      .fromTo('transform', 'translate3d(100%, 0, 0)', 'translate3d(0, 0, 0)')
       .afterClearStyles(['transform', 'opacity']);
 
     leavingAnimation
-      .beforeStyles({ transform: 'translateX(0)', opacity: '1' })
-      .fromTo('transform', 'translateX(0)', 'translateX(-30%)')
+      .beforeStyles({ transform: 'translate3d(0, 0, 0)', opacity: '1' })
+      .fromTo('transform', 'translate3d(0, 0, 0)', 'translate3d(-30%, 0, 0)')
       .fromTo('opacity', '1', '0.95')
       .afterClearStyles(['transform', 'opacity']);
   }

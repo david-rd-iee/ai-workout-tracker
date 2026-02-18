@@ -24,7 +24,7 @@ import { NavController } from '@ionic/angular';
 import { Capacitor } from '@capacitor/core';
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
 
-import { Auth, onAuthStateChanged } from '@angular/fire/auth';
+import { Auth } from '@angular/fire/auth';
 import { Firestore, doc, getDoc, setDoc, collection, query, where, getDocs, serverTimestamp } from '@angular/fire/firestore';
 import { Storage, ref, deleteObject } from '@angular/fire/storage';
 import { effect } from '@angular/core';
@@ -101,6 +101,12 @@ export class ProfileUserPage implements OnInit, OnDestroy {
   private usersDocFirstName = '';
   private usersDocLastName = '';
   private usersDocUsername = '';
+  private hasEnteredView = false;
+  private roleLoadInFlight = false;
+  private pendingIdentityUid: string | null = null;
+  private loadedIdentityUid: string | null = null;
+  private pendingRoleLoadKey: string | null = null;
+  private loadedRoleLoadKey: string | null = null;
 
   // Greek Statue properties
   allStatues: GreekStatue[] = [];
@@ -143,13 +149,6 @@ export class ProfileUserPage implements OnInit, OnDestroy {
     effect(() => {
       const userInfo = this.userService.getUserInfo()();
       const uid = this.auth.currentUser?.uid;
-
-      if (uid) {
-        this.loadIdentityFromUsersDoc(uid);
-      }
-      
-      console.log('[ProfileUserPage] User info from service:', userInfo);
-      console.log('[ProfileUserPage] Account type:', userInfo?.accountType);
       
       if (userInfo) {
         this.currentUser = userInfo;
@@ -157,31 +156,30 @@ export class ProfileUserPage implements OnInit, OnDestroy {
         const pic = this.normalizeProfileImage(
           (this.currentUser as any)?.profilepic || ''
         );
-        console.log('[ProfileUserPage] Profile image data:', {
-          profilepic: (this.currentUser as any)?.profilepic,
-          finalPic: pic,
-          userData: userInfo
-        });
         this.profilepicUrl = pic ?? this.defaultProfileImage;
         
         this.isLoading = false;
         
-        // Load role-specific data
+        // Stage profile loads; run after route transition enters.
         if (uid) {
-          this.loadProfileImageFromUserDoc(uid);
-
-          if (this.currentUser.accountType === 'trainer') {
-            console.log('[ProfileUserPage] Loading trainer stats for:', uid);
-            this.loadTrainerStats(uid);
-            this.loadTrainerStatues(uid);
-          } else {
-            console.log('[ProfileUserPage] Loading client statues for:', uid);
-            this.loadGreekStatuesFromFirestore(uid);
+          if (this.loadedIdentityUid !== uid) {
+            this.pendingIdentityUid = uid;
+          }
+          const roleLoadKey = `${uid}:${this.currentUser.accountType}`;
+          if (this.loadedRoleLoadKey !== roleLoadKey) {
+            this.pendingRoleLoadKey = roleLoadKey;
+          }
+          if (this.hasEnteredView) {
+            void this.runDeferredLoads();
           }
         }
       } else {
         this.currentUser = null;
         this.profilepicUrl = this.defaultProfileImage;
+        this.pendingIdentityUid = null;
+        this.loadedIdentityUid = null;
+        this.pendingRoleLoadKey = null;
+        this.loadedRoleLoadKey = null;
         this.isLoading = false;
       }
     });
@@ -191,8 +189,59 @@ export class ProfileUserPage implements OnInit, OnDestroy {
     // Effect is now in constructor
   }
 
+  ionViewDidEnter(): void {
+    this.hasEnteredView = true;
+    void this.runDeferredLoads();
+  }
+
+  ionViewDidLeave(): void {
+    this.hasEnteredView = false;
+  }
+
   ngOnDestroy(): void {
-    // No subscriptions to clean up
+    this.hasEnteredView = false;
+    this.roleLoadInFlight = false;
+  }
+
+  private async runDeferredLoads(): Promise<void> {
+    if (!this.hasEnteredView || this.roleLoadInFlight) {
+      return;
+    }
+
+    this.roleLoadInFlight = true;
+    try {
+      const uid = this.auth.currentUser?.uid ?? null;
+      if (!uid || !this.currentUser) {
+        return;
+      }
+
+      if (this.pendingIdentityUid === uid && this.loadedIdentityUid !== uid) {
+        await Promise.all([
+          this.loadIdentityFromUsersDoc(uid),
+          this.loadProfileImageFromUserDoc(uid),
+        ]);
+        this.loadedIdentityUid = uid;
+        this.pendingIdentityUid = null;
+      }
+
+      const roleLoadKey = `${uid}:${this.currentUser.accountType}`;
+      if (this.pendingRoleLoadKey === roleLoadKey && this.loadedRoleLoadKey !== roleLoadKey) {
+        if (this.currentUser.accountType === 'trainer') {
+          await this.loadTrainerStats(uid);
+          await this.loadTrainerStatues(uid);
+        } else {
+          await this.loadGreekStatuesFromFirestore(uid);
+        }
+
+        this.loadedRoleLoadKey = roleLoadKey;
+        this.pendingRoleLoadKey = null;
+      }
+    } finally {
+      this.roleLoadInFlight = false;
+      if (this.hasEnteredView && (this.pendingIdentityUid || this.pendingRoleLoadKey)) {
+        void this.runDeferredLoads();
+      }
+    }
   }
 
   get displayName(): string {
@@ -211,7 +260,6 @@ export class ProfileUserPage implements OnInit, OnDestroy {
   }
 
   onSettingsClick(): void {
-    console.log('Settings clicked');
     // this.router.navigate(['settings']);
   }
 
@@ -248,10 +296,10 @@ export class ProfileUserPage implements OnInit, OnDestroy {
     });
   }
   goToLogWorkout(): void { this.router.navigate(['/tabs/chats/workout-chatbot']); }
-  goToFindPT(): void { console.log('Find PT clicked'); }
-  goToStatues(): void { console.log('Statues clicked'); }
+  goToFindPT(): void {}
+  goToStatues(): void {}
   goToRegional(): void { this.router.navigateByUrl('/regional-leaderboard'); }
-  goToAnalyzeWorkout(): void { console.log('Analyze Workout clicked'); }
+  goToAnalyzeWorkout(): void {}
 
   // Statue management methods
 
@@ -261,8 +309,6 @@ export class ProfileUserPage implements OnInit, OnDestroy {
 
   private async loadTrainerStats(trainerId: string): Promise<void> {
     try {
-      console.log('[ProfileUserPage] Loading trainer stats for:', trainerId);
-
       // Get all bookings for this trainer
       const bookingsRef = collection(this.firestore, 'bookings');
       const trainerBookingsQuery = query(
@@ -271,14 +317,10 @@ export class ProfileUserPage implements OnInit, OnDestroy {
       );
       const bookingsSnap = await getDocs(trainerBookingsQuery);
       
-      console.log('[ProfileUserPage] Total bookings found:', bookingsSnap.size);
-      
       const completedSessions = bookingsSnap.docs.filter(doc => 
         doc.data()['status'] === 'completed'
       );
       this.trainerStats.totalSessions = completedSessions.length;
-
-      console.log('[ProfileUserPage] Completed sessions:', completedSessions.length);
 
       // Calculate total revenue
       this.trainerStats.totalRevenue = completedSessions.reduce((sum, doc) => {
@@ -294,10 +336,8 @@ export class ProfileUserPage implements OnInit, OnDestroy {
         const data = trainerClientsSnap.data();
         clients = data?.['clients'] || [];
         this.trainerStats.totalClients = clients.length;
-        console.log('[ProfileUserPage] Found clients in trainerClients:', clients.length, clients);
       } else {
         this.trainerStats.totalClients = 0;
-        console.log('[ProfileUserPage] No trainerClients document found');
       }
 
       // Find longest standing client
@@ -351,7 +391,6 @@ export class ProfileUserPage implements OnInit, OnDestroy {
       }
       this.trainerStats.topPerformingClient = topClient;
 
-      console.log('[ProfileUserPage] Trainer stats loaded:', this.trainerStats);
     } catch (error) {
       console.error('[ProfileUserPage] Error loading trainer stats:', error);
     }
@@ -401,7 +440,6 @@ export class ProfileUserPage implements OnInit, OnDestroy {
         });
 
       this.updateDisplayStatues();
-      console.log('[ProfileUserPage] Loaded trainer statues:', this.allStatues);
     } catch (error) {
       console.error('[ProfileUserPage] Error loading trainer statues:', error);
       this.allStatues = [];
@@ -449,7 +487,6 @@ export class ProfileUserPage implements OnInit, OnDestroy {
         });
 
       this.updateDisplayStatues();
-      console.log('[ProfileUserPage] Loaded statues from Firestore:', this.allStatues);
     } catch (err) {
       console.error('[ProfileUserPage] Error loading statues from Firestore:', err);
       this.allStatues = [];
@@ -572,13 +609,6 @@ export class ProfileUserPage implements OnInit, OnDestroy {
     const accountUid = this.accountService.getCredentials()().uid || null;
     const authUid = this.auth.currentUser?.uid ?? null;
     const uid = accountUid || authUid;
-    console.log('[ProfileUserPage] changeProfileImage auth debug:', {
-      accountUid,
-      authUid,
-      uidUsed: uid,
-      isAuthenticated: !!this.auth.currentUser,
-      email: this.auth.currentUser?.email ?? null,
-    });
 
     if (!uid) {
       await this.showToast('You must be signed in to change your profile picture.');
@@ -603,13 +633,6 @@ export class ProfileUserPage implements OnInit, OnDestroy {
 
       const sanitizedName = file.name.replace(/\s+/g, '_');
       const storagePath = `profile-pictures/${uid}/${Date.now()}_${sanitizedName}`;
-      console.log('[ProfileUserPage] Upload debug:', {
-        uidUsedInPath: uid,
-        storagePath,
-        fileName: file.name,
-        fileType: file.type,
-        fileSize: file.size,
-      });
       const downloadUrl = await this.fileUploadService.uploadFile(storagePath, file);
 
       const userRef = doc(this.firestore, 'users', uid);
