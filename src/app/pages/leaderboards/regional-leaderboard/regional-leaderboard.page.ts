@@ -174,6 +174,19 @@ export class RegionalLeaderboardPage implements OnInit, OnDestroy {
     this.selectedPointUserIds = new Set(point.userIds);
   }
 
+  onMemberClick(entry: LeaderboardEntry): void {
+    const point = this.distributionPoints.find((candidate) =>
+      candidate.userIds.includes(entry.userId)
+    );
+    if (!point) {
+      this.resetChartSelection();
+      return;
+    }
+
+    this.selectedPointBin = point.binIndex;
+    this.selectedPointUserIds = new Set(point.userIds);
+  }
+
   isPointSelected(point: DistributionPoint): boolean {
     return this.selectedPointBin === point.binIndex;
   }

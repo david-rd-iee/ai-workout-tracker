@@ -11,38 +11,41 @@
     <div class="stats-title">Stats</div>
     <div class="stats-graph">
       <div class="graph-region-label">{{ graphLabel }}</div>
-      <div class="graph-placeholder">
-        <svg
-          *ngIf="distributionCurvePath; else noChartData"
-          class="distribution-svg"
-          viewBox="0 0 100 100"
-          preserveAspectRatio="none"
-        >
-          <path class="distribution-curve" [attr.d]="distributionCurvePath"></path>
+      <div class="graph-placeholder" #chartHost>
+        <ng-container *ngIf="distributionChartResults.length > 0; else noChartData">
+          <ngx-charts-area-chart
+            class="distribution-ngx-chart"
+            [results]="distributionChartResults"
+            [view]="chartView"
+            [scheme]="chartColorScheme"
+            [schemeType]="chartScaleType"
+            [legend]="false"
+            [xAxis]="false"
+            [yAxis]="false"
+            [showGridLines]="false"
+            [gradient]="true"
+            [autoScale]="true"
+            [timeline]="false"
+            [animations]="true"
+            [tooltipDisabled]="true"
+          ></ngx-charts-area-chart>
 
-          <g class="distribution-points">
-            <g
-              *ngFor="let point of distributionPoints"
+          <div class="distribution-point-overlay">
+            <button
+              *ngFor="let point of distributionPoints; trackBy: trackByDistributionPoint"
+              type="button"
               class="distribution-point"
               [class.point-selected]="isPointSelected(point)"
-              (click)="distributionPointClick.emit(point)"
+              [class.point-single]="point.count <= 1"
+              [style.left.%]="point.xPercent"
+              [style.top.%]="point.yPercent"
+              [attr.title]="point.rangeLabel + ' (' + point.count + ' players)'"
+              (click)="onDistributionPointTapped($event, point)"
             >
-              <circle
-                [attr.cx]="point.xPercent"
-                [attr.cy]="point.yPercent"
-                [attr.r]="2.3 + (point.count > 1 ? 0.65 : 0)"
-              ></circle>
-              <text
-                *ngIf="point.count > 1"
-                [attr.x]="point.xPercent"
-                [attr.y]="point.yPercent - 3.5"
-              >
-                {{ point.count }}
-              </text>
-              <title>{{ point.rangeLabel }} ({{ point.count }} players)</title>
-            </g>
-          </g>
-        </svg>
+              <span *ngIf="point.count > 1">{{ point.count }}</span>
+            </button>
+          </div>
+        </ng-container>
 
         <ng-template #noChartData>
           <div class="chart-empty-msg">Load players to view the distribution.</div>
@@ -99,6 +102,10 @@
           class="member-row"
           *ngFor="let e of entries"
           [class.row-highlighted]="isEntryHighlighted(e)"
+          tabindex="0"
+          role="button"
+          (click)="onMemberRowClick(e)"
+          (keydown)="onMemberRowKeydown($event, e)"
         >
           <div class="member-left">
             <ion-avatar class="avatar">

@@ -252,6 +252,20 @@ export class GroupsPage implements OnInit, OnDestroy {
     this.trainingSelectedPointUserIds = new Set(point.userIds);
   }
 
+  onTrainingMemberClick(entry: LeaderboardEntry): void {
+    const point = this.trainingDistributionPoints.find((candidate) =>
+      candidate.userIds.includes(entry.userId)
+    );
+    if (!point) {
+      this.trainingSelectedPointBin = null;
+      this.trainingSelectedPointUserIds.clear();
+      return;
+    }
+
+    this.trainingSelectedPointBin = point.binIndex;
+    this.trainingSelectedPointUserIds = new Set(point.userIds);
+  }
+
   private trainingScoreFor(entry: LeaderboardEntry): number {
     if (this.trainingMetric === 'cardio') return entry.cardioWorkScore ?? 0;
     if (this.trainingMetric === 'strength') return entry.strengthWorkScore ?? 0;
