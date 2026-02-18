@@ -18,14 +18,19 @@ import {
   ModalController,
   LoadingController,
   ToastController,
+  AlertController,
 } from '@ionic/angular/standalone';
 import { NavController } from '@ionic/angular';
+import { Capacitor } from '@capacitor/core';
+import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
 
 import { Auth, onAuthStateChanged } from '@angular/fire/auth';
-import { Firestore, doc, getDoc, setDoc, collection, query, where, getDocs } from '@angular/fire/firestore';
+import { Firestore, doc, getDoc, setDoc, collection, query, where, getDocs, serverTimestamp } from '@angular/fire/firestore';
+import { Storage, ref, deleteObject } from '@angular/fire/storage';
 import { effect } from '@angular/core';
 
 import { UserService } from '../../services/account/user.service';
+import { FileUploadService } from '../../services/file-upload.service';
 import type { trainerProfile } from '../../Interfaces/Profiles/Trainer';
 import type { clientProfile } from '../../Interfaces/Profiles/client';
 import { addIcons } from 'ionicons';
@@ -54,6 +59,7 @@ import { UserBadgesDoc } from '../../models/user-badges.model';
 import { StatueSelectorComponent } from '../../components/statue-selector/statue-selector.component';
 import { GreekStatueComponent } from '../../components/greek-statue/greek-statue.component';
 import { HeaderComponent } from '../../components/header/header.component';
+import { AccountService } from '../../services/account/account.service';
 
 @Component({
   selector: 'app-profile-user',
@@ -81,7 +87,11 @@ export class ProfileUserPage implements OnInit, OnDestroy {
   private modalCtrl = inject(ModalController);
   private loadingCtrl = inject(LoadingController);
   private toastCtrl = inject(ToastController);
+  private alertCtrl = inject(AlertController);
+  private storage = inject(Storage);
   private userService = inject(UserService);
+  private fileUploadService = inject(FileUploadService);
+  private accountService = inject(AccountService);
 
   isLoading = true;
   currentUser: (trainerProfile | clientProfile) | null = null;
@@ -205,9 +215,30 @@ export class ProfileUserPage implements OnInit, OnDestroy {
     // this.router.navigate(['settings']);
   }
 
-  onProfileImageClick(): void {
-    // Placeholder for future profile-image action.
-    console.log('[ProfileUserPage] Profile image button clicked');
+  async onProfileImageClick(): Promise<void> {
+    let shouldChangeImage = false;
+    const alert = await this.alertCtrl.create({
+      header: 'Profile Picture',
+      message: 'Would you like to change your profile picture?',
+      buttons: [
+        {
+          text: 'Cancel',
+          role: 'cancel',
+        },
+        {
+          text: 'Change Image',
+          handler: () => {
+            shouldChangeImage = true;
+          },
+        },
+      ],
+    });
+    await alert.present();
+
+    await alert.onDidDismiss();
+    if (shouldChangeImage) {
+      await this.changeProfileImage();
+    }
   }
 
   goToGroups(): void {
@@ -534,6 +565,140 @@ export class ProfileUserPage implements OnInit, OnDestroy {
       this.usersDocUsername = typeof userData?.['username'] === 'string' ? userData['username'] : '';
     } catch (error) {
       console.error('[ProfileUserPage] Error loading users doc identity:', error);
+    }
+  }
+
+  private async changeProfileImage(): Promise<void> {
+    const accountUid = this.accountService.getCredentials()().uid || null;
+    const authUid = this.auth.currentUser?.uid ?? null;
+    const uid = accountUid || authUid;
+    console.log('[ProfileUserPage] changeProfileImage auth debug:', {
+      accountUid,
+      authUid,
+      uidUsed: uid,
+      isAuthenticated: !!this.auth.currentUser,
+      email: this.auth.currentUser?.email ?? null,
+    });
+
+    if (!uid) {
+      await this.showToast('You must be signed in to change your profile picture.');
+      return;
+    }
+
+    const file = await this.pickProfileImageFile();
+    if (!file) {
+      return;
+    }
+
+    const loading = await this.loadingCtrl.create({
+      message: 'Updating profile picture...',
+    });
+    await loading.present();
+
+    try {
+      const oldUrl = this.normalizeProfileImage(this.profilepicUrl);
+      if (oldUrl && oldUrl !== this.defaultProfileImage) {
+        await this.deleteExistingProfileImage(oldUrl);
+      }
+
+      const sanitizedName = file.name.replace(/\s+/g, '_');
+      const storagePath = `profile-pictures/${uid}/${Date.now()}_${sanitizedName}`;
+      console.log('[ProfileUserPage] Upload debug:', {
+        uidUsedInPath: uid,
+        storagePath,
+        fileName: file.name,
+        fileType: file.type,
+        fileSize: file.size,
+      });
+      const downloadUrl = await this.fileUploadService.uploadFile(storagePath, file);
+
+      const userRef = doc(this.firestore, 'users', uid);
+      await setDoc(
+        userRef,
+        {
+          profilepic: downloadUrl,
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+
+      this.profilepicUrl = downloadUrl;
+      if (this.currentUser) {
+        (this.currentUser as any).profilepic = downloadUrl;
+      }
+      await this.showToast('Profile picture updated.');
+    } catch (error) {
+      console.error('[ProfileUserPage] Failed to update profile picture:', error);
+      const message = error instanceof Error ? error.message : 'Please try again.';
+      await this.showToast(`Failed to update profile picture: ${message}`);
+    } finally {
+      await loading.dismiss();
+    }
+  }
+
+  private async pickProfileImageFile(): Promise<File | null> {
+    if (Capacitor.isNativePlatform()) {
+      try {
+        const photo = await Camera.getPhoto({
+          source: CameraSource.Photos,
+          resultType: CameraResultType.Uri,
+          quality: 90,
+        });
+
+        if (!photo.webPath) {
+          return null;
+        }
+
+        const response = await fetch(photo.webPath);
+        const blob = await response.blob();
+        const extension = (blob.type.split('/')[1] || 'jpg').toLowerCase();
+        return new File([blob], `profile.${extension}`, { type: blob.type || 'image/jpeg' });
+      } catch (error) {
+        console.error('[ProfileUserPage] Native photo pick failed:', error);
+        return null;
+      }
+    }
+
+    return new Promise<File | null>((resolve) => {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/*';
+      input.onchange = () => {
+        const file = input.files?.[0] ?? null;
+        resolve(file);
+      };
+      input.click();
+    });
+  }
+
+  private async deleteExistingProfileImage(url: string): Promise<void> {
+    const storagePath = this.extractStoragePathFromDownloadUrl(url);
+    if (!storagePath) {
+      return;
+    }
+
+    try {
+      const imageRef = ref(this.storage, storagePath);
+      await deleteObject(imageRef);
+    } catch (error) {
+      // Non-blocking: continue with new upload even if old file delete fails.
+      console.warn('[ProfileUserPage] Failed to delete old profile image:', error);
+    }
+  }
+
+  private extractStoragePathFromDownloadUrl(url: string): string | null {
+    try {
+      const parsed = new URL(url);
+      const marker = '/o/';
+      const idx = parsed.pathname.indexOf(marker);
+      if (idx === -1) {
+        return null;
+      }
+
+      const encodedPath = parsed.pathname.substring(idx + marker.length);
+      return decodeURIComponent(encodedPath);
+    } catch {
+      return null;
     }
   }
 }

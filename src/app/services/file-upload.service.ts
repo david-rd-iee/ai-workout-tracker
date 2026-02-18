@@ -34,38 +34,22 @@ export class FileUploadService {
     console.log('File details:', file.name, file.size, 'bytes', file.type);
 
     try {
-      // For iOS/Capacitor, use Cloud Functions to avoid CORS issues
+      // For iOS/Capacitor, prefer Cloud Functions when configured.
+      // Fall back to direct Storage upload when base URL is missing.
       if (this.isCapacitor) {
-        return this.uploadViaCloudFunction(path, file);
-      }
-      
-      // For web, use standard Firebase Storage upload
-      const storageRef = ref(this.storage, path);
-      console.log('Storage reference created');
-      
-      // Create metadata
-      const metadata = {
-        contentType: file.type || 'image/jpeg',
-        customMetadata: {
-          'original-filename': file.name,
-          'upload-timestamp': new Date().toISOString()
+        if (environment.cloudFunctionsBaseUrl?.trim()) {
+          try {
+            return await this.uploadViaCloudFunction(path, file);
+          } catch (error) {
+            console.warn('Cloud Function upload failed; falling back to direct Storage upload.', error);
+            return await this.uploadDirect(path, file);
+          }
         }
-      };
-      
-      // Upload the file
-      console.log('Uploading file to Firebase Storage...');
-      await uploadBytes(storageRef, file, metadata);
-      console.log('Upload completed successfully');
-      
-      // Get download URL
-      let downloadUrl = await getDownloadURL(storageRef);
-      console.log('Download URL obtained');
-      
-      // Add cache-busting timestamp parameter to prevent caching issues
-      downloadUrl = this.addCacheBustingParam(downloadUrl);
-      console.log('Added cache-busting parameter to URL');
-      
-      return downloadUrl;
+        return await this.uploadDirect(path, file);
+      }
+
+      // For web, use direct Firebase Storage upload
+      return await this.uploadDirect(path, file);
     } catch (error: any) {
       console.error('Error in file upload:', error);
       this.logErrorDetails(error);
@@ -85,45 +69,52 @@ export class FileUploadService {
     console.log('Video details:', file.name, file.size, 'bytes', file.type);
 
     try {
-      // For iOS/Capacitor, use Cloud Functions to avoid CORS and HTTP issues
+      // For iOS/Capacitor, prefer Cloud Functions when configured.
+      // Fall back to direct Storage upload when base URL is missing.
       if (this.isCapacitor) {
-        console.log('Using Cloud Function for video upload on Capacitor');
-        return this.uploadViaCloudFunction(path, file);
-      }
-      
-      // For web, use standard Firebase Storage upload
-      const storageRef = ref(this.storage, path);
-      console.log('Storage reference created');
-      
-      // Create metadata for video
-      const metadata = {
-        contentType: file.type || 'video/mp4',
-        customMetadata: {
-          'original-filename': file.name,
-          'upload-timestamp': new Date().toISOString(),
-          'file-type': 'video'
+        if (environment.cloudFunctionsBaseUrl?.trim()) {
+          console.log('Using Cloud Function for video upload on Capacitor');
+          try {
+            return await this.uploadViaCloudFunction(path, file);
+          } catch (error) {
+            console.warn('Cloud Function video upload failed; falling back to direct Storage upload.', error);
+            return await this.uploadDirect(path, file);
+          }
         }
-      };
-      
-      // Upload the video file
-      console.log('Uploading video to Firebase Storage...');
-      await uploadBytes(storageRef, file, metadata);
-      console.log('Video upload completed successfully');
-      
-      // Get download URL
-      let downloadUrl = await getDownloadURL(storageRef);
-      console.log('Download URL obtained');
-      
-      // Add cache-busting timestamp parameter to prevent caching issues
-      downloadUrl = this.addCacheBustingParam(downloadUrl);
-      console.log('Added cache-busting parameter to URL');
-      
-      return downloadUrl;
+        return await this.uploadDirect(path, file);
+      }
+
+      // For web, use direct Firebase Storage upload
+      return await this.uploadDirect(path, file);
     } catch (error: any) {
       console.error('Error in video upload:', error);
       this.logErrorDetails(error);
       throw new Error(`Video upload failed: ${this.getErrorMessage(error)}`);
     }
+  }
+
+  private async uploadDirect(path: string, file: File): Promise<string> {
+    const storageRef = ref(this.storage, path);
+    console.log('Storage reference created');
+
+    const metadata = {
+      contentType: file.type || 'image/jpeg',
+      customMetadata: {
+        'original-filename': file.name,
+        'upload-timestamp': new Date().toISOString(),
+      },
+    };
+
+    console.log('Uploading file to Firebase Storage...');
+    await uploadBytes(storageRef, file, metadata);
+    console.log('Upload completed successfully');
+
+    let downloadUrl = await getDownloadURL(storageRef);
+    console.log('Download URL obtained');
+
+    downloadUrl = this.addCacheBustingParam(downloadUrl);
+    console.log('Added cache-busting parameter to URL');
+    return downloadUrl;
   }
 
   /**
