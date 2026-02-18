@@ -120,6 +120,52 @@ export class LeaderboardService {
     return undefined;
   }
 
+  private readNonEmptyString(source: any, ...keys: string[]): string | undefined {
+    for (const key of keys) {
+      const raw = String(source?.[key] ?? '').trim();
+      if (raw.length > 0) return raw;
+    }
+    return undefined;
+  }
+
+  private async hydrateEntriesFromUsers(entries: LeaderboardEntry[]): Promise<void> {
+    const candidates = entries.filter((entry) => {
+      const needsPic = !this.readProfilePic(entry);
+      const needsName = !this.readNonEmptyString(entry, 'username', 'displayName');
+      return needsPic || needsName || !entry.role;
+    });
+
+    await Promise.all(
+      candidates.map(async (entry) => {
+        const userRef = doc(this.firestore, 'users', entry.userId);
+        const userSnap = await getDoc(userRef);
+        if (!userSnap.exists()) return;
+
+        const user = userSnap.data() as AppUser;
+        const userPic = this.readProfilePic(user);
+        const userName = this.readNonEmptyString(user, 'username');
+        const userEmail = this.readNonEmptyString(user, 'email');
+        const statsName = this.readNonEmptyString(entry, 'displayName');
+
+        if (!entry.profilePicUrl && userPic) {
+          entry.profilePicUrl = userPic;
+        }
+
+        if (!entry.username && userName) {
+          entry.username = userName;
+        }
+
+        if ((!statsName || statsName === 'Anonymous') && (userName || userEmail)) {
+          entry.displayName = userName ?? userEmail ?? entry.displayName;
+        }
+
+        if (!entry.role && this.isTrainerRole({ isPT: user?.isPT, role: (user as any)?.role })) {
+          entry.role = 'TRAINER';
+        }
+      })
+    );
+  }
+
   private isTrainerRole(source: unknown): boolean {
     if (typeof source === 'boolean') {
       return source;
@@ -244,6 +290,8 @@ export class LeaderboardService {
       entries.sort((a, b) => ((b as any)[metricField] ?? 0) - ((a as any)[metricField] ?? 0));
       entries = entries.slice(0, maxResults);
     }
+
+    await this.hydrateEntriesFromUsers(entries);
 
     // Exclude trainers, then assign ranks.
     entries = entries.filter((e) => !this.isTrainerRole(e));
