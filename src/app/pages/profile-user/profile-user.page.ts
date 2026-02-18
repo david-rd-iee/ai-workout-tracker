@@ -627,10 +627,6 @@ export class ProfileUserPage implements OnInit, OnDestroy {
 
     try {
       const oldUrl = this.normalizeProfileImage(this.profilepicUrl);
-      if (oldUrl && oldUrl !== this.defaultProfileImage) {
-        await this.deleteExistingProfileImage(oldUrl);
-      }
-
       const sanitizedName = file.name.replace(/\s+/g, '_');
       const storagePath = `profile-pictures/${uid}/${Date.now()}_${sanitizedName}`;
       const downloadUrl = await this.fileUploadService.uploadFile(storagePath, file);
@@ -644,6 +640,10 @@ export class ProfileUserPage implements OnInit, OnDestroy {
         },
         { merge: true }
       );
+
+      if (oldUrl && oldUrl !== this.defaultProfileImage && oldUrl !== downloadUrl) {
+        await this.deleteExistingProfileImage(oldUrl);
+      }
 
       this.profilepicUrl = downloadUrl;
       if (this.currentUser) {

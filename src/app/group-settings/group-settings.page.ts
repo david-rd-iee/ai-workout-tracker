@@ -15,6 +15,7 @@ import {
   ToastController,
 } from '@ionic/angular/standalone';
 import { Firestore, doc, getDoc, setDoc, serverTimestamp } from '@angular/fire/firestore';
+import { Storage, deleteObject, ref } from '@angular/fire/storage';
 import { addIcons } from 'ionicons';
 import { arrowBackOutline, imageOutline } from 'ionicons/icons';
 import { AccountService } from '../services/account/account.service';
@@ -42,6 +43,7 @@ export class GroupSettingsPage implements OnInit {
   private navCtrl = inject(NavController);
   private firestore = inject(Firestore);
   private accountService = inject(AccountService);
+  private storage = inject(Storage);
   private fileUploadService = inject(FileUploadService);
   private imagePickerService = inject(ImagePickerService);
   private alertCtrl = inject(AlertController);
@@ -167,6 +169,11 @@ export class GroupSettingsPage implements OnInit {
         { merge: true }
       );
 
+      const oldRemoteImageUrl = this.normalizeImageUrl(previousImageUrl);
+      if (oldRemoteImageUrl && oldRemoteImageUrl !== downloadUrl) {
+        await this.deleteExistingGroupImage(oldRemoteImageUrl);
+      }
+
       this.groupImageUrl = downloadUrl;
       await this.showToast('Group image updated.');
     } catch (error) {
@@ -187,5 +194,42 @@ export class GroupSettingsPage implements OnInit {
       position: 'bottom',
     });
     await toast.present();
+  }
+
+  private normalizeImageUrl(value: unknown): string | null {
+    if (typeof value !== 'string') return null;
+    const trimmed = value.trim();
+    if (!trimmed || trimmed.startsWith('blob:')) return null;
+    return trimmed;
+  }
+
+  private async deleteExistingGroupImage(url: string): Promise<void> {
+    const storagePath = this.extractStoragePathFromDownloadUrl(url);
+    if (!storagePath) {
+      return;
+    }
+
+    try {
+      const imageRef = ref(this.storage, storagePath);
+      await deleteObject(imageRef);
+    } catch (error) {
+      console.warn('[GroupSettingsPage] Failed to delete old group image:', error);
+    }
+  }
+
+  private extractStoragePathFromDownloadUrl(url: string): string | null {
+    try {
+      const parsed = new URL(url);
+      const marker = '/o/';
+      const idx = parsed.pathname.indexOf(marker);
+      if (idx === -1) {
+        return null;
+      }
+
+      const encodedPath = parsed.pathname.substring(idx + marker.length);
+      return decodeURIComponent(encodedPath);
+    } catch {
+      return null;
+    }
   }
 }
