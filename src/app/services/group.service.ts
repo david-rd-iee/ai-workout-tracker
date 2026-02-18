@@ -105,7 +105,7 @@ export class GroupService {
   }
 
   /**
-   * Create a new group owned by this user and add it to their `groups` array.
+   * Create a new group owned by this user and add it to their `groupID` array.
    */
   async createGroupForOwner(ownerUid: string, name: string, isPTGroup: boolean): Promise<string> {
     const colRef = collection(this.firestore, this.groupsCollectionName);
@@ -114,13 +114,14 @@ export class GroupService {
       isPTGroup,
       ownerUserId: ownerUid,
       created_at: serverTimestamp(),
+      userIDs: [ownerUid],
     });
 
     const groupId = groupDocRef.id;
 
     const userRef = doc(this.firestore, 'users', ownerUid);
     await updateDoc(userRef, {
-      groups: arrayUnion(groupId),
+      groupID: arrayUnion(groupId),
     });
 
     return groupId;

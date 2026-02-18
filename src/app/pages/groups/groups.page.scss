@@ -107,6 +107,13 @@
   cursor: pointer;
 }
 
+.group-card-button.owner-highlight {
+  border: 3px solid #f5d25f;
+  box-shadow:
+    0 0 0 2px rgba(245, 210, 95, 0.28),
+    0 8px 18px rgba(0, 0, 0, 0.28);
+}
+
 .placeholder-card {
   justify-content: center;
   text-align: center;

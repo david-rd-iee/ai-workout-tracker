@@ -1,6 +1,6 @@
 import { Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { IonicModule, NavController } from '@ionic/angular';
+import { AlertController, IonicModule, NavController, ToastController } from '@ionic/angular';
 import { FormsModule } from '@angular/forms';
 import { firstValueFrom, Subscription } from 'rxjs';
 import { addIcons } from 'ionicons';
@@ -28,6 +28,8 @@ export class GroupsPage implements OnInit, OnDestroy {
   private groupService = inject(GroupService);
   private accountService = inject(AccountService);
   private leaderboardService = inject(LeaderboardService);
+  private alertCtrl = inject(AlertController);
+  private toastCtrl = inject(ToastController);
 
   selectedTab: 'training' | 'friends' = 'friends';
   loading = true;
@@ -52,6 +54,7 @@ export class GroupsPage implements OnInit, OnDestroy {
   allGroupsLoading = false;
   allGroupsError: string | null = null;
   userGroupIds = new Set<string>();
+  currentUserId: string | null = null;
 
   private groupsSub?: Subscription;
   private authSub?: Subscription;
@@ -63,6 +66,7 @@ export class GroupsPage implements OnInit, OnDestroy {
   ngOnInit(): void {
     const uid = this.accountService.getCredentials()().uid;
     if (uid) {
+      this.currentUserId = uid;
       this.subscribeToGroups(uid);
       return;
     }
@@ -70,6 +74,7 @@ export class GroupsPage implements OnInit, OnDestroy {
     this.loading = false;
     this.authSub = this.accountService.authStateChanges$.subscribe(({ user, isAuthenticated }) => {
       if (!isAuthenticated || !user?.uid) return;
+      this.currentUserId = user.uid;
       this.subscribeToGroups(user.uid);
     });
   }
@@ -131,6 +136,69 @@ export class GroupsPage implements OnInit, OnDestroy {
 
   closeGroupSearch(): void {
     this.searchModalOpen = false;
+  }
+
+  isOwnedByCurrentUser(group: Group): boolean {
+    if (!this.currentUserId) return false;
+    return group.ownerUserId === this.currentUserId;
+  }
+
+  async promptCreateGroup(): Promise<void> {
+    const uid = this.accountService.getCredentials()().uid;
+    if (!uid) {
+      return;
+    }
+
+    const alert = await this.alertCtrl.create({
+      header: 'Enter Group Name',
+      inputs: [
+        {
+          name: 'groupName',
+          type: 'text',
+          placeholder: 'Group Name',
+        },
+      ],
+      buttons: [
+        {
+          text: 'Cancel',
+          role: 'cancel',
+        },
+        {
+          text: 'Create',
+          handler: async (data) => {
+            const groupName = typeof data?.groupName === 'string' ? data.groupName.trim() : '';
+            if (!groupName) {
+              return false;
+            }
+
+            try {
+              const groupId = await this.groupService.createGroupForOwner(uid, groupName, false);
+              this.userGroupIds.add(groupId);
+              this.closeGroupSearch();
+
+              const toast = await this.toastCtrl.create({
+                message: 'Group created.',
+                duration: 1500,
+                position: 'bottom',
+              });
+              await toast.present();
+            } catch (err) {
+              console.error('[GroupsPage] Failed to create group:', err);
+              const toast = await this.toastCtrl.create({
+                message: 'Could not create group.',
+                duration: 1800,
+                color: 'danger',
+                position: 'bottom',
+              });
+              await toast.present();
+            }
+            return true;
+          },
+        },
+      ],
+    });
+
+    await alert.present();
   }
 
   private subscribeToGroups(uid: string): void {

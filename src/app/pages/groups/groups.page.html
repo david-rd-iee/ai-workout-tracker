@@ -72,6 +72,7 @@
       <div class="card-list" *ngIf="!loading && !errorMessage && friendGroups.length > 0">
         <button
           class="group-card group-card-button"
+          [class.owner-highlight]="isOwnedByCurrentUser(group)"
           type="button"
           *ngFor="let group of friendGroups"
           (click)="openGroup(group)"
@@ -103,6 +104,9 @@
   <ng-template>
     <ion-header>
       <ion-toolbar>
+        <ion-buttons slot="start">
+          <ion-button fill="clear" (click)="promptCreateGroup()">Create Group</ion-button>
+        </ion-buttons>
         <ion-title>Find Groups</ion-title>
         <ion-buttons slot="end">
           <ion-button fill="clear" (click)="closeGroupSearch()" aria-label="Close">
