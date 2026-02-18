@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { ActivatedRoute } from '@angular/router';
 import { NavController } from '@ionic/angular';
 import {
+  AlertController,
   IonButton,
   IonButtons,
   IonContent,
@@ -10,9 +11,15 @@ import {
   IonIcon,
   IonTitle,
   IonToolbar,
+  LoadingController,
+  ToastController,
 } from '@ionic/angular/standalone';
+import { Firestore, doc, getDoc, setDoc, serverTimestamp } from '@angular/fire/firestore';
 import { addIcons } from 'ionicons';
-import { arrowBackOutline } from 'ionicons/icons';
+import { arrowBackOutline, imageOutline } from 'ionicons/icons';
+import { AccountService } from '../services/account/account.service';
+import { FileUploadService } from '../services/file-upload.service';
+import { ImagePickerService } from '../services/image-picker.service';
 
 @Component({
   selector: 'app-group-settings',
@@ -33,14 +40,25 @@ import { arrowBackOutline } from 'ionicons/icons';
 export class GroupSettingsPage implements OnInit {
   private route = inject(ActivatedRoute);
   private navCtrl = inject(NavController);
+  private firestore = inject(Firestore);
+  private accountService = inject(AccountService);
+  private fileUploadService = inject(FileUploadService);
+  private imagePickerService = inject(ImagePickerService);
+  private alertCtrl = inject(AlertController);
+  private loadingCtrl = inject(LoadingController);
+  private toastCtrl = inject(ToastController);
+
   groupId = '';
+  groupImageUrl = '';
+  canEditGroup = false;
 
   constructor() {
-    addIcons({ arrowBackOutline });
+    addIcons({ arrowBackOutline, imageOutline });
   }
 
-  ngOnInit() {
+  ngOnInit(): void {
     this.groupId = this.route.snapshot.paramMap.get('groupID') ?? '';
+    void this.loadGroup();
   }
 
   goBack(): void {
@@ -56,5 +74,118 @@ export class GroupSettingsPage implements OnInit {
       animated: true,
       animationDirection: 'back',
     });
+  }
+
+  async onGroupImageClick(): Promise<void> {
+    if (!this.groupId || !this.canEditGroup) {
+      return;
+    }
+
+    let shouldChangeImage = false;
+    const alert = await this.alertCtrl.create({
+      header: 'Group Image',
+      message: 'Would you like to change this group image?',
+      buttons: [
+        {
+          text: 'Cancel',
+          role: 'cancel',
+        },
+        {
+          text: 'Change Image',
+          handler: () => {
+            shouldChangeImage = true;
+          },
+        },
+      ],
+    });
+
+    await alert.present();
+    await alert.onDidDismiss();
+
+    if (shouldChangeImage) {
+      await this.changeGroupImage();
+    }
+  }
+
+  private async loadGroup(): Promise<void> {
+    if (!this.groupId) {
+      this.canEditGroup = false;
+      this.groupImageUrl = '';
+      return;
+    }
+
+    try {
+      const groupRef = doc(this.firestore, 'groupID', this.groupId);
+      const groupSnap = await getDoc(groupRef);
+
+      if (!groupSnap.exists()) {
+        this.canEditGroup = false;
+        this.groupImageUrl = '';
+        return;
+      }
+
+      const groupData = groupSnap.data() as any;
+      const ownerUserId = typeof groupData?.ownerUserId === 'string' ? groupData.ownerUserId.trim() : '';
+      const currentUserId = this.accountService.getCredentials()().uid;
+
+      this.canEditGroup = !!currentUserId && ownerUserId === currentUserId;
+      this.groupImageUrl = typeof groupData?.groupImage === 'string' ? groupData.groupImage : '';
+    } catch (error) {
+      console.error('[GroupSettingsPage] Failed to load group:', error);
+      this.canEditGroup = false;
+      this.groupImageUrl = '';
+    }
+  }
+
+  private async changeGroupImage(): Promise<void> {
+    const file = await this.imagePickerService.pickImageFile();
+    if (!file) {
+      return;
+    }
+
+    const previousImageUrl = this.groupImageUrl;
+    const localPreviewUrl = URL.createObjectURL(file);
+    this.groupImageUrl = localPreviewUrl;
+
+    const loading = await this.loadingCtrl.create({
+      message: 'Updating group image...',
+    });
+    await loading.present();
+
+    try {
+      const sanitizedName = file.name.replace(/\s+/g, '_');
+      const storagePath = `group-images/${this.groupId}/${Date.now()}_${sanitizedName}`;
+      const downloadUrl = await this.fileUploadService.uploadFile(storagePath, file);
+
+      const groupRef = doc(this.firestore, 'groupID', this.groupId);
+      await setDoc(
+        groupRef,
+        {
+          groupImage: downloadUrl,
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+
+      this.groupImageUrl = downloadUrl;
+      await this.showToast('Group image updated.');
+    } catch (error) {
+      console.error('[GroupSettingsPage] Failed to update group image:', error);
+      this.groupImageUrl = previousImageUrl;
+      const message = error instanceof Error ? error.message : 'Please try again.';
+      await this.showToast(`Failed to update group image: ${message}`);
+    } finally {
+      URL.revokeObjectURL(localPreviewUrl);
+      await loading.dismiss();
+    }
+  }
+
+  private async showToast(message: string): Promise<void> {
+    const toast = await this.toastCtrl.create({
+      message,
+      duration: 2000,
+      position: 'bottom',
+    });
+    await toast.present();
   }
 }

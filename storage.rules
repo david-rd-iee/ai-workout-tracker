@@ -13,6 +13,12 @@ service firebase.storage {
       return isSignedIn() && request.auth.uid == userId;
     }
 
+    function isGroupOwner(groupId) {
+      return isSignedIn()
+        && firestore.exists(/databases/(default)/documents/groupID/$(groupId))
+        && firestore.get(/databases/(default)/documents/groupID/$(groupId)).data.ownerUserId == request.auth.uid;
+    }
+
     // Profile pictures uploaded from profile page
     match /profile-pictures/{userId}/{allPaths=**} {
       allow read: if isSignedIn();
@@ -23,6 +29,12 @@ service firebase.storage {
     match /client-images/{userId}/{allPaths=**} {
       allow read: if isSignedIn();
       allow write: if isOwner(userId);
+    }
+
+    // Group images uploaded from group settings page
+    match /group-images/{groupId}/{allPaths=**} {
+      allow read: if isSignedIn();
+      allow write: if isGroupOwner(groupId);
     }
 
     // Default deny for everything else

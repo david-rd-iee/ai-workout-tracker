@@ -21,8 +21,6 @@ import {
   AlertController,
 } from '@ionic/angular/standalone';
 import { NavController } from '@ionic/angular';
-import { Capacitor } from '@capacitor/core';
-import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
 
 import { Auth } from '@angular/fire/auth';
 import { Firestore, doc, getDoc, setDoc, collection, query, where, getDocs, serverTimestamp } from '@angular/fire/firestore';
@@ -31,6 +29,7 @@ import { effect } from '@angular/core';
 
 import { UserService } from '../../services/account/user.service';
 import { FileUploadService } from '../../services/file-upload.service';
+import { ImagePickerService } from '../../services/image-picker.service';
 import type { trainerProfile } from '../../Interfaces/Profiles/Trainer';
 import type { clientProfile } from '../../Interfaces/Profiles/client';
 import { addIcons } from 'ionicons';
@@ -91,6 +90,7 @@ export class ProfileUserPage implements OnInit, OnDestroy {
   private storage = inject(Storage);
   private userService = inject(UserService);
   private fileUploadService = inject(FileUploadService);
+  private imagePickerService = inject(ImagePickerService);
   private accountService = inject(AccountService);
 
   isLoading = true;
@@ -615,7 +615,7 @@ export class ProfileUserPage implements OnInit, OnDestroy {
       return;
     }
 
-    const file = await this.pickProfileImageFile();
+    const file = await this.imagePickerService.pickImageFile();
     if (!file) {
       return;
     }
@@ -657,41 +657,6 @@ export class ProfileUserPage implements OnInit, OnDestroy {
     } finally {
       await loading.dismiss();
     }
-  }
-
-  private async pickProfileImageFile(): Promise<File | null> {
-    if (Capacitor.isNativePlatform()) {
-      try {
-        const photo = await Camera.getPhoto({
-          source: CameraSource.Photos,
-          resultType: CameraResultType.Uri,
-          quality: 90,
-        });
-
-        if (!photo.webPath) {
-          return null;
-        }
-
-        const response = await fetch(photo.webPath);
-        const blob = await response.blob();
-        const extension = (blob.type.split('/')[1] || 'jpg').toLowerCase();
-        return new File([blob], `profile.${extension}`, { type: blob.type || 'image/jpeg' });
-      } catch (error) {
-        console.error('[ProfileUserPage] Native photo pick failed:', error);
-        return null;
-      }
-    }
-
-    return new Promise<File | null>((resolve) => {
-      const input = document.createElement('input');
-      input.type = 'file';
-      input.accept = 'image/*';
-      input.onchange = () => {
-        const file = input.files?.[0] ?? null;
-        resolve(file);
-      };
-      input.click();
-    });
   }
 
   private async deleteExistingProfileImage(url: string): Promise<void> {

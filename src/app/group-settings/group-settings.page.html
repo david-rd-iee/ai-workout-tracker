@@ -1,7 +1,7 @@
 <ion-header [translucent]="true">
-  <ion-toolbar>
+  <ion-toolbar class="settings-toolbar">
     <ion-buttons slot="start">
-      <ion-button fill="clear" (click)="goBack()" aria-label="Go back">
+      <ion-button fill="clear" class="back-button" (click)="goBack()" aria-label="Go back">
         <ion-icon name="arrow-back-outline" slot="icon-only"></ion-icon>
       </ion-button>
     </ion-buttons>
@@ -10,5 +10,31 @@
 </ion-header>
 
 <ion-content [fullscreen]="true" class="group-settings-content">
-  <div class="placeholder-message">Settings features not implemented yet</div>
+  <div class="settings-shell">
+    <section class="settings-panel">
+      <h2>Settings</h2>
+      <div class="group-image-section">
+        <div class="group-image-preview">
+          <img
+            *ngIf="groupImageUrl; else groupImageFallback"
+            [src]="groupImageUrl"
+            alt="Group image"
+          />
+          <ng-template #groupImageFallback>
+            <div class="group-image-fallback">
+              <ion-icon name="image-outline"></ion-icon>
+            </div>
+          </ng-template>
+        </div>
+
+        <ion-button
+          class="change-group-image-btn"
+          (click)="onGroupImageClick()"
+          [disabled]="!canEditGroup"
+        >
+          Change Group Image
+        </ion-button>
+      </div>
+    </section>
+  </div>
 </ion-content>

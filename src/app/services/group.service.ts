@@ -13,7 +13,7 @@ import {
   serverTimestamp,
 } from '@angular/fire/firestore';
 
-import { Observable, of, from } from 'rxjs';
+import { Observable, of, from, combineLatest } from 'rxjs';
 import { map, switchMap } from 'rxjs/operators';
 import { Group } from '../models/groups.model';
 import { AppUser } from '../models/user.model';
@@ -52,26 +52,21 @@ export class GroupService {
   }
 
   /**
-   * Get multiple groups by their IDs.
-   * Uses Promise.all so it completes even though Firestore streams are live.
+   * Get multiple groups by their IDs as live Firestore streams.
    */
   getGroupsByIds(groupIds: string[]): Observable<Group[]> {
     if (!groupIds || groupIds.length === 0) {
       return of([]);
     }
 
-    const colName = this.groupsCollectionName;
-
-    const promises = groupIds.map(async (id) => {
-      const ref = doc(this.firestore, colName, id);
-      const snap = await getDoc(ref);
-      if (!snap.exists()) return undefined;
-
-      const data = snap.data() as Omit<Group, 'groupId'>;
-      return { groupId: id, ...data } as Group;
+    const streams = groupIds.map((id) => {
+      const ref = doc(this.firestore, this.groupsCollectionName, id);
+      return docData(ref, { idField: 'groupId' }).pipe(
+        map((data) => (data as Group | undefined) ?? undefined)
+      );
     });
 
-    return from(Promise.all(promises)).pipe(
+    return combineLatest(streams).pipe(
       map((groups) => groups.filter((g): g is Group => !!g))
     );
   }
@@ -113,6 +108,7 @@ export class GroupService {
       name,
       isPTGroup,
       ownerUserId: ownerUid,
+      groupImage: '',
       created_at: serverTimestamp(),
       userIDs: [ownerUid],
     });
