@@ -510,7 +510,7 @@ export class DevSeedService {
       phoneNumber: '+15551234567',
       birthday: new Date('1990-01-01'),
       gender: 'male',
-      profileImage: '',
+      profilepic: '',
       specialization: 'Strength & Conditioning',
       experience: '5+ years',
       education: 'B.S. Exercise Science',
@@ -586,7 +586,7 @@ export class DevSeedService {
         phoneNumber: '+15559876543',
         birthday: new Date('1995-06-15'),
         gender: 'male',
-        profileImage: '',
+        profilepic: '',
         trainerId: trainerUid,
         createdAt: new Date(),
         updatedAt: new Date()

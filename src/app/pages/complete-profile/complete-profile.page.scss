@@ -1,0 +1,26 @@
+.logo {
+  display: flex;
+  justify-content: center;
+  margin-top: 12px;
+}
+
+h1 {
+  text-align: center;
+  margin: 8px 0 4px;
+}
+
+.subtitle {
+  text-align: center;
+  margin: 0 0 18px;
+  opacity: 0.75;
+}
+
+form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.error {
+  margin: 4px 4px 0;
+}

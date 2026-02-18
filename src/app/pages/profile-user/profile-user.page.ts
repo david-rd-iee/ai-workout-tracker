@@ -87,7 +87,10 @@ export class ProfileUserPage implements OnInit, OnDestroy {
   currentUser: (trainerProfile | clientProfile) | null = null;
   readonly defaultProfileImage = 'assets/user_icons/profilePhoto.svg';
 
-  profileImageUrl: string = this.defaultProfileImage;
+  profilepicUrl: string = this.defaultProfileImage;
+  private usersDocFirstName = '';
+  private usersDocLastName = '';
+  private usersDocUsername = '';
 
   // Greek Statue properties
   allStatues: GreekStatue[] = [];
@@ -129,6 +132,11 @@ export class ProfileUserPage implements OnInit, OnDestroy {
     // Use the UserService's signal to get user data
     effect(() => {
       const userInfo = this.userService.getUserInfo()();
+      const uid = this.auth.currentUser?.uid;
+
+      if (uid) {
+        this.loadIdentityFromUsersDoc(uid);
+      }
       
       console.log('[ProfileUserPage] User info from service:', userInfo);
       console.log('[ProfileUserPage] Account type:', userInfo?.accountType);
@@ -137,20 +145,18 @@ export class ProfileUserPage implements OnInit, OnDestroy {
         this.currentUser = userInfo;
         
         const pic = this.normalizeProfileImage(
-          (this.currentUser as any)?.profileImage || (this.currentUser as any)?.profilepic || ''
+          (this.currentUser as any)?.profilepic || ''
         );
         console.log('[ProfileUserPage] Profile image data:', {
-          profileImage: (this.currentUser as any)?.profileImage,
           profilepic: (this.currentUser as any)?.profilepic,
           finalPic: pic,
           userData: userInfo
         });
-        this.profileImageUrl = pic ?? this.defaultProfileImage;
+        this.profilepicUrl = pic ?? this.defaultProfileImage;
         
         this.isLoading = false;
         
         // Load role-specific data
-        const uid = this.auth.currentUser?.uid;
         if (uid) {
           this.loadProfileImageFromUserDoc(uid);
 
@@ -165,7 +171,7 @@ export class ProfileUserPage implements OnInit, OnDestroy {
         }
       } else {
         this.currentUser = null;
-        this.profileImageUrl = this.defaultProfileImage;
+        this.profilepicUrl = this.defaultProfileImage;
         this.isLoading = false;
       }
     });
@@ -182,8 +188,16 @@ export class ProfileUserPage implements OnInit, OnDestroy {
   get displayName(): string {
     const first = (this.currentUser?.firstName || '').trim();
     const last = (this.currentUser?.lastName || '').trim();
-    const full = `${first} ${last}`.trim();
+    const fallbackFirst = this.usersDocFirstName.trim();
+    const fallbackLast = this.usersDocLastName.trim();
+    const full = `${first || fallbackFirst} ${last || fallbackLast}`.trim();
     return full || 'User';
+  }
+
+  get displayUsername(): string {
+    const fromProfile = ((this.currentUser as any)?.username || '').trim();
+    const fromUsersDoc = this.usersDocUsername.trim();
+    return fromProfile || fromUsersDoc || '';
   }
 
   onSettingsClick(): void {
@@ -491,18 +505,35 @@ export class ProfileUserPage implements OnInit, OnDestroy {
       const userSnap = await getDoc(userRef);
 
       if (!userSnap.exists()) {
-        this.profileImageUrl = this.defaultProfileImage;
+        this.profilepicUrl = this.defaultProfileImage;
         return;
       }
 
       const userData = userSnap.data();
       const userDocPic = this.normalizeProfileImage(
-        userData?.['profileImage'] || userData?.['profilepic'] || ''
+        userData?.['profilepic'] || ''
       );
-      this.profileImageUrl = userDocPic ?? this.defaultProfileImage;
+      this.profilepicUrl = userDocPic ?? this.defaultProfileImage;
     } catch (error) {
       console.error('[ProfileUserPage] Error loading users doc profile image:', error);
-      this.profileImageUrl = this.defaultProfileImage;
+      this.profilepicUrl = this.defaultProfileImage;
+    }
+  }
+
+  private async loadIdentityFromUsersDoc(uid: string): Promise<void> {
+    try {
+      const userRef = doc(this.firestore, 'users', uid);
+      const userSnap = await getDoc(userRef);
+      if (!userSnap.exists()) {
+        return;
+      }
+
+      const userData = userSnap.data();
+      this.usersDocFirstName = typeof userData?.['firstName'] === 'string' ? userData['firstName'] : '';
+      this.usersDocLastName = typeof userData?.['lastName'] === 'string' ? userData['lastName'] : '';
+      this.usersDocUsername = typeof userData?.['username'] === 'string' ? userData['username'] : '';
+    } catch (error) {
+      console.error('[ProfileUserPage] Error loading users doc identity:', error);
     }
   }
 }

@@ -73,7 +73,7 @@ export class ClientDetailsPage implements OnInit {
       this.client = {
         id: 'client1',
         name: 'John Smith',
-        profileImage: '',
+        profilepic: '',
         nextSession: new Date(Date.now() + 86400000),
         totalSessions: 12,
         lastWorkout: new Date(Date.now() - 172800000)

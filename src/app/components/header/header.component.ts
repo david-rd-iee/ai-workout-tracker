@@ -37,10 +37,9 @@ export class HeaderComponent implements OnInit {
       if (!this.currentUser) {
         const userInfo = this.userService.getUserInfo()();
         if (userInfo) {
-          // Map profileImage to profilepic for compatibility
           this.loadedUser = {
             ...userInfo,
-            profilepic: (userInfo as any).profileImage || (userInfo as any).profilepic
+            profilepic: (userInfo as any).profilepic
           };
         }
       }
@@ -54,7 +53,7 @@ export class HeaderComponent implements OnInit {
       if (userInfo) {
         this.loadedUser = {
           ...userInfo,
-          profilepic: (userInfo as any).profileImage || (userInfo as any).profilepic
+          profilepic: (userInfo as any).profilepic
         };
       }
     }
@@ -72,10 +71,9 @@ export class HeaderComponent implements OnInit {
     return source ? source[0].toUpperCase() : '?';
   }
 
-  get profileImageUrl(): string | null {
+  get profilepicUrl(): string | null {
     const user = this.effectiveUser;
-    // Support both property names for compatibility
-    const raw = ((user as any)?.profileImage || (user as any)?.profilepic || '').trim();
+    const raw = ((user as any)?.profilepic || '').trim();
     return raw.length > 0 ? raw : null;
   }
 

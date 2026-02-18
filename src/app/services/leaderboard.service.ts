@@ -108,8 +108,7 @@ export class LeaderboardService {
     const candidates = [
       source?.profilePicUrl,
       source?.profilepic,
-      source?.profileImage,
-      source?.profileImageUrl,
+      source?.profilepicUrl,
       source?.avatarUrl,
     ];
 

@@ -168,7 +168,15 @@ export class HomePage implements OnInit, OnDestroy {
                 if (client) {
                   return of({ ...client, isPT: false });
                 }
-                return of(null);
+                const userRef = doc(this.firestore, 'users', fbUser.uid);
+                return docData(userRef, { idField: 'userId' }).pipe(
+                  switchMap((appUser) => {
+                    if (appUser) {
+                      return of({ ...appUser, isPT: false });
+                    }
+                    return of(null);
+                  })
+                );
               })
             );
           })
@@ -176,10 +184,6 @@ export class HomePage implements OnInit, OnDestroy {
       })
     ).subscribe({
       next: (u) => {
-        // Map profileImage to profilepic for backward compatibility
-        if (u && (u as any).profileImage && !(u as any).profilepic) {
-          (u as any).profilepic = (u as any).profileImage;
-        }
         this.currentUser = (u as any) ?? null;
         this.isLoadingUser = false;
         
@@ -217,14 +221,16 @@ export class HomePage implements OnInit, OnDestroy {
 
       const userData = userSnap.data() as any;
       const usersProfilepic = typeof userData?.profilepic === 'string' ? userData.profilepic.trim() : '';
-      const usersProfileImage = typeof userData?.profileImage === 'string' ? userData.profileImage.trim() : '';
       const usersUsername = typeof userData?.username === 'string' ? userData.username.trim() : '';
+      const usersFirstName = typeof userData?.firstName === 'string' ? userData.firstName.trim() : '';
+      const usersLastName = typeof userData?.lastName === 'string' ? userData.lastName.trim() : '';
 
       this.currentUser = {
         ...this.currentUser,
         profilepic: usersProfilepic || this.currentUser.profilepic,
-        profileImage: usersProfileImage || this.currentUser.profileImage,
         username: usersUsername || this.currentUser.username,
+        firstName: usersFirstName || this.currentUser.firstName,
+        lastName: usersLastName || this.currentUser.lastName,
       };
     } catch (error) {
       console.error('Error hydrating header profile fields:', error);
@@ -270,7 +276,7 @@ export class HomePage implements OnInit, OnDestroy {
               firstName: client.firstName || '',
               lastName: client.lastName || '',
               name: displayName,
-              profileImage: client.profileImage || '',
+              profilepic: client.profilepic || '',
               nextSession: client.nextSession ? new Date(client.nextSession) : new Date(Date.now() + 86400000),
               totalSessions: client.totalSessions || 0,
               lastWorkout: client.lastSession ? new Date(client.lastSession) : new Date(Date.now() - 172800000)

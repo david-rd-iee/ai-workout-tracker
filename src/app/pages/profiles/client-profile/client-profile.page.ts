@@ -92,7 +92,7 @@ export class ClientProfilePage implements OnInit {
 
   // Bound to the template for basic profile info
   clientInfo = {
-    profileImage: '',
+    profilepic: '',
     firstName: '',
     lastName: ''
   };
@@ -231,12 +231,12 @@ export class ClientProfilePage implements OnInit {
         const lastName = restName.join(' ');
 
         this.clientInfo = {
-          profileImage: DEFAULT_ASSETS.PROFILE_PHOTO,
+          profilepic: DEFAULT_ASSETS.PROFILE_PHOTO,
           firstName: firstName || 'Client',
           lastName: lastName || ''
         };
 
-        this.originalProfileImage = this.clientInfo.profileImage;
+        this.originalProfileImage = this.clientInfo.profilepic;
 
         console.log('[ClientProfilePage] Loaded AppUser:', this.appUser);
         console.log('[ClientProfilePage] clientInfo:', this.clientInfo);
@@ -306,11 +306,11 @@ export class ClientProfilePage implements OnInit {
   // Helper for dev fallback values
   private useFallbackClientInfo() {
     this.clientInfo = {
-      profileImage: DEFAULT_ASSETS.PROFILE_PHOTO,
+      profilepic: DEFAULT_ASSETS.PROFILE_PHOTO,
       firstName: 'Dev',
       lastName: 'User'
     };
-    this.originalProfileImage = this.clientInfo.profileImage;
+    this.originalProfileImage = this.clientInfo.profilepic;
   }
 
   async onImageSelected(file: File) {
@@ -319,7 +319,7 @@ export class ClientProfilePage implements OnInit {
     // Create preview
     const reader = new FileReader();
     reader.onload = (e: any) => {
-      this.clientInfo.profileImage = e.target.result;
+      this.clientInfo.profilepic = e.target.result;
       this.hasChanges = true; // Set hasChanges to true when image is selected
       console.log('hasChanges set to true, new image preview created');
     };
@@ -347,7 +347,7 @@ export class ClientProfilePage implements OnInit {
         this.selectedFile || undefined
       );
 
-      this.originalProfileImage = this.clientInfo.profileImage;
+      this.originalProfileImage = this.clientInfo.profilepic;
       this.selectedFile = null;
       this.hasChanges = false;
 

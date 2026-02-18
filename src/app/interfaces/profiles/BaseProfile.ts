@@ -4,7 +4,7 @@ export interface BaseUserProfile {
     lastName: string;
     email: string | undefined;
     phone: string;
-    profileImage: string;
+    profilepic: string;
     city: string;
     state: string;
     zip: number;

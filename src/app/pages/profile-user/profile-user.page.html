@@ -15,7 +15,7 @@
         <div class="avatar-wrap">
           <img
             class="avatar-img"
-            [src]="profileImageUrl"
+            [src]="profilepicUrl"
             alt="Profile"
           />
         </div>
@@ -23,7 +23,7 @@
 
       <div class="identity">
         <div class="full-name">{{ displayName }}</div>
-        <div class="username">{{ currentUser?.city }}, {{ currentUser?.state }}</div>
+        <div class="username" *ngIf="displayUsername">@{{ displayUsername }}</div>
       </div>
     </div>
 

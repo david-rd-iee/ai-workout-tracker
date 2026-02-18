@@ -70,7 +70,6 @@ export class AccountService {
       isPT: false,
       ptUID: '',
       groups: [],
-      profileImage: '',
       profilepic: '',
       created_at: serverTimestamp(),
       createdAt: serverTimestamp(),
@@ -80,7 +79,9 @@ export class AccountService {
 
   private async initializeAuth() {
     try {
-      await this.afAuth.setPersistence('local');
+      // Use session persistence on web so each browser tab can keep its own auth user.
+      // Keep local persistence on native platforms.
+      await this.afAuth.setPersistence(this.platform.is('hybrid') ? 'local' : 'session');
 
       this.afAuth.authState.subscribe(async (user) => {
         if (user && user.uid) {

@@ -80,8 +80,8 @@ export class SignUpPage implements OnInit {
         return;
       }
 
-      // After signup you’re authenticated — send to app
-      await this.router.navigateByUrl('/tabs', { replaceUrl: true });
+      // After signup route to basic profile completion before entering app
+      await this.router.navigateByUrl('/complete-profile', { replaceUrl: true });
     } catch (err) {
       console.error(err);
       this.errorMessage = 'An error occurred during sign up.';
@@ -100,7 +100,7 @@ export class SignUpPage implements OnInit {
         this.errorMessage = 'Failed to sign up with Apple.';
         return;
       }
-      await this.router.navigateByUrl('/tabs', { replaceUrl: true });
+      await this.router.navigateByUrl('/complete-profile', { replaceUrl: true });
     } catch (err) {
       console.error(err);
       this.errorMessage = 'An error occurred during Apple sign up.';

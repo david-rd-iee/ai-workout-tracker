@@ -18,6 +18,7 @@ import {
   getAuth,
   initializeAuth,
   indexedDBLocalPersistence,
+  browserSessionPersistence,
 } from '@angular/fire/auth';
 import { provideFirestore, getFirestore } from '@angular/fire/firestore';
 import { provideAnalytics, getAnalytics } from '@angular/fire/analytics';
@@ -50,7 +51,9 @@ bootstrapApplication(AppComponent, {
           persistence: indexedDBLocalPersistence,
         });
       } else {
-        return getAuth();
+        return initializeAuth(getApp(), {
+          persistence: browserSessionPersistence,
+        });
       }
     }),
 

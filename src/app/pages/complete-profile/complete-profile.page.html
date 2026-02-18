@@ -1,0 +1,51 @@
+<ion-content class="ion-padding ion-safe-area">
+  <div class="logo">
+    <img src="assets/loginsignin.png" alt="Atlas Logo" width="280" />
+  </div>
+
+  <h1>Complete Your Profile</h1>
+  <p class="subtitle">Add your basic details before entering the app.</p>
+
+  <form (ngSubmit)="onSubmit()">
+    <ion-item lines="none">
+      <ion-input
+        label="First Name"
+        label-placement="floating"
+        [(ngModel)]="firstName"
+        name="firstName"
+        placeholder="FIRST NAME"
+        required
+      ></ion-input>
+    </ion-item>
+
+    <ion-item lines="none">
+      <ion-input
+        label="Last Name"
+        label-placement="floating"
+        [(ngModel)]="lastName"
+        name="lastName"
+        placeholder="LAST NAME"
+        required
+      ></ion-input>
+    </ion-item>
+
+    <ion-item lines="none">
+      <ion-input
+        label="Username"
+        label-placement="floating"
+        [(ngModel)]="username"
+        name="username"
+        placeholder="USERNAME"
+        required
+      ></ion-input>
+    </ion-item>
+
+    <ion-text color="danger" *ngIf="errorMessage">
+      <p class="error">{{ errorMessage }}</p>
+    </ion-text>
+
+    <ion-button expand="block" type="submit" [disabled]="isSubmitting">
+      {{ isSubmitting ? 'Saving...' : 'Continue' }}
+    </ion-button>
+  </form>
+</ion-content>

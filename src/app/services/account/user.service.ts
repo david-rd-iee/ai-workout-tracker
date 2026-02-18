@@ -104,22 +104,21 @@ export class UserService {
         
         console.log('[UserService] Raw user data from Firestore:', userData);
         console.log('[UserService] Profile image fields:', {
-          profileImage: (userData as any).profileImage,
           profilepic: (userData as any).profilepic,
           accountType: userData.accountType
         });
         
-        // If profileImage is missing, try to load from users collection as fallback
-        if (!(userData as any).profileImage && !(userData as any).profilepic) {
+        // If profilepic is missing, try to load from users collection as fallback
+        if (!(userData as any).profilepic) {
           console.log('[UserService] No profile image in collection, checking users fallback...');
           try {
             const usersDoc = await getDoc(doc(this.firestore, 'users', userID));
             if (usersDoc.exists()) {
               const usersData = usersDoc.data();
-              const fallbackImage = usersData?.['profileImage'] || usersData?.['profilepic'];
+              const fallbackImage = usersData?.['profilepic'];
               if (fallbackImage) {
                 console.log('[UserService] Found profile image in users collection:', fallbackImage);
-                (userData as any).profileImage = fallbackImage;
+                (userData as any).profilepic = fallbackImage;
               }
             }
           } catch (error) {
@@ -165,17 +164,17 @@ export class UserService {
         if (docSnap.exists()) {
           const userData = docSnap.data() as trainerProfile | clientProfile;
           
-          // If profileImage is missing, try to load from users collection as fallback
-          if (!(userData as any).profileImage && !(userData as any).profilepic) {
+          // If profilepic is missing, try to load from users collection as fallback
+          if (!(userData as any).profilepic) {
             console.log(`[UserService] No profile image for ${userId}, checking users fallback...`);
             try {
               const usersDoc = await getDoc(doc(this.firestore, 'users', userId));
               if (usersDoc.exists()) {
                 const usersData = usersDoc.data();
-                const fallbackImage = usersData?.['profileImage'] || usersData?.['profilepic'];
+                const fallbackImage = usersData?.['profilepic'];
                 if (fallbackImage) {
                   console.log(`[UserService] Found profile image in users collection:`, fallbackImage);
-                  (userData as any).profileImage = fallbackImage;
+                  (userData as any).profilepic = fallbackImage;
                 }
               }
             } catch (error) {
@@ -185,7 +184,6 @@ export class UserService {
           
           console.log('[UserService] User data loaded for', userId, ':', {
             name: `${userData.firstName} ${userData.lastName}`,
-            profileImage: (userData as any).profileImage,
             profilepic: (userData as any).profilepic,
             accountType: userData.accountType
           });
@@ -208,7 +206,7 @@ export class UserService {
     try {
       if (imageFile) {
         const imageUrl = await this.uploadClientImage(uid, imageFile);
-        profileData.profileImage = imageUrl;
+        profileData.profilepic = imageUrl;
       }
 
       const docRef = doc(this.firestore, `${this.CLIENTS_COLLECTION}/${uid}`);
@@ -230,17 +228,17 @@ export class UserService {
       if (docSnap.exists()) {
         const userData = docSnap.data() as (trainerProfile | clientProfile);
         
-        // If profileImage is missing, try to load from users collection as fallback
-        if (!(userData as any).profileImage && !(userData as any).profilepic) {
+        // If profilepic is missing, try to load from users collection as fallback
+        if (!(userData as any).profilepic) {
           console.log(`[UserService] No profile image in ${accountType} collection, checking users fallback...`);
           try {
             const usersDoc = await getDoc(doc(this.firestore, 'users', uid));
             if (usersDoc.exists()) {
               const usersData = usersDoc.data();
-              const fallbackImage = usersData?.['profileImage'] || usersData?.['profilepic'];
+              const fallbackImage = usersData?.['profilepic'];
               if (fallbackImage) {
                 console.log(`[UserService] Found profile image in users collection:`, fallbackImage);
-                (userData as any).profileImage = fallbackImage;
+                (userData as any).profilepic = fallbackImage;
               }
             }
           } catch (error) {
@@ -250,7 +248,6 @@ export class UserService {
         
         console.log(`[UserService] ${accountType} profile data retrieved:`, {
           name: `${userData.firstName} ${userData.lastName}`,
-          profileImage: (userData as any).profileImage,
           profilepic: (userData as any).profilepic,
           fullData: userData
         });

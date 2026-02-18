@@ -26,8 +26,9 @@ export class UserService {
     const data: Partial<AppUser> = {
       userId: user.uid,
       email: user.email ?? '',
-      name: user.displayName ?? 'Demo User',
-      role: 'USER',
+      firstName: '',
+      lastName: '',
+      username: user.displayName ?? '',
       created_at: serverTimestamp(),
     };
 

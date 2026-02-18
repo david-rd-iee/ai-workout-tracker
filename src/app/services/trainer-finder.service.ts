@@ -27,7 +27,7 @@ export class TrainerFinderService {
       id: userId,
       firstName: profile.firstName,
       lastName: profile.lastName,
-      profileImage: profile.profileImage,
+      profilepic: profile.profilepic,
       specialization: profile.specialization,
       city: profile.city,
       state: profile.state,

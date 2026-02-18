@@ -11,9 +11,8 @@ export interface AppUser {
   isPT: boolean; // "client", "trainer", etc.
   groupID?: string[];
 
-  // URL stored in Firestore under "profilepic", some parts use profileImage, so this was the easiest to implment
+  // URL stored in Firestore under "profilepic"
   profilepic?: string;
-  profileImage?: string;
 
   created_at?: any; // Firestore timestamp if you use it
 

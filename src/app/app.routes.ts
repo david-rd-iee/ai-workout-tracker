@@ -13,6 +13,12 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./pages/sign-up/sign-up.page').then((m) => m.SignUpPage),
   },
+  {
+    path: 'complete-profile',
+    loadComponent: () =>
+      import('./pages/complete-profile/complete-profile.page').then((m) => m.CompleteProfilePage),
+    canActivate: [authGuard],
+  },
 
   // Protected app shell
   {

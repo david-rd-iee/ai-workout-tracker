@@ -152,8 +152,8 @@
           <ion-card-content>
             <div class="client-content">
               <div class="client-avatar">
-                <ion-icon name="person-circle" *ngIf="!client.profileImage"></ion-icon>
-                <img [src]="client.profileImage" *ngIf="client.profileImage" alt="{{ client.name }}">
+                <ion-icon name="person-circle" *ngIf="!client.profilepic"></ion-icon>
+                <img [src]="client.profilepic" *ngIf="client.profilepic" alt="{{ client.name }}">
               </div>
               <div class="client-info">
                 <h3>{{ client.name }}</h3>

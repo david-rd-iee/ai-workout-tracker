@@ -13,8 +13,8 @@
         <ion-button (click)="goToProfile()" *ngIf="!showBack" class="profile-button" fill="clear">
           <ion-avatar class="profile-avatar">
             <img
-              *ngIf="profileImageUrl; else showFallback"
-              [src]="profileImageUrl"
+              *ngIf="profilepicUrl; else showFallback"
+              [src]="profilepicUrl"
               alt="Profile pic"
             />
             <ng-template #showFallback>
