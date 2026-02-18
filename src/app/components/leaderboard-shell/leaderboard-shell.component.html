@@ -4,7 +4,18 @@
       <ion-icon name="arrow-back-outline"></ion-icon>
     </ion-button>
     <div class="title-pill">{{ title }}</div>
-    <div class="topbar-spacer" aria-hidden="true"></div>
+    <ion-button
+      *ngIf="showActionButton; else topbarSpacer"
+      class="action-btn"
+      fill="clear"
+      [attr.aria-label]="actionAriaLabel"
+      (click)="actionClick.emit()"
+    >
+      <ion-icon [name]="actionIconName"></ion-icon>
+    </ion-button>
+    <ng-template #topbarSpacer>
+      <div class="topbar-spacer" aria-hidden="true"></div>
+    </ng-template>
   </div>
 
   <ion-card class="stats-card">

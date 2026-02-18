@@ -24,7 +24,7 @@ import {
 } from '@ionic/angular/standalone';
 import { FormsModule } from '@angular/forms';
 import { addIcons } from 'ionicons';
-import { arrowBackOutline } from 'ionicons/icons';
+import { arrowBackOutline, settingsOutline } from 'ionicons/icons';
 import { Color, NgxChartsModule, ScaleType } from '@swimlane/ngx-charts';
 import { LeaderboardEntry, Metric } from '../../services/leaderboard.service';
 
@@ -86,8 +86,12 @@ export class LeaderboardShellComponent implements OnChanges, AfterViewInit, OnDe
   @Input() distributionPoints: DistributionPoint[] = [];
   @Input() selectedPointBin: number | null = null;
   @Input() highlightedUserIds = new Set<string>();
+  @Input() showActionButton = false;
+  @Input() actionIconName = 'settings-outline';
+  @Input() actionAriaLabel = 'Open settings';
 
   @Output() back = new EventEmitter<void>();
+  @Output() actionClick = new EventEmitter<void>();
   @Output() metricChange = new EventEmitter<Metric>();
   @Output() scopeChange = new EventEmitter<LeaderboardScope>();
   @Output() distributionPointClick = new EventEmitter<DistributionPoint>();
@@ -106,7 +110,7 @@ export class LeaderboardShellComponent implements OnChanges, AfterViewInit, OnDe
   avatarLoadErrorUserIds = new Set<string>();
 
   constructor() {
-    addIcons({ arrowBackOutline });
+    addIcons({ arrowBackOutline, settingsOutline });
   }
 
   ngOnChanges(changes: SimpleChanges): void {

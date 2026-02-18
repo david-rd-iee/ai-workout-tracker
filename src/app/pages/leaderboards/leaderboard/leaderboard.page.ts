@@ -17,6 +17,7 @@ import {
   DistributionPoint,
   LeaderboardShellComponent,
 } from '../../../components/leaderboard-shell/leaderboard-shell.component';
+import { AccountService } from '../../../services/account/account.service';
 
 @Component({
   selector: 'app-leaderboard',
@@ -30,9 +31,11 @@ export class LeaderboardPage implements OnInit {
   private navCtrl = inject(NavController);
   private leaderboard = inject(LeaderboardService);
   private groupService = inject(GroupService);
+  private accountService = inject(AccountService);
 
   groupId = '';
   groupName = 'Group';
+  showSettingsButton = false;
 
   loading = true;
   errorMsg = '';
@@ -128,9 +131,20 @@ export class LeaderboardPage implements OnInit {
     try {
       const group = await firstValueFrom(this.groupService.getGroup(this.groupId));
       this.groupName = group?.name || 'Group';
+      const ownerUserId = (group?.ownerUserId || '').trim();
+      const currentUserId = this.accountService.getCredentials()().uid;
+      this.showSettingsButton = !!currentUserId && ownerUserId === currentUserId;
     } catch {
       this.groupName = 'Group';
+      this.showSettingsButton = false;
     }
+  }
+
+  openGroupSettings(): void {
+    this.navCtrl.navigateForward(`/group-settings/${this.groupId}`, {
+      animated: true,
+      animationDirection: 'forward',
+    });
   }
 
   private resetChartSelection(): void {

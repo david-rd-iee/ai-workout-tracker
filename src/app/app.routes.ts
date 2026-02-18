@@ -70,6 +70,12 @@ export const routes: Routes = [
     canActivate: [authGuard],
   },
   {
+    path: 'group-settings/:groupID',
+    loadComponent: () =>
+      import('./group-settings/group-settings.page').then((m) => m.GroupSettingsPage),
+    canActivate: [authGuard],
+  },
+  {
     path: '',
     redirectTo: 'login',
     pathMatch: 'full',
