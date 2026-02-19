@@ -76,6 +76,22 @@ ion-header {
     height: 28px;
   }
 
+  .invite-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+  }
+
+  .invite-actions .invite-action-btn {
+    margin-top: 0;
+  }
+
+  .invite-decline-btn {
+    --border-color: #9ca3af;
+    --color: #374151;
+    height: 28px;
+  }
+
   .invite-status {
     display: inline-block;
     margin-top: 8px;

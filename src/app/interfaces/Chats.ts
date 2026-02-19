@@ -6,13 +6,23 @@ export interface Message {
     text: string;
     timestamp: string;
     read: boolean;
-    type?: 'text' | 'group_invite';
+    type?: 'text' | 'group_invite' | 'join_request';
     groupInvite?: {
         groupId: string;
         groupName: string;
         inviterId: string;
         targetUserId: string;
         status: 'pending' | 'accepted' | 'rejected';
+        respondedAt?: string;
+        respondedBy?: string;
+    };
+    joinRequest?: {
+        groupId: string;
+        groupName: string;
+        requesterId: string;
+        requesterName: string;
+        targetOwnerId: string;
+        status: 'pending' | 'accepted' | 'declined';
         respondedAt?: string;
         respondedBy?: string;
     };

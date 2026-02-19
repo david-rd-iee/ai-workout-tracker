@@ -72,7 +72,7 @@ export const routes: Routes = [
   {
     path: 'group-settings/:groupID',
     loadComponent: () =>
-      import('./group-settings/group-settings.page').then((m) => m.GroupSettingsPage),
+      import('./pages/group-settings/group-settings.page').then((m) => m.GroupSettingsPage),
     canActivate: [authGuard],
   },
   {

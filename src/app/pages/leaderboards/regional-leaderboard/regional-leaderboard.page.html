@@ -13,8 +13,8 @@
     [selectedPointBin]="selectedPointBin"
     [highlightedUserIds]="selectedPointUserIds"
     (back)="goBack()"
-    (metricChange)="metric = $event; refresh()"
-    (scopeChange)="scope = $event; refresh()"
+    (metricChange)="onMetricChanged($event)"
+    (scopeChange)="onScopeChanged($event)"
     (distributionPointClick)="onDistributionPointClick($event)"
     (memberClick)="onMemberClick($event)"
   ></app-leaderboard-shell>

@@ -257,6 +257,77 @@ export class ChatsService {
     });
   }
 
+  async sendJoinRequest(
+    chatId: string,
+    requesterId: string,
+    requesterName: string,
+    ownerUserId: string,
+    groupId: string,
+    groupName: string
+  ): Promise<void> {
+    const messageRef = ref(this.db, `chats/${chatId}/messages`);
+    const newMessageRef = push(messageRef);
+    const timestamp = new Date().toISOString();
+
+    const text = `${requesterName} wants to join ${groupName}.`;
+    const message: Message = {
+      senderId: requesterId,
+      text,
+      timestamp,
+      read: false,
+      type: 'join_request',
+      joinRequest: {
+        groupId,
+        groupName,
+        requesterId,
+        requesterName,
+        targetOwnerId: ownerUserId,
+        status: 'pending',
+      },
+    };
+
+    await set(newMessageRef, message);
+    await set(ref(this.db, `chats/${chatId}/lastMessage`), text);
+    await set(ref(this.db, `chats/${chatId}/lastMessageTime`), timestamp);
+
+    try {
+      const senderProfile = await this.userService.getUserProfileDirectly(requesterId, 'trainer');
+      const senderAccountType: 'trainer' | 'client' = senderProfile ? 'trainer' : 'client';
+      const recipientAccountType: 'trainer' | 'client' = senderAccountType === 'trainer' ? 'client' : 'trainer';
+      const unreadCount = await this.userService.incrementUnreadMessageCount(ownerUserId, recipientAccountType);
+
+      await this.notificationService.sendNotification(
+        ownerUserId,
+        requesterName,
+        `Wants to join ${groupName}`,
+        {
+          type: 'chat',
+          chatId,
+          senderId: requesterId,
+          timestamp,
+          badge: unreadCount,
+        }
+      );
+    } catch (error) {
+      console.error('Error sending join request notification:', error);
+    }
+  }
+
+  async markJoinRequestStatus(
+    chatId: string,
+    messageId: string,
+    status: 'accepted' | 'declined',
+    respondedBy: string
+  ): Promise<void> {
+    const messageRef = ref(this.db, `chats/${chatId}/messages/${messageId}`);
+    await update(messageRef, {
+      'joinRequest/status': status,
+      'joinRequest/respondedBy': respondedBy,
+      'joinRequest/respondedAt': new Date().toISOString(),
+      read: true,
+    });
+  }
+
   // Initialize user chats
   initializeUserChats(userId: string, userType: 'trainer' | 'client'): void {
     const nextUserKey = `${userId}:${userType}`;

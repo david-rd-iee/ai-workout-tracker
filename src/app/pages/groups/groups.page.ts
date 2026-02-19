@@ -9,6 +9,7 @@ import { arrowBackOutline, addOutline, closeOutline } from 'ionicons/icons';
 import { Group } from '../../models/groups.model';
 import { GroupService } from '../../services/group.service';
 import { AccountService } from '../../services/account/account.service';
+import { ChatsService } from '../../services/chats.service';
 import { AppUser } from '../../models/user.model';
 import { LeaderboardEntry, LeaderboardService, Metric } from '../../services/leaderboard.service';
 import {
@@ -27,6 +28,7 @@ export class GroupsPage implements OnInit, OnDestroy {
   private navCtrl = inject(NavController);
   private groupService = inject(GroupService);
   private accountService = inject(AccountService);
+  private chatsService = inject(ChatsService);
   private leaderboardService = inject(LeaderboardService);
   private alertCtrl = inject(AlertController);
   private toastCtrl = inject(ToastController);
@@ -99,8 +101,31 @@ export class GroupsPage implements OnInit, OnDestroy {
     });
   }
 
-  onSearchGroupPressed(_group: Group): void {
-    // Reserved for future join/request flow.
+  async onSearchGroupPressed(group: Group): Promise<void> {
+    const currentUid = this.currentUserId;
+    const ownerUid = (group.ownerUserId || '').trim();
+
+    if (!currentUid || !ownerUid || currentUid === ownerUid) {
+      return;
+    }
+
+    const alert = await this.alertCtrl.create({
+      header: `Ask to join ${group.name}?`,
+      buttons: [
+        {
+          text: 'No',
+          role: 'cancel',
+        },
+        {
+          text: 'Yes',
+          handler: () => {
+            void this.sendJoinRequest(group, currentUid, ownerUid);
+          },
+        },
+      ],
+    });
+
+    await alert.present();
   }
 
   get filteredAllGroups(): Group[] {
@@ -136,6 +161,54 @@ export class GroupsPage implements OnInit, OnDestroy {
 
   closeGroupSearch(): void {
     this.searchModalOpen = false;
+  }
+
+  private async sendJoinRequest(group: Group, requesterUid: string, ownerUid: string): Promise<void> {
+    try {
+      const requester = await firstValueFrom(this.groupService.getUser(requesterUid));
+      const requesterName = this.resolveRequesterName(requester);
+      const chatId = await this.chatsService.findOrCreateDirectChat(requesterUid, ownerUid);
+
+      await this.chatsService.sendJoinRequest(
+        chatId,
+        requesterUid,
+        requesterName,
+        ownerUid,
+        group.groupId,
+        group.name
+      );
+
+      this.closeGroupSearch();
+      const toast = await this.toastCtrl.create({
+        message: `Join request sent to ${group.name}.`,
+        duration: 1600,
+        position: 'bottom',
+      });
+      await toast.present();
+    } catch (error) {
+      console.error('[GroupsPage] Failed to send join request:', error);
+      const toast = await this.toastCtrl.create({
+        message: 'Could not send join request.',
+        duration: 1800,
+        color: 'danger',
+        position: 'bottom',
+      });
+      await toast.present();
+    }
+  }
+
+  private resolveRequesterName(user: AppUser | undefined): string {
+    const username = (user?.username || '').trim();
+    if (username) {
+      return `@${username}`;
+    }
+
+    const full = `${(user?.firstName || '').trim()} ${(user?.lastName || '').trim()}`.trim();
+    if (full) {
+      return full;
+    }
+
+    return 'A user';
   }
 
   isOwnedByCurrentUser(group: Group): boolean {

@@ -23,7 +23,7 @@ import {
 import { NavController } from '@ionic/angular';
 
 import { Auth } from '@angular/fire/auth';
-import { Firestore, doc, getDoc, setDoc, collection, query, where, getDocs, serverTimestamp } from '@angular/fire/firestore';
+import { Firestore, doc, getDoc, setDoc, collection, query, where, getDocs, serverTimestamp, onSnapshot } from '@angular/fire/firestore';
 import { Storage, ref, deleteObject } from '@angular/fire/storage';
 import { effect } from '@angular/core';
 
@@ -107,6 +107,8 @@ export class ProfileUserPage implements OnInit, OnDestroy {
   private loadedIdentityUid: string | null = null;
   private pendingRoleLoadKey: string | null = null;
   private loadedRoleLoadKey: string | null = null;
+  private usersDocUnsubscribe: (() => void) | null = null;
+  private usersDocListenerUid: string | null = null;
 
   // Greek Statue properties
   allStatues: GreekStatue[] = [];
@@ -191,16 +193,22 @@ export class ProfileUserPage implements OnInit, OnDestroy {
 
   ionViewDidEnter(): void {
     this.hasEnteredView = true;
+    const uid = this.auth.currentUser?.uid ?? null;
+    if (uid) {
+      this.startUsersDocRealtimeListener(uid);
+    }
     void this.runDeferredLoads();
   }
 
   ionViewDidLeave(): void {
     this.hasEnteredView = false;
+    this.stopUsersDocRealtimeListener();
   }
 
   ngOnDestroy(): void {
     this.hasEnteredView = false;
     this.roleLoadInFlight = false;
+    this.stopUsersDocRealtimeListener();
   }
 
   private async runDeferredLoads(): Promise<void> {
@@ -603,6 +611,53 @@ export class ProfileUserPage implements OnInit, OnDestroy {
     } catch (error) {
       console.error('[ProfileUserPage] Error loading users doc identity:', error);
     }
+  }
+
+  private startUsersDocRealtimeListener(uid: string): void {
+    if (!uid) return;
+    if (this.usersDocUnsubscribe && this.usersDocListenerUid === uid) {
+      return;
+    }
+
+    this.stopUsersDocRealtimeListener();
+    this.usersDocListenerUid = uid;
+
+    const userRef = doc(this.firestore, 'users', uid);
+    this.usersDocUnsubscribe = onSnapshot(
+      userRef,
+      (snapshot) => {
+        if (!snapshot.exists()) {
+          return;
+        }
+
+        const data = snapshot.data();
+        const nextFirstName = typeof data?.['firstName'] === 'string' ? data['firstName'] : '';
+        const nextLastName = typeof data?.['lastName'] === 'string' ? data['lastName'] : '';
+        const nextUsername = typeof data?.['username'] === 'string' ? data['username'] : '';
+        const nextProfilePic = this.normalizeProfileImage(data?.['profilepic'] || '');
+
+        this.usersDocFirstName = nextFirstName;
+        this.usersDocLastName = nextLastName;
+        this.usersDocUsername = nextUsername;
+        this.profilepicUrl = nextProfilePic ?? this.defaultProfileImage;
+
+        if (this.currentUser) {
+          (this.currentUser as any).firstName = nextFirstName || (this.currentUser as any).firstName;
+          (this.currentUser as any).lastName = nextLastName || (this.currentUser as any).lastName;
+          (this.currentUser as any).username = nextUsername || (this.currentUser as any).username;
+          (this.currentUser as any).profilepic = nextProfilePic ?? (this.currentUser as any).profilepic;
+        }
+      },
+      (error) => {
+        console.error('[ProfileUserPage] users realtime listener error:', error);
+      }
+    );
+  }
+
+  private stopUsersDocRealtimeListener(): void {
+    this.usersDocUnsubscribe?.();
+    this.usersDocUnsubscribe = null;
+    this.usersDocListenerUid = null;
   }
 
   private async changeProfileImage(): Promise<void> {

@@ -46,6 +46,8 @@ export class LeaderboardPage implements OnInit, OnDestroy {
   selectedPointBin: number | null = null;
   selectedPointUserIds = new Set<string>();
   private groupUnsubscribe: (() => void) | null = null;
+  private statsUnsubscribes = new Map<string, () => void>();
+  private refreshTimer: ReturnType<typeof setTimeout> | null = null;
   private lastGroupUsersSignature = '';
 
   constructor() {}
@@ -137,6 +139,7 @@ export class LeaderboardPage implements OnInit, OnDestroy {
         if (!snap.exists()) {
           this.groupName = 'Group';
           this.showSettingsButton = false;
+          this.clearUserStatsListeners();
           this.lastGroupUsersSignature = '';
           return;
         }
@@ -149,6 +152,7 @@ export class LeaderboardPage implements OnInit, OnDestroy {
         this.showSettingsButton = !!currentUserId && ownerUserId === currentUserId;
 
         const userIDs = Array.isArray(group?.userIDs) ? group.userIDs.map((id: any) => String(id)) : [];
+        this.rewireUserStatsListeners(userIDs);
         const nextSignature = userIDs.slice().sort().join('|');
         if (this.lastGroupUsersSignature && this.lastGroupUsersSignature !== nextSignature) {
           void this.refresh();
@@ -158,8 +162,51 @@ export class LeaderboardPage implements OnInit, OnDestroy {
       () => {
         this.groupName = 'Group';
         this.showSettingsButton = false;
+        this.clearUserStatsListeners();
       }
     );
+  }
+
+  private rewireUserStatsListeners(userIds: string[]): void {
+    const nextIds = new Set(userIds.filter(Boolean));
+
+    for (const [uid, unsubscribe] of this.statsUnsubscribes.entries()) {
+      if (!nextIds.has(uid)) {
+        unsubscribe();
+        this.statsUnsubscribes.delete(uid);
+      }
+    }
+
+    for (const uid of nextIds) {
+      if (this.statsUnsubscribes.has(uid)) {
+        continue;
+      }
+
+      const statsRef = doc(this.firestore, 'userStats', uid);
+      const unsubscribe = onSnapshot(statsRef, () => {
+        this.scheduleRefreshFromRealtime();
+      });
+
+      this.statsUnsubscribes.set(uid, unsubscribe);
+    }
+  }
+
+  private clearUserStatsListeners(): void {
+    for (const unsubscribe of this.statsUnsubscribes.values()) {
+      unsubscribe();
+    }
+    this.statsUnsubscribes.clear();
+  }
+
+  private scheduleRefreshFromRealtime(): void {
+    if (this.refreshTimer) {
+      return;
+    }
+
+    this.refreshTimer = setTimeout(() => {
+      this.refreshTimer = null;
+      void this.refresh();
+    }, 120);
   }
 
   openGroupSettings(): void {
@@ -172,6 +219,11 @@ export class LeaderboardPage implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.groupUnsubscribe?.();
     this.groupUnsubscribe = null;
+    this.clearUserStatsListeners();
+    if (this.refreshTimer) {
+      clearTimeout(this.refreshTimer);
+      this.refreshTimer = null;
+    }
   }
 
   private resetChartSelection(): void {

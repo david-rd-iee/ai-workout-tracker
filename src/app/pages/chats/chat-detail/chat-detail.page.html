@@ -16,7 +16,7 @@
       [class.received]="!isMyMessage(message)"
     >
       <div class="message-bubble">
-        <ng-container *ngIf="isGroupInvite(message); else plainMessage">
+        <ng-container *ngIf="isGroupInvite(message); else joinRequestOrPlain">
           <p>{{ message.text }}</p>
           <ion-button
             *ngIf="canAcceptGroupInvite(message)"
@@ -28,8 +28,32 @@
           </ion-button>
           <span class="invite-status" *ngIf="message.groupInvite?.status === 'accepted'">Accepted</span>
         </ng-container>
-        <ng-template #plainMessage>
-          <p>{{ message.text }}</p>
+        <ng-template #joinRequestOrPlain>
+          <ng-container *ngIf="isJoinRequest(message); else plainMessage">
+            <p>{{ message.text }}</p>
+            <div class="invite-actions" *ngIf="canRespondJoinRequest(message)">
+              <ion-button
+                size="small"
+                class="invite-action-btn"
+                (click)="acceptJoinRequest(message)"
+              >
+                Accept
+              </ion-button>
+              <ion-button
+                size="small"
+                fill="outline"
+                class="invite-decline-btn"
+                (click)="declineJoinRequest(message)"
+              >
+                Decline
+              </ion-button>
+            </div>
+            <span class="invite-status" *ngIf="message.joinRequest?.status === 'accepted'">Accepted</span>
+            <span class="invite-status" *ngIf="message.joinRequest?.status === 'declined'">Declined</span>
+          </ng-container>
+          <ng-template #plainMessage>
+            <p>{{ message.text }}</p>
+          </ng-template>
         </ng-template>
         <span class="timestamp">{{ formatTimestamp(message.timestamp) }}</span>
       </div>

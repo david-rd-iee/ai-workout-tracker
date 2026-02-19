@@ -265,6 +265,73 @@ export class ChatDetailPage implements OnInit, OnDestroy {
     }
   }
 
+  isJoinRequest(message: Message): boolean {
+    return message.type === 'join_request' && !!message.joinRequest;
+  }
+
+  canRespondJoinRequest(message: Message): boolean {
+    if (!this.isJoinRequest(message) || !message.joinRequest) return false;
+    if (message.joinRequest.status !== 'pending') return false;
+    return message.joinRequest.targetOwnerId === this.currentUserId;
+  }
+
+  async acceptJoinRequest(message: Message): Promise<void> {
+    await this.respondToJoinRequest(message, 'accepted');
+  }
+
+  async declineJoinRequest(message: Message): Promise<void> {
+    await this.respondToJoinRequest(message, 'declined');
+  }
+
+  private async respondToJoinRequest(
+    message: Message,
+    status: 'accepted' | 'declined'
+  ): Promise<void> {
+    if (!this.chatId || !message.messageId || !message.joinRequest || !this.canRespondJoinRequest(message)) {
+      return;
+    }
+
+    const loading = await this.loadingCtrl.create({
+      message: status === 'accepted' ? 'Accepting request...' : 'Declining request...',
+    });
+    await loading.present();
+
+    try {
+      const joinRequest = message.joinRequest;
+
+      if (status === 'accepted') {
+        const groupRef = doc(this.firestore, 'groupID', joinRequest.groupId);
+        await updateDoc(groupRef, {
+          userIDs: arrayUnion(joinRequest.requesterId),
+          updatedAt: serverTimestamp(),
+        });
+
+        const userRef = doc(this.firestore, 'users', joinRequest.requesterId);
+        await updateDoc(userRef, {
+          groupID: arrayUnion(joinRequest.groupId),
+        });
+      }
+
+      await this.chatsService.markJoinRequestStatus(
+        this.chatId,
+        message.messageId,
+        status,
+        this.currentUserId
+      );
+
+      await this.showToast(
+        status === 'accepted'
+          ? `Accepted request for ${joinRequest.groupName}.`
+          : `Declined request for ${joinRequest.groupName}.`
+      );
+    } catch (error) {
+      console.error('Error responding to join request:', error);
+      await this.showToast('Could not update join request.');
+    } finally {
+      await loading.dismiss();
+    }
+  }
+
   private async showToast(message: string): Promise<void> {
     const toast = await this.toastCtrl.create({
       message,

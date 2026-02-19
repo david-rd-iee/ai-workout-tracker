@@ -6,7 +6,7 @@ import {
 } from '@ionic/angular/standalone';
 
 import { Auth, onAuthStateChanged, User } from '@angular/fire/auth';
-import { Firestore, doc, docData } from '@angular/fire/firestore';
+import { Firestore, QueryConstraint, collection, doc, docData, onSnapshot, query, where } from '@angular/fire/firestore';
 import { Subscription } from 'rxjs';
 
 import { LeaderboardService, LeaderboardEntry, Metric } from '../../../services/leaderboard.service';
@@ -30,6 +30,8 @@ export class RegionalLeaderboardPage implements OnInit, OnDestroy {
   private navCtrl = inject(NavController);
 
   private sub?: Subscription;
+  private regionalUnsubscribe: (() => void) | null = null;
+  private refreshTimer: ReturnType<typeof setTimeout> | null = null;
 
   loading = true;
   errorMsg = '';
@@ -66,6 +68,7 @@ export class RegionalLeaderboardPage implements OnInit, OnDestroy {
       this.sub = docData(statsRef).subscribe({
         next: (stats: any) => {
           this.userRegion = stats?.region ?? null;
+          this.setupRegionalRealtimeSubscription();
           this.refresh();
         },
         error: (err) => {
@@ -79,6 +82,12 @@ export class RegionalLeaderboardPage implements OnInit, OnDestroy {
 
   ngOnDestroy() {
     this.sub?.unsubscribe();
+    this.regionalUnsubscribe?.();
+    this.regionalUnsubscribe = null;
+    if (this.refreshTimer) {
+      clearTimeout(this.refreshTimer);
+      this.refreshTimer = null;
+    }
   }
 
   async refresh() {
@@ -133,6 +142,17 @@ export class RegionalLeaderboardPage implements OnInit, OnDestroy {
 
   goBack() {
     this.navCtrl.navigateBack('/profile-user');
+  }
+
+  onMetricChanged(metric: Metric): void {
+    this.metric = metric;
+    this.refresh();
+  }
+
+  onScopeChanged(scope: LeaderboardScope): void {
+    this.scope = scope;
+    this.setupRegionalRealtimeSubscription();
+    this.refresh();
   }
 
   regionLabel(): string {
@@ -201,6 +221,50 @@ export class RegionalLeaderboardPage implements OnInit, OnDestroy {
   private resetChartSelection(): void {
     this.selectedPointBin = null;
     this.selectedPointUserIds.clear();
+  }
+
+  private setupRegionalRealtimeSubscription(): void {
+    this.regionalUnsubscribe?.();
+    this.regionalUnsubscribe = null;
+
+    if (!this.userRegion?.countryCode) {
+      return;
+    }
+
+    const constraints: QueryConstraint[] = [
+      where('region.countryCode', '==', this.userRegion.countryCode),
+    ];
+
+    if (this.scope === 'state' || this.scope === 'city') {
+      if (!this.userRegion.stateCode) {
+        return;
+      }
+      constraints.push(where('region.stateCode', '==', this.userRegion.stateCode));
+    }
+
+    if (this.scope === 'city') {
+      if (!this.userRegion.cityId) {
+        return;
+      }
+      constraints.push(where('region.cityId', '==', this.userRegion.cityId));
+    }
+
+    const statsRef = collection(this.firestore, 'userStats');
+    const regionalQuery = query(statsRef, ...constraints);
+    this.regionalUnsubscribe = onSnapshot(regionalQuery, () => {
+      this.scheduleRefreshFromRealtime();
+    });
+  }
+
+  private scheduleRefreshFromRealtime(): void {
+    if (this.refreshTimer) {
+      return;
+    }
+
+    this.refreshTimer = setTimeout(() => {
+      this.refreshTimer = null;
+      this.refresh();
+    }, 120);
   }
 
   private buildDistributionChart(): void {

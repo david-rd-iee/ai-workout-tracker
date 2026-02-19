@@ -35,10 +35,10 @@ import { Storage, deleteObject, ref } from '@angular/fire/storage';
 import { FormsModule } from '@angular/forms';
 import { addIcons } from 'ionicons';
 import { addOutline, arrowBackOutline, imageOutline, removeOutline } from 'ionicons/icons';
-import { AccountService } from '../services/account/account.service';
-import { FileUploadService } from '../services/file-upload.service';
-import { ImagePickerService } from '../services/image-picker.service';
-import { ChatsService } from '../services/chats.service';
+import { AccountService } from '../../services/account/account.service';
+import { FileUploadService } from '../../services/file-upload.service';
+import { ImagePickerService } from '../../services/image-picker.service';
+import { ChatsService } from '../../services/chats.service';
 
 type GroupMember = {
   uid: string;

@@ -78,8 +78,6 @@ export class AccountService {
     const userStatsRef = doc(this.firestore, 'userStats', uid);
     await setDoc(userStatsRef, {
       userId: uid,
-      workScore: 0,
-      CardioScore: 0,
       StrengthScore: 0,
       totalWorkScore: 0,
       cardioWorkScore: 0,
