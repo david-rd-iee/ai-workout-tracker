@@ -69,3 +69,48 @@
   --background-hover: #1d4ed8;
   --color: #ffffff;
 }
+
+.users-panel {
+  margin-top: 14px;
+}
+
+.users-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.users-panel-header h2 {
+  margin: 0;
+}
+
+.add-user-btn {
+  --background: #2563eb;
+  --background-hover: #1d4ed8;
+  --color: #ffffff;
+}
+
+.users-list {
+  background: transparent;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.users-row {
+  --background: #ffffff;
+  --padding-start: 12px;
+  --inner-padding-end: 8px;
+  --min-height: 42px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.users-row:first-child {
+  border-top: 0;
+}
+
+.remove-user-btn {
+  --color: #374151;
+}

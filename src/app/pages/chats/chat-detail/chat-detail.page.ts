@@ -12,7 +12,9 @@ import {
   IonBackButton,
   IonIcon,
   IonFooter,
-  IonTextarea
+  IonTextarea,
+  LoadingController,
+  ToastController,
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
 import { arrowUp } from 'ionicons/icons';
@@ -22,6 +24,7 @@ import { AccountService } from 'src/app/services/account/account.service';
 import { Message } from 'src/app/Interfaces/Chats';
 import { ref, onValue, get } from '@angular/fire/database';
 import { Database } from '@angular/fire/database';
+import { Firestore, doc, updateDoc, arrayUnion, serverTimestamp } from '@angular/fire/firestore';
 
 @Component({
   selector: 'app-chat-detail',
@@ -61,7 +64,10 @@ export class ChatDetailPage implements OnInit, OnDestroy {
     private chatsService: ChatsService,
     private userService: UserService,
     private accountService: AccountService,
-    private db: Database
+    private db: Database,
+    private firestore: Firestore,
+    private loadingCtrl: LoadingController,
+    private toastCtrl: ToastController
   ) {
     addIcons({ arrowUp });
   }
@@ -212,5 +218,59 @@ export class ChatDetailPage implements OnInit, OnDestroy {
     if (diffDays < 7) return `${diffDays}d ago`;
     
     return date.toLocaleDateString();
+  }
+
+  isGroupInvite(message: Message): boolean {
+    return message.type === 'group_invite' && !!message.groupInvite;
+  }
+
+  canAcceptGroupInvite(message: Message): boolean {
+    if (!this.isGroupInvite(message)) return false;
+    if (this.isMyMessage(message)) return false;
+    if (!message.groupInvite) return false;
+    if (message.groupInvite.status !== 'pending') return false;
+    return message.groupInvite.targetUserId === this.currentUserId;
+  }
+
+  async acceptGroupInvite(message: Message): Promise<void> {
+    if (!this.chatId || !message.messageId || !this.canAcceptGroupInvite(message) || !message.groupInvite) {
+      return;
+    }
+
+    const loading = await this.loadingCtrl.create({
+      message: 'Joining group...',
+    });
+    await loading.present();
+
+    try {
+      const invite = message.groupInvite;
+      const groupRef = doc(this.firestore, 'groupID', invite.groupId);
+      await updateDoc(groupRef, {
+        userIDs: arrayUnion(this.currentUserId),
+        updatedAt: serverTimestamp(),
+      });
+
+      const userRef = doc(this.firestore, 'users', this.currentUserId);
+      await updateDoc(userRef, {
+        groupID: arrayUnion(invite.groupId),
+      });
+
+      await this.chatsService.markGroupInviteAccepted(this.chatId, message.messageId, this.currentUserId);
+      await this.showToast(`Joined ${invite.groupName}.`);
+    } catch (error) {
+      console.error('Error accepting group invite:', error);
+      await this.showToast('Could not join group. Please try again.');
+    } finally {
+      await loading.dismiss();
+    }
+  }
+
+  private async showToast(message: string): Promise<void> {
+    const toast = await this.toastCtrl.create({
+      message,
+      duration: 2000,
+      position: 'bottom',
+    });
+    await toast.present();
   }
 }

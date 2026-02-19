@@ -9,18 +9,40 @@ import {
   IonContent,
   IonHeader,
   IonIcon,
+  IonItem,
+  IonLabel,
+  IonList,
+  IonModal,
+  IonSearchbar,
   IonTitle,
   IonToolbar,
   LoadingController,
   ToastController,
 } from '@ionic/angular/standalone';
-import { Firestore, doc, getDoc, setDoc, serverTimestamp } from '@angular/fire/firestore';
+import {
+  Firestore,
+  arrayRemove,
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  setDoc,
+  serverTimestamp,
+  updateDoc,
+} from '@angular/fire/firestore';
 import { Storage, deleteObject, ref } from '@angular/fire/storage';
+import { FormsModule } from '@angular/forms';
 import { addIcons } from 'ionicons';
-import { arrowBackOutline, imageOutline } from 'ionicons/icons';
+import { addOutline, arrowBackOutline, imageOutline, removeOutline } from 'ionicons/icons';
 import { AccountService } from '../services/account/account.service';
 import { FileUploadService } from '../services/file-upload.service';
 import { ImagePickerService } from '../services/image-picker.service';
+import { ChatsService } from '../services/chats.service';
+
+type GroupMember = {
+  uid: string;
+  username: string;
+};
 
 @Component({
   selector: 'app-group-settings',
@@ -35,6 +57,12 @@ import { ImagePickerService } from '../services/image-picker.service';
     IonButtons,
     IonButton,
     IonIcon,
+    IonModal,
+    IonSearchbar,
+    IonList,
+    IonItem,
+    IonLabel,
+    FormsModule,
     CommonModule,
   ],
 })
@@ -46,16 +74,25 @@ export class GroupSettingsPage implements OnInit {
   private storage = inject(Storage);
   private fileUploadService = inject(FileUploadService);
   private imagePickerService = inject(ImagePickerService);
+  private chatsService = inject(ChatsService);
   private alertCtrl = inject(AlertController);
   private loadingCtrl = inject(LoadingController);
   private toastCtrl = inject(ToastController);
 
   groupId = '';
+  groupName = 'Group';
+  ownerUserId = '';
   groupImageUrl = '';
   canEditGroup = false;
+  groupUserIds: string[] = [];
+  allUsers: GroupMember[] = [];
+  memberUsers: GroupMember[] = [];
+  addUserModalOpen = false;
+  userSearchQuery = '';
+  loadingUsers = false;
 
   constructor() {
-    addIcons({ arrowBackOutline, imageOutline });
+    addIcons({ arrowBackOutline, imageOutline, addOutline, removeOutline });
   }
 
   ngOnInit(): void {
@@ -130,12 +167,19 @@ export class GroupSettingsPage implements OnInit {
       const ownerUserId = typeof groupData?.ownerUserId === 'string' ? groupData.ownerUserId.trim() : '';
       const currentUserId = this.accountService.getCredentials()().uid;
 
+      this.groupName = typeof groupData?.name === 'string' ? groupData.name : 'Group';
+      this.ownerUserId = ownerUserId;
       this.canEditGroup = !!currentUserId && ownerUserId === currentUserId;
       this.groupImageUrl = typeof groupData?.groupImage === 'string' ? groupData.groupImage : '';
+      this.groupUserIds = Array.isArray(groupData?.userIDs) ? groupData.userIDs : [];
+      await this.ensureAllUsersLoaded();
+      this.refreshMemberUsers();
     } catch (error) {
       console.error('[GroupSettingsPage] Failed to load group:', error);
       this.canEditGroup = false;
       this.groupImageUrl = '';
+      this.groupUserIds = [];
+      this.memberUsers = [];
     }
   }
 
@@ -194,6 +238,164 @@ export class GroupSettingsPage implements OnInit {
       position: 'bottom',
     });
     await toast.present();
+  }
+
+  get filteredCandidateUsers(): GroupMember[] {
+    const q = this.userSearchQuery.trim().toLowerCase();
+    const currentUid = this.accountService.getCredentials()().uid;
+    const base = this.allUsers.filter(
+      (user) => !this.groupUserIds.includes(user.uid) && user.uid !== currentUid
+    );
+
+    if (!q) {
+      return base.slice(0, 40);
+    }
+
+    return base
+      .filter((user) => user.username.toLowerCase().includes(q))
+      .slice(0, 40);
+  }
+
+  async openAddUserModal(): Promise<void> {
+    if (!this.canEditGroup) {
+      return;
+    }
+
+    await this.ensureAllUsersLoaded();
+    this.userSearchQuery = '';
+    this.addUserModalOpen = true;
+  }
+
+  closeAddUserModal(): void {
+    this.addUserModalOpen = false;
+  }
+
+  async inviteUser(user: GroupMember): Promise<void> {
+    const senderId = this.accountService.getCredentials()().uid;
+    if (!senderId || !this.groupId) {
+      return;
+    }
+
+    const loading = await this.loadingCtrl.create({
+      message: 'Sending invite...',
+    });
+    await loading.present();
+
+    try {
+      const chatId = await this.chatsService.findOrCreateDirectChat(senderId, user.uid);
+      await this.chatsService.sendGroupInvite(
+        chatId,
+        senderId,
+        user.uid,
+        this.groupId,
+        this.groupName
+      );
+
+      this.closeAddUserModal();
+      await this.showToast(`Invite sent to @${user.username}.`);
+    } catch (error) {
+      console.error('[GroupSettingsPage] Failed to send invite:', error);
+      await this.showToast('Could not send invite.');
+    } finally {
+      await loading.dismiss();
+    }
+  }
+
+  canRemoveMember(member: GroupMember): boolean {
+    return this.canEditGroup && member.uid !== this.ownerUserId;
+  }
+
+  async promptRemoveMember(member: GroupMember): Promise<void> {
+    if (!this.canRemoveMember(member)) {
+      return;
+    }
+
+    const alert = await this.alertCtrl.create({
+      header: 'Remove User',
+      message: `Are you sure you want to remove @${member.username} from this group?`,
+      buttons: [
+        { text: 'Cancel', role: 'cancel' },
+        {
+          text: 'Yes',
+          role: 'destructive',
+          handler: () => {
+            void this.removeMember(member);
+          },
+        },
+      ],
+    });
+
+    await alert.present();
+  }
+
+  private async removeMember(member: GroupMember): Promise<void> {
+    if (!this.groupId) {
+      return;
+    }
+
+    const loading = await this.loadingCtrl.create({
+      message: 'Removing user...',
+    });
+    await loading.present();
+
+    try {
+      const groupRef = doc(this.firestore, 'groupID', this.groupId);
+      await updateDoc(groupRef, {
+        userIDs: arrayRemove(member.uid),
+        updatedAt: serverTimestamp(),
+      });
+
+      const userRef = doc(this.firestore, 'users', member.uid);
+      await updateDoc(userRef, {
+        groupID: arrayRemove(this.groupId),
+      });
+
+      this.groupUserIds = this.groupUserIds.filter((id) => id !== member.uid);
+      this.refreshMemberUsers();
+      await this.showToast(`Removed @${member.username}.`);
+    } catch (error) {
+      console.error('[GroupSettingsPage] Failed to remove member:', error);
+      await this.showToast('Could not remove user.');
+    } finally {
+      await loading.dismiss();
+    }
+  }
+
+  private async ensureAllUsersLoaded(): Promise<void> {
+    if (this.allUsers.length > 0 || this.loadingUsers) {
+      return;
+    }
+
+    this.loadingUsers = true;
+    try {
+      const usersSnap = await getDocs(collection(this.firestore, 'users'));
+      this.allUsers = usersSnap.docs
+        .map((userDoc) => {
+          const data = userDoc.data() as any;
+          const usernameRaw = typeof data?.username === 'string' ? data.username.trim() : '';
+          if (!usernameRaw) return null;
+          return {
+            uid: userDoc.id,
+            username: usernameRaw,
+          } satisfies GroupMember;
+        })
+        .filter((user): user is GroupMember => !!user)
+        .sort((a, b) => a.username.localeCompare(b.username));
+    } finally {
+      this.loadingUsers = false;
+    }
+  }
+
+  private refreshMemberUsers(): void {
+    const usersById = new Map(this.allUsers.map((user) => [user.uid, user]));
+    this.memberUsers = this.groupUserIds.map((uid) => {
+      const existing = usersById.get(uid);
+      if (existing) return existing;
+      return {
+        uid,
+        username: uid,
+      };
+    });
   }
 
   private normalizeImageUrl(value: unknown): string | null {

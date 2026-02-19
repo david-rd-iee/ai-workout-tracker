@@ -74,6 +74,19 @@ export class AccountService {
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });
+
+    const userStatsRef = doc(this.firestore, 'userStats', uid);
+    await setDoc(userStatsRef, {
+      userId: uid,
+      workScore: 0,
+      CardioScore: 0,
+      StrengthScore: 0,
+      totalWorkScore: 0,
+      cardioWorkScore: 0,
+      strengthWorkScore: 0,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
   }
 
   private async initializeAuth() {

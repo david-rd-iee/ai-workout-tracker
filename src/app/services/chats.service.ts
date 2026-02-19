@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { Database, ref, push, set, onValue, query, orderByChild, get } from '@angular/fire/database';
+import { Database, ref, push, set, onValue, query, orderByChild, get, update } from '@angular/fire/database';
 import { Observable, BehaviorSubject } from 'rxjs';
 import { Chat, Message } from '../Interfaces/Chats';
 import { UserService } from './account/user.service';
@@ -165,6 +165,96 @@ export class ChatsService {
       // Log the error but don't fail the message send if notification fails
       console.error('Error sending notification:', error);
     }
+  }
+
+  async findOrCreateDirectChat(userId1: string, userId2: string): Promise<string> {
+    const userChatsRef = ref(this.db, `userChats/${userId1}`);
+    const userChatsSnapshot = await get(userChatsRef);
+
+    if (userChatsSnapshot.exists()) {
+      const chatIds = Object.keys(userChatsSnapshot.val() || {});
+      for (const chatId of chatIds) {
+        const chatSnapshot = await get(ref(this.db, `chats/${chatId}`));
+        if (!chatSnapshot.exists()) continue;
+
+        const chatData = chatSnapshot.val() as Chat;
+        const participants = Array.isArray(chatData.participants) ? chatData.participants : [];
+        if (participants.includes(userId1) && participants.includes(userId2)) {
+          return chatId;
+        }
+      }
+    }
+
+    return this.createChat(userId1, userId2);
+  }
+
+  async sendGroupInvite(
+    chatId: string,
+    senderId: string,
+    targetUserId: string,
+    groupId: string,
+    groupName: string
+  ): Promise<void> {
+    const messageRef = ref(this.db, `chats/${chatId}/messages`);
+    const newMessageRef = push(messageRef);
+    const timestamp = new Date().toISOString();
+
+    const message: Message = {
+      senderId,
+      text: `You've been invited to join ${groupName}.`,
+      timestamp,
+      read: false,
+      type: 'group_invite',
+      groupInvite: {
+        groupId,
+        groupName,
+        inviterId: senderId,
+        targetUserId,
+        status: 'pending',
+      },
+    };
+
+    await set(newMessageRef, message);
+    await set(ref(this.db, `chats/${chatId}/lastMessage`), `Group invite: ${groupName}`);
+    await set(ref(this.db, `chats/${chatId}/lastMessageTime`), timestamp);
+
+    try {
+      let senderName = 'Atlas';
+      const userProfile = this.userService.getUserInfo()();
+      if (userProfile) {
+        senderName = userProfile.firstName + ' ' + userProfile.lastName || 'Atlas';
+      }
+
+      const senderProfile = await this.userService.getUserProfileDirectly(senderId, 'trainer');
+      const senderAccountType: 'trainer' | 'client' = senderProfile ? 'trainer' : 'client';
+      const recipientAccountType: 'trainer' | 'client' = senderAccountType === 'trainer' ? 'client' : 'trainer';
+      const unreadCount = await this.userService.incrementUnreadMessageCount(targetUserId, recipientAccountType);
+
+      await this.notificationService.sendNotification(
+        targetUserId,
+        senderName,
+        `Invited you to join ${groupName}`,
+        {
+          type: 'chat',
+          chatId,
+          senderId,
+          timestamp,
+          badge: unreadCount,
+        }
+      );
+    } catch (error) {
+      console.error('Error sending group invite notification:', error);
+    }
+  }
+
+  async markGroupInviteAccepted(chatId: string, messageId: string, respondedBy: string): Promise<void> {
+    const messageRef = ref(this.db, `chats/${chatId}/messages/${messageId}`);
+    await update(messageRef, {
+      'groupInvite/status': 'accepted',
+      'groupInvite/respondedBy': respondedBy,
+      'groupInvite/respondedAt': new Date().toISOString(),
+      read: true,
+    });
   }
 
   // Initialize user chats

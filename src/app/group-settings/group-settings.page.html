@@ -36,5 +36,60 @@
         </ion-button>
       </div>
     </section>
+
+    <section class="settings-panel users-panel">
+      <div class="users-panel-header">
+        <h2>{{ groupName }}'s Users</h2>
+        <ion-button class="add-user-btn" (click)="openAddUserModal()" [disabled]="!canEditGroup">
+          <ion-icon slot="start" name="add-outline"></ion-icon>
+          Add User
+        </ion-button>
+      </div>
+
+      <ion-list class="users-list" lines="none">
+        <ion-item class="users-row" *ngFor="let member of memberUsers">
+          <ion-label>@{{ member.username }}</ion-label>
+          <ion-button
+            *ngIf="canRemoveMember(member)"
+            slot="end"
+            fill="clear"
+            class="remove-user-btn"
+            (click)="promptRemoveMember(member)"
+            aria-label="Remove user"
+          >
+            <ion-icon slot="icon-only" name="remove-outline"></ion-icon>
+          </ion-button>
+        </ion-item>
+      </ion-list>
+    </section>
   </div>
 </ion-content>
+
+<ion-modal [isOpen]="addUserModalOpen" (didDismiss)="closeAddUserModal()">
+  <ng-template>
+    <ion-header>
+      <ion-toolbar class="settings-toolbar">
+        <ion-title>Add User</ion-title>
+        <ion-buttons slot="end">
+          <ion-button fill="clear" (click)="closeAddUserModal()">Close</ion-button>
+        </ion-buttons>
+      </ion-toolbar>
+    </ion-header>
+
+    <ion-content class="group-settings-content">
+      <div class="settings-shell">
+        <ion-searchbar
+          [(ngModel)]="userSearchQuery"
+          placeholder="Search username"
+          autocomplete="off"
+        ></ion-searchbar>
+
+        <ion-list class="users-list" lines="none">
+          <ion-item class="users-row" *ngFor="let user of filteredCandidateUsers" button (click)="inviteUser(user)">
+            <ion-label>@{{ user.username }}</ion-label>
+          </ion-item>
+        </ion-list>
+      </div>
+    </ion-content>
+  </ng-template>
+</ion-modal>

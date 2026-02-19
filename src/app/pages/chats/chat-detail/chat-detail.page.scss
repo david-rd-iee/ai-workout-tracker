@@ -68,6 +68,21 @@ ion-header {
     display: block;
     margin-top: 2px;
   }
+
+  .invite-action-btn {
+    margin-top: 8px;
+    --background: #2563eb;
+    --color: #fff;
+    height: 28px;
+  }
+
+  .invite-status {
+    display: inline-block;
+    margin-top: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    opacity: 0.75;
+  }
 }
 
 .empty-state {
@@ -137,4 +152,3 @@ ion-footer {
     }
   }
 }
-

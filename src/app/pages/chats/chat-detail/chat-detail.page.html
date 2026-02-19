@@ -16,7 +16,21 @@
       [class.received]="!isMyMessage(message)"
     >
       <div class="message-bubble">
-        <p>{{ message.text }}</p>
+        <ng-container *ngIf="isGroupInvite(message); else plainMessage">
+          <p>{{ message.text }}</p>
+          <ion-button
+            *ngIf="canAcceptGroupInvite(message)"
+            size="small"
+            class="invite-action-btn"
+            (click)="acceptGroupInvite(message)"
+          >
+            Accept
+          </ion-button>
+          <span class="invite-status" *ngIf="message.groupInvite?.status === 'accepted'">Accepted</span>
+        </ng-container>
+        <ng-template #plainMessage>
+          <p>{{ message.text }}</p>
+        </ng-template>
         <span class="timestamp">{{ formatTimestamp(message.timestamp) }}</span>
       </div>
     </div>

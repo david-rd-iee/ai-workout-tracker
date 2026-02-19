@@ -6,6 +6,16 @@ export interface Message {
     text: string;
     timestamp: string;
     read: boolean;
+    type?: 'text' | 'group_invite';
+    groupInvite?: {
+        groupId: string;
+        groupName: string;
+        inviterId: string;
+        targetUserId: string;
+        status: 'pending' | 'accepted' | 'rejected';
+        respondedAt?: string;
+        respondedBy?: string;
+    };
 }
 
 export interface Chat {

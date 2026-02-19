@@ -92,9 +92,50 @@ export class UserService {
     }
 
     if (!userDoc.exists()) {
-      this.userInfo.set(null);
-      this.loadedProfileUid = null;
-      return false;
+      // Fallback for app users that only have /users doc.
+      const usersDoc = await getDoc(doc(this.firestore, 'users', userID));
+      if (!usersDoc.exists()) {
+        this.userInfo.set(null);
+        this.loadedProfileUid = null;
+        return false;
+      }
+
+      const usersData = usersDoc.data() as any;
+      const firstName = typeof usersData?.['firstName'] === 'string' ? usersData['firstName'].trim() : '';
+      const lastName = typeof usersData?.['lastName'] === 'string' ? usersData['lastName'].trim() : '';
+      const username = typeof usersData?.['username'] === 'string' ? usersData['username'].trim() : '';
+
+      // Keep complete-profile flow for signups until core identity fields are set.
+      if (!firstName || !lastName || !username) {
+        this.userInfo.set(null);
+        this.loadedProfileUid = null;
+        return false;
+      }
+
+      const fallbackProfile = {
+        id: userID,
+        firstName,
+        lastName,
+        email,
+        phone: '',
+        profilepic: typeof usersData?.['profilepic'] === 'string' ? usersData['profilepic'] : '',
+        city: '',
+        state: '',
+        zip: 0,
+        accountType: 'client' as const,
+        goals: '',
+        experience: '',
+        description: '',
+        unreadMessageCount:
+          typeof usersData?.['unreadMessageCount'] === 'number'
+            ? usersData['unreadMessageCount']
+            : 0,
+        username,
+      } as unknown as clientProfile;
+
+      this.userInfo.set(fallbackProfile);
+      this.loadedProfileUid = userID;
+      return true;
     }
 
     const userData = userDoc.data() as trainerProfile | clientProfile;
