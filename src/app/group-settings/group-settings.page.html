@@ -12,6 +12,21 @@
 <ion-content [fullscreen]="true" class="group-settings-content">
   <div class="settings-shell">
     <section class="settings-panel">
+      <h2>Group Name</h2>
+      <div class="group-name-section">
+        <ion-input
+          class="group-name-input"
+          [(ngModel)]="groupNameDraft"
+          placeholder="Enter group name"
+          [disabled]="!canEditGroup"
+        ></ion-input>
+        <ion-button class="save-group-name-btn" (click)="saveGroupName()" [disabled]="!canEditGroup">
+          Save Name
+        </ion-button>
+      </div>
+    </section>
+
+    <section class="settings-panel">
       <h2>Settings</h2>
       <div class="group-image-section">
         <div class="group-image-preview">

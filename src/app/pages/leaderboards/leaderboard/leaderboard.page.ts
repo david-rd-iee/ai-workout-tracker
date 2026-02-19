@@ -1,18 +1,17 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import {
   NavController,
   IonContent,
 } from '@ionic/angular/standalone';
-import { firstValueFrom } from 'rxjs';
+import { Firestore, doc, onSnapshot } from '@angular/fire/firestore';
 
 import {
   LeaderboardService,
   LeaderboardEntry,
   Metric,
 } from '../../../services/leaderboard.service';
-import { GroupService } from '../../../services/group.service';
 import {
   DistributionPoint,
   LeaderboardShellComponent,
@@ -26,12 +25,12 @@ import { AccountService } from '../../../services/account/account.service';
   styleUrls: ['./leaderboard.page.scss'],
   imports: [CommonModule, IonContent, LeaderboardShellComponent],
 })
-export class LeaderboardPage implements OnInit {
+export class LeaderboardPage implements OnInit, OnDestroy {
   private route = inject(ActivatedRoute);
   private navCtrl = inject(NavController);
   private leaderboard = inject(LeaderboardService);
-  private groupService = inject(GroupService);
   private accountService = inject(AccountService);
+  private firestore = inject(Firestore);
 
   groupId = '';
   groupName = 'Group';
@@ -46,6 +45,8 @@ export class LeaderboardPage implements OnInit {
   distributionPoints: DistributionPoint[] = [];
   selectedPointBin: number | null = null;
   selectedPointUserIds = new Set<string>();
+  private groupUnsubscribe: (() => void) | null = null;
+  private lastGroupUsersSignature = '';
 
   constructor() {}
 
@@ -59,7 +60,7 @@ export class LeaderboardPage implements OnInit {
     }
 
     this.groupId = groupId;
-    await this.loadGroupName();
+    this.startGroupSubscription();
     await this.refresh();
   }
 
@@ -127,17 +128,38 @@ export class LeaderboardPage implements OnInit {
     return this.selectedPointUserIds.size > 0 && this.selectedPointUserIds.has(entry.userId);
   }
 
-  private async loadGroupName(): Promise<void> {
-    try {
-      const group = await firstValueFrom(this.groupService.getGroup(this.groupId));
-      this.groupName = group?.name || 'Group';
-      const ownerUserId = (group?.ownerUserId || '').trim();
-      const currentUserId = this.accountService.getCredentials()().uid;
-      this.showSettingsButton = !!currentUserId && ownerUserId === currentUserId;
-    } catch {
-      this.groupName = 'Group';
-      this.showSettingsButton = false;
-    }
+  private startGroupSubscription(): void {
+    this.groupUnsubscribe?.();
+    const groupRef = doc(this.firestore, 'groupID', this.groupId);
+    this.groupUnsubscribe = onSnapshot(
+      groupRef,
+      (snap) => {
+        if (!snap.exists()) {
+          this.groupName = 'Group';
+          this.showSettingsButton = false;
+          this.lastGroupUsersSignature = '';
+          return;
+        }
+
+        const group = snap.data() as any;
+        this.groupName = typeof group?.name === 'string' && group.name.trim() ? group.name : 'Group';
+
+        const ownerUserId = typeof group?.ownerUserId === 'string' ? group.ownerUserId.trim() : '';
+        const currentUserId = this.accountService.getCredentials()().uid;
+        this.showSettingsButton = !!currentUserId && ownerUserId === currentUserId;
+
+        const userIDs = Array.isArray(group?.userIDs) ? group.userIDs.map((id: any) => String(id)) : [];
+        const nextSignature = userIDs.slice().sort().join('|');
+        if (this.lastGroupUsersSignature && this.lastGroupUsersSignature !== nextSignature) {
+          void this.refresh();
+        }
+        this.lastGroupUsersSignature = nextSignature;
+      },
+      () => {
+        this.groupName = 'Group';
+        this.showSettingsButton = false;
+      }
+    );
   }
 
   openGroupSettings(): void {
@@ -145,6 +167,11 @@ export class LeaderboardPage implements OnInit {
       animated: true,
       animationDirection: 'forward',
     });
+  }
+
+  ngOnDestroy(): void {
+    this.groupUnsubscribe?.();
+    this.groupUnsubscribe = null;
   }
 
   private resetChartSelection(): void {

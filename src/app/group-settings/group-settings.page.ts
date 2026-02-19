@@ -9,6 +9,7 @@ import {
   IonContent,
   IonHeader,
   IonIcon,
+  IonInput,
   IonItem,
   IonLabel,
   IonList,
@@ -57,6 +58,7 @@ type GroupMember = {
     IonButtons,
     IonButton,
     IonIcon,
+    IonInput,
     IonModal,
     IonSearchbar,
     IonList,
@@ -81,6 +83,7 @@ export class GroupSettingsPage implements OnInit {
 
   groupId = '';
   groupName = 'Group';
+  groupNameDraft = '';
   ownerUserId = '';
   groupImageUrl = '';
   canEditGroup = false;
@@ -168,6 +171,7 @@ export class GroupSettingsPage implements OnInit {
       const currentUserId = this.accountService.getCredentials()().uid;
 
       this.groupName = typeof groupData?.name === 'string' ? groupData.name : 'Group';
+      this.groupNameDraft = this.groupName;
       this.ownerUserId = ownerUserId;
       this.canEditGroup = !!currentUserId && ownerUserId === currentUserId;
       this.groupImageUrl = typeof groupData?.groupImage === 'string' ? groupData.groupImage : '';
@@ -296,6 +300,46 @@ export class GroupSettingsPage implements OnInit {
     } catch (error) {
       console.error('[GroupSettingsPage] Failed to send invite:', error);
       await this.showToast('Could not send invite.');
+    } finally {
+      await loading.dismiss();
+    }
+  }
+
+  async saveGroupName(): Promise<void> {
+    if (!this.canEditGroup || !this.groupId) {
+      return;
+    }
+
+    const nextName = this.groupNameDraft.trim();
+    if (!nextName) {
+      await this.showToast('Group name cannot be empty.');
+      this.groupNameDraft = this.groupName;
+      return;
+    }
+
+    if (nextName === this.groupName) {
+      return;
+    }
+
+    const loading = await this.loadingCtrl.create({
+      message: 'Updating group name...',
+    });
+    await loading.present();
+
+    try {
+      const groupRef = doc(this.firestore, 'groupID', this.groupId);
+      await updateDoc(groupRef, {
+        name: nextName,
+        updatedAt: serverTimestamp(),
+      });
+
+      this.groupName = nextName;
+      this.groupNameDraft = nextName;
+      await this.showToast('Group name updated.');
+    } catch (error) {
+      console.error('[GroupSettingsPage] Failed to update group name:', error);
+      this.groupNameDraft = this.groupName;
+      await this.showToast('Could not update group name.');
     } finally {
       await loading.dismiss();
     }
