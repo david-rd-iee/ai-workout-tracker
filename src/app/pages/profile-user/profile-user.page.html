@@ -3,6 +3,16 @@
 <ion-content [fullscreen]="true" class="profile-content">
   <div class="background-gradient"></div>
   <div class="profile-page">
+    <div class="top-actions">
+      <button
+        type="button"
+        class="settings-button"
+        (click)="onSettingsClick()"
+        aria-label="Open settings"
+      >
+        <ion-icon name="settings-outline"></ion-icon>
+      </button>
+    </div>
 
     <!-- Profile hero -->
     <div class="profile-hero">
