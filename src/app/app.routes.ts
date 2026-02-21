@@ -80,6 +80,13 @@ export const routes: Routes = [
     redirectTo: 'login',
     pathMatch: 'full',
   },
+  {
+    path: 'profile-settings',
+    loadComponent: () =>
+      import('./pages/profile-settings/profile-settings.page').then(
+        (m) => m.ProfileSettingsPage
+      ),
+  },
   // If user manually types a bad URL → send to login
   {
     path: '**',

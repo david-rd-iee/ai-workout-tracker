@@ -1,37 +1,4 @@
-.group-settings-content {
-  --background: linear-gradient(180deg, #f7f8fa 0%, #eef1f5 100%);
-}
-
-.settings-toolbar {
-  --background: #ffffff;
-  --color: #1f2937;
-  border-bottom: 1px solid #d9dee5;
-}
-
-.back-button {
-  --color: #374151;
-}
-
-.settings-shell {
-  display: grid;
-  gap: 14px;
-  padding: 20px 16px 28px;
-}
-
-.settings-panel {
-  background: #ffffff;
-  border: 1px solid #d9dee5;
-  border-radius: 14px;
-  padding: 18px 16px;
-  box-shadow: 0 8px 20px rgba(12, 18, 28, 0.08);
-}
-
-.settings-panel h2 {
-  margin: 0 0 8px;
-  font-size: 18px;
-  line-height: 1.3;
-  color: #111827;
-}
+@use '../../../theme/settings-page.shared' as *;
 
 .group-name-section {
   display: grid;
