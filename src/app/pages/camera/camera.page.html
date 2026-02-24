@@ -9,7 +9,10 @@
 
 <ion-content [fullscreen]="true" class="camera-content">
   <div class="camera-page">
-    <video #cameraVideo class="camera-preview" autoplay playsinline muted></video>
+    <div class="preview-wrap">
+      <video #cameraVideo class="camera-preview" autoplay playsinline muted></video>
+      <canvas #skeletonCanvas class="skeleton-overlay"></canvas>
+    </div>
 
     <ion-text color="medium" *ngIf="isLoading">
       <p>Starting camera...</p>

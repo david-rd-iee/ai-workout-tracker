@@ -2,7 +2,7 @@ import { Component, Input, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { IonIcon, IonBadge, IonProgressBar } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
-import { trophy, star, lockClosed, medalOutline, trophyOutline, diamondOutline, body, shieldCheckmark, flame, speedometer, sunny, people, analytics, calendar, barbell, bed, fitness, hammerOutline, constructOutline, shield, flash, ribbon, beer, sparkles, hourglass } from 'ionicons/icons';
+import { trophy, star, lockClosed, medalOutline, trophyOutline, diamondOutline, body, shieldCheckmark, flame, speedometer, sunny, people, analytics, calendar, barbell, bed, fitness, hammerOutline, constructOutline, shield, flash, ribbon, beer, sparkles, hourglass, informationCircleOutline } from 'ionicons/icons';
 import {
   GreekStatue,
   StatueLevel,
@@ -64,7 +64,8 @@ export class GreekStatueComponent implements OnInit {
       ribbon,
       beer,
       sparkles,
-      hourglass
+      hourglass,
+      informationCircleOutline
     });
   }
 

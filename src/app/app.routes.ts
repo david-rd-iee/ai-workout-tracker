@@ -77,7 +77,8 @@ export const routes: Routes = [
   },
   {
     path: 'camera',
-    loadComponent: () => import('./pages/camera/camera.page').then( m => m.CameraPage)
+    loadComponent: () => import('./pages/camera/camera.page').then((m) => m.CameraPage),
+    canActivate: [authGuard],
   },
   {
     path: '',
