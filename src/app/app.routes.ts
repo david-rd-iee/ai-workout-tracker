@@ -76,6 +76,17 @@ export const routes: Routes = [
     canActivate: [authGuard],
   },
   {
+    path: 'user-settings',
+    loadComponent: () =>
+      import('./pages/profile-settings/profile-settings.page').then((m) => m.ProfileSettingsPage),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'profile-settings',
+    redirectTo: 'user-settings',
+    pathMatch: 'full',
+  },
+  {
     path: 'camera',
     loadComponent: () => import('./pages/camera/camera.page').then((m) => m.CameraPage),
     canActivate: [authGuard],

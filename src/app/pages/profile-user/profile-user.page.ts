@@ -268,7 +268,7 @@ export class ProfileUserPage implements OnInit, OnDestroy {
   }
 
   onSettingsClick(): void {
-    this.router.navigate(['/profile-settings']);
+    this.router.navigate(['/user-settings']);
   }
 
   async onProfileImageClick(): Promise<void> {

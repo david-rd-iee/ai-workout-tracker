@@ -5,3 +5,36 @@
   color: #4b5563;
   line-height: 1.5;
 }
+
+.settings-form {
+  margin-top: 14px;
+  display: grid;
+  gap: 12px;
+}
+
+.field-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.settings-input {
+  --background: #ffffff;
+  --color: #111827;
+  --placeholder-color: #6b7280;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  --padding-start: 12px;
+  --padding-end: 12px;
+}
+
+.form-message {
+  margin: 0;
+  font-size: 14px;
+}
+
+.save-settings-btn {
+  width: fit-content;
+  --background: #2563eb;
+  --background-hover: #1d4ed8;
+  --color: #ffffff;
+}

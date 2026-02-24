@@ -5,15 +5,103 @@
         <ion-icon name="arrow-back-outline" slot="icon-only"></ion-icon>
       </ion-button>
     </ion-buttons>
-    <ion-title>Profile Settings</ion-title>
+    <ion-title>User Settings</ion-title>
   </ion-toolbar>
 </ion-header>
 
 <ion-content [fullscreen]="true" class="settings-content">
   <div class="settings-shell">
     <section class="settings-panel">
-      <h2>Profile Settings</h2>
-      <p class="page-copy">Profile settings controls will be added here.</p>
+      <h2>Profile Details</h2>
+      <p class="page-copy">Update your personal information.</p>
+
+      <form class="settings-form" (ngSubmit)="saveSettings()">
+        <div class="field-grid">
+          <ion-item lines="none">
+            <ion-input
+              class="settings-input"
+              label="First Name"
+              label-placement="stacked"
+              [(ngModel)]="firstName"
+              name="firstName"
+              placeholder="Enter first name"
+              [disabled]="isLoading || isSaving"
+              required
+            ></ion-input>
+          </ion-item>
+
+          <ion-item lines="none">
+            <ion-input
+              class="settings-input"
+              label="Last Name"
+              label-placement="stacked"
+              [(ngModel)]="lastName"
+              name="lastName"
+              placeholder="Enter last name"
+              [disabled]="isLoading || isSaving"
+              required
+            ></ion-input>
+          </ion-item>
+
+          <ion-item lines="none">
+            <ion-input
+              class="settings-input"
+              label="Email"
+              label-placement="stacked"
+              type="email"
+              [(ngModel)]="email"
+              name="email"
+              placeholder="Enter email"
+              [disabled]="isLoading || isSaving"
+              required
+            ></ion-input>
+          </ion-item>
+
+          <ion-item lines="none">
+            <ion-input
+              class="settings-input"
+              label="Weight"
+              label-placement="stacked"
+              type="number"
+              inputmode="decimal"
+              [(ngModel)]="weight"
+              name="weight"
+              placeholder="e.g. 180"
+              [disabled]="isLoading || isSaving"
+            ></ion-input>
+          </ion-item>
+
+          <ion-item lines="none">
+            <ion-input
+              class="settings-input"
+              label="Height"
+              label-placement="stacked"
+              type="number"
+              inputmode="decimal"
+              [(ngModel)]="height"
+              name="height"
+              placeholder="e.g. 70"
+              [disabled]="isLoading || isSaving"
+            ></ion-input>
+          </ion-item>
+        </div>
+
+        <ion-text color="danger" *ngIf="errorMessage">
+          <p class="form-message">{{ errorMessage }}</p>
+        </ion-text>
+
+        <ion-text color="success" *ngIf="successMessage">
+          <p class="form-message">{{ successMessage }}</p>
+        </ion-text>
+
+        <ion-button
+          type="submit"
+          class="save-settings-btn"
+          [disabled]="isLoading || isSaving"
+        >
+          {{ isSaving ? 'Saving...' : 'Save Changes' }}
+        </ion-button>
+      </form>
     </section>
   </div>
 </ion-content>
