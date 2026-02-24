@@ -117,6 +117,11 @@ export class WorkoutChatbotPage implements OnInit {
         this.hasSavedWorkout = false;
       }
 
+      // Auto-save the workout as soon as AI marks this session complete.
+      if (!wasComplete && isNowComplete && !this.hasSavedWorkout) {
+        await this.persistCurrentWorkout();
+      }
+
       // show bot reply
       if (response.botMessage) {
         this.addBotMessage(response.botMessage);
@@ -147,23 +152,31 @@ export class WorkoutChatbotPage implements OnInit {
     }
 
     if (!this.hasSavedWorkout) {
-      this.isSavingWorkout = true;
-      try {
-        await this.workoutLogService.saveCompletedWorkout(this.session);
-        this.hasSavedWorkout = true;
-      } catch (err) {
-        console.error('Failed to save workout:', err);
-        this.addBotMessage(
-          'I had trouble saving your workout. Please try again.'
-        );
-        return;
-      } finally {
-        this.isSavingWorkout = false;
-      }
+      const didSave = await this.persistCurrentWorkout();
+      if (!didSave) return;
     }
 
     this.router.navigate(['/workout-summary'], {
       state: { summary: this.session },
     });
+  }
+
+  private async persistCurrentWorkout(): Promise<boolean> {
+    if (this.isSavingWorkout) return false;
+
+    this.isSavingWorkout = true;
+    try {
+      await this.workoutLogService.saveCompletedWorkout(this.session);
+      this.hasSavedWorkout = true;
+      return true;
+    } catch (err) {
+      console.error('Failed to save workout:', err);
+      this.addBotMessage(
+        'I had trouble saving your workout. Please try again.'
+      );
+      return false;
+    } finally {
+      this.isSavingWorkout = false;
+    }
   }
 }

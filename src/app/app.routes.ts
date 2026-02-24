@@ -40,6 +40,7 @@ export const routes: Routes = [
   loadComponent: () =>
     import('./pages/leaderboards/regional-leaderboard/regional-leaderboard.page')
       .then(m => m.RegionalLeaderboardPage),
+  canActivate: [authGuard],
   },
   {
     path: 'workout-details',
@@ -59,11 +60,13 @@ export const routes: Routes = [
     path: 'client-details',
     loadComponent: () =>
       import('./pages/client-details/client-details.page').then((m) => m.ClientDetailsPage),
+    canActivate: [authGuard],
   },
   {
     path: 'chat/:chatId',
     loadComponent: () =>
       import('./pages/chats/chat-detail/chat-detail.page').then((m) => m.ChatDetailPage),
+    canActivate: [authGuard],
   },
   {
     path: 'leaderboard/:groupID',
@@ -77,6 +80,7 @@ export const routes: Routes = [
       import('./pages/workout-history/workout-history.page').then(
         (m) => m.WorkoutHistoryPage
       ),
+    canActivate: [authGuard],
   },
   {
     path: '',
