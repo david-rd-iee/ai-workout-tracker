@@ -1,0 +1,20 @@
+.camera-content {
+  --padding-start: 16px;
+  --padding-end: 16px;
+  --padding-top: 16px;
+  --padding-bottom: 24px;
+}
+
+.camera-page {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.camera-preview {
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  object-fit: cover;
+  border-radius: 12px;
+  background: #000;
+}

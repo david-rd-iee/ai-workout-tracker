@@ -76,16 +76,13 @@ export const routes: Routes = [
     canActivate: [authGuard],
   },
   {
+    path: 'camera',
+    loadComponent: () => import('./pages/camera/camera.page').then( m => m.CameraPage)
+  },
+  {
     path: '',
     redirectTo: 'login',
     pathMatch: 'full',
-  },
-  {
-    path: 'profile-settings',
-    loadComponent: () =>
-      import('./pages/profile-settings/profile-settings.page').then(
-        (m) => m.ProfileSettingsPage
-      ),
   },
   // If user manually types a bad URL → send to login
   {

@@ -1,0 +1,30 @@
+<ion-header [translucent]="true">
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-back-button defaultHref="/profile-user"></ion-back-button>
+    </ion-buttons>
+    <ion-title>Analyze workouts</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true" class="camera-content">
+  <div class="camera-page">
+    <video #cameraVideo class="camera-preview" autoplay playsinline muted></video>
+
+    <ion-text color="medium" *ngIf="isLoading">
+      <p>Starting camera...</p>
+    </ion-text>
+
+    <ion-text color="danger" *ngIf="!isLoading && errorMessage">
+      <p>{{ errorMessage }}</p>
+    </ion-text>
+
+    <ion-text color="danger" *ngIf="!hasCameraSupport">
+      <p>Your device/browser does not support camera access.</p>
+    </ion-text>
+
+    <ion-button expand="block" *ngIf="hasCameraSupport" (click)="retryCamera()">
+      Retry camera
+    </ion-button>
+  </div>
+</ion-content>

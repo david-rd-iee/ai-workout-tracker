@@ -307,7 +307,12 @@ export class ProfileUserPage implements OnInit, OnDestroy {
   goToFindPT(): void {}
   goToStatues(): void {}
   goToRegional(): void { this.router.navigateByUrl('/regional-leaderboard'); }
-  goToAnalyzeWorkout(): void {}
+  goToAnalyzeWorkout(): void {
+    this.navCtrl.navigateForward('/camera', {
+      animated: true,
+      animationDirection: 'forward',
+    });
+  }
 
   // Statue management methods
 
