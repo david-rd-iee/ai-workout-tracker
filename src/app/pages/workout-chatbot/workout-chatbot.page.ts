@@ -12,7 +12,6 @@ import { Keyboard } from '@capacitor/keyboard';
 import { HeaderComponent } from '../../components/header/header.component';
 
 import { WorkoutSessionPerformance } from '../../models/workout-session.model';
-
 import { Router } from '@angular/router';
 import {
   WorkoutChatService,
@@ -133,11 +132,6 @@ export class WorkoutChatbotPage implements OnInit, OnDestroy {
         this.hasSavedWorkout = false;
       }
 
-      // Auto-save the workout as soon as AI marks this session complete.
-      if (!wasComplete && isNowComplete && !this.hasSavedWorkout) {
-        await this.persistCurrentWorkout();
-      }
-
       // show bot reply
       if (response.botMessage) {
         this.addBotMessage(response.botMessage);
@@ -156,22 +150,22 @@ export class WorkoutChatbotPage implements OnInit, OnDestroy {
     }
   }
 
-  async navigateToWorkoutSummary() {
+  async submitWorkout() {
     // Don’t allow multiple clicks while saving
     if (this.isSavingWorkout) return;
 
-    if (!this.session?.isComplete) {
-      this.addBotMessage(
-        'Finish logging your workout first, then I’ll save it and show the summary.'
-      );
+    if (this.hasSavedWorkout) {
+      this.addBotMessage('Your workout is already submitted.');
       return;
     }
 
-    if (!this.hasSavedWorkout) {
-      const didSave = await this.persistCurrentWorkout();
-      if (!didSave) return;
-    }
+    const didSave = await this.persistCurrentWorkout();
+    if (!didSave) return;
 
+    this.addBotMessage('Workout submitted and saved to your history.');
+  }
+
+  viewWorkoutSummary(): void {
     this.router.navigate(['/workout-summary'], {
       state: { summary: this.session },
     });

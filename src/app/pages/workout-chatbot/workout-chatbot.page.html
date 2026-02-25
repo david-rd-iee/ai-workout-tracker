@@ -5,18 +5,46 @@
 ></app-header>
 
 <ion-content [fullscreen]="true" class="chat-content">
-  <!-- Button to navigate to workout summary -->
-  <div class="workout-summary-button-container">
+  <div
+    class="workout-summary-card-container"
+    *ngIf="(session.exercises.length > 0 || isLoading) && !hasSavedWorkout"
+  >
+    <div class="workout-summary-card">
+      <p class="summary-title">Workout Log Summary</p>
+
+      <div *ngFor="let ex of session.exercises" class="summary-row">
+        <span class="summary-exercise">{{ ex.name }}</span>
+        <span class="summary-metric">{{ ex.metric }}</span>
+      </div>
+
+      <div *ngIf="isLoading" class="summary-typing">
+        <div class="typing-indicator">
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
+      </div>
+
       <ion-button
         expand="block"
-        (click)="navigateToWorkoutSummary()"
-        class="workout-summary-button"
-        [disabled]="!session.isComplete || !session.exercises.length"
+        (click)="submitWorkout()"
+        class="submit-workout-button"
+        [disabled]="isSavingWorkout"
       >
-        <ion-icon slot="start" name="fitness-outline"></ion-icon>
-        View Workout Summary
+        Submit Workout
       </ion-button>
     </div>
+  </div>
+
+  <div class="workout-summary-card-container" *ngIf="hasSavedWorkout">
+    <ion-button
+      expand="block"
+      (click)="viewWorkoutSummary()"
+      class="submit-workout-button"
+    >
+      View Workout Summary
+    </ion-button>
+  </div>
 
     <div class="messages-list">
       <div

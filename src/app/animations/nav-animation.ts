@@ -25,9 +25,13 @@ export const appNavAnimation: AnimationBuilder = (_baseEl: any, opts: any): Anim
   const leavingIsGroups = containsSelector(leavingEl, 'app-groups');
   const enteringIsWorkoutChatbot = containsSelector(enteringEl, 'app-workout-chatbot');
   const leavingIsWorkoutChatbot = containsSelector(leavingEl, 'app-workout-chatbot');
+  const enteringIsHome = containsSelector(enteringEl, 'app-home');
+  const leavingIsWorkoutSummary = containsSelector(leavingEl, 'app-workout-summary');
   const isProfileHorizontalTransition =
     (enteringIsProfile && (leavingIsGroups || leavingIsWorkoutChatbot)) ||
     (leavingIsProfile && (enteringIsGroups || enteringIsWorkoutChatbot));
+  const isSummaryToHomeTransition =
+    !isBack && leavingIsWorkoutSummary && enteringIsHome;
 
   // Use vertical animation for any transition that enters or leaves profile.
   const useProfileVerticalTransition =
@@ -41,6 +45,20 @@ export const appNavAnimation: AnimationBuilder = (_baseEl: any, opts: any): Anim
   // Ionic marks entering pages as invisible; remove it before animating
   // to avoid a black flash while the leaving page moves away.
   enteringAnimation.beforeRemoveClass('ion-page-invisible');
+
+  if (isSummaryToHomeTransition) {
+    enteringAnimation
+      .beforeStyles({ transform: 'translateY(100%)', opacity: '1' })
+      .fromTo('transform', 'translateY(100%)', 'translateY(0)')
+      .afterClearStyles(['transform', 'opacity']);
+
+    leavingAnimation
+      .beforeStyles({ transform: 'translateY(0)', opacity: '1' })
+      .fromTo('opacity', '1', '1')
+      .afterClearStyles(['transform', 'opacity']);
+
+    return rootAnimation.addAnimation([enteringAnimation, leavingAnimation]);
+  }
 
   if (useProfileVerticalTransition) {
     if (isBack) {
