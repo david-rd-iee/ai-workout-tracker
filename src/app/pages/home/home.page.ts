@@ -527,7 +527,7 @@ export class HomePage implements OnInit, OnDestroy {
   }
 
   startWorkout() {
-    this.router.navigate(['/tabs/chats/workout-chatbot']);
+    this.router.navigate(['/workout-chatbot']);
   }
 
   viewStreak() {

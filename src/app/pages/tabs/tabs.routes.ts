@@ -27,11 +27,6 @@ export const routes: Routes = [
               import('../chats/client-chats/client-chats.page').then(m => m.ClientChatsPage),
           },
           {
-            path: 'workout-chatbot',
-            loadComponent: () =>
-              import('../workout-chatbot/workout-chatbot.page').then(m => m.WorkoutChatbotPage),
-          },
-          {
             path: '',
             redirectTo: 'client-chats',
             pathMatch: 'full',

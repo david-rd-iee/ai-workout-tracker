@@ -1,55 +1,67 @@
-<!-- Button to navigate to workout summary -->
-<div class="workout-summary-button-container">
-    <ion-button
-      expand="block"
-      (click)="navigateToWorkoutSummary()"
-      class="workout-summary-button"
-      [disabled]="!session.isComplete || !session.exercises.length"
-    >
-      <ion-icon slot="start" name="fitness-outline"></ion-icon>
-      View Workout Summary
-    </ion-button>
-  </div>
+<app-header
+  [title]="'AI Coach'"
+  [showBack]="true"
+  [backHref]="'/profile-user'"
+></app-header>
 
+<ion-content [fullscreen]="true" class="chat-content">
+  <!-- Button to navigate to workout summary -->
+  <div class="workout-summary-button-container">
+      <ion-button
+        expand="block"
+        (click)="navigateToWorkoutSummary()"
+        class="workout-summary-button"
+        [disabled]="!session.isComplete || !session.exercises.length"
+      >
+        <ion-icon slot="start" name="fitness-outline"></ion-icon>
+        View Workout Summary
+      </ion-button>
+    </div>
 
-  <div class="chat-container">
-    <div
-      *ngFor="let msg of messages"
-      [ngClass]="{
-        'message': true,
-        'bot-message': msg.from === 'bot',
-        'user-message': msg.from === 'user'
-      }"
-    >
-      <div class="bubble">
-        {{ msg.text }}
+    <div class="messages-list">
+      <div
+        *ngFor="let msg of messages"
+        [ngClass]="{
+          'message-row': true,
+          'received': msg.from === 'bot',
+          'sent': msg.from === 'user'
+        }"
+      >
+        <div class="message-bubble">
+          <p>{{ msg.text }}</p>
+        </div>
+      </div>
+
+      <div
+        *ngIf="isLoading"
+        class="message-row received typing-wrapper"
+      >
+        <div class="message-bubble typing-indicator">
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
       </div>
     </div>
 
-    <div
-      *ngIf="isLoading"
-      class="message bot-message typing-wrapper"
-    >
-      <div class="bubble typing-indicator">
-        <span></span>
-        <span></span>
-        <span></span>
+    <div class="input-container" [style.--keyboard-offset.px]="keyboardOffset">
+      <div class="input-wrapper">
+        <ion-input
+          [(ngModel)]="userInput"
+          placeholder="iMessage"
+          class="message-input"
+          (keyup.enter)="handleSend()"
+          [disabled]="isLoading"
+        ></ion-input>
+
+        <ion-button
+          (click)="handleSend()"
+          [disabled]="isLoading || !userInput.trim()"
+          shape="round"
+          class="send-button"
+        >
+          <ion-icon slot="icon-only" name="arrow-up"></ion-icon>
+        </ion-button>
       </div>
     </div>
-  </div>
-
-  <div class="input-container">
-    <ion-input
-      [(ngModel)]="userInput"
-      placeholder="Tell me about your workout..."
-      (keyup.enter)="handleSend()"
-      [disabled]="isLoading"
-    ></ion-input>
-
-    <ion-button
-      (click)="handleSend()"
-      [disabled]="isLoading"
-    >
-      {{ isLoading ? 'Thinking...' : 'Send' }}
-    </ion-button>
-  </div>
+</ion-content>

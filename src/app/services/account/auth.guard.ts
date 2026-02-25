@@ -1,10 +1,10 @@
-import { CanActivateFn, Router } from '@angular/router';
+import { CanActivateChildFn, CanActivateFn, CanMatchFn, Router } from '@angular/router';
 import { AccountService } from './account.service';
 import { inject } from '@angular/core';
-import { timer } from 'rxjs';
+import { timer, type Observable } from 'rxjs';
 import { filter, map, take } from 'rxjs/operators';
 
-export const authGuard: CanActivateFn = (_route, state) => {
+const authDecision = (): Observable<boolean | ReturnType<Router['createUrlTree']>> => {
   const accountService = inject(AccountService);
   const router = inject(Router);
 
@@ -20,3 +20,9 @@ export const authGuard: CanActivateFn = (_route, state) => {
     })
   );
 };
+
+export const authGuard: CanActivateFn = () => authDecision();
+
+export const authChildGuard: CanActivateChildFn = () => authDecision();
+
+export const authMatchGuard: CanMatchFn = () => authDecision();

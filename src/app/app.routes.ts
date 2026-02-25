@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { authGuard } from './services/account/auth.guard';
+import { authChildGuard, authGuard, authMatchGuard } from './services/account/auth.guard';
 
 export const routes: Routes = [
   // Auth pages
@@ -8,7 +8,7 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./pages/login/login.page').then((m) => m.LoginPage),
   },
-  {
+  { 
     path: 'sign-up',
     loadComponent: () =>
       import('./pages/sign-up/sign-up.page').then((m) => m.SignUpPage),
@@ -19,7 +19,9 @@ export const routes: Routes = [
     path: 'tabs',
     loadChildren: () =>
       import('./pages/tabs/tabs.routes').then((m) => m.routes),
+    canMatch: [authMatchGuard],
     canActivate: [authGuard],
+    canActivateChild: [authChildGuard],
   },
 
   // Other pages (optional: protect these too if you want)
@@ -46,6 +48,14 @@ export const routes: Routes = [
     path: 'workout-details',
     loadComponent: () =>
       import('./pages/workout-details/workout-details.page').then((m) => m.WorkoutDetailsPage),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'workout-chatbot',
+    loadComponent: () =>
+      import('./pages/workout-chatbot/workout-chatbot.page').then(
+        (m) => m.WorkoutChatbotPage
+      ),
     canActivate: [authGuard],
   },
   {

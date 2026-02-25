@@ -1,11 +1,15 @@
 // imports
 import { WorkoutLogService } from '../../services/workout-log.service';
-import { Component, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { IonInput, IonButton, IonIcon } from '@ionic/angular/standalone';
+import { IonInput, IonButton, IonIcon, IonContent } from '@ionic/angular/standalone';
+import { Platform } from '@ionic/angular';
 import { addIcons } from 'ionicons';
-import { fitnessOutline } from 'ionicons/icons';
+import { arrowUp, fitnessOutline } from 'ionicons/icons';
+import { Capacitor } from '@capacitor/core';
+import { Keyboard } from '@capacitor/keyboard';
+import { HeaderComponent } from '../../components/header/header.component';
 
 import { WorkoutSessionPerformance } from '../../models/workout-session.model';
 
@@ -30,16 +34,19 @@ interface ChatMessage {
   standalone: true,
   templateUrl: './workout-chatbot.page.html',
   styleUrls: ['./workout-chatbot.page.scss'],
-  imports: [CommonModule, FormsModule, IonInput, IonButton, IonIcon],
+  imports: [CommonModule, FormsModule, IonInput, IonButton, IonIcon, IonContent, HeaderComponent],
 })
-export class WorkoutChatbotPage implements OnInit {
+export class WorkoutChatbotPage implements OnInit, OnDestroy {
   userInput = '';
   messages: ChatMessage[] = [];
   isLoading = false;
+  keyboardOffset = 0;
 
   // Save guards
   hasSavedWorkout = false;
   isSavingWorkout = false;
+  private isIPhone = false;
+  private removeKeyboardListeners: Array<() => void> = [];
 
   // structured session/summary object the AI can update
   session: WorkoutSessionPerformance = {
@@ -55,9 +62,10 @@ export class WorkoutChatbotPage implements OnInit {
   constructor(
     private router: Router,
     private workoutChatService: WorkoutChatService,
-    private workoutLogService: WorkoutLogService
+    private workoutLogService: WorkoutLogService,
+    private platform: Platform
   ) {
-    addIcons({ fitnessOutline });
+    addIcons({ fitnessOutline, arrowUp });
   }
 
   ngOnInit() {
@@ -68,6 +76,14 @@ export class WorkoutChatbotPage implements OnInit {
     this.addBotMessage(
       "Hey! Ready to log your workout? Tell me your first exercise (name, sets, reps, weight) and I’ll organize everything for your trainer."
     );
+
+    this.isIPhone = this.platform.is('iphone');
+    this.initKeyboardBehavior();
+  }
+
+  ngOnDestroy() {
+    this.removeKeyboardListeners.forEach((remove) => remove());
+    this.removeKeyboardListeners = [];
   }
 
   // helpers:
@@ -178,5 +194,65 @@ export class WorkoutChatbotPage implements OnInit {
     } finally {
       this.isSavingWorkout = false;
     }
+  }
+
+  private initKeyboardBehavior(): void {
+    // On iPhone, keep native iOS keyboard behavior and do not force offsets.
+    if (this.isIPhone) {
+      this.keyboardOffset = 0;
+      return;
+    }
+
+    if (Capacitor.isNativePlatform()) {
+      void this.bindNativeKeyboardListeners();
+      return;
+    }
+
+    this.bindWebViewportKeyboardListeners();
+  }
+
+  private async bindNativeKeyboardListeners(): Promise<void> {
+    const showHandler = (info: { keyboardHeight: number }) => {
+      this.keyboardOffset = info?.keyboardHeight ?? 0;
+    };
+
+    const hideHandler = () => {
+      this.keyboardOffset = 0;
+    };
+
+    const willShow = await Keyboard.addListener('keyboardWillShow', showHandler);
+    const didShow = await Keyboard.addListener('keyboardDidShow', showHandler);
+    const willHide = await Keyboard.addListener('keyboardWillHide', hideHandler);
+    const didHide = await Keyboard.addListener('keyboardDidHide', hideHandler);
+
+    this.removeKeyboardListeners.push(
+      () => void willShow.remove(),
+      () => void didShow.remove(),
+      () => void willHide.remove(),
+      () => void didHide.remove()
+    );
+  }
+
+  private bindWebViewportKeyboardListeners(): void {
+    if (!window.visualViewport) return;
+
+    const updateOffset = () => {
+      const viewport = window.visualViewport;
+      if (!viewport) return;
+      const offset = Math.max(
+        0,
+        Math.round(window.innerHeight - viewport.height - viewport.offsetTop)
+      );
+      this.keyboardOffset = offset;
+    };
+
+    window.visualViewport.addEventListener('resize', updateOffset);
+    window.visualViewport.addEventListener('scroll', updateOffset);
+    this.removeKeyboardListeners.push(() =>
+      window.visualViewport?.removeEventListener('resize', updateOffset)
+    );
+    this.removeKeyboardListeners.push(() =>
+      window.visualViewport?.removeEventListener('scroll', updateOffset)
+    );
   }
 }
