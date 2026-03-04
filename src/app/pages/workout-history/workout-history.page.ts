@@ -136,54 +136,44 @@ export class WorkoutHistoryPage implements OnInit {
   }
 
   exportCsv() {
-    const header = [
-      'Date',
-      'Exercise',
-      'Metric',
-      'ExerciseVolume',
-      'WorkoutVolume',
-      'Calories',
-      'Notes',
-    ];
+    const header = ['Date', 'Exercise', 'Metric', 'Notes'];
 
     const rows: string[] = [];
     rows.push(header.join(','));
 
     for (const w of this.workouts ?? []) {
       const date = this.formatDateCsv(w.createdAt);
-      const workoutVolume = Number(w.totalVolume ?? 0);
-      const calories = Number(w.calories ?? 0);
       const notes = w.notes ?? '';
-
       const exercises = w.exercises ?? [];
 
-      if (exercises.length === 0) {
-        rows.push(
-          [
-            this.csvEscape(date),
-            this.csvEscape(''),
-            this.csvEscape(''),
-            0,
-            workoutVolume,
-            calories,
-            this.csvEscape(notes),
-          ].join(',')
-        );
-        continue;
-      }
-
       for (const ex of exercises) {
-        rows.push(
-          [
-            this.csvEscape(date),
-            this.csvEscape(ex.name ?? ''),
-            this.csvEscape(ex.metric ?? ''),
-            Number(ex.volume ?? 0),
-            workoutVolume,
-            calories,
-            this.csvEscape(notes),
-          ].join(',')
-        );
+        const metrics = this.expandMetricToSetLines(ex.metric ?? '');
+
+        if (metrics.length === 0) {
+          rows.push(
+            [
+              this.csvEscape(date),
+              this.csvEscape(ex.name ?? ''),
+              this.csvEscape(''),
+              this.csvEscape(notes),
+            ].join(',')
+          );
+          rows.push('');
+          continue;
+        }
+
+        metrics.forEach((m, idx) => {
+          rows.push(
+            [
+              idx === 0 ? this.csvEscape(date) : '',
+              idx === 0 ? this.csvEscape(ex.name ?? '') : '',
+              this.csvEscape(m),
+              idx === 0 ? this.csvEscape(notes) : '',
+            ].join(',')
+          );
+        });
+
+        rows.push('');
       }
     }
 
@@ -199,6 +189,59 @@ export class WorkoutHistoryPage implements OnInit {
     a.download = filename;
     a.click();
     URL.revokeObjectURL(url);
+  }
+
+  private expandMetricToSetLines(metricRaw: string): string[] {
+    let s = (metricRaw ?? '').trim();
+    if (!s) return [];
+
+    s = s.replace(/[()]/g, '').trim();
+    s = s.replace(/^\s*\d+\s*x\s*/i, '').trim();
+    s = s.replace(
+      /^\s*(?:reps?\s*&\s*weights?|reps?\s*and\s*weights?)\s*:\s*/i,
+      ''
+    ).trim();
+
+    s = s
+      .replace(/\r\n/g, '\n')
+      .replace(/\n+/g, ',')
+      .replace(/;/g, ',')
+      .replace(/•/g, ',')
+      .replace(/\|/g, ',')
+      .trim();
+
+    const tokens = s
+      .split(',')
+      .map((x) => x.trim())
+      .filter((x) => x.length > 0);
+
+    if (tokens.length === 0) return [];
+
+    const first = tokens[0].replace(/\s+/g, '');
+    const m = first.match(/^(\d+)[xX](.+)$/);
+
+    if (m) {
+      const reps = m[1];
+      const firstWeightPart = m[2].trim();
+      const rest = tokens.slice(1);
+
+      const restLooksLikeWeightsOnly =
+        rest.length > 0 &&
+        rest.every((t) => /^[0-9]+(\.[0-9]+)?\s*(lb|lbs|kg)?$/i.test(t.trim()));
+
+      if (restLooksLikeWeightsOnly) {
+        const out: string[] = [];
+        out.push(`${reps}x${firstWeightPart}`);
+
+        for (const t of rest) {
+          const w = t.trim().replace(/\s+/g, '');
+          out.push(`${reps}x${w}`);
+        }
+        return out;
+      }
+    }
+
+    return tokens.map((t) => t.replace(/\s+/g, ' ').trim());
   }
 
   private csvEscape(value: string): string {
