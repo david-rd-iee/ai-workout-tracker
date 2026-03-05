@@ -494,6 +494,10 @@ ion-segment {
   }
 }
 
+.history-button {
+  margin-top: 12px;
+}
+
 @media (max-width: 576px) {
   .stats-grid {
     grid-template-columns: 1fr;

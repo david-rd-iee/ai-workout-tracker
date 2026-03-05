@@ -1,5 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { ActivatedRoute } from '@angular/router';
 
 import {
   IonContent,
@@ -41,7 +42,7 @@ type WorkoutLogDoc = {
   template: `
     <ion-header>
       <ion-toolbar>
-        <ion-title>Workout History</ion-title>
+        <ion-title>{{ pageTitle }}</ion-title>
       </ion-toolbar>
     </ion-header>
 
@@ -104,12 +105,21 @@ type WorkoutLogDoc = {
 export class WorkoutHistoryPage implements OnInit {
   workouts: WorkoutLogDoc[] = [];
   isLoading = false;
+  pageTitle = 'Workout History';
 
-  constructor(private firestore: Firestore, private auth: Auth) {}
+  constructor(
+    private firestore: Firestore,
+    private auth: Auth,
+    private route: ActivatedRoute
+  ) {}
 
   async ngOnInit() {
     this.isLoading = true;
     try {
+      const requestedUserId = (this.route.snapshot.queryParamMap.get('userId') || '').trim();
+      const clientName = (this.route.snapshot.queryParamMap.get('clientName') || '').trim();
+      this.pageTitle = clientName ? `${clientName} Workout History` : 'Workout History';
+
       const user = await new Promise<any>((resolve) => {
         const unsub = onAuthStateChanged(this.auth as any, (u) => {
           unsub();
@@ -117,12 +127,13 @@ export class WorkoutHistoryPage implements OnInit {
         });
       });
 
-      if (!user) {
+      const targetUserId = requestedUserId || user?.uid || '';
+      if (!targetUserId) {
         this.workouts = [];
         return;
       }
 
-      const logsRef = collection(this.firestore, `users/${user.uid}/workoutLogs`);
+      const logsRef = collection(this.firestore, `users/${targetUserId}/workoutLogs`);
       const q = query(logsRef, orderBy('createdAt', 'desc'), limit(20));
       const snap = await getDocs(q);
 

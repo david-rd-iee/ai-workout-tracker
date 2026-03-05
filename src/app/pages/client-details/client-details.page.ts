@@ -225,4 +225,18 @@ export class ClientDetailsPage implements OnInit {
     // Navigate to the chat page with this client
     this.router.navigate(['/tabs/chats']);
   }
+
+  viewClientWorkoutHistory() {
+    const clientId = this.client?.id;
+    if (!clientId) {
+      return;
+    }
+
+    this.router.navigate(['/workout-history'], {
+      queryParams: {
+        userId: clientId,
+        clientName: this.client?.name || 'Client',
+      },
+    });
+  }
 }
