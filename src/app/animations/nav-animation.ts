@@ -25,22 +25,17 @@ export const appNavAnimation: AnimationBuilder = (_baseEl: any, opts: any): Anim
   const leavingIsGroups = containsSelector(leavingEl, 'app-groups');
   const enteringIsWorkoutChatbot = containsSelector(enteringEl, 'app-workout-chatbot');
   const leavingIsWorkoutChatbot = containsSelector(leavingEl, 'app-workout-chatbot');
-  const enteringIsTabs = containsSelector(enteringEl, 'app-tabs');
-  const leavingIsTabs = containsSelector(leavingEl, 'app-tabs');
-
-  const isProfileToWorkoutTransition =
-    !isBack && leavingIsProfile && (enteringIsWorkoutChatbot || enteringIsTabs);
-  const isWorkoutToProfileTransition =
-    isBack && enteringIsProfile && (leavingIsWorkoutChatbot || leavingIsTabs);
-  const isProfileWorkoutTransition =
-    isProfileToWorkoutTransition || isWorkoutToProfileTransition;
-  const isProfileGroupsTransition =
-    (enteringIsProfile && leavingIsGroups) ||
-    (leavingIsProfile && enteringIsGroups);
+  const enteringIsHome = containsSelector(enteringEl, 'app-home');
+  const leavingIsWorkoutSummary = containsSelector(leavingEl, 'app-workout-summary');
+  const isProfileHorizontalTransition =
+    (enteringIsProfile && (leavingIsGroups || leavingIsWorkoutChatbot)) ||
+    (leavingIsProfile && (enteringIsGroups || enteringIsWorkoutChatbot));
+  const isSummaryToHomeTransition =
+    !isBack && leavingIsWorkoutSummary && enteringIsHome;
 
   // Use vertical animation for any transition that enters or leaves profile.
   const useProfileVerticalTransition =
-    (enteringIsProfile || leavingIsProfile) && !isProfileGroupsTransition;
+    (enteringIsProfile || leavingIsProfile) && !isProfileHorizontalTransition;
 
   const rootAnimation = createAnimation().duration(420).easing('cubic-bezier(0.32, 0.72, 0, 1)');
   const enteringAnimation = createAnimation().addElement(enteringEl);
@@ -50,33 +45,21 @@ export const appNavAnimation: AnimationBuilder = (_baseEl: any, opts: any): Anim
   // to avoid a black flash while the leaving page moves away.
   enteringAnimation.beforeRemoveClass('ion-page-invisible');
 
+  if (isSummaryToHomeTransition) {
+    enteringAnimation
+      .beforeStyles({ transform: 'translateY(100%)', opacity: '1' })
+      .fromTo('transform', 'translateY(100%)', 'translateY(0)')
+      .afterClearStyles(['transform', 'opacity']);
+
+    leavingAnimation
+      .beforeStyles({ transform: 'translateY(0)', opacity: '1' })
+      .fromTo('opacity', '1', '1')
+      .afterClearStyles(['transform', 'opacity']);
+
+    return rootAnimation.addAnimation([enteringAnimation, leavingAnimation]);
+  }
+
   if (useProfileVerticalTransition) {
-    if (isProfileWorkoutTransition) {
-      if (isBack) {
-        // Workout -> Profile: profile stays on top and slides down.
-        enteringAnimation
-          .beforeStyles({ transform: 'translate3d(0, -100%, 0)', opacity: '1', 'z-index': '101' })
-          .fromTo('transform', 'translate3d(0, -100%, 0)', 'translate3d(0, 0, 0)')
-          .afterClearStyles(['transform', 'opacity', 'z-index']);
-
-        leavingAnimation
-          .beforeStyles({ transform: 'translate3d(0, 0, 0)', opacity: '1' })
-          .afterClearStyles(['transform', 'opacity', 'z-index']);
-      } else {
-        // Profile -> Workout: profile stays on top and slides up.
-        enteringAnimation
-          .beforeStyles({ transform: 'translate3d(0, 0, 0)', opacity: '1' })
-          .afterClearStyles(['transform', 'opacity']);
-
-        leavingAnimation
-          .beforeStyles({ transform: 'translate3d(0, 0, 0)', opacity: '1', 'z-index': '101' })
-          .fromTo('transform', 'translate3d(0, 0, 0)', 'translate3d(0, -100%, 0)')
-          .afterClearStyles(['transform', 'opacity', 'z-index']);
-      }
-
-      return rootAnimation.addAnimation([enteringAnimation, leavingAnimation]);
-    }
-
     if (isBack) {
       enteringAnimation
         .beforeStyles({ transform: 'translate3d(0, 0, 0)', opacity: '1' })

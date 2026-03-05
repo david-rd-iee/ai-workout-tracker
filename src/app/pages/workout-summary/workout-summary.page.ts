@@ -2,6 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
+import { NavController } from '@ionic/angular';
 import {
   IonContent,
   IonHeader,
@@ -13,7 +14,6 @@ import {
   IonGrid,
   IonRow,
   IonCol,
-  IonBadge,
   IonButton,
   IonButtons,
   IonIcon,
@@ -38,7 +38,6 @@ import { WorkoutSessionPerformance } from '../../models/workout-session.model';
     IonGrid,
     IonRow,
     IonCol,
-    IonBadge,
     IonButton,
     IonButtons,
     IonIcon,
@@ -56,7 +55,7 @@ export class WorkoutSummaryPage implements OnInit {
     exercises: [],
   };
 
-  constructor(private router: Router) {
+  constructor(private router: Router, private navCtrl: NavController) {
     addIcons({ closeOutline });
 
     const nav = this.router.getCurrentNavigation();
@@ -69,7 +68,10 @@ export class WorkoutSummaryPage implements OnInit {
   ngOnInit() {}
 
   goBackToChat() {
-    this.router.navigate(['/tabs/chats']);
+    this.navCtrl.navigateBack('/workout-chatbot', {
+      animated: true,
+      animationDirection: 'back',
+    });
   }
 
   navigateToGroups() {
@@ -78,5 +80,12 @@ export class WorkoutSummaryPage implements OnInit {
 
   navigateToLeaderboard() {
     this.router.navigate(['/tabs/leaderboard']);
+  }
+
+  navigateToHome() {
+    this.navCtrl.navigateRoot('/tabs/home', {
+      animated: true,
+      animationDirection: 'forward',
+    });
   }
 }

@@ -1,19 +1,17 @@
 // imports
-import { Component, OnInit } from '@angular/core';
+import { WorkoutLogService } from '../../services/workout-log.service';
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import {
-  IonInput,
-  IonButton,
-  IonIcon,
-} from '@ionic/angular/standalone';
+import { IonInput, IonButton, IonIcon, IonContent } from '@ionic/angular/standalone';
+import { Platform } from '@ionic/angular';
 import { addIcons } from 'ionicons';
-import { fitnessOutline } from 'ionicons/icons';
+import { arrowUp, fitnessOutline } from 'ionicons/icons';
+import { Capacitor } from '@capacitor/core';
+import { Keyboard } from '@capacitor/keyboard';
+import { HeaderComponent } from '../../components/header/header.component';
 
-import {
-  WorkoutSessionPerformance,
-} from '../../models/workout-session.model';
-
+import { WorkoutSessionPerformance } from '../../models/workout-session.model';
 import { Router } from '@angular/router';
 import {
   WorkoutChatService,
@@ -35,18 +33,19 @@ interface ChatMessage {
   standalone: true,
   templateUrl: './workout-chatbot.page.html',
   styleUrls: ['./workout-chatbot.page.scss'],
-  imports: [
-    CommonModule,
-    FormsModule,
-    IonInput,
-    IonButton,
-    IonIcon,
-  ],
+  imports: [CommonModule, FormsModule, IonInput, IonButton, IonIcon, IonContent, HeaderComponent],
 })
-export class WorkoutChatbotPage implements OnInit {
+export class WorkoutChatbotPage implements OnInit, OnDestroy {
   userInput = '';
   messages: ChatMessage[] = [];
   isLoading = false;
+  keyboardOffset = 0;
+
+  // Save guards
+  hasSavedWorkout = false;
+  isSavingWorkout = false;
+  private isIPhone = false;
+  private removeKeyboardListeners: Array<() => void> = [];
 
   // structured session/summary object the AI can update
   session: WorkoutSessionPerformance = {
@@ -61,19 +60,32 @@ export class WorkoutChatbotPage implements OnInit {
 
   constructor(
     private router: Router,
-    private workoutChatService: WorkoutChatService
+    private workoutChatService: WorkoutChatService,
+    private workoutLogService: WorkoutLogService,
+    private platform: Platform
   ) {
-    addIcons({ fitnessOutline });
+    addIcons({ fitnessOutline, arrowUp });
   }
 
   ngOnInit() {
+    // New page load = new workout attempt
+    this.hasSavedWorkout = false;
+    this.isSavingWorkout = false;
+
     this.addBotMessage(
       "Hey! Ready to log your workout? Tell me your first exercise (name, sets, reps, weight) and I’ll organize everything for your trainer."
     );
+
+    this.isIPhone = this.platform.is('iphone');
+    this.initKeyboardBehavior();
+  }
+
+  ngOnDestroy() {
+    this.removeKeyboardListeners.forEach((remove) => remove());
+    this.removeKeyboardListeners = [];
   }
 
   // helpers:
-
   addBotMessage(text: string) {
     this.messages.push({ from: 'bot', text });
   }
@@ -91,38 +103,39 @@ export class WorkoutChatbotPage implements OnInit {
   }
 
   async handleSend() {
-    console.log('handleSend() called, raw input =', this.userInput);
     const text = this.userInput.trim();
-    if (!text) {
-      console.log('Empty or whitespace-only message, ignoring.');
-      return;
-    }
+    if (!text) return;
 
     // show user message immediately
     this.addUserMessage(text);
     this.userInput = '';
-
     this.isLoading = true;
 
     try {
-      const response: ChatResponse =
-        await this.workoutChatService.sendMessage({
-          message: text,
-          session: this.session,
-          history: this.buildHistory(),
-        });
+      const response: ChatResponse = await this.workoutChatService.sendMessage({
+        message: text,
+        session: this.session,
+        history: this.buildHistory(),
+      });
 
-      // update session if backend/AI changed it
+      // If the previous session was complete, and now it's not complete,
+      // assume user is starting a new workout -> allow saving again.
+      const wasComplete = !!this.session?.isComplete;
+
       if (response.updatedSession) {
         this.session = response.updatedSession as WorkoutSessionPerformance;
-        console.log('Updated session:', this.session);
+      }
+
+      const isNowComplete = !!this.session?.isComplete;
+
+      if (wasComplete && !isNowComplete) {
+        this.hasSavedWorkout = false;
       }
 
       // show bot reply
       if (response.botMessage) {
         this.addBotMessage(response.botMessage);
       } else {
-        // fallback if backend didn't send text
         this.addBotMessage(
           'I received your message, but there was no reply text. Check the backend response format.'
         );
@@ -137,10 +150,103 @@ export class WorkoutChatbotPage implements OnInit {
     }
   }
 
-  navigateToWorkoutSummary() {
-    // pass the current AI-built summary to the summary page
+  async submitWorkout() {
+    // Don’t allow multiple clicks while saving
+    if (this.isSavingWorkout) return;
+
+    if (this.hasSavedWorkout) {
+      this.addBotMessage('Your workout is already submitted.');
+      return;
+    }
+
+    const didSave = await this.persistCurrentWorkout();
+    if (!didSave) return;
+
+    this.addBotMessage('Workout submitted and saved to your history.');
+  }
+
+  viewWorkoutSummary(): void {
     this.router.navigate(['/workout-summary'], {
       state: { summary: this.session },
     });
+  }
+
+  private async persistCurrentWorkout(): Promise<boolean> {
+    if (this.isSavingWorkout) return false;
+
+    this.isSavingWorkout = true;
+    try {
+      await this.workoutLogService.saveCompletedWorkout(this.session);
+      this.hasSavedWorkout = true;
+      return true;
+    } catch (err) {
+      console.error('Failed to save workout:', err);
+      this.addBotMessage(
+        'I had trouble saving your workout. Please try again.'
+      );
+      return false;
+    } finally {
+      this.isSavingWorkout = false;
+    }
+  }
+
+  private initKeyboardBehavior(): void {
+    // On iPhone, keep native iOS keyboard behavior and do not force offsets.
+    if (this.isIPhone) {
+      this.keyboardOffset = 0;
+      return;
+    }
+
+    if (Capacitor.isNativePlatform()) {
+      void this.bindNativeKeyboardListeners();
+      return;
+    }
+
+    this.bindWebViewportKeyboardListeners();
+  }
+
+  private async bindNativeKeyboardListeners(): Promise<void> {
+    const showHandler = (info: { keyboardHeight: number }) => {
+      this.keyboardOffset = info?.keyboardHeight ?? 0;
+    };
+
+    const hideHandler = () => {
+      this.keyboardOffset = 0;
+    };
+
+    const willShow = await Keyboard.addListener('keyboardWillShow', showHandler);
+    const didShow = await Keyboard.addListener('keyboardDidShow', showHandler);
+    const willHide = await Keyboard.addListener('keyboardWillHide', hideHandler);
+    const didHide = await Keyboard.addListener('keyboardDidHide', hideHandler);
+
+    this.removeKeyboardListeners.push(
+      () => void willShow.remove(),
+      () => void didShow.remove(),
+      () => void willHide.remove(),
+      () => void didHide.remove()
+    );
+  }
+
+  private bindWebViewportKeyboardListeners(): void {
+    if (!window.visualViewport) return;
+
+    const updateOffset = () => {
+      const viewport = window.visualViewport;
+      if (!viewport) return;
+      const offset = Math.max(
+        0,
+        Math.round(window.innerHeight - viewport.height - viewport.offsetTop)
+      );
+      this.keyboardOffset = offset;
+    };
+
+    window.visualViewport.addEventListener('resize', updateOffset);
+    window.visualViewport.addEventListener('scroll', updateOffset);
+    this.removeKeyboardListeners.push(() =>
+      window.visualViewport?.removeEventListener('resize', updateOffset)
+    );
+    this.removeKeyboardListeners.push(() =>
+      window.visualViewport?.removeEventListener('scroll', updateOffset)
+    );
   }
 }
