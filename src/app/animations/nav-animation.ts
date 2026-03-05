@@ -25,6 +25,8 @@ export const appNavAnimation: AnimationBuilder = (_baseEl: any, opts: any): Anim
   const leavingIsGroups = containsSelector(leavingEl, 'app-groups');
   const enteringIsWorkoutChatbot = containsSelector(enteringEl, 'app-workout-chatbot');
   const leavingIsWorkoutChatbot = containsSelector(leavingEl, 'app-workout-chatbot');
+  const enteringIsWorkoutHistory = containsSelector(enteringEl, 'app-workout-history');
+  const leavingIsWorkoutHistory = containsSelector(leavingEl, 'app-workout-history');
   const enteringIsHome = containsSelector(enteringEl, 'app-home');
   const leavingIsWorkoutSummary = containsSelector(leavingEl, 'app-workout-summary');
   const isProfileHorizontalTransition =
@@ -36,6 +38,8 @@ export const appNavAnimation: AnimationBuilder = (_baseEl: any, opts: any): Anim
   // Use vertical animation for any transition that enters or leaves profile.
   const useProfileVerticalTransition =
     (enteringIsProfile || leavingIsProfile) && !isProfileHorizontalTransition;
+  const useWorkoutHistoryVerticalTransition =
+    enteringIsWorkoutHistory || leavingIsWorkoutHistory;
 
   const rootAnimation = createAnimation().duration(420).easing('cubic-bezier(0.32, 0.72, 0, 1)');
   const enteringAnimation = createAnimation().addElement(enteringEl);
@@ -73,6 +77,30 @@ export const appNavAnimation: AnimationBuilder = (_baseEl: any, opts: any): Anim
       enteringAnimation
         .beforeStyles({ transform: 'translate3d(0, -100%, 0)', opacity: '1' })
         .fromTo('transform', 'translate3d(0, -100%, 0)', 'translate3d(0, 0, 0)')
+        .afterClearStyles(['transform', 'opacity']);
+
+      leavingAnimation
+        .beforeStyles({ transform: 'translate3d(0, 0, 0)', opacity: '1' })
+        .afterClearStyles(['transform', 'opacity']);
+    }
+
+    return rootAnimation.addAnimation([enteringAnimation, leavingAnimation]);
+  }
+
+  if (useWorkoutHistoryVerticalTransition) {
+    if (isBack) {
+      enteringAnimation
+        .beforeStyles({ transform: 'translate3d(0, 0, 0)', opacity: '1' })
+        .afterClearStyles(['transform', 'opacity']);
+
+      leavingAnimation
+        .beforeStyles({ transform: 'translate3d(0, 0, 0)', opacity: '1' })
+        .fromTo('transform', 'translate3d(0, 0, 0)', 'translate3d(0, 100%, 0)')
+        .afterClearStyles(['transform', 'opacity']);
+    } else {
+      enteringAnimation
+        .beforeStyles({ transform: 'translate3d(0, 100%, 0)', opacity: '1' })
+        .fromTo('transform', 'translate3d(0, 100%, 0)', 'translate3d(0, 0, 0)')
         .afterClearStyles(['transform', 'opacity']);
 
       leavingAnimation

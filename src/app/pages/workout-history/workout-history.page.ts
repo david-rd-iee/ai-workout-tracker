@@ -7,6 +7,8 @@ import {
   IonHeader,
   IonTitle,
   IonToolbar,
+  IonButtons,
+  IonBackButton,
   IonList,
   IonItem,
   IonLabel,
@@ -42,6 +44,9 @@ type WorkoutLogDoc = {
   template: `
     <ion-header>
       <ion-toolbar>
+        <ion-buttons slot="start">
+          <ion-back-button defaultHref="/tabs/home"></ion-back-button>
+        </ion-buttons>
         <ion-title>{{ pageTitle }}</ion-title>
       </ion-toolbar>
     </ion-header>
@@ -95,6 +100,8 @@ type WorkoutLogDoc = {
     IonHeader,
     IonTitle,
     IonToolbar,
+    IonButtons,
+    IonBackButton,
     IonList,
     IonItem,
     IonLabel,
