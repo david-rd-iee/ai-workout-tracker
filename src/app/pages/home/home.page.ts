@@ -35,6 +35,7 @@ import { authState } from 'rxfire/auth';
 import { switchMap, of } from 'rxjs';
 import { Subscription } from 'rxjs';
 import { HeaderComponent } from 'src/app/components/header/header.component';
+import { Health } from '@capgo/capacitor-health';
 
 import type { AppUser } from '../../models/user.model';
 
@@ -122,6 +123,22 @@ export class HomePage implements OnInit, OnDestroy {
   
   // Display properties
   currentDate = new Date();
+  healthStatus = 'Not connected';
+  isConnectingHealth = false;
+
+  latestHeartRate: number | null = null;
+  latestHeartRateTime = '';
+
+  get formattedHeartRateTime(): string {
+    if (!this.latestHeartRateTime) return '';
+  
+    return new Date(this.latestHeartRateTime).toLocaleString([], {
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    });
+  }
 
   // Helper method to get user's first name for greeting
   userName(): string {
@@ -583,6 +600,57 @@ export class HomePage implements OnInit, OnDestroy {
   // Generic navigation
   navigateTo(path: string): void {
     this.router.navigate([path]);
+  }
+
+  async connectAppleHealth() {
+    if (this.isConnectingHealth) return;
+  
+    this.isConnectingHealth = true;
+    this.healthStatus = 'Connecting...';
+  
+    try {
+      await Health.requestAuthorization({
+        read: ['heartRate'],
+        write: [],
+      });
+  
+      this.healthStatus = 'Apple Health connected';
+      console.log('Apple Health authorization granted');
+    } catch (error) {
+      this.healthStatus = 'Apple Health connection failed';
+      console.error('Apple Health authorization error:', error);
+    } finally {
+      this.isConnectingHealth = false;
+    }
+  }
+
+  async loadLatestHeartRate() {
+    try {
+      const endDate = new Date();
+      const startDate = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  
+      const { samples } = await Health.readSamples({
+        dataType: 'heartRate',
+        startDate: startDate.toISOString(),
+        endDate: endDate.toISOString(),
+        limit: 50,
+      });
+  
+      if (!samples || samples.length === 0) {
+        this.healthStatus = 'No heart rate samples found';
+        return;
+      }
+  
+      const latestSample = samples[samples.length - 1] as any;
+  
+      this.latestHeartRate = latestSample.value ?? null;
+      this.latestHeartRateTime = latestSample.endDate || latestSample.startDate || '';
+  
+      console.log('Latest heart rate sample:', latestSample);
+    } catch (error) {
+      console.error('Heart rate read error:', error);
+      this.healthStatus = 'Failed to load heart rate';
+    }
   }
 
   startWorkout() {

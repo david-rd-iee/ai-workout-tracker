@@ -6,7 +6,7 @@
   <div class="home-container">
     <!-- Welcome Section -->
     <div class="welcome-section">
-      <h1>Welcome Back, {{ userName() }}!</h1>
+      <h1>Welcome back, {{ userName() }}!</h1>
       <p class="date">{{ currentDate | date:'EEEE, MMMM d' }}</p>
     </div>
 
@@ -104,6 +104,52 @@
         </ng-template>
       </div>
     </ng-container>
+
+    <!-- Apple Health Test Widget -->
+<ion-card class="apple-health-widget">
+  <ion-card-content>
+    <div class="widget-content">
+      <div class="widget-text">
+        <h2>Apple Health</h2>
+        <p>{{ healthStatus }}</p>
+      </div>
+    </div>
+
+    <ion-button
+      expand="block"
+      (click)="connectAppleHealth()"
+      [disabled]="isConnectingHealth || healthStatus === 'Apple Health connected'">
+
+      {{ isConnectingHealth
+        ? 'Connecting...'
+        : healthStatus === 'Apple Health connected'
+          ? 'Connected ✓'
+          : 'Connect Apple Health' }}
+
+    </ion-button>
+
+    <!-- NEW BUTTON -->
+    <ion-button
+      expand="block"
+      color="secondary"
+      (click)="loadLatestHeartRate()"
+      [disabled]="healthStatus !== 'Apple Health connected'">
+
+      Load Latest Heart Rate
+
+    </ion-button>
+
+    <!-- HEART RATE OUTPUT -->
+    <p *ngIf="latestHeartRate !== null">
+      Latest heart rate: {{ latestHeartRate }} BPM
+    </p>
+
+    <p *ngIf="latestHeartRateTime">
+      Sample time: {{ formattedHeartRateTime }}
+    </p>
+
+  </ion-card-content>
+</ion-card>
 
     <!-- TRAINER HOME PAGE -->
     <ng-container *ngIf="currentUser?.isPT === true">
