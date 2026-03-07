@@ -5,6 +5,7 @@ import { IonApp, IonRouterOutlet } from '@ionic/angular/standalone';
 import { DevSeedService } from './services/dev-seed.service';
 import { AccountService } from './services/account/account.service';
 import { UserService } from './services/account/user.service';
+import { ExerciseEstimatorsService } from './services/exercise-estimators.service';
 import { environment } from '../environments/environment';
 import { Subscription } from 'rxjs';
 
@@ -23,6 +24,7 @@ export class AppComponent implements OnInit, OnDestroy {
     private devSeedService: DevSeedService,
     private accountService: AccountService,
     private userService: UserService,
+    private exerciseEstimatorsService: ExerciseEstimatorsService,
     private router: Router
   ) {
     // Expose dev methods globally for console access
@@ -46,6 +48,12 @@ export class AppComponent implements OnInit, OnDestroy {
   }
 
   async ngOnInit() {
+    try {
+      await this.exerciseEstimatorsService.ensureInitialized();
+    } catch (error) {
+      console.error('[AppComponent] Error initializing exercise estimators:', error);
+    }
+
     try {
       await this.handleAuthState();
 
