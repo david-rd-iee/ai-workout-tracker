@@ -92,6 +92,12 @@ export const routes: Routes = [
     canActivate: [authGuard],
   },
   {
+    path: 'workout-insights',
+    loadComponent: () =>
+      import('./pages/workout-insights/workout-insights.page').then((m) => m.WorkoutInsightsPage),
+    canActivate: [authGuard],
+  },
+  {
     path: '',
     redirectTo: 'login',
     pathMatch: 'full',

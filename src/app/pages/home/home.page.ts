@@ -35,7 +35,6 @@ import { authState } from 'rxfire/auth';
 import { switchMap, of } from 'rxjs';
 import { Subscription } from 'rxjs';
 import { HeaderComponent } from 'src/app/components/header/header.component';
-import { Health } from '@capgo/capacitor-health';
 
 import type { AppUser } from '../../models/user.model';
 
@@ -123,24 +122,7 @@ export class HomePage implements OnInit, OnDestroy {
   
   // Display properties
   currentDate = new Date();
-  healthStatus = 'Not connected';
-  isConnectingHealth = false;
 
-  latestHeartRate: number | null = null;
-  latestHeartRateTime = '';
-
-  get formattedHeartRateTime(): string {
-    if (!this.latestHeartRateTime) return '';
-  
-    return new Date(this.latestHeartRateTime).toLocaleString([], {
-      month: 'short',
-      day: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit',
-    });
-  }
-
-  // Helper method to get user's first name for greeting
   userName(): string {
     return this.currentUser?.firstName || 'User';
   }
@@ -174,14 +156,12 @@ export class HomePage implements OnInit, OnDestroy {
           return of(null);
         }
 
-        // Try trainers collection first, then clients
         const trainerRef = doc(this.firestore, 'trainers', fbUser.uid);
         return docData(trainerRef, { idField: 'userId' }).pipe(
           switchMap((trainer) => {
             if (trainer) {
               return of({ ...trainer, isPT: true });
             }
-            // If not a trainer, check clients collection
             const clientRef = doc(this.firestore, 'clients', fbUser.uid);
             return docData(clientRef, { idField: 'userId' }).pipe(
               switchMap((client) => {
@@ -211,7 +191,6 @@ export class HomePage implements OnInit, OnDestroy {
         this.currentUser = nextUser;
         this.isLoadingUser = false;
 
-        // Home pulls from trainers/clients, but profile image is often stored in users/{uid}.
         if (this.currentUser?.userId && this.hydratedHeaderUid !== this.currentUser.userId) {
           this.hydratedHeaderUid = this.currentUser.userId;
           void this.hydrateHeaderProfileFields(this.currentUser.userId);
@@ -302,7 +281,6 @@ export class HomePage implements OnInit, OnDestroy {
   async loadTrainerClients(trainerId: string) {
     if (!trainerId) return;
 
-    // Calculate revenue from actual bookings
     await this.calculateRevenueFromBookings(trainerId);
 
     this.stopTrainerClientsListener();
@@ -318,7 +296,6 @@ export class HomePage implements OnInit, OnDestroy {
         if (snapshot.exists()) {
           const data = snapshot.data();
           this.clients = (data['clients'] || []).map((client: any) => {
-            // Support both new (firstName/lastName) and old (clientName) formats
             let displayName = '';
             if (client.firstName || client.lastName) {
               displayName = `${client.firstName || ''} ${client.lastName || ''}`.trim();
@@ -357,22 +334,19 @@ export class HomePage implements OnInit, OnDestroy {
       const monthlyRevenue: any[] = [];
       let totalRevenue = 0;
       
-      // Query all bookings for this trainer
       const bookingsRef = collection(this.firestore, 'bookings');
       const q = query(bookingsRef, where('trainerId', '==', trainerId));
       const querySnapshot = await getDocs(q);
       
-      // Group bookings by month
       const revenueByMonth = new Map<string, { revenue: number; sessions: number }>();
       
       querySnapshot.forEach((doc) => {
         const booking = doc.data() as any;
         
-        // Only count completed or confirmed sessions
         if (booking.status === 'completed' || booking.status === 'confirmed') {
           const bookingDate = new Date(booking.startTimeUTC || booking.createdAt?.toDate() || new Date());
           const monthKey = `${bookingDate.getFullYear()}-${bookingDate.getMonth()}`;
-          const price = booking.price || 75; // Default to $75 if no price set
+          const price = booking.price || 75;
           
           if (!revenueByMonth.has(monthKey)) {
             revenueByMonth.set(monthKey, { revenue: 0, sessions: 0 });
@@ -384,7 +358,6 @@ export class HomePage implements OnInit, OnDestroy {
         }
       });
       
-      // Generate monthly revenue data for last 3 months and next 2 months
       for (let i = -3; i <= 2; i++) {
         const monthDate = new Date(today.getFullYear(), today.getMonth() + i, 1);
         const monthKey = `${monthDate.getFullYear()}-${monthDate.getMonth()}`;
@@ -399,7 +372,6 @@ export class HomePage implements OnInit, OnDestroy {
           isFuture: i > 0
         });
         
-        // Only add to total revenue for past and current months
         if (i <= 0) {
           totalRevenue += monthStats.revenue;
         }
@@ -411,7 +383,7 @@ export class HomePage implements OnInit, OnDestroy {
 
       this.monthlyRevenue = monthlyRevenue;
       this.totalRevenue = totalRevenue;
-      this.currentMonthIndex = 3; // Current month is at index 3
+      this.currentMonthIndex = 3;
       
     } catch (error) {
       console.error('Error calculating revenue:', error);
@@ -423,7 +395,6 @@ export class HomePage implements OnInit, OnDestroy {
   }
 
   loadUserData() {
-    // Deprecated - keeping for backwards compatibility
     const clientId = this.currentUser?.userId || this.auth.currentUser?.uid;
     if (clientId) {
       void this.loadClientData(clientId);
@@ -432,7 +403,6 @@ export class HomePage implements OnInit, OnDestroy {
   
   isWidgetEnabled(widgetId: string): boolean {
     if (!this.homeConfig) {
-      // If no config, show default widgets
       const defaultWidgets = ['welcome', 'streak', 'next-workout', 'upcoming-session'];
       return defaultWidgets.includes(widgetId);
     }
@@ -451,7 +421,6 @@ export class HomePage implements OnInit, OnDestroy {
     const roleKey = `${clientId}:client`;
 
     try {
-      // Load home page customization
       const configRef = doc(this.firestore, `clientHomeConfigs/${clientId}`);
       const configSnap = await getDoc(configRef);
       
@@ -460,7 +429,6 @@ export class HomePage implements OnInit, OnDestroy {
         this.customMessage = this.homeConfig.customMessage || '';
       }
 
-      // Load client profile to get streak data
       const clientRef = doc(this.firestore, `clients/${clientId}`);
       const clientSnap = await getDoc(clientRef);
       
@@ -469,10 +437,7 @@ export class HomePage implements OnInit, OnDestroy {
         this.currentStreak = clientData['currentStreak'] || 0;
       }
 
-      // Load next scheduled workout
       await this.loadNextWorkout(clientId);
-
-      // Load upcoming trainer sessions from bookings
       await this.loadUpcomingSessions(clientId);
 
     } catch (error) {
@@ -482,7 +447,6 @@ export class HomePage implements OnInit, OnDestroy {
 
   async loadNextWorkout(clientId: string) {
     try {
-      // Query for next scheduled workout
       const workoutsRef = collection(this.firestore, `clientWorkouts/${clientId}/workouts`);
       const q = query(
         workoutsRef,
@@ -525,7 +489,6 @@ export class HomePage implements OnInit, OnDestroy {
 
   async loadUpcomingSessions(clientId: string) {
     try {
-      // Query bookings for this client
       const bookingsRef = collection(this.firestore, 'bookings');
       const q = query(
         bookingsRef,
@@ -547,7 +510,6 @@ export class HomePage implements OnInit, OnDestroy {
         const booking = doc.data();
         const sessionDate = new Date(booking['startTimeUTC']);
         
-        // Only include future sessions
         if (sessionDate > now) {
           this.upcomingSessions.push({
             id: doc.id,
@@ -559,7 +521,6 @@ export class HomePage implements OnInit, OnDestroy {
         }
       });
       
-      // Sort by date (earliest first)
       this.upcomingSessions.sort((a, b) => a.date.getTime() - b.date.getTime());
     } catch (error) {
       console.error('Error loading upcoming sessions:', error);
@@ -567,14 +528,12 @@ export class HomePage implements OnInit, OnDestroy {
     }
   }
 
-  // Helper methods from main branch
   get greetingName(): string {
     const first = (this.currentUser?.firstName || '').trim();
     const user = (this.currentUser?.username || '').trim();
     return first || user || 'there';
   }
 
-  // Trainer-specific helper methods
   viewClientDetails(client: any) {
     this.router.navigate(['/client-details'], { 
       state: { client } 
@@ -597,60 +556,9 @@ export class HomePage implements OnInit, OnDestroy {
     return this.monthlyRevenue[this.currentMonthIndex];
   }
 
-  // Generic navigation
   navigateTo(path: string): void {
-    this.router.navigate([path]);
-  }
-
-  async connectAppleHealth() {
-    if (this.isConnectingHealth) return;
-  
-    this.isConnectingHealth = true;
-    this.healthStatus = 'Connecting...';
-  
-    try {
-      await Health.requestAuthorization({
-        read: ['heartRate'],
-        write: [],
-      });
-  
-      this.healthStatus = 'Apple Health connected';
-      console.log('Apple Health authorization granted');
-    } catch (error) {
-      this.healthStatus = 'Apple Health connection failed';
-      console.error('Apple Health authorization error:', error);
-    } finally {
-      this.isConnectingHealth = false;
-    }
-  }
-
-  async loadLatestHeartRate() {
-    try {
-      const endDate = new Date();
-      const startDate = new Date(Date.now() - 24 * 60 * 60 * 1000);
-  
-      const { samples } = await Health.readSamples({
-        dataType: 'heartRate',
-        startDate: startDate.toISOString(),
-        endDate: endDate.toISOString(),
-        limit: 50,
-      });
-  
-      if (!samples || samples.length === 0) {
-        this.healthStatus = 'No heart rate samples found';
-        return;
-      }
-  
-      const latestSample = samples[samples.length - 1] as any;
-  
-      this.latestHeartRate = latestSample.value ?? null;
-      this.latestHeartRateTime = latestSample.endDate || latestSample.startDate || '';
-  
-      console.log('Latest heart rate sample:', latestSample);
-    } catch (error) {
-      console.error('Heart rate read error:', error);
-      this.healthStatus = 'Failed to load heart rate';
-    }
+    const cleanedPath = path.startsWith('/') ? path : `/${path}`;
+    this.router.navigateByUrl(cleanedPath);
   }
 
   startWorkout() {
