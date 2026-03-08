@@ -102,7 +102,7 @@ export class HomePage implements OnInit, OnDestroy {
   private userSub?: Subscription;
   private trainerClientsUnsubscribe: (() => void) | null = null;
   private activeUserDataKey: string | null = null;
-  private hydratedHeaderUid: string | null = null;
+  private headerUserFieldCache = new Map<string, Partial<AppUser>>();
 
   isLoadingUser = true;
   currentUser: AppUser | null = null;
@@ -187,7 +187,8 @@ export class HomePage implements OnInit, OnDestroy {
       })
     ).subscribe({
       next: (u) => {
-        const nextUser = (u as AppUser | null) ?? null;
+        const rawNextUser = (u as AppUser | null) ?? null;
+        const nextUser = this.applyHeaderUserFieldCache(rawNextUser);
         const nextUserKey = nextUser ? `${nextUser.userId}:${nextUser.isPT ? 'trainer' : 'client'}` : null;
         const roleChanged = nextUserKey !== this.activeUserDataKey;
 
@@ -195,14 +196,12 @@ export class HomePage implements OnInit, OnDestroy {
         this.isLoadingUser = false;
 
         // Home pulls from trainers/clients, but profile image is often stored in users/{uid}.
-        if (this.currentUser?.userId && this.hydratedHeaderUid !== this.currentUser.userId) {
-          this.hydratedHeaderUid = this.currentUser.userId;
+        if (this.currentUser?.userId && this.shouldHydrateHeaderFields(this.currentUser)) {
           void this.hydrateHeaderProfileFields(this.currentUser.userId);
         }
 
         if (!this.currentUser) {
           this.activeUserDataKey = null;
-          this.hydratedHeaderUid = null;
           this.stopTrainerClientsListener();
           this.clearRoleData();
           return;
@@ -248,16 +247,63 @@ export class HomePage implements OnInit, OnDestroy {
       const usersFirstName = typeof userData?.firstName === 'string' ? userData.firstName.trim() : '';
       const usersLastName = typeof userData?.lastName === 'string' ? userData.lastName.trim() : '';
 
+      const cachedFields: Partial<AppUser> = {
+        profilepic: usersProfilepic,
+        username: usersUsername,
+        firstName: usersFirstName,
+        lastName: usersLastName,
+      };
+
+      this.headerUserFieldCache.set(uid, cachedFields);
+
       this.currentUser = {
         ...this.currentUser,
-        profilepic: usersProfilepic || this.currentUser.profilepic,
-        username: usersUsername || this.currentUser.username,
-        firstName: usersFirstName || this.currentUser.firstName,
-        lastName: usersLastName || this.currentUser.lastName,
+        profilepic: usersProfilepic || this.currentUser.profilepic || '',
+        username: usersUsername || this.currentUser.username || '',
+        firstName: usersFirstName || this.currentUser.firstName || '',
+        lastName: usersLastName || this.currentUser.lastName || '',
       };
     } catch (error) {
       console.error('Error hydrating header profile fields:', error);
     }
+  }
+
+  private shouldHydrateHeaderFields(user: AppUser): boolean {
+    const uid = (user.userId || '').trim();
+    if (!uid) {
+      return false;
+    }
+
+    const cached = this.headerUserFieldCache.get(uid);
+    if (!cached) {
+      return true;
+    }
+
+    const profilePic = (user.profilepic || '').trim();
+    const username = (user.username || '').trim();
+    const firstName = (user.firstName || '').trim();
+    const lastName = (user.lastName || '').trim();
+
+    return !profilePic || !username || !firstName || !lastName;
+  }
+
+  private applyHeaderUserFieldCache(user: AppUser | null): AppUser | null {
+    if (!user?.userId) {
+      return user;
+    }
+
+    const cached = this.headerUserFieldCache.get(user.userId);
+    if (!cached) {
+      return user;
+    }
+
+    return {
+      ...user,
+      profilepic: (user.profilepic || '').trim() || (cached.profilepic || ''),
+      username: (user.username || '').trim() || (cached.username || ''),
+      firstName: (user.firstName || '').trim() || (cached.firstName || ''),
+      lastName: (user.lastName || '').trim() || (cached.lastName || ''),
+    };
   }
 
   ngOnDestroy(): void {

@@ -22,7 +22,7 @@ import { Router } from '@angular/router';
 import { EmailAuthProvider, reauthenticateWithCredential, updateEmail, User, verifyBeforeUpdateEmail } from 'firebase/auth';
 import { FirebaseError } from 'firebase/app';
 import { AlertController } from '@ionic/angular';
-import { deleteField, doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
+import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
 
 @Component({
   selector: 'app-profile-settings',
@@ -55,8 +55,9 @@ export class ProfileSettingsPage implements OnInit {
   lastName = '';
   email = '';
   initialEmail = '';
-  weight: string | number | null = '';
-  height: string | number | null = '';
+  age: string | number | null = '';
+  heightMeters: string | number | null = '';
+  weightKg: string | number | null = '';
 
   isLoading = false;
   isSaving = false;
@@ -99,16 +100,22 @@ export class ProfileSettingsPage implements OnInit {
       return;
     }
 
-    const parsedWeight = this.parseOptionalNumber(this.weight);
-    const parsedHeight = this.parseOptionalNumber(this.height);
+    const parsedAge = this.parseNumber(this.age);
+    const parsedHeightMeters = this.parseNumber(this.heightMeters);
+    const parsedWeightKg = this.parseNumber(this.weightKg);
 
-    if (parsedWeight !== null && parsedWeight <= 0) {
-      this.errorMessage = 'Weight must be greater than 0.';
+    if (parsedAge === null || !Number.isInteger(parsedAge) || parsedAge <= 0) {
+      this.errorMessage = 'Age must be a whole number greater than 0.';
       return;
     }
 
-    if (parsedHeight !== null && parsedHeight <= 0) {
-      this.errorMessage = 'Height must be greater than 0.';
+    if (parsedHeightMeters === null || parsedHeightMeters <= 0) {
+      this.errorMessage = 'Height (m) must be greater than 0.';
+      return;
+    }
+
+    if (parsedWeightKg === null || parsedWeightKg <= 0) {
+      this.errorMessage = 'Weight (kg) must be greater than 0.';
       return;
     }
 
@@ -151,11 +158,11 @@ export class ProfileSettingsPage implements OnInit {
 
       const userStatsPayload: Record<string, unknown> = {
         userId: uid,
+        age: parsedAge,
+        heightMeters: parsedHeightMeters,
+        weightKg: parsedWeightKg,
         updatedAt: serverTimestamp(),
       };
-
-      userStatsPayload['weight'] = parsedWeight === null ? deleteField() : parsedWeight;
-      userStatsPayload['height'] = parsedHeight === null ? deleteField() : parsedHeight;
 
       const userStatsRef = doc(this.firestore, 'userStats', uid);
       await setDoc(userStatsRef, userStatsPayload, { merge: true });
@@ -163,11 +170,11 @@ export class ProfileSettingsPage implements OnInit {
       if (emailVerificationSent) {
         this.errorMessage =
           'Verification email sent. Confirm the new email, then save again to sync it here.';
-        this.successMessage = 'Name, weight, and height were saved.';
+        this.successMessage = 'Name, age, height, and weight were saved.';
         this.email = emailForUsersDoc;
       } else if (emailUpdateError) {
         this.errorMessage = emailUpdateError;
-        this.successMessage = 'Name, weight, and height were saved.';
+        this.successMessage = 'Name, age, height, and weight were saved.';
         this.email = emailForUsersDoc;
       } else {
         this.successMessage = 'Settings saved.';
@@ -216,11 +223,14 @@ export class ProfileSettingsPage implements OnInit {
 
       if (userStatsSnap.exists()) {
         const userStatsData = userStatsSnap.data();
-        const weight = userStatsData?.['weight'];
-        const height = userStatsData?.['height'];
+        const age = userStatsData?.['age'];
+        const heightMeters = userStatsData?.['heightMeters'];
+        const weightKg = userStatsData?.['weightKg'];
 
-        this.weight = typeof weight === 'number' ? String(weight) : '';
-        this.height = typeof height === 'number' ? String(height) : '';
+        this.age = typeof age === 'number' && age > 0 ? String(age) : '';
+        this.heightMeters =
+          typeof heightMeters === 'number' && heightMeters > 0 ? String(heightMeters) : '';
+        this.weightKg = typeof weightKg === 'number' && weightKg > 0 ? String(weightKg) : '';
       }
     } catch (error) {
       console.error('[ProfileSettingsPage] Failed to load settings:', error);
@@ -230,7 +240,7 @@ export class ProfileSettingsPage implements OnInit {
     }
   }
 
-  private parseOptionalNumber(value: unknown): number | null {
+  private parseNumber(value: unknown): number | null {
     if (value === null || value === undefined) {
       return null;
     }

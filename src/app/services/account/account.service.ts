@@ -56,35 +56,39 @@ export class AccountService {
     const userRef = doc(this.firestore, 'users', uid);
     const userSnap = await getDoc(userRef);
 
-    if (userSnap.exists()) {
-      return;
+    if (!userSnap.exists()) {
+      await setDoc(userRef, {
+        userId: uid,
+        email: email ?? '',
+        firstName: '',
+        lastName: '',
+        username: '',
+        isPT: false,
+        ptUID: '',
+        groups: [],
+        profilepic: '',
+        created_at: serverTimestamp(),
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
     }
 
-    await setDoc(userRef, {
-      userId: uid,
-      email: email ?? '',
-      firstName: '',
-      lastName: '',
-      username: '',
-      isPT: false,
-      ptUID: '',
-      groups: [],
-      profilepic: '',
-      created_at: serverTimestamp(),
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    });
-
     const userStatsRef = doc(this.firestore, 'userStats', uid);
-    await setDoc(userStatsRef, {
-      userId: uid,
-      StrengthScore: 0,
-      totalWorkScore: 0,
-      cardioWorkScore: 0,
-      strengthWorkScore: 0,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    });
+    const userStatsSnap = await getDoc(userStatsRef);
+    if (!userStatsSnap.exists()) {
+      await setDoc(userStatsRef, {
+        userId: uid,
+        age: 0,
+        heightMeters: 0,
+        weightKg: 0,
+        StrengthScore: 0,
+        totalWorkScore: 0,
+        cardioWorkScore: 0,
+        strengthWorkScore: 0,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+    }
   }
 
   private async initializeAuth() {

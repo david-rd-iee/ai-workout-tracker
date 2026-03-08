@@ -86,6 +86,8 @@ export class UserService {
 
   private async loadUserProfileInternal(userID: string, email: string): Promise<boolean> {
     let userDoc = await getDoc(doc(this.firestore, `${this.TRAINERS_COLLECTION}/${userID}`));
+    const userStatsDoc = await getDoc(doc(this.firestore, 'userStats', userID));
+    const hasRequiredStats = this.hasRequiredUserStats(userStatsDoc.exists() ? userStatsDoc.data() : null);
 
     if (!userDoc.exists()) {
       userDoc = await getDoc(doc(this.firestore, `${this.CLIENTS_COLLECTION}/${userID}`));
@@ -107,6 +109,12 @@ export class UserService {
 
       // Keep complete-profile flow for signups until core identity fields are set.
       if (!firstName || !lastName || !username) {
+        this.userInfo.set(null);
+        this.loadedProfileUid = null;
+        return false;
+      }
+
+      if (!hasRequiredStats) {
         this.userInfo.set(null);
         this.loadedProfileUid = null;
         return false;
@@ -138,6 +146,12 @@ export class UserService {
       return true;
     }
 
+    if (!hasRequiredStats) {
+      this.userInfo.set(null);
+      this.loadedProfileUid = null;
+      return false;
+    }
+
     const userData = userDoc.data() as trainerProfile | clientProfile;
     userData.email = email;
 
@@ -160,6 +174,23 @@ export class UserService {
     this.userInfo.set(userData);
     this.loadedProfileUid = userID;
     return true;
+  }
+
+  private hasRequiredUserStats(statsData: any): boolean {
+    const age = this.parsePositiveNumber(statsData?.['age']);
+    const heightMeters = this.parsePositiveNumber(statsData?.['heightMeters']);
+    const weightKg = this.parsePositiveNumber(statsData?.['weightKg']);
+
+    return age !== null && Number.isInteger(age) && heightMeters !== null && weightKg !== null;
+  }
+
+  private parsePositiveNumber(value: unknown): number | null {
+    if (typeof value === 'number') {
+      return Number.isFinite(value) && value > 0 ? value : null;
+    }
+
+    const parsed = Number(String(value ?? '').trim());
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
   }
 
   getUserInfo(): Signal<trainerProfile | clientProfile | null> {

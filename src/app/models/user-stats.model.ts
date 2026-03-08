@@ -8,6 +8,10 @@ export interface Region {
 export interface UserStats {
   userId: string;
 
+  age: number;
+  heightMeters: number;
+  weightKg: number;
+
   total_work_score: number;
   cardio_work_score: number;
   strength_work_score: number;
