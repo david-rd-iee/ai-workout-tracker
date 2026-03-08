@@ -79,6 +79,7 @@ export class AccountService {
       await setDoc(userStatsRef, {
         userId: uid,
         age: 0,
+        sex: 0,
         heightMeters: 0,
         weightKg: 0,
         bmi: 0,

@@ -10,6 +10,8 @@ import {
   IonIcon,
   IonInput,
   IonItem,
+  IonSelect,
+  IonSelectOption,
   IonText,
   IonTitle,
   IonToolbar,
@@ -41,6 +43,8 @@ import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
     IonIcon,
     IonItem,
     IonInput,
+    IonSelect,
+    IonSelectOption,
     IonText,
   ],
 })
@@ -58,6 +62,7 @@ export class ProfileSettingsPage implements OnInit {
   age: string | number | null = '';
   heightMeters: string | number | null = '';
   weightKg: string | number | null = '';
+  sex: string | number | null = null;
 
   isLoading = false;
   isSaving = false;
@@ -103,6 +108,7 @@ export class ProfileSettingsPage implements OnInit {
     const parsedAge = this.parseNumber(this.age);
     const parsedHeightMeters = this.parseNumber(this.heightMeters);
     const parsedWeightKg = this.parseNumber(this.weightKg);
+    const parsedSex = this.parseSexValue(this.sex);
     const bmi = parsedHeightMeters !== null && parsedWeightKg !== null
       ? this.calculateBmi(parsedHeightMeters, parsedWeightKg)
       : null;
@@ -119,6 +125,11 @@ export class ProfileSettingsPage implements OnInit {
 
     if (parsedWeightKg === null || parsedWeightKg <= 0) {
       this.errorMessage = 'Weight (kg) must be greater than 0.';
+      return;
+    }
+
+    if (parsedSex === null) {
+      this.errorMessage = 'Please select sex.';
       return;
     }
 
@@ -169,6 +180,7 @@ export class ProfileSettingsPage implements OnInit {
         age: parsedAge,
         heightMeters: parsedHeightMeters,
         weightKg: parsedWeightKg,
+        sex: parsedSex,
         bmi,
         updatedAt: serverTimestamp(),
       };
@@ -179,11 +191,11 @@ export class ProfileSettingsPage implements OnInit {
       if (emailVerificationSent) {
         this.errorMessage =
           'Verification email sent. Confirm the new email, then save again to sync it here.';
-        this.successMessage = 'Name, age, height, and weight were saved.';
+        this.successMessage = 'Name, age, sex, height, and weight were saved.';
         this.email = emailForUsersDoc;
       } else if (emailUpdateError) {
         this.errorMessage = emailUpdateError;
-        this.successMessage = 'Name, age, height, and weight were saved.';
+        this.successMessage = 'Name, age, sex, height, and weight were saved.';
         this.email = emailForUsersDoc;
       } else {
         this.successMessage = 'Settings saved.';
@@ -235,11 +247,13 @@ export class ProfileSettingsPage implements OnInit {
         const age = userStatsData?.['age'];
         const heightMeters = userStatsData?.['heightMeters'];
         const weightKg = userStatsData?.['weightKg'];
+        const sex = userStatsData?.['sex'];
 
         this.age = typeof age === 'number' && age > 0 ? String(age) : '';
         this.heightMeters =
           typeof heightMeters === 'number' && heightMeters > 0 ? String(heightMeters) : '';
         this.weightKg = typeof weightKg === 'number' && weightKg > 0 ? String(weightKg) : '';
+        this.sex = this.parseSexValue(sex);
       }
     } catch (error) {
       console.error('[ProfileSettingsPage] Failed to load settings:', error);
@@ -274,6 +288,14 @@ export class ProfileSettingsPage implements OnInit {
 
     const bmi = weightKg / (heightMeters * heightMeters);
     return Number.isFinite(bmi) ? Number(bmi.toFixed(2)) : null;
+  }
+
+  private parseSexValue(value: unknown): number | null {
+    const parsed = Number(String(value ?? '').trim());
+    if (parsed === 1 || parsed === 1.5 || parsed === 2) {
+      return parsed;
+    }
+    return null;
   }
 
   private async resolveCurrentUser(): Promise<User | null> {

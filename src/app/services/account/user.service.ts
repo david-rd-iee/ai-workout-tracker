@@ -204,10 +204,11 @@ export class UserService {
 
   private hasRequiredUserStats(statsData: any): boolean {
     const age = this.parsePositiveNumber(statsData?.['age']);
+    const sex = this.parseSexValue(statsData?.['sex']);
     const heightMeters = this.parsePositiveNumber(statsData?.['heightMeters']);
     const weightKg = this.parsePositiveNumber(statsData?.['weightKg']);
 
-    return age !== null && Number.isInteger(age) && heightMeters !== null && weightKg !== null;
+    return age !== null && Number.isInteger(age) && sex !== null && heightMeters !== null && weightKg !== null;
   }
 
   private parsePositiveNumber(value: unknown): number | null {
@@ -222,6 +223,14 @@ export class UserService {
   private calculateBmi(heightMeters: number, weightKg: number): number {
     const bmi = weightKg / (heightMeters * heightMeters);
     return Number.isFinite(bmi) ? Number(bmi.toFixed(2)) : 0;
+  }
+
+  private parseSexValue(value: unknown): number | null {
+    const parsed = Number(String(value ?? '').trim());
+    if (parsed === 1 || parsed === 1.5 || parsed === 2) {
+      return parsed;
+    }
+    return null;
   }
 
   getUserInfo(): Signal<trainerProfile | clientProfile | null> {

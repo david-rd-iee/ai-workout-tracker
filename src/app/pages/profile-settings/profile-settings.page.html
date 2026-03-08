@@ -44,6 +44,24 @@
           </ion-item>
 
           <ion-item lines="none">
+            <ion-select
+              class="settings-input"
+              label="Sex"
+              label-placement="stacked"
+              [(ngModel)]="sex"
+              name="sex"
+              placeholder="Select sex"
+              interface="popover"
+              [disabled]="isLoading || isSaving"
+              required
+            >
+              <ion-select-option [value]="1">Male</ion-select-option>
+              <ion-select-option [value]="2">Female</ion-select-option>
+              <ion-select-option [value]="1.5">Other</ion-select-option>
+            </ion-select>
+          </ion-item>
+
+          <ion-item lines="none">
             <ion-input
               class="settings-input"
               label="Email"

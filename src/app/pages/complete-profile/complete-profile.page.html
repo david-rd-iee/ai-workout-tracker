@@ -79,6 +79,22 @@
       ></ion-input>
     </ion-item>
 
+    <ion-item lines="none">
+      <ion-select
+        label="Sex"
+        label-placement="floating"
+        [(ngModel)]="sex"
+        name="sex"
+        placeholder="Select sex"
+        interface="popover"
+        required
+      >
+        <ion-select-option [value]="1">Male</ion-select-option>
+        <ion-select-option [value]="2">Female</ion-select-option>
+        <ion-select-option [value]="1.5">Other</ion-select-option>
+      </ion-select>
+    </ion-item>
+
     <ion-text color="danger" *ngIf="errorMessage">
       <p class="error">{{ errorMessage }}</p>
     </ion-text>

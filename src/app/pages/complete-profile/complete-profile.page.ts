@@ -7,6 +7,8 @@ import {
   IonInput,
   IonButton,
   IonText,
+  IonSelect,
+  IonSelectOption,
 } from '@ionic/angular/standalone';
 import { Router } from '@angular/router';
 import { Auth, onAuthStateChanged } from '@angular/fire/auth';
@@ -25,6 +27,8 @@ import { Firestore, doc, getDoc, setDoc, serverTimestamp } from '@angular/fire/f
     IonInput,
     IonButton,
     IonText,
+    IonSelect,
+    IonSelectOption,
   ],
 })
 export class CompleteProfilePage implements OnInit {
@@ -38,6 +42,7 @@ export class CompleteProfilePage implements OnInit {
   age: string | number = '';
   heightMeters: string | number = '';
   weightKg: string | number = '';
+  sex: string | number | null = null;
 
   isSubmitting = false;
   errorMessage = '';
@@ -55,11 +60,12 @@ export class CompleteProfilePage implements OnInit {
     const age = this.parsePositiveInteger(this.age);
     const heightMeters = this.parsePositiveNumber(this.heightMeters);
     const weightKg = this.parsePositiveNumber(this.weightKg);
+    const sex = this.parseSexValue(this.sex);
     const bmi = heightMeters !== null && weightKg !== null
       ? this.calculateBmi(heightMeters, weightKg)
       : null;
 
-    if (!firstName || !lastName || !username || age === null || heightMeters === null || weightKg === null || bmi === null) {
+    if (!firstName || !lastName || !username || age === null || heightMeters === null || weightKg === null || bmi === null || sex === null) {
       this.errorMessage = 'Please fill out all fields.';
       return;
     }
@@ -96,6 +102,7 @@ export class CompleteProfilePage implements OnInit {
           heightMeters,
           weightKg,
           bmi,
+          sex,
           updatedAt: serverTimestamp(),
         },
         { merge: true }
@@ -136,10 +143,12 @@ export class CompleteProfilePage implements OnInit {
         const age = this.parsePositiveInteger(stats?.['age']);
         const heightMeters = this.parsePositiveNumber(stats?.['heightMeters']);
         const weightKg = this.parsePositiveNumber(stats?.['weightKg']);
+        const sex = this.parseSexValue(stats?.['sex']);
 
         this.age = age === null ? '' : String(age);
         this.heightMeters = heightMeters === null ? '' : String(heightMeters);
         this.weightKg = weightKg === null ? '' : String(weightKg);
+        this.sex = sex;
       }
     } catch (error) {
       console.error('[CompleteProfilePage] Failed to load existing profile fields:', error);
@@ -189,5 +198,13 @@ export class CompleteProfilePage implements OnInit {
 
     const bmi = weightKg / (heightMeters * heightMeters);
     return Number.isFinite(bmi) ? Number(bmi.toFixed(2)) : null;
+  }
+
+  private parseSexValue(value: unknown): number | null {
+    const parsed = Number(String(value ?? '').trim());
+    if (parsed === 1 || parsed === 1.5 || parsed === 2) {
+      return parsed;
+    }
+    return null;
   }
 }

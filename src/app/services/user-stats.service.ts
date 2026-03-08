@@ -22,6 +22,7 @@ export class UserStatsService {
     const data: UserStats = {
       userId,
       age: 0,
+      sex: 0,
       heightMeters: 0,
       weightKg: 0,
       bmi: 0,

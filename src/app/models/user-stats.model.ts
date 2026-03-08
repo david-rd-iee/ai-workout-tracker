@@ -20,6 +20,7 @@ export interface UserStats {
   heightMeters: number;
   weightKg: number;
   bmi: number;
+  sex: number;
 
   cardioScore: CardioScoreMap;
   strengthScore: StrengthScoreMap;
