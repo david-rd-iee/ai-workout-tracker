@@ -136,7 +136,7 @@ export class TrainerCalendarPage implements OnInit {
     try {
       const bookedSessions = await this.sessionBookingService.getTrainerBookedSessions(this.trainerId);
       this.monthlyBookings = bookedSessions;
-      this.allTrainings = bookedSessions.map(booking => {
+      this.allTrainings = bookedSessions.map((booking: any) => {
         return {
           id: booking.bookingId || booking.id,
           datetime: this.createDateTimeString(booking.date, booking.time || booking.startTime),
