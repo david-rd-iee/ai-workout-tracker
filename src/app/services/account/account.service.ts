@@ -81,6 +81,7 @@ export class AccountService {
         age: 0,
         heightMeters: 0,
         weightKg: 0,
+        bmi: 0,
         StrengthScore: 0,
         totalWorkScore: 0,
         cardioWorkScore: 0,

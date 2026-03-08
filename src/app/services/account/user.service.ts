@@ -87,7 +87,9 @@ export class UserService {
   private async loadUserProfileInternal(userID: string, email: string): Promise<boolean> {
     let userDoc = await getDoc(doc(this.firestore, `${this.TRAINERS_COLLECTION}/${userID}`));
     const userStatsDoc = await getDoc(doc(this.firestore, 'userStats', userID));
-    const hasRequiredStats = this.hasRequiredUserStats(userStatsDoc.exists() ? userStatsDoc.data() : null);
+    const userStatsData = userStatsDoc.exists() ? userStatsDoc.data() : null;
+    await this.ensureBmiField(userID, userStatsData);
+    const hasRequiredStats = this.hasRequiredUserStats(userStatsData);
 
     if (!userDoc.exists()) {
       userDoc = await getDoc(doc(this.firestore, `${this.CLIENTS_COLLECTION}/${userID}`));
@@ -176,6 +178,30 @@ export class UserService {
     return true;
   }
 
+  private async ensureBmiField(userId: string, statsData: any): Promise<void> {
+    if (!statsData) {
+      return;
+    }
+
+    const hasBmiField = Object.prototype.hasOwnProperty.call(statsData, 'bmi');
+    const currentBmi = statsData?.['bmi'];
+    if (hasBmiField && typeof currentBmi === 'number' && Number.isFinite(currentBmi)) {
+      return;
+    }
+
+    const heightMeters = this.parsePositiveNumber(statsData?.['heightMeters']);
+    const weightKg = this.parsePositiveNumber(statsData?.['weightKg']);
+    const bmi = heightMeters !== null && weightKg !== null
+      ? this.calculateBmi(heightMeters, weightKg)
+      : 0;
+
+    await setDoc(
+      doc(this.firestore, 'userStats', userId),
+      { bmi },
+      { merge: true }
+    );
+  }
+
   private hasRequiredUserStats(statsData: any): boolean {
     const age = this.parsePositiveNumber(statsData?.['age']);
     const heightMeters = this.parsePositiveNumber(statsData?.['heightMeters']);
@@ -191,6 +217,11 @@ export class UserService {
 
     const parsed = Number(String(value ?? '').trim());
     return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+  }
+
+  private calculateBmi(heightMeters: number, weightKg: number): number {
+    const bmi = weightKg / (heightMeters * heightMeters);
+    return Number.isFinite(bmi) ? Number(bmi.toFixed(2)) : 0;
   }
 
   getUserInfo(): Signal<trainerProfile | clientProfile | null> {

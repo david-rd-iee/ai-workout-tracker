@@ -55,8 +55,11 @@ export class CompleteProfilePage implements OnInit {
     const age = this.parsePositiveInteger(this.age);
     const heightMeters = this.parsePositiveNumber(this.heightMeters);
     const weightKg = this.parsePositiveNumber(this.weightKg);
+    const bmi = heightMeters !== null && weightKg !== null
+      ? this.calculateBmi(heightMeters, weightKg)
+      : null;
 
-    if (!firstName || !lastName || !username || age === null || heightMeters === null || weightKg === null) {
+    if (!firstName || !lastName || !username || age === null || heightMeters === null || weightKg === null || bmi === null) {
       this.errorMessage = 'Please fill out all fields.';
       return;
     }
@@ -92,6 +95,7 @@ export class CompleteProfilePage implements OnInit {
           age,
           heightMeters,
           weightKg,
+          bmi,
           updatedAt: serverTimestamp(),
         },
         { merge: true }
@@ -176,5 +180,14 @@ export class CompleteProfilePage implements OnInit {
     }
 
     return Number.isInteger(parsed) ? parsed : null;
+  }
+
+  private calculateBmi(heightMeters: number, weightKg: number): number | null {
+    if (!Number.isFinite(heightMeters) || !Number.isFinite(weightKg) || heightMeters <= 0 || weightKg <= 0) {
+      return null;
+    }
+
+    const bmi = weightKg / (heightMeters * heightMeters);
+    return Number.isFinite(bmi) ? Number(bmi.toFixed(2)) : null;
   }
 }

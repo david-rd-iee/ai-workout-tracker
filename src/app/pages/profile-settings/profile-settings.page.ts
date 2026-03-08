@@ -103,6 +103,9 @@ export class ProfileSettingsPage implements OnInit {
     const parsedAge = this.parseNumber(this.age);
     const parsedHeightMeters = this.parseNumber(this.heightMeters);
     const parsedWeightKg = this.parseNumber(this.weightKg);
+    const bmi = parsedHeightMeters !== null && parsedWeightKg !== null
+      ? this.calculateBmi(parsedHeightMeters, parsedWeightKg)
+      : null;
 
     if (parsedAge === null || !Number.isInteger(parsedAge) || parsedAge <= 0) {
       this.errorMessage = 'Age must be a whole number greater than 0.';
@@ -116,6 +119,11 @@ export class ProfileSettingsPage implements OnInit {
 
     if (parsedWeightKg === null || parsedWeightKg <= 0) {
       this.errorMessage = 'Weight (kg) must be greater than 0.';
+      return;
+    }
+
+    if (bmi === null) {
+      this.errorMessage = 'BMI could not be calculated from height and weight.';
       return;
     }
 
@@ -161,6 +169,7 @@ export class ProfileSettingsPage implements OnInit {
         age: parsedAge,
         heightMeters: parsedHeightMeters,
         weightKg: parsedWeightKg,
+        bmi,
         updatedAt: serverTimestamp(),
       };
 
@@ -256,6 +265,15 @@ export class ProfileSettingsPage implements OnInit {
 
     const parsed = Number(trimmed);
     return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  private calculateBmi(heightMeters: number, weightKg: number): number | null {
+    if (!Number.isFinite(heightMeters) || !Number.isFinite(weightKg) || heightMeters <= 0 || weightKg <= 0) {
+      return null;
+    }
+
+    const bmi = weightKg / (heightMeters * heightMeters);
+    return Number.isFinite(bmi) ? Number(bmi.toFixed(2)) : null;
   }
 
   private async resolveCurrentUser(): Promise<User | null> {

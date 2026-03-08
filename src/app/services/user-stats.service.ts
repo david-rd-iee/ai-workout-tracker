@@ -24,6 +24,7 @@ export class UserStatsService {
       age: 0,
       heightMeters: 0,
       weightKg: 0,
+      bmi: 0,
       total_work_score: totalWorkScore,
       cardio_work_score: Math.floor(totalWorkScore * 0.5),
       strength_work_score: Math.floor(totalWorkScore * 0.5),

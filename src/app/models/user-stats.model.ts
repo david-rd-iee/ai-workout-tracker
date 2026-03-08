@@ -11,6 +11,7 @@ export interface UserStats {
   age: number;
   heightMeters: number;
   weightKg: number;
+  bmi: number;
 
   total_work_score: number;
   cardio_work_score: number;
