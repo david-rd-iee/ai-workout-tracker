@@ -47,9 +47,6 @@
           </ion-row>
         </ion-grid>
 
-        <h3 class="section-title" *ngIf="summary.trainer_notes">Notes</h3>
-        <p *ngIf="summary.trainer_notes">{{ summary.trainer_notes }}</p>
-
         <div class="actions">
           <ion-button
             fill="outline"
@@ -75,6 +72,9 @@
             Back to Home
           </ion-button>
         </div>
+
+        <h3 class="section-title" *ngIf="summary.trainer_notes">Notes</h3>
+        <p *ngIf="summary.trainer_notes">{{ summary.trainer_notes }}</p>
       </ion-card-content>
     </ion-card>
   </div>

@@ -85,14 +85,20 @@ export class UserService {
   }
 
   private async loadUserProfileInternal(userID: string, email: string): Promise<boolean> {
-    let userDoc = await getDoc(doc(this.firestore, `${this.TRAINERS_COLLECTION}/${userID}`));
-    const userStatsDoc = await getDoc(doc(this.firestore, 'userStats', userID));
-    const userStatsData = userStatsDoc.exists() ? userStatsDoc.data() : null;
-    await this.ensureBmiField(userID, userStatsData);
-    const hasRequiredStats = this.hasRequiredUserStats(userStatsData);
+    const trainerDoc = await getDoc(doc(this.firestore, `${this.TRAINERS_COLLECTION}/${userID}`));
+    const isTrainerProfile = trainerDoc.exists();
+    let userDoc = trainerDoc;
 
-    if (!userDoc.exists()) {
+    if (!isTrainerProfile) {
       userDoc = await getDoc(doc(this.firestore, `${this.CLIENTS_COLLECTION}/${userID}`));
+    }
+
+    let hasRequiredStats = true;
+    if (!isTrainerProfile) {
+      const userStatsDoc = await getDoc(doc(this.firestore, 'userStats', userID));
+      const userStatsData = userStatsDoc.exists() ? userStatsDoc.data() : null;
+      await this.ensureBmiField(userID, userStatsData);
+      hasRequiredStats = this.hasRequiredUserStats(userStatsData);
     }
 
     if (!userDoc.exists()) {
@@ -148,7 +154,7 @@ export class UserService {
       return true;
     }
 
-    if (!hasRequiredStats) {
+    if (!isTrainerProfile && !hasRequiredStats) {
       this.userInfo.set(null);
       this.loadedProfileUid = null;
       return false;

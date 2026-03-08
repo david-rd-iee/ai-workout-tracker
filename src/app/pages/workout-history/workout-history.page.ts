@@ -12,7 +12,6 @@ import {
   IonList,
   IonItem,
   IonLabel,
-  IonNote,
   IonButton,
 } from '@ionic/angular/standalone';
 
@@ -50,6 +49,15 @@ type WorkoutLogDoc = {
   exercises?: WorkoutExerciseRow[];
 };
 
+type WorkoutHistoryRow = {
+  date: string;
+  exersise: string;
+  rep: number;
+  sets: number;
+  weights: string;
+  caloriesBurned: number;
+};
+
 @Component({
   selector: 'app-workout-history',
   standalone: true,
@@ -67,7 +75,7 @@ type WorkoutLogDoc = {
       <ion-button
         expand="block"
         (click)="exportCsv()"
-        [disabled]="isLoading || workouts.length === 0"
+        [disabled]="isLoading || historyRows.length === 0"
         style="margin-bottom: 12px;"
       >
         Export CSV
@@ -78,37 +86,19 @@ type WorkoutLogDoc = {
           <ion-label>Loading workouts...</ion-label>
         </ion-item>
 
-        <ion-item *ngIf="!isLoading && workouts.length === 0">
+        <ion-item *ngIf="!isLoading && historyRows.length === 0">
           <ion-label>No workouts saved yet.</ion-label>
         </ion-item>
 
-        <ion-item *ngFor="let w of workouts">
+        <ion-item *ngFor="let row of historyRows">
           <ion-label>
-            <h2>{{ formatDate(w.createdAt) }}</h2>
-            <p>
-              Volume: {{ w.totalVolume ?? 0 }} | Calories: {{ w.estimatedCalories ?? w.calories ?? 0 }}
-            </p>
-
-            <div *ngIf="w.trainingRows?.length">
-              <p style="margin-top: 8px; font-weight: 600;">Training Rows</p>
-              <p *ngFor="let row of w.trainingRows" style="margin: 4px 0;">
-                • {{ row.exercise_type }} — {{ row.Training_Type }} — {{ row.sets }} x {{ row.reps }} @ {{ row.weights }}{{ row.weights === 'body weight' ? '' : ' kg' }}
-              </p>
-            </div>
-
-            <div *ngIf="!w.trainingRows?.length && w.exercises?.length">
-              <p style="margin-top: 8px; font-weight: 600;">Legacy Exercises</p>
-              <p *ngFor="let ex of w.exercises" style="margin: 4px 0;">
-                • {{ ex.name }} — {{ ex.metric }}
-              </p>
-            </div>
-
-            <p *ngIf="w.trainerNotes || w.notes" style="margin-top: 8px;">
-              <span style="font-weight: 600;">Notes:</span> {{ w.trainerNotes || w.notes }}
-            </p>
+            <p><strong>Date:</strong> {{ row.date }}</p>
+            <p><strong>Exersise:</strong> {{ row.exersise }}</p>
+            <p><strong>Rep:</strong> {{ row.rep }}</p>
+            <p><strong>Sets:</strong> {{ row.sets }}</p>
+            <p><strong>Weights:</strong> {{ row.weights }}</p>
+            <p><strong>Calories Burned:</strong> {{ row.caloriesBurned }}</p>
           </ion-label>
-
-          <ion-note slot="end">{{ w.totalVolume ?? 0 }}</ion-note>
         </ion-item>
       </ion-list>
     </ion-content>
@@ -124,12 +114,12 @@ type WorkoutLogDoc = {
     IonList,
     IonItem,
     IonLabel,
-    IonNote,
     IonButton,
   ],
 })
 export class WorkoutHistoryPage implements OnInit {
   workouts: WorkoutLogDoc[] = [];
+  historyRows: WorkoutHistoryRow[] = [];
   isLoading = false;
   pageTitle = 'Workout History';
 
@@ -164,9 +154,17 @@ export class WorkoutHistoryPage implements OnInit {
       const snap = await getDocs(q);
 
       this.workouts = snap.docs.map((d) => d.data() as WorkoutLogDoc);
+      this.historyRows = this.workouts.reduce<WorkoutHistoryRow[]>(
+        (rows, workout: WorkoutLogDoc) => {
+          rows.push(...this.toHistoryRows(workout));
+          return rows;
+        },
+        []
+      );
     } catch (e) {
       console.error('Failed to load workout logs:', e);
       this.workouts = [];
+      this.historyRows = [];
     } finally {
       this.isLoading = false;
     }
@@ -175,58 +173,27 @@ export class WorkoutHistoryPage implements OnInit {
   exportCsv() {
     const header = [
       'Date',
-      'Training_Type',
-      'exercise_type',
-      'sets',
-      'reps',
-      'weights',
-      'estimated_calories',
-      'trainer_notes',
-      'isComplete',
+      'Exersise',
+      'Rep',
+      'Sets',
+      'Weights',
+      'Calories Burned',
     ];
 
     const rows: string[] = [];
     rows.push(header.join(','));
 
-    for (const w of this.workouts ?? []) {
-      const date = this.formatDateCsv(w.createdAt);
-      const calories = Number(w.estimatedCalories ?? w.calories ?? 0);
-      const notes = w.trainerNotes ?? w.notes ?? '';
-      const isComplete = !!w.isComplete;
-      const trainingRows = w.trainingRows ?? [];
-
-      if (trainingRows.length === 0) {
-        rows.push(
-          [
-            this.csvEscape(date),
-            this.csvEscape(''),
-            this.csvEscape(''),
-            '',
-            '',
-            this.csvEscape(''),
-            calories,
-            this.csvEscape(notes),
-            isComplete ? 'true' : 'false',
-          ].join(',')
-        );
-        continue;
-      }
-
-      for (const row of trainingRows) {
-        rows.push(
-          [
-            this.csvEscape(date),
-            this.csvEscape(row.Training_Type ?? ''),
-            this.csvEscape(row.exercise_type ?? ''),
-            Number(row.sets ?? 0),
-            Number(row.reps ?? 0),
-            this.csvEscape(String(row.weights ?? '')),
-            calories,
-            this.csvEscape(notes),
-            isComplete ? 'true' : 'false',
-          ].join(',')
-        );
-      }
+    for (const row of this.historyRows ?? []) {
+      rows.push(
+        [
+          this.csvEscape(row.date),
+          this.csvEscape(row.exersise),
+          Number(row.rep),
+          Number(row.sets),
+          this.csvEscape(row.weights),
+          Number(row.caloriesBurned),
+        ].join(',')
+      );
     }
 
     const csv = rows.join('\n');
@@ -252,20 +219,109 @@ export class WorkoutHistoryPage implements OnInit {
   private formatDateCsv(createdAt: any): string {
     try {
       const dt = createdAt?.toDate?.() ?? null;
-      if (!dt) return '';
+      if (!dt) return new Date().toISOString().slice(0, 10);
       return dt.toISOString().slice(0, 10);
     } catch {
-      return '';
+      return new Date().toISOString().slice(0, 10);
     }
   }
 
-  formatDate(createdAt: any): string {
-    try {
-      const dt = createdAt?.toDate?.() ?? null;
-      if (!dt) return 'Unknown date';
-      return dt.toLocaleString();
-    } catch {
-      return 'Unknown date';
+  private toHistoryRows(workout: WorkoutLogDoc): WorkoutHistoryRow[] {
+    const date = this.formatDateCsv(workout.createdAt);
+    const calories = Number(workout.estimatedCalories ?? workout.calories ?? 0);
+    const trainingRows = workout.trainingRows ?? [];
+
+    if (trainingRows.length > 0) {
+      const calorieShares = this.allocateCalories(trainingRows, calories);
+      return trainingRows.map((row, index) => ({
+        date,
+        exersise: this.toDisplayExerciseName(row.exercise_type),
+        rep: Number(row.reps ?? 0),
+        sets: Number(row.sets ?? 0),
+        weights:
+          typeof row.weights === 'number'
+            ? `${row.weights} kg`
+            : 'body weight',
+        caloriesBurned: calorieShares[index] ?? 0,
+      }));
+    }
+
+    const legacyExercises = workout.exercises ?? [];
+    if (legacyExercises.length > 0) {
+      const equalCalories = legacyExercises.length > 0
+        ? Math.round(calories / legacyExercises.length)
+        : 0;
+
+      return legacyExercises.map((exercise) => {
+        const parsed = this.parseLegacyMetric(exercise.metric);
+        return {
+          date,
+          exersise: exercise.name || '',
+          rep: parsed.reps,
+          sets: parsed.sets,
+          weights: parsed.weights,
+          caloriesBurned: equalCalories,
+        };
+      });
+    }
+
+    return [];
+  }
+
+  private allocateCalories(rows: WorkoutTrainingRow[], totalCalories: number): number[] {
+    if (rows.length === 0 || totalCalories <= 0) {
+      return rows.map(() => 0);
+    }
+
+    const volumes = rows.map((row) => {
+      if (typeof row.weights !== 'number') {
+        return 0;
+      }
+      return Math.max(0, Number(row.weights)) * Math.max(0, Number(row.reps)) * Math.max(0, Number(row.sets));
+    });
+    const totalVolume = volumes.reduce((sum, value) => sum + value, 0);
+
+    if (totalVolume <= 0) {
+      const equal = Math.round(totalCalories / rows.length);
+      return rows.map(() => equal);
+    }
+
+    return volumes.map((volume) => Math.round(totalCalories * (volume / totalVolume)));
+  }
+
+  private toDisplayExerciseName(value: string): string {
+    return String(value ?? '')
+      .split('_')
+      .filter(Boolean)
+      .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
+      .join(' ');
+  }
+
+  private parseLegacyMetric(metric: string): { sets: number; reps: number; weights: string } {
+    const text = String(metric ?? '').toLowerCase();
+    const bodyWeightMatch = text.includes('body weight');
+
+    const match = text.match(/(\d+)\s*x\s*(\d+)\s*@\s*([0-9.]+)\s*(kg|lb|lbs)?/i);
+    if (!match) {
+      return {
+        sets: 0,
+        reps: 0,
+        weights: bodyWeightMatch ? 'body weight' : '',
+      };
+    }
+
+    const sets = Number(match[1] ?? 0);
+    const reps = Number(match[2] ?? 0);
+    const value = Number(match[3] ?? 0);
+    const unit = (match[4] ?? 'kg').toLowerCase();
+    const kgValue = unit === 'lb' || unit === 'lbs'
+      ? value * 0.45359237
+      : value;
+
+    return {
+      sets,
+      reps,
+      weights: `${Math.round(kgValue * 100) / 100} kg`,
     }
   }
 }
