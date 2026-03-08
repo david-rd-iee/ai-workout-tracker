@@ -25,9 +25,13 @@ export class UserStatsService {
       heightMeters: 0,
       weightKg: 0,
       bmi: 0,
-      total_work_score: totalWorkScore,
-      cardio_work_score: Math.floor(totalWorkScore * 0.5),
-      strength_work_score: Math.floor(totalWorkScore * 0.5),
+      cardioScore: {
+        totalCardioScore: Math.floor(totalWorkScore * 0.5),
+      },
+      strengthScore: {
+        totalStrengthScore: Math.floor(totalWorkScore * 0.5),
+      },
+      totalScore: totalWorkScore,
       level: 5,
       region,
     };

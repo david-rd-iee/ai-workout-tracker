@@ -82,13 +82,60 @@ export class AccountService {
         heightMeters: 0,
         weightKg: 0,
         bmi: 0,
-        StrengthScore: 0,
-        totalWorkScore: 0,
-        cardioWorkScore: 0,
-        strengthWorkScore: 0,
+        cardioScore: {
+          totalCardioScore: 0,
+        },
+        strengthScore: {
+          totalStrengthScore: 0,
+        },
+        totalScore: 0,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
+      return;
+    }
+
+    const current = userStatsSnap.data() as any;
+    const cardioTotal = Number(
+      current?.cardioScore?.totalCardioScore ??
+      current?.totalCardioScore ??
+      current?.cardioWorkScore ??
+      current?.cardio_work_score ??
+      0
+    ) || 0;
+    const strengthTotal = Number(
+      current?.strengthScore?.totalStrengthScore ??
+      current?.workScore?.totalStrengthScore ??
+      current?.totalStrengthScore ??
+      current?.strengthWorkScore ??
+      current?.strength_work_score ??
+      0
+    ) || 0;
+    const totalScore = cardioTotal + strengthTotal;
+
+    const hasCardioMap = typeof current?.cardioScore === 'object' && current?.cardioScore !== null;
+    const hasStrengthMap =
+      typeof current?.strengthScore === 'object' &&
+      current?.strengthScore !== null;
+    const totalNeedsUpdate = Number(current?.totalScore) !== totalScore;
+
+    if (!hasCardioMap || !hasStrengthMap || totalNeedsUpdate) {
+      await setDoc(
+        userStatsRef,
+        {
+          cardioScore: {
+            ...(hasCardioMap ? current.cardioScore : {}),
+            totalCardioScore: cardioTotal,
+          },
+          strengthScore: {
+            ...(hasStrengthMap ? current.strengthScore : current.workScore ?? {}),
+            totalStrengthScore: strengthTotal,
+          },
+          totalScore,
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
     }
   }
 
@@ -100,6 +147,11 @@ export class AccountService {
 
       this.afAuth.authState.subscribe(async (user) => {
         if (user && user.uid) {
+          try {
+            await this.ensureUsersDocument(user.uid, user.email ?? null);
+          } catch (ensureError) {
+            console.error('Error ensuring user documents:', ensureError);
+          }
           this.credentials.set({ uid: user.uid, email: user.email || '' });
           
           // Emit authentication state change event
@@ -152,6 +204,7 @@ export class AccountService {
         return false;
       }
 
+      await this.ensureUsersDocument(userCredential.user.uid, userCredential.user.email ?? email);
       this.credentials.set({ uid: userCredential.user.uid, email: email });
       return true;
     } catch (e) {

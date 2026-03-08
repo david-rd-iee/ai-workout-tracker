@@ -5,6 +5,14 @@ export interface Region {
   city: string;
 }
 
+export interface CardioScoreMap {
+  totalCardioScore: number;
+}
+
+export interface StrengthScoreMap {
+  totalStrengthScore: number;
+}
+
 export interface UserStats {
   userId: string;
 
@@ -13,9 +21,9 @@ export interface UserStats {
   weightKg: number;
   bmi: number;
 
-  total_work_score: number;
-  cardio_work_score: number;
-  strength_work_score: number;
+  cardioScore: CardioScoreMap;
+  strengthScore: StrengthScoreMap;
+  totalScore: number;
 
   level?: number;
 

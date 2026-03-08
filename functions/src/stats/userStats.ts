@@ -48,24 +48,57 @@ export const onWorkoutSessionCreate = onDocumentCreated('workoutSessions/{sessio
   const statsRef = admin.firestore().doc(`userStats/${userId}`);
   const statsSnap = await statsRef.get();
   const current = statsSnap.data() || {};
+  const currentCardioTotal = Number(
+    current?.cardioScore?.totalCardioScore ??
+    current?.cardioWorkScore ??
+    current?.cardio_work_score ??
+    0
+  ) || 0;
+  const currentStrengthTotal = Number(
+    current?.strengthScore?.totalStrengthScore ??
+    current?.workScore?.totalStrengthScore ??
+    current?.strengthWorkScore ??
+    current?.strength_work_score ??
+    0
+  ) || 0;
   
   // Calculate work score for this session
   const workScore = calculateWorkScore(session);
-  
+
+  let nextCardioTotal = currentCardioTotal;
+  let nextStrengthTotal = currentStrengthTotal;
+
+  if (session.workoutType === 'strength') {
+    nextStrengthTotal += workScore;
+  } else if (session.workoutType === 'cardio') {
+    nextCardioTotal += workScore;
+  }
+
+  const existingCardioMap =
+    typeof current?.cardioScore === 'object' && current?.cardioScore !== null
+      ? current.cardioScore
+      : {};
+  const existingStrengthMap =
+    typeof current?.strengthScore === 'object' && current?.strengthScore !== null
+      ? current.strengthScore
+      : typeof current?.workScore === 'object' && current?.workScore !== null
+      ? current.workScore
+      : {};
+
   // Prepare updates
   const updates: Record<string, any> = {
-    totalWorkScore: (current.totalWorkScore || 0) + workScore,
+    cardioScore: {
+      ...existingCardioMap,
+      totalCardioScore: nextCardioTotal,
+    },
+    strengthScore: {
+      ...existingStrengthMap,
+      totalStrengthScore: nextStrengthTotal,
+    },
+    totalScore: nextCardioTotal + nextStrengthTotal,
     lastUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
   };
-  
-  // Update specific workout type score
-  if (session.workoutType === 'strength') {
-    updates.strengthWorkScore = (current.strengthWorkScore || 0) + workScore;
-  } else if (session.workoutType === 'cardio') {
-    updates.cardioWorkScore = (current.cardioWorkScore || 0) + workScore;
-  }
-  
+
   // Update the document
   await statsRef.set(updates, { merge: true });
 });
-
