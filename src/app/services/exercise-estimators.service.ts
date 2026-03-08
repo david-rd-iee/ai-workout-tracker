@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { Firestore, doc, getDoc, setDoc } from '@angular/fire/firestore';
+import { Firestore, collection, doc, getDoc, getDocs, setDoc } from '@angular/fire/firestore';
 import { ExerciseEstimatorCoefficientMap, ExerciseEstimatorSeedDoc } from '../models/exercise-estimators.model';
 
 const DEFAULT_EXERCISE_ESTIMATORS: ExerciseEstimatorSeedDoc[] = [
@@ -223,6 +223,40 @@ export class ExerciseEstimatorsService {
     }
 
     return this.initPromise;
+  }
+
+  async listEstimatorIds(): Promise<string[]> {
+    const snapshot = await getDocs(collection(this.firestore, 'exercise_estimators'));
+    return snapshot.docs.map((entry) => entry.id).sort((a, b) => a.localeCompare(b));
+  }
+
+  normalizeEstimatorId(rawId: string): string {
+    return String(rawId ?? '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '')
+      .replace(/_+/g, '_');
+  }
+
+  async ensureEstimatorDocExists(rawId: string): Promise<string> {
+    const estimatorId = this.normalizeEstimatorId(rawId);
+    if (!estimatorId) {
+      throw new Error('Estimator ID cannot be empty');
+    }
+
+    const estimatorRef = doc(this.firestore, 'exercise_estimators', estimatorId);
+    const estimatorSnap = await getDoc(estimatorRef);
+
+    if (!estimatorSnap.exists()) {
+      await setDoc(estimatorRef, {
+        model: 'WeightedLeastSquares',
+        coefficients: {},
+        isUserDefined: true,
+        createdBy: 'workout_chatbot',
+      });
+    }
+
+    return estimatorId;
   }
 
   private async seedMissingEstimatorDocs(): Promise<void> {

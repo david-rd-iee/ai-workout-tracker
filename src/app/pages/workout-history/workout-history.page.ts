@@ -28,13 +28,25 @@ import {
 
 import { onAuthStateChanged } from 'firebase/auth';
 
+type WorkoutTrainingRow = {
+  Training_Type: 'Strength' | 'Cardio' | 'Other';
+  exercise_type: string;
+  sets: number;
+  reps: number;
+  weights: number | 'body weight';
+};
+
 type WorkoutExerciseRow = { name: string; metric: string; volume: number };
 
 type WorkoutLogDoc = {
   createdAt?: any;
   calories?: number;
+  estimatedCalories?: number;
   totalVolume?: number;
   notes?: string;
+  trainerNotes?: string;
+  isComplete?: boolean;
+  trainingRows?: WorkoutTrainingRow[];
   exercises?: WorkoutExerciseRow[];
 };
 
@@ -74,18 +86,25 @@ type WorkoutLogDoc = {
           <ion-label>
             <h2>{{ formatDate(w.createdAt) }}</h2>
             <p>
-              Volume: {{ w.totalVolume ?? 0 }} | Calories: {{ w.calories ?? 0 }}
+              Volume: {{ w.totalVolume ?? 0 }} | Calories: {{ w.estimatedCalories ?? w.calories ?? 0 }}
             </p>
 
-            <div *ngIf="w.exercises?.length">
-              <p style="margin-top: 8px; font-weight: 600;">Exercises</p>
-              <p *ngFor="let ex of w.exercises" style="margin: 4px 0;">
-                • {{ ex.name }} — {{ ex.metric }} (vol {{ ex.volume }})
+            <div *ngIf="w.trainingRows?.length">
+              <p style="margin-top: 8px; font-weight: 600;">Training Rows</p>
+              <p *ngFor="let row of w.trainingRows" style="margin: 4px 0;">
+                • {{ row.exercise_type }} — {{ row.Training_Type }} — {{ row.sets }} x {{ row.reps }} @ {{ row.weights }}{{ row.weights === 'body weight' ? '' : ' kg' }}
               </p>
             </div>
 
-            <p *ngIf="w.notes" style="margin-top: 8px;">
-              <span style="font-weight: 600;">Notes:</span> {{ w.notes }}
+            <div *ngIf="!w.trainingRows?.length && w.exercises?.length">
+              <p style="margin-top: 8px; font-weight: 600;">Legacy Exercises</p>
+              <p *ngFor="let ex of w.exercises" style="margin: 4px 0;">
+                • {{ ex.name }} — {{ ex.metric }}
+              </p>
+            </div>
+
+            <p *ngIf="w.trainerNotes || w.notes" style="margin-top: 8px;">
+              <span style="font-weight: 600;">Notes:</span> {{ w.trainerNotes || w.notes }}
             </p>
           </ion-label>
 
@@ -156,12 +175,14 @@ export class WorkoutHistoryPage implements OnInit {
   exportCsv() {
     const header = [
       'Date',
-      'Exercise',
-      'Metric',
-      'ExerciseVolume',
-      'WorkoutVolume',
-      'Calories',
-      'Notes',
+      'Training_Type',
+      'exercise_type',
+      'sets',
+      'reps',
+      'weights',
+      'estimated_calories',
+      'trainer_notes',
+      'isComplete',
     ];
 
     const rows: string[] = [];
@@ -169,37 +190,40 @@ export class WorkoutHistoryPage implements OnInit {
 
     for (const w of this.workouts ?? []) {
       const date = this.formatDateCsv(w.createdAt);
-      const workoutVolume = Number(w.totalVolume ?? 0);
-      const calories = Number(w.calories ?? 0);
-      const notes = w.notes ?? '';
+      const calories = Number(w.estimatedCalories ?? w.calories ?? 0);
+      const notes = w.trainerNotes ?? w.notes ?? '';
+      const isComplete = !!w.isComplete;
+      const trainingRows = w.trainingRows ?? [];
 
-      const exercises = w.exercises ?? [];
-
-      if (exercises.length === 0) {
+      if (trainingRows.length === 0) {
         rows.push(
           [
             this.csvEscape(date),
             this.csvEscape(''),
             this.csvEscape(''),
-            0,
-            workoutVolume,
+            '',
+            '',
+            this.csvEscape(''),
             calories,
             this.csvEscape(notes),
+            isComplete ? 'true' : 'false',
           ].join(',')
         );
         continue;
       }
 
-      for (const ex of exercises) {
+      for (const row of trainingRows) {
         rows.push(
           [
             this.csvEscape(date),
-            this.csvEscape(ex.name ?? ''),
-            this.csvEscape(ex.metric ?? ''),
-            Number(ex.volume ?? 0),
-            workoutVolume,
+            this.csvEscape(row.Training_Type ?? ''),
+            this.csvEscape(row.exercise_type ?? ''),
+            Number(row.sets ?? 0),
+            Number(row.reps ?? 0),
+            this.csvEscape(String(row.weights ?? '')),
             calories,
             this.csvEscape(notes),
+            isComplete ? 'true' : 'false',
           ].join(',')
         );
       }

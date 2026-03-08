@@ -12,6 +12,7 @@ export interface ChatRequestPayload {
   message: string;
   session: WorkoutSessionPerformance;
   history: ChatHistoryMessage[];
+  exerciseEstimatorIds: string[];
 }
 
 export interface ChatResponse {

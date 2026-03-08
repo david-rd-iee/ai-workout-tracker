@@ -22,29 +22,33 @@
 
       <ion-card-content>
         <p class="calories-text">
-          Estimated Calories: <strong>{{ summary.calories }} kcal</strong>
+          Estimated Calories: <strong>{{ summary.estimated_calories || summary.calories }} kcal</strong>
         </p>
 
-        <h3 class="section-title">Exercise Breakdown</h3>
+        <h3 class="section-title">Training Rows</h3>
 
         <ion-grid>
           <ion-row class="table-header">
-            <ion-col size="6" class="header-col">Exercise</ion-col>
-            <ion-col size="3" class="header-col center">Metric</ion-col>
-            <ion-col size="3" class="header-col right">Volume</ion-col>
+            <ion-col size="4" class="header-col">Exercise Type</ion-col>
+            <ion-col size="3" class="header-col center">Type</ion-col>
+            <ion-col size="2" class="header-col center">Sets</ion-col>
+            <ion-col size="1" class="header-col center">Reps</ion-col>
+            <ion-col size="2" class="header-col right">Weight</ion-col>
           </ion-row>
 
-          <ion-row *ngFor="let ex of summary.exercises">
-            <ion-col size="6">{{ ex.name }}</ion-col>
-            <ion-col size="3" class="ion-text-center">{{ ex.metric }}</ion-col>
-            <ion-col size="3" class="ion-text-right">
-              {{ ex.volume }}
+          <ion-row *ngFor="let row of summary.trainingRows">
+            <ion-col size="4">{{ row.exercise_type }}</ion-col>
+            <ion-col size="3" class="ion-text-center">{{ row.Training_Type }}</ion-col>
+            <ion-col size="2" class="ion-text-center">{{ row.sets }}</ion-col>
+            <ion-col size="1" class="ion-text-center">{{ row.reps }}</ion-col>
+            <ion-col size="2" class="ion-text-right">
+              {{ row.weights }}{{ row.weights === 'body weight' ? '' : ' kg' }}
             </ion-col>
           </ion-row>
         </ion-grid>
 
-        <h3 class="section-title" *ngIf="summary.notes">Notes</h3>
-        <p *ngIf="summary.notes">{{ summary.notes }}</p>
+        <h3 class="section-title" *ngIf="summary.trainer_notes">Notes</h3>
+        <p *ngIf="summary.trainer_notes">{{ summary.trainer_notes }}</p>
 
         <div class="actions">
           <ion-button

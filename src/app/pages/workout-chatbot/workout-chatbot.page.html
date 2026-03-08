@@ -7,14 +7,17 @@
 <ion-content [fullscreen]="true" class="chat-content">
   <div
     class="workout-summary-card-container"
-    *ngIf="(session.exercises.length > 0 || isLoading) && !hasSavedWorkout"
+    *ngIf="(session.trainingRows.length > 0 || isLoading) && !hasSavedWorkout"
   >
     <div class="workout-summary-card">
       <p class="summary-title">Workout Log Summary</p>
 
-      <div *ngFor="let ex of session.exercises" class="summary-row">
-        <span class="summary-exercise">{{ ex.name }}</span>
-        <span class="summary-metric">{{ ex.metric }}</span>
+      <div *ngFor="let row of session.trainingRows" class="summary-row">
+        <span class="summary-exercise">{{ row.exercise_type }}</span>
+        <span class="summary-metric">
+          {{ row.Training_Type }} · {{ row.sets }} x {{ row.reps }} @
+          {{ row.weights }}{{ row.weights === 'body weight' ? '' : ' kg' }}
+        </span>
       </div>
 
       <div *ngIf="isLoading" class="summary-typing">
