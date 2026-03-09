@@ -29,6 +29,7 @@ import { onAuthStateChanged } from 'firebase/auth';
 
 type WorkoutTrainingRow = {
   Training_Type: 'Strength' | 'Cardio' | 'Other';
+  estimated_calories?: number;
   exercise_type: string;
   sets: number;
   reps: number;
@@ -232,7 +233,13 @@ export class WorkoutHistoryPage implements OnInit {
     const trainingRows = workout.trainingRows ?? [];
 
     if (trainingRows.length > 0) {
-      const calorieShares = this.allocateCalories(trainingRows, calories);
+      const explicitCalories = trainingRows.map((row) =>
+        Math.max(0, Math.round(Number(row.estimated_calories ?? 0)))
+      );
+      const hasExplicitCalories = explicitCalories.some((value) => value > 0);
+      const calorieShares = hasExplicitCalories
+        ? explicitCalories
+        : this.allocateCalories(trainingRows, calories);
       return trainingRows.map((row, index) => ({
         date,
         exersise: this.toDisplayExerciseName(row.exercise_type),

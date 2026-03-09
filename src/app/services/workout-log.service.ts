@@ -114,6 +114,7 @@ export class WorkoutLogService {
       isComplete: !!params.session.isComplete,
       rows: params.trainingRows.map((row) => ({
         trainingType: row.Training_Type,
+        estimatedCalories: row.estimated_calories,
         exerciseType: row.exercise_type,
         exercise: this.fromSnakeCase(row.exercise_type),
         sets: row.sets,

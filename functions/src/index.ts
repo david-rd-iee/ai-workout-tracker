@@ -5,6 +5,299 @@ import OpenAI from "openai";
 
 const openaiApiKey = defineSecret("OPENAI_API_KEY");
 
+function toPositiveNumber(value: unknown): number | undefined {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
+}
+
+function extractDistanceMeters(value: unknown): number | undefined {
+  const direct = toPositiveNumber(value);
+  if (typeof direct === "number") {
+    return direct;
+  }
+
+  const text = String(value ?? "").trim().toLowerCase();
+  if (!text) {
+    return undefined;
+  }
+
+  const match = text.match(/([0-9]*\.?[0-9]+)\s*(mi|mile|miles|km|kilometer|kilometers|m|meter|meters)\b/);
+  if (!match) {
+    return undefined;
+  }
+
+  const magnitude = Number(match[1]);
+  const unit = match[2];
+  if (!Number.isFinite(magnitude) || magnitude <= 0) {
+    return undefined;
+  }
+
+  if (unit === "mi" || unit === "mile" || unit === "miles") {
+    return Math.round(magnitude * 1609.344);
+  }
+  if (unit === "km" || unit === "kilometer" || unit === "kilometers") {
+    return Math.round(magnitude * 1000);
+  }
+  return Math.round(magnitude);
+}
+
+function extractTimeMinutes(value: unknown): number | undefined {
+  const direct = toPositiveNumber(value);
+  if (typeof direct === "number") {
+    return direct;
+  }
+
+  const text = String(value ?? "").trim().toLowerCase();
+  if (!text) {
+    return undefined;
+  }
+
+  const match = text.match(/([0-9]*\.?[0-9]+)\s*(h|hr|hrs|hour|hours|min|mins|minute|minutes)\b/);
+  if (!match) {
+    return undefined;
+  }
+
+  const magnitude = Number(match[1]);
+  const unit = match[2];
+  if (!Number.isFinite(magnitude) || magnitude <= 0) {
+    return undefined;
+  }
+
+  if (unit === "h" || unit === "hr" || unit === "hrs" || unit === "hour" || unit === "hours") {
+    return Math.round(magnitude * 60);
+  }
+  return Math.round(magnitude);
+}
+
+function extractDistanceAndTimeFromMessage(message: string): {distance?: number; time?: number} {
+  const text = String(message ?? "").toLowerCase();
+  const distanceMatch = text.match(/([0-9]*\.?[0-9]+)\s*(mi|mile|miles|km|kilometer|kilometers|m|meter|meters)\b/);
+  const timeMatch = text.match(/([0-9]*\.?[0-9]+)\s*(h|hr|hrs|hour|hours|min|mins|minute|minutes)\b/);
+
+  const distance = distanceMatch ? extractDistanceMeters(distanceMatch[0]) : undefined;
+  const time = timeMatch ? extractTimeMinutes(timeMatch[0]) : undefined;
+  return {distance, time};
+}
+
+function inferCardioTypeFromMessage(message: string): string | undefined {
+  const text = String(message ?? "").toLowerCase();
+  if (!text.trim()) {
+    return undefined;
+  }
+
+  if (/\b(run|ran|running|jog|jogging|sprint|sprinting|treadmill)\b/.test(text)) {
+    return "running";
+  }
+  if (/\b(bike|biked|biking|cycle|cycling|spin|spinning)\b/.test(text)) {
+    return "biking";
+  }
+  if (/\b(swim|swam|swimming)\b/.test(text)) {
+    return "swimming";
+  }
+  if (/\b(walk|walked|walking|hike|hiked|hiking)\b/.test(text)) {
+    return "walking";
+  }
+  if (/\b(row|rowed|rowing)\b/.test(text)) {
+    return "rowing";
+  }
+  if (/\b(elliptical|stair|stairs|stepper)\b/.test(text)) {
+    return "cardio_machine";
+  }
+
+  return undefined;
+}
+
+function toObjectArray(value: unknown): Array<Record<string, unknown>> {
+  if (Array.isArray(value)) {
+    return value.filter((entry): entry is Record<string, unknown> => !!entry && typeof entry === "object");
+  }
+
+  if (value && typeof value === "object") {
+    return [value as Record<string, unknown>];
+  }
+
+  return [];
+}
+
+function normalizeSummaryRows(summary: unknown, latestMessage: string): unknown {
+  if (!summary || typeof summary !== "object") {
+    return summary;
+  }
+
+  const summaryRecord = summary as Record<string, unknown>;
+  const sessionEstimatedCalories = toPositiveNumber(summaryRecord["estimated_calories"]) ?? 0;
+  const legacyRows = toObjectArray(summaryRecord["trainingRows"]);
+  const legacyStrengthRows = legacyRows.filter((row) =>
+    String(row["Training_Type"] ?? row["training_type"] ?? row["trainingType"] ?? "")
+      .trim()
+      .toLowerCase() === "strength"
+  );
+  const legacyCardioRows = legacyRows.filter((row) =>
+    String(row["Training_Type"] ?? row["training_type"] ?? row["trainingType"] ?? "")
+      .trim()
+      .toLowerCase() === "cardio"
+  );
+  const legacyOtherRows = legacyRows.filter((row) =>
+    String(row["Training_Type"] ?? row["training_type"] ?? row["trainingType"] ?? "")
+      .trim()
+      .toLowerCase() === "other"
+  );
+
+  const strengthSource =
+    summaryRecord["strengthTrainingRow"] ??
+    summaryRecord["strengthTrainingRowss"] ??
+    legacyStrengthRows;
+  const strengthRows = toObjectArray(strengthSource).map((row) => {
+    const normalized = {...row};
+    normalized["Training_Type"] = "Strength";
+    normalized["estimated_calories"] = toPositiveNumber(
+      row["estimated_calories"] ?? row["estimatedCalories"]
+    ) ?? 0;
+    return normalized;
+  });
+
+  const rawRows =
+    summaryRecord["cardioTrainingRow"] ??
+    legacyCardioRows.map((row) => ({
+      cardio_type:
+        row["cardio_type"] ??
+        row["cardioType"] ??
+        row["exercise_type"] ??
+        row["exersice_type"] ??
+        row["type"],
+      distance:
+        row["distance"] ??
+        row["distance_meters"] ??
+        row["meters"],
+      time:
+        row["time"] ??
+        row["minutes"] ??
+        row["duration"] ??
+        row["reps"],
+      estimated_calories:
+        row["estimated_calories"] ??
+        row["estimatedCalories"],
+    }));
+  const cardioRows = toObjectArray(rawRows);
+
+  const fromMessage = extractDistanceAndTimeFromMessage(latestMessage);
+  const inferredCardioType = inferCardioTypeFromMessage(latestMessage);
+  if (
+    cardioRows.length === 0 &&
+    inferredCardioType &&
+    (typeof fromMessage.distance === "number" || typeof fromMessage.time === "number")
+  ) {
+    cardioRows.push({
+      cardio_type: inferredCardioType,
+      distance: fromMessage.distance,
+      time: fromMessage.time,
+      estimated_calories: 0,
+    });
+  }
+
+  const normalizedRows = cardioRows.map((entry, index) => {
+    const row = {...entry};
+    const rowCardioType = String(
+      row["cardio_type"] ??
+      row["cardioType"] ??
+      row["exercise_type"] ??
+      row["type"] ??
+      ""
+    ).trim();
+    const rowDistance =
+      extractDistanceMeters(row["distance"]) ??
+      extractDistanceMeters(row["distance_meters"]) ??
+      extractDistanceMeters(row["meters"]);
+    const rowTime =
+      extractTimeMinutes(row["time"]) ??
+      extractTimeMinutes(row["minutes"]) ??
+      extractTimeMinutes(row["duration"]);
+
+    const distance = index === 0 && typeof fromMessage.distance === "number"
+      ? fromMessage.distance
+      : rowDistance;
+    const time = index === 0 && typeof fromMessage.time === "number"
+      ? fromMessage.time
+      : rowTime;
+
+    row["Training_Type"] = "Cardio";
+    row["cardio_type"] = rowCardioType || inferredCardioType || "cardio_activity";
+    row["estimated_calories"] = toPositiveNumber(
+      row["estimated_calories"] ?? row["estimatedCalories"]
+    ) ?? 0;
+    row["distance"] = typeof distance === "number" ? distance : null;
+    row["time"] = typeof time === "number" ? time : null;
+    return row;
+  });
+
+  const otherSource = summaryRecord["otherTrainingRow"] ?? legacyOtherRows;
+  const otherRows = toObjectArray(otherSource).map((row) => {
+    const normalized = {...row};
+    normalized["Training_Type"] = "Other";
+    normalized["estimated_calories"] = toPositiveNumber(
+      row["estimated_calories"] ?? row["estimatedCalories"]
+    ) ?? 0;
+    return normalized;
+  });
+
+  const allRows = [...strengthRows, ...normalizedRows, ...otherRows];
+  if (allRows.length > 0) {
+    const fallbackPerRow = sessionEstimatedCalories > 0
+      ? Math.max(1, Math.round(sessionEstimatedCalories / allRows.length))
+      : 0;
+    allRows.forEach((row) => {
+      const rowCalories = toPositiveNumber(row["estimated_calories"]) ?? 0;
+      if (rowCalories <= 0) {
+        row["estimated_calories"] = fallbackPerRow;
+      }
+    });
+  }
+
+  if (!summaryRecord["Training_Type"]) {
+    const distinctTypes = new Set(
+      allRows.map((row) => String(row["Training_Type"] ?? "").trim()).filter(Boolean)
+    );
+    if (distinctTypes.size === 1) {
+      summaryRecord["Training_Type"] = Array.from(distinctTypes)[0];
+    }
+  }
+
+  summaryRecord["strengthTrainingRow"] = strengthRows;
+  summaryRecord["strengthTrainingRowss"] = strengthRows;
+  summaryRecord["cardioTrainingRow"] = normalizedRows;
+  summaryRecord["otherTrainingRow"] = otherRows;
+  summaryRecord["trainingRows"] = [
+    ...strengthRows,
+    ...normalizedRows.map((row) => ({
+      Training_Type: "Cardio",
+      estimated_calories: row["estimated_calories"],
+      exercise_type:
+        row["cardio_type"] ??
+        row["exercise_type"] ??
+        "cardio_activity",
+      sets: 1,
+      reps:
+        toPositiveNumber(row["time"]) ??
+        toPositiveNumber(row["distance"]) ??
+        0,
+      weights: "body weight",
+    })),
+    ...otherRows.map((row) => ({
+      Training_Type: "Other",
+      estimated_calories: row["estimated_calories"],
+      exercise_type:
+        row["exercise_type"] ??
+        row["activity"] ??
+        row["name"] ??
+        "other_activity",
+      sets: row["sets"] ?? 1,
+      reps: row["reps"] ?? row["time"] ?? 1,
+      weights: row["weights"] ?? "body weight",
+    })),
+  ];
+  return summaryRecord;
+}
+
 // ------------------------------
 //  Cloud Function: workoutChat
 // ------------------------------
@@ -72,13 +365,30 @@ Your job:
 
 Required summary shape:
 {
-  "trainingRows": [
+  "strengthTrainingRow": [
     {
-      "Training_Type": "Strength" | "Cardio" | "Other",
+      "Training_Type": "Strength",
+      "estimated_calories": number,
       "exercise_type": string,
       "sets": number,
       "reps": number,
       "weights": number | "body weight"
+    }
+  ],
+  "cardioTrainingRow": [
+    {
+      "Training_Type": "Cardio",
+      "estimated_calories": number,
+      "cardio_type": string,
+      "distance": number, // meters
+      "time": number // minutes
+    }
+  ],
+  "otherTrainingRow": [
+    {
+      "Training_Type": "Other",
+      "estimated_calories": number,
+      // dynamic fields chosen by you for non-strength/non-cardio activity
     }
   ],
   "estimated_calories": number,
@@ -87,15 +397,28 @@ Required summary shape:
 }
 
 Rules:
-- Training_Type must be exactly "Strength", "Cardio", or "Other".
-- exercise_type:
-  - Prefer matching an existing ID from exerciseEstimatorIds when it semantically fits.
-  - If none fits, create a new snake_case ID in style firstword_secondword.
-- weights must be in kg when numeric.
-- If no additional weight is used (pushups, pullups, bodyweight squats, etc.), set weights to "body weight".
-- Each row is one spreadsheet row:
-  - If user says mixed set/rep patterns in one exercise (example: 2 sets of 5 reps, then 1 set of 10 reps),
-    create separate rows with same exercise_type but different sets/reps.
+- You may include rows in one or more row collections in the same session.
+- Every row in every collection must include both Training_Type and estimated_calories.
+- strengthTrainingRow rows:
+  - Training_Type must be "Strength".
+  - exercise_type:
+    - Prefer matching an existing ID from exerciseEstimatorIds when it semantically fits.
+    - If none fits, create a new snake_case ID in style firstword_secondword.
+  - weights must be in kg when numeric.
+  - If no additional weight is used (pushups, pullups, bodyweight squats, etc.), set weights to "body weight".
+  - Each row is one spreadsheet row:
+    - If user says mixed set/rep patterns in one exercise (example: 2 sets of 5 reps, then 1 set of 10 reps),
+      create separate rows with same exercise_type but different sets/reps.
+- cardioTrainingRow rows:
+  - Training_Type must be "Cardio".
+  - Include cardio_type (running, biking, etc), distance in meters when available, and time in minutes when available.
+  - If time is given not in minutes, convert it to minutes from the given metric, then log it.
+  - If the distance is not given in meters, convert it to meters from the given metric and log it in minutes.
+  - Each row is one spreadsheet row
+- otherTrainingRow rows:
+  - Training_Type must be "Other".
+  - Choose practical dynamic fields based on what the user described.
+- trainer_notes and isComplete are session-level fields only (not per-row).
 - Keep estimated_calories as a positive estimate unless the workout is clearly almost nothing.
 
 Notes phase behavior:
@@ -151,7 +474,10 @@ Respond ONLY as valid JSON:
     const assistantMessage =
       parsed.assistantMessage ??
       "I had trouble understanding that. Can you rephrase your workout?";
-    const updatedSession = parsed.summary ?? session ?? null;
+    const updatedSession = normalizeSummaryRows(
+      parsed.summary ?? session ?? null,
+      message
+    );
 
     // ------------------------------
     //  Respond to frontend

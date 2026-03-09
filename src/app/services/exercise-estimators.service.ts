@@ -1,5 +1,14 @@
 import { Injectable } from '@angular/core';
-import { Firestore, collection, doc, getDoc, getDocs, setDoc } from '@angular/fire/firestore';
+import {
+  Firestore,
+  arrayUnion,
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  serverTimestamp,
+  setDoc
+} from '@angular/fire/firestore';
 import { ExerciseEstimatorCoefficientMap, ExerciseEstimatorSeedDoc } from '../models/exercise-estimators.model';
 
 const DEFAULT_EXERCISE_ESTIMATORS: ExerciseEstimatorSeedDoc[] = [
@@ -214,6 +223,12 @@ const DEFAULT_EXERCISE_ESTIMATORS: ExerciseEstimatorSeedDoc[] = [
 })
 export class ExerciseEstimatorsService {
   private initPromise: Promise<void> | null = null;
+  private estimatorIdsCache: string[] | null = null;
+  private estimatorIdsLoadPromise: Promise<string[]> | null = null;
+  private lastEstimatorIdsFetchAt = 0;
+  private static readonly ESTIMATOR_IDS_CACHE_TTL_MS = 5 * 60 * 1000;
+  private static readonly ESTIMATOR_IDS_INDEX_COLLECTION = 'systemConfig';
+  private static readonly ESTIMATOR_IDS_INDEX_DOC = 'exercise_estimators_index';
 
   constructor(private firestore: Firestore) {}
 
@@ -225,9 +240,28 @@ export class ExerciseEstimatorsService {
     return this.initPromise;
   }
 
-  async listEstimatorIds(): Promise<string[]> {
-    const snapshot = await getDocs(collection(this.firestore, 'exercise_estimators'));
-    return snapshot.docs.map((entry) => entry.id).sort((a, b) => a.localeCompare(b));
+  async listEstimatorIds(forceRefresh = false): Promise<string[]> {
+    const cacheIsFresh =
+      this.estimatorIdsCache &&
+      Date.now() - this.lastEstimatorIdsFetchAt < ExerciseEstimatorsService.ESTIMATOR_IDS_CACHE_TTL_MS;
+
+    if (!forceRefresh && cacheIsFresh) {
+      return [...(this.estimatorIdsCache ?? [])];
+    }
+
+    if (!forceRefresh && this.estimatorIdsLoadPromise) {
+      return [...(await this.estimatorIdsLoadPromise)];
+    }
+
+    this.estimatorIdsLoadPromise = this.loadEstimatorIdsFromIndexOrCollection();
+    try {
+      const ids = await this.estimatorIdsLoadPromise;
+      this.estimatorIdsCache = ids;
+      this.lastEstimatorIdsFetchAt = Date.now();
+      return [...ids];
+    } finally {
+      this.estimatorIdsLoadPromise = null;
+    }
   }
 
   normalizeEstimatorId(rawId: string): string {
@@ -256,13 +290,18 @@ export class ExerciseEstimatorsService {
       });
     }
 
+    await this.upsertEstimatorIdsIndex([estimatorId]);
+    this.addEstimatorIdToLocalCache(estimatorId);
+
     return estimatorId;
   }
 
   private async seedMissingEstimatorDocs(): Promise<void> {
+    const seededIds: string[] = [];
     for (const estimator of DEFAULT_EXERCISE_ESTIMATORS) {
       const estimatorRef = doc(this.firestore, 'exercise_estimators', estimator.id);
       const estimatorSnap = await getDoc(estimatorRef);
+      seededIds.push(estimator.id);
 
       if (!estimatorSnap.exists()) {
         await setDoc(estimatorRef, {
@@ -285,6 +324,92 @@ export class ExerciseEstimatorsService {
         );
       }
     }
+
+    await this.upsertEstimatorIdsIndex(seededIds);
+    this.estimatorIdsCache = null;
+    this.lastEstimatorIdsFetchAt = 0;
+  }
+
+  private async loadEstimatorIdsFromIndexOrCollection(): Promise<string[]> {
+    const indexRef = doc(
+      this.firestore,
+      ExerciseEstimatorsService.ESTIMATOR_IDS_INDEX_COLLECTION,
+      ExerciseEstimatorsService.ESTIMATOR_IDS_INDEX_DOC
+    );
+
+    try {
+      const indexSnap = await getDoc(indexRef);
+      if (indexSnap.exists()) {
+        const ids = this.normalizeEstimatorIdArray(indexSnap.data()?.['ids']);
+        if (ids.length > 0) {
+          return ids;
+        }
+      }
+    } catch (error) {
+      console.warn('[ExerciseEstimatorsService] Failed to load estimator ID index:', error);
+    }
+
+    const snapshot = await getDocs(collection(this.firestore, 'exercise_estimators'));
+    const ids = snapshot.docs.map((entry) => entry.id).sort((a, b) => a.localeCompare(b));
+    await this.upsertEstimatorIdsIndex(ids);
+    return ids;
+  }
+
+  private normalizeEstimatorIdArray(candidate: unknown): string[] {
+    if (!Array.isArray(candidate)) {
+      return [];
+    }
+
+    const ids = candidate
+      .map((value) => this.normalizeEstimatorId(String(value ?? '')))
+      .filter((value) => !!value);
+
+    return Array.from(new Set(ids)).sort((a, b) => a.localeCompare(b));
+  }
+
+  private async upsertEstimatorIdsIndex(ids: string[]): Promise<void> {
+    const normalizedIds = this.normalizeEstimatorIdArray(ids);
+    if (normalizedIds.length === 0) {
+      return;
+    }
+
+    const indexRef = doc(
+      this.firestore,
+      ExerciseEstimatorsService.ESTIMATOR_IDS_INDEX_COLLECTION,
+      ExerciseEstimatorsService.ESTIMATOR_IDS_INDEX_DOC
+    );
+
+    await setDoc(
+      indexRef,
+      {
+        ids: arrayUnion(...normalizedIds),
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true }
+    );
+  }
+
+  private addEstimatorIdToLocalCache(estimatorId: string): void {
+    const normalizedId = this.normalizeEstimatorId(estimatorId);
+    if (!normalizedId) {
+      return;
+    }
+
+    if (!this.estimatorIdsCache) {
+      this.estimatorIdsCache = [normalizedId];
+      this.lastEstimatorIdsFetchAt = Date.now();
+      return;
+    }
+
+    if (this.estimatorIdsCache.includes(normalizedId)) {
+      this.lastEstimatorIdsFetchAt = Date.now();
+      return;
+    }
+
+    this.estimatorIdsCache = [...this.estimatorIdsCache, normalizedId].sort((a, b) =>
+      a.localeCompare(b)
+    );
+    this.lastEstimatorIdsFetchAt = Date.now();
   }
 
   private toCoefficientMap(coefficients: unknown): ExerciseEstimatorCoefficientMap | null {

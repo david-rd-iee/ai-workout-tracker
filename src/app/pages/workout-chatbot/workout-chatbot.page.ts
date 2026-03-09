@@ -14,6 +14,8 @@ import { HeaderComponent } from '../../components/header/header.component';
 import {
   WorkoutSessionPerformance,
   WorkoutTrainingRow,
+  CardioTrainingRow,
+  OtherTrainingRow,
   TrainingType,
   RowWeight,
 } from '../../models/workout-session.model';
@@ -132,9 +134,14 @@ export class WorkoutChatbotPage implements OnInit, OnDestroy {
       const nextSession = this.normalizeSession(
         (response.updatedSession as Partial<WorkoutSessionPerformance> | undefined) ?? this.session
       );
-      await this.ensureEstimatorDocsForRows(nextSession.trainingRows);
+      const strengthRowsForEstimator = Array.isArray(nextSession.strengthTrainingRow)
+        ? nextSession.strengthTrainingRow
+        : nextSession.strengthTrainingRow
+          ? [nextSession.strengthTrainingRow]
+          : (nextSession.strengthTrainingRowss ?? []);
+      await this.ensureEstimatorDocsForRows(strengthRowsForEstimator);
       this.session = nextSession;
-      this.logRowsToConsole(this.session.trainingRows);
+      this.logRowsToConsole(this.session);
 
       const isNowComplete = !!this.session?.isComplete;
 
@@ -204,6 +211,10 @@ export class WorkoutChatbotPage implements OnInit, OnDestroy {
     return {
       date: new Date().toISOString().slice(0, 10),
       trainingRows: [],
+      strengthTrainingRow: [],
+      strengthTrainingRowss: [],
+      cardioTrainingRow: [],
+      otherTrainingRow: [],
       estimated_calories: 0,
       trainer_notes: '',
       isComplete: false,
@@ -219,11 +230,51 @@ export class WorkoutChatbotPage implements OnInit, OnDestroy {
     candidate: Partial<WorkoutSessionPerformance> | null | undefined
   ): WorkoutSessionPerformance {
     const session = candidate ?? {};
-    const rows = this.normalizeRows((session as any).trainingRows);
+    const source = session as Record<string, unknown>;
     const estimatedCalories = this.toNumber(
-      (session as any).estimated_calories ?? (session as any).calories,
+      source['estimated_calories'] ?? source['calories'],
       0
     );
+    const fallbackRows = this.normalizeRows(source['trainingRows']);
+    const legacyCardioRows = this.extractLegacyCardioRowsFromTrainingRows(source['trainingRows']);
+    const strengthRows = this.normalizeRows(
+      this.hasOwnKey(source, 'strengthTrainingRow')
+        ? source['strengthTrainingRow']
+        : this.hasOwnKey(source, 'strengthTrainingRowss')
+          ? source['strengthTrainingRowss']
+        : fallbackRows.filter((row) => row.Training_Type === 'Strength'),
+      'Strength'
+    );
+    const cardioRows = this.normalizeCardioRows(
+      this.hasOwnKey(source, 'cardioTrainingRow')
+        ? source['cardioTrainingRow']
+        : legacyCardioRows
+    );
+    const otherRows = this.normalizeOtherRows(
+      this.hasOwnKey(source, 'otherTrainingRow')
+        ? source['otherTrainingRow']
+        : fallbackRows
+            .filter((row) => row.Training_Type === 'Other')
+            .map((row) => ({
+              activity: row.exercise_type,
+              sets: row.sets,
+              reps: row.reps,
+              weights: row.weights,
+              estimated_calories: row.estimated_calories,
+            }))
+    );
+    this.ensureEstimatedCaloriesAcrossRows(
+      strengthRows,
+      cardioRows,
+      otherRows,
+      estimatedCalories
+    );
+    const rows = [
+      ...strengthRows,
+      ...this.cardioRowsToTrainingRows(cardioRows),
+      ...this.otherRowsToTrainingRows(otherRows),
+    ];
+    const trainingType = this.resolveSessionTrainingType(source, strengthRows, cardioRows, otherRows, rows);
     const trainerNotesRaw = (session as any).trainer_notes ?? (session as any).notes ?? '';
     const trainerNotes = typeof trainerNotesRaw === 'string' ? trainerNotesRaw : String(trainerNotesRaw ?? '');
     const dateRaw = (session as any).date;
@@ -234,6 +285,11 @@ export class WorkoutChatbotPage implements OnInit, OnDestroy {
     return {
       date,
       trainingRows: rows,
+      Training_Type: trainingType,
+      strengthTrainingRow: strengthRows,
+      strengthTrainingRowss: strengthRows,
+      cardioTrainingRow: cardioRows,
+      otherTrainingRow: otherRows,
       estimated_calories: estimatedCalories,
       trainer_notes: trainerNotes,
       isComplete: !!(session as any).isComplete,
@@ -245,21 +301,24 @@ export class WorkoutChatbotPage implements OnInit, OnDestroy {
     };
   }
 
-  private normalizeRows(rowsCandidate: unknown): WorkoutTrainingRow[] {
-    if (!Array.isArray(rowsCandidate)) {
-      return [];
-    }
+  private normalizeRows(rowsCandidate: unknown, forcedType?: TrainingType): WorkoutTrainingRow[] {
+    const rows = Array.isArray(rowsCandidate)
+      ? rowsCandidate
+      : rowsCandidate && typeof rowsCandidate === 'object'
+        ? [rowsCandidate]
+        : [];
 
-    return rowsCandidate
+    return rows
       .map((entry): WorkoutTrainingRow | null => {
         if (!entry || typeof entry !== 'object') {
           return null;
         }
 
         const row = entry as Record<string, unknown>;
-        const trainingType = this.normalizeTrainingType(
-          row['Training_Type'] ?? row['training_type'] ?? row['trainingType']
-        );
+        const trainingType = forcedType ??
+          this.normalizeTrainingType(
+            row['Training_Type'] ?? row['training_type'] ?? row['trainingType']
+          );
         const rawType = typeof row['exercise_type'] === 'string'
           ? row['exercise_type']
           : typeof row['exersice_type'] === 'string'
@@ -271,9 +330,14 @@ export class WorkoutChatbotPage implements OnInit, OnDestroy {
         const weights = this.normalizeWeight(
           row['weights'] ?? row['weight'] ?? row['weight_kg']
         );
+        const estimatedRowCalories = this.toNonNegativeNumber(
+          row['estimated_calories'] ?? row['estimatedCalories'],
+          0
+        );
 
         return {
           Training_Type: trainingType,
+          estimated_calories: estimatedRowCalories,
           exercise_type: exerciseType,
           sets,
           reps,
@@ -281,6 +345,134 @@ export class WorkoutChatbotPage implements OnInit, OnDestroy {
         };
       })
       .filter((row): row is WorkoutTrainingRow => !!row);
+  }
+
+  private normalizeCardioRows(rowsCandidate: unknown): CardioTrainingRow[] {
+    const rows = this.toObjectArray(rowsCandidate);
+    return rows.map((row) => {
+      const cardioTypeRaw =
+        row['cardio_type'] ??
+        row['cardioType'] ??
+        row['exercise_type'] ??
+        row['exersice_type'] ??
+        row['type'];
+      const cardioTypeText = typeof cardioTypeRaw === 'string' ? cardioTypeRaw : '';
+      const normalizedCardioType = this.exerciseEstimatorsService.normalizeEstimatorId(cardioTypeText) || 'cardio_activity';
+      const distance = this.parseDistanceMeters(
+        row['distance'] ?? row['distance_meters'] ?? row['meters']
+      );
+      const time = this.parseTimeMinutes(
+        row['time'] ?? row['minutes'] ?? row['duration']
+      );
+      const estimatedRowCalories = this.toNonNegativeNumber(
+        row['estimated_calories'] ?? row['estimatedCalories'],
+        0
+      );
+
+      const normalizedRow: CardioTrainingRow = {
+        ...row,
+        Training_Type: 'Cardio',
+        estimated_calories: estimatedRowCalories,
+        cardio_type: normalizedCardioType,
+      };
+
+      if (typeof distance === 'number') {
+        normalizedRow.distance = distance;
+      } else {
+        delete normalizedRow.distance;
+      }
+
+      if (typeof time === 'number') {
+        normalizedRow.time = time;
+      } else {
+        delete normalizedRow.time;
+      }
+
+      return normalizedRow;
+    });
+  }
+
+  private normalizeOtherRows(rowsCandidate: unknown): OtherTrainingRow[] {
+    return this.toObjectArray(rowsCandidate).map((row) => {
+      const estimatedRowCalories = this.toNonNegativeNumber(
+        row['estimated_calories'] ?? row['estimatedCalories'],
+        0
+      );
+      return {
+        ...row,
+        Training_Type: 'Other',
+        estimated_calories: estimatedRowCalories,
+      };
+    });
+  }
+
+  private extractLegacyCardioRowsFromTrainingRows(rowsCandidate: unknown): Array<Record<string, unknown>> {
+    return this.toObjectArray(rowsCandidate)
+      .filter((row) =>
+        this.normalizeTrainingType(
+          row['Training_Type'] ?? row['training_type'] ?? row['trainingType']
+        ) === 'Cardio'
+      )
+      .map((row) => ({
+        cardio_type:
+          row['cardio_type'] ??
+          row['cardioType'] ??
+          row['exercise_type'] ??
+          row['exersice_type'] ??
+          row['type'],
+        distance:
+          row['distance'] ??
+          row['distance_meters'] ??
+          row['meters'],
+        time:
+          row['time'] ??
+          row['minutes'] ??
+          row['duration'] ??
+          row['reps'],
+        estimated_calories:
+          row['estimated_calories'] ??
+          row['estimatedCalories'],
+      }));
+  }
+
+  private cardioRowsToTrainingRows(rows: CardioTrainingRow[]): WorkoutTrainingRow[] {
+    return rows.map((row) => {
+      const exerciseType = this.exerciseEstimatorsService.normalizeEstimatorId(row.cardio_type) || 'cardio_activity';
+      const reps = this.toInteger(row.time ?? row.distance, 0);
+      return {
+        Training_Type: 'Cardio',
+        estimated_calories: this.toNonNegativeNumber(row.estimated_calories, 0),
+        exercise_type: exerciseType,
+        sets: 1,
+        reps,
+        weights: 'body weight',
+      };
+    });
+  }
+
+  private otherRowsToTrainingRows(rows: OtherTrainingRow[]): WorkoutTrainingRow[] {
+    return rows.map((row) => {
+      const sourceName =
+        row['exercise_type'] ??
+        row['exersice_type'] ??
+        row['name'] ??
+        row['activity'] ??
+        row['type'];
+      const sourceNameText = typeof sourceName === 'string' ? sourceName : '';
+      const exerciseType = this.exerciseEstimatorsService.normalizeEstimatorId(sourceNameText) || 'other_activity';
+      const sets = this.toInteger(row['sets'], 1);
+      const reps = this.toInteger(row['reps'] ?? row['time'] ?? row['duration'] ?? 1, 1);
+      const weights = this.normalizeWeight(row['weights'] ?? row['weight'] ?? row['load']);
+      const estimatedRowCalories = this.toNonNegativeNumber(row['estimated_calories'], 0);
+      return {
+        Training_Type: 'Other',
+        estimated_calories: estimatedRowCalories,
+        exercise_type: exerciseType,
+        sets,
+        reps,
+        weights,
+      };
+    });
   }
 
   private normalizeTrainingType(value: unknown): TrainingType {
@@ -315,9 +507,144 @@ export class WorkoutChatbotPage implements OnInit, OnDestroy {
     return Number.isFinite(parsed) ? parsed : fallback;
   }
 
+  private toNonNegativeNumber(value: unknown, fallback: number): number {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed)) {
+      return fallback;
+    }
+    return parsed >= 0 ? parsed : fallback;
+  }
+
   private toInteger(value: unknown, fallback: number): number {
     const parsed = Math.floor(Number(value));
     return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+  }
+
+  private toPositiveNumber(value: unknown): number | undefined {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
+  }
+
+  private parseDistanceMeters(value: unknown): number | undefined {
+    const direct = this.toPositiveNumber(value);
+    if (typeof direct === 'number') {
+      return direct;
+    }
+
+    const text = String(value ?? '').trim().toLowerCase();
+    if (!text) {
+      return undefined;
+    }
+
+    const match = text.match(/([0-9]*\.?[0-9]+)\s*(mi|mile|miles|km|kilometer|kilometers|m|meter|meters)\b/);
+    if (!match) {
+      return undefined;
+    }
+
+    const amount = Number(match[1] ?? 0);
+    const unit = match[2] ?? '';
+    if (!Number.isFinite(amount) || amount <= 0) {
+      return undefined;
+    }
+
+    if (unit === 'mi' || unit === 'mile' || unit === 'miles') {
+      return Math.round(amount * 1609.344);
+    }
+    if (unit === 'km' || unit === 'kilometer' || unit === 'kilometers') {
+      return Math.round(amount * 1000);
+    }
+    return Math.round(amount);
+  }
+
+  private parseTimeMinutes(value: unknown): number | undefined {
+    const direct = this.toPositiveNumber(value);
+    if (typeof direct === 'number') {
+      return direct;
+    }
+
+    const text = String(value ?? '').trim().toLowerCase();
+    if (!text) {
+      return undefined;
+    }
+
+    const match = text.match(/([0-9]*\.?[0-9]+)\s*(h|hr|hrs|hour|hours|min|mins|minute|minutes)\b/);
+    if (!match) {
+      return undefined;
+    }
+
+    const amount = Number(match[1] ?? 0);
+    const unit = match[2] ?? '';
+    if (!Number.isFinite(amount) || amount <= 0) {
+      return undefined;
+    }
+
+    if (unit === 'h' || unit === 'hr' || unit === 'hrs' || unit === 'hour' || unit === 'hours') {
+      return Math.round(amount * 60);
+    }
+    return Math.round(amount);
+  }
+
+  private toObjectArray(value: unknown): Array<Record<string, unknown>> {
+    if (Array.isArray(value)) {
+      return value.filter((entry): entry is Record<string, unknown> => !!entry && typeof entry === 'object');
+    }
+
+    if (value && typeof value === 'object') {
+      return [value as Record<string, unknown>];
+    }
+
+    return [];
+  }
+
+  private hasOwnKey(value: Record<string, unknown>, key: string): boolean {
+    return Object.prototype.hasOwnProperty.call(value, key);
+  }
+
+  private resolveSessionTrainingType(
+    source: Record<string, unknown>,
+    strengthRows: WorkoutTrainingRow[],
+    cardioRows: CardioTrainingRow[],
+    otherRows: OtherTrainingRow[],
+    flattenedRows: WorkoutTrainingRow[]
+  ): TrainingType {
+    if (this.hasOwnKey(source, 'Training_Type')) {
+      return this.normalizeTrainingType(source['Training_Type']);
+    }
+
+    if (strengthRows.length > 0) return 'Strength';
+    if (cardioRows.length > 0) return 'Cardio';
+    if (otherRows.length > 0) return 'Other';
+    return flattenedRows[0]?.Training_Type ?? 'Other';
+  }
+
+  private ensureEstimatedCaloriesAcrossRows(
+    strengthRows: WorkoutTrainingRow[],
+    cardioRows: CardioTrainingRow[],
+    otherRows: OtherTrainingRow[],
+    sessionEstimatedCalories: number
+  ): void {
+    const buckets = [
+      ...strengthRows.map((row) => ({ read: () => row.estimated_calories, write: (value: number) => { row.estimated_calories = value; } })),
+      ...cardioRows.map((row) => ({ read: () => row.estimated_calories, write: (value: number) => { row.estimated_calories = value; } })),
+      ...otherRows.map((row) => ({ read: () => this.toNonNegativeNumber(row['estimated_calories'], 0), write: (value: number) => { row['estimated_calories'] = value; } })),
+    ];
+
+    if (buckets.length === 0) {
+      return;
+    }
+
+    const missing = buckets.filter((bucket) => bucket.read() <= 0);
+    if (missing.length === 0) {
+      return;
+    }
+
+    const fallbackPerRow = sessionEstimatedCalories > 0
+      ? Math.max(1, Math.round(sessionEstimatedCalories / buckets.length))
+      : 0;
+
+    missing.forEach((bucket) => {
+      bucket.write(fallbackPerRow);
+    });
   }
 
   private calculateTotalVolume(rows: WorkoutTrainingRow[]): number {
@@ -387,17 +714,45 @@ export class WorkoutChatbotPage implements OnInit, OnDestroy {
     this.exerciseEstimatorIds = Array.from(knownIds).sort((a, b) => a.localeCompare(b));
   }
 
-  private logRowsToConsole(rows: WorkoutTrainingRow[]): void {
-    rows.forEach((row, index) => {
-      console.log(`[WorkoutChatbot][Row ${index + 1}]`, {
+  private logRowsToConsole(session: WorkoutSessionPerformance): void {
+    const shared = {
+      trainer_notes: session.trainer_notes,
+      isComplete: !!session.isComplete,
+    };
+
+    const strengthRows = this.normalizeRows(
+      session.strengthTrainingRow ?? session.strengthTrainingRowss ?? [],
+      'Strength'
+    );
+    strengthRows.forEach((row, index) => {
+      console.log(`[WorkoutChatbot][Strength Row ${index + 1}]`, {
+        ...shared,
         Training_Type: row.Training_Type,
+        estimated_calories: row.estimated_calories,
         exercise_type: row.exercise_type,
         sets: row.sets,
         reps: row.reps,
         weights: row.weights,
-        estimated_calories: this.session.estimated_calories,
-        trainer_notes: this.session.trainer_notes,
-        isComplete: !!this.session.isComplete,
+      });
+    });
+
+    const cardioRows = this.normalizeCardioRows(session.cardioTrainingRow);
+    cardioRows.forEach((row, index) => {
+      console.log(`[WorkoutChatbot][Cardio Row ${index + 1}]`, {
+        ...shared,
+        Training_Type: row.Training_Type,
+        estimated_calories: row.estimated_calories,
+        cardio_type: row.cardio_type,
+        distance: typeof row.distance === 'number' ? row.distance : null,
+        time: typeof row.time === 'number' ? row.time : null,
+      });
+    });
+
+    const otherRows = this.normalizeOtherRows(session.otherTrainingRow);
+    otherRows.forEach((row, index) => {
+      console.log(`[WorkoutChatbot][Other Row ${index + 1}]`, {
+        ...shared,
+        ...row,
       });
     });
   }
