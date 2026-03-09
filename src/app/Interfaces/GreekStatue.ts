@@ -17,6 +17,14 @@ export interface GreekStatue {
   title: string; // e.g., "God of Strength", "Goddess of Victory"
   icon: string; // ionicon name
   customIcon?: string; // Optional custom image path
+  stageImages?: { // Optional per-stage custom images
+    rough?: string;
+    outlined?: string;
+    detailed?: string;
+    polished?: string;
+    gilded?: string;
+    divine?: string;
+  };
   description: string;
   category: StatueCategory;
   metric: string; // What we're measuring (e.g., 'totalWeight', 'workoutStreak', 'sessionCount')
@@ -322,6 +330,14 @@ export const GREEK_STATUES: GreekStatue[] = [
     godName: 'Athena',
     title: 'Goddess of Wisdom',
     icon: 'school',
+    stageImages: {
+      rough: 'assets/statues/athena/athena-rough.png',
+      outlined: 'assets/statues/athena/athena-outlined.png',
+      detailed: 'assets/statues/athena/athena-detailed.png',
+      polished: 'assets/statues/athena/athena-polished.png',
+      gilded: 'assets/statues/athena/athena-gilded.png',
+      divine: 'assets/statues/athena/athena-divine.png'
+    },
     description: 'Total training sessions completed',
     mythology: 'Goddess of wisdom and strategic warfare',
     category: 'consistency',

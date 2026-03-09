@@ -3,6 +3,12 @@ import * as logger from "firebase-functions/logger";
 import OpenAI from "openai";
 
 // ------------------------------
+//  Stats Functions
+// ------------------------------
+export { onBookingChange, onTrainerClientChange } from './stats/trainerStats';
+export { migrateTrainerStats } from './stats/migrateTrainerStats';
+
+// ------------------------------
 //  Initialization
 // ------------------------------
 const openai = new OpenAI({

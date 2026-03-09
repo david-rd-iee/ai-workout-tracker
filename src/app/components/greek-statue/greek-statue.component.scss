@@ -43,14 +43,13 @@
   }
 
   &.uncarved .statue-container {
-    opacity: 0.7;
-    filter: grayscale(0.5);
+    // Removed opacity and grayscale to show uncarved image in full color
   }
 
   .statue-icon {
     position: relative;
-    width: 60px;
-    height: 60px;
+    width: 180px;
+    height: 180px;
     border-radius: 12px;
     display: flex;
     align-items: center;
@@ -60,9 +59,18 @@
                 inset 0 1px 2px rgba(255, 255, 255, 0.3);
     border: 2px solid rgba(212, 175, 55, 0.3);
     transition: all 0.3s ease;
+    overflow: visible;
+
+    &:has(.uncarved-stone-img),
+    &:has(.stage-img) {
+      border-radius: 0;
+      border: none;
+      box-shadow: none;
+      background: transparent !important;
+    }
 
     ion-icon {
-      font-size: 30px;
+      font-size: 90px;
       color: white;
       z-index: 2;
       filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
@@ -76,6 +84,22 @@
       z-index: 2;
       filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3)) brightness(0) invert(1);
       transition: all 0.3s ease;
+    }
+
+    .stage-img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      z-index: 2;
+      transition: all 0.3s ease;
+    }
+
+    .uncarved-stone-img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      z-index: 1;
+      opacity: 1;
     }
 
     .uncarved-icon {
@@ -323,19 +347,19 @@
   // Size variants
   &.size-small {
     .statue-icon {
-      width: 60px;
-      height: 60px;
+      width: 120px;
+      height: 120px;
 
       ion-icon {
-        font-size: 30px;
+        font-size: 60px;
       }
 
       .carving-badge {
-        width: 24px;
-        height: 24px;
+        width: 32px;
+        height: 32px;
 
         ion-icon {
-          font-size: 12px;
+          font-size: 16px;
         }
       }
     }
@@ -362,22 +386,22 @@
     }
 
     .statue-icon {
-      width: 140px;
-      height: 140px;
+      width: 240px;
+      height: 240px;
       border-radius: 24px;
 
       ion-icon {
-        font-size: 70px;
+        font-size: 120px;
       }
 
       .carving-badge {
-        width: 48px;
-        height: 48px;
+        width: 64px;
+        height: 64px;
         bottom: -6px;
         right: -6px;
 
         ion-icon {
-          font-size: 24px;
+          font-size: 32px;
         }
       }
     }
@@ -442,11 +466,11 @@
     }
 
     &.size-medium .statue-icon {
-      width: 100px;
-      height: 100px;
+      width: 180px;
+      height: 180px;
 
       ion-icon {
-        font-size: 50px;
+        font-size: 90px;
       }
     }
 
