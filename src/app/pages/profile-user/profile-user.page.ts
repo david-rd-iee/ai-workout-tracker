@@ -420,13 +420,6 @@ export class ProfileUserPage implements OnInit, OnDestroy {
         };
       }
 
-      // Default display statues for trainers if not set
-      if (displayStatueIds.length === 0) {
-        displayStatueIds = ['zeus-mentor', 'athena-wisdom', 'hermes-prosperity'];
-      }
-
-      this.displayStatueIds = displayStatueIds;
-
       // Filter to trainer-specific statues only
       const trainerStatueIds = ['zeus-mentor', 'athena-wisdom', 'hermes-prosperity'];
       this.allStatues = GREEK_STATUES
@@ -443,6 +436,12 @@ export class ProfileUserPage implements OnInit, OnDestroy {
             currentLevel: level || undefined,
           };
         });
+
+      // Only keep display statues that actually exist and have progress
+      this.displayStatueIds = displayStatueIds.filter(id => {
+        const statue = this.allStatues.find(s => s.id === id);
+        return statue && statue.currentLevel;
+      });
 
       this.updateDisplayStatues();
     } catch (error) {
@@ -491,6 +490,13 @@ export class ProfileUserPage implements OnInit, OnDestroy {
           };
         });
 
+      // Only keep display statues that actually exist and have progress
+      const savedDisplayStatueIds = data.displayStatueIds || data.displayBadgeIds || [];
+      this.displayStatueIds = savedDisplayStatueIds.filter(id => {
+        const statue = this.allStatues.find(s => s.id === id);
+        return statue && statue.currentLevel;
+      });
+
       this.updateDisplayStatues();
     } catch (err) {
       console.error('[ProfileUserPage] Error loading statues from Firestore:', err);
@@ -507,12 +513,10 @@ export class ProfileUserPage implements OnInit, OnDestroy {
   }
 
   async openBadgeSelector() {
-    const carvedStatues = this.allStatues.filter(s => s.currentLevel);
-
     const modal = await this.modalCtrl.create({
       component: StatueSelectorComponent,
       componentProps: {
-        carvedStatues: carvedStatues,
+        carvedStatues: this.allStatues,
         selectedStatueIds: this.displayStatueIds
       }
     });

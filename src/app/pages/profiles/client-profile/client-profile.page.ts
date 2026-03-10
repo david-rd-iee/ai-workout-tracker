@@ -265,7 +265,7 @@ export class ClientProfilePage implements OnInit {
       const values = data.values || {};
       const percentiles = data.percentiles || {};
       // Support both old and new field names
-      this.displayStatueIds = data.displayStatueIds || data.displayBadgeIds || [];
+      const displayStatueIds = data.displayStatueIds || data.displayBadgeIds || [];
 
       // Filter out trainer-specific statues for clients
       const trainerStatueIds = ['zeus-mentor', 'athena-wisdom', 'hermes-prosperity'];
@@ -285,6 +285,12 @@ export class ClientProfilePage implements OnInit {
             currentLevel: level || undefined,
           };
         });
+
+      // Only show statues that are carved (have currentLevel)
+      this.displayStatueIds = displayStatueIds.filter(id => {
+        const statue = this.allStatues.find(s => s.id === id);
+        return statue && statue.currentLevel;
+      });
 
       this.updateDisplayStatues();
       console.log('[ClientProfilePage] Loaded statues from Firestore:', this.allStatues);
@@ -371,12 +377,10 @@ export class ClientProfilePage implements OnInit {
   }
 
   async openBadgeSelector() {
-    const carvedStatues = this.allStatues.filter(s => s.currentLevel);
-
     const modal = await this.modalCtrl.create({
       component: StatueSelectorComponent,
       componentProps: {
-        carvedStatues: carvedStatues,
+        carvedStatues: this.allStatues,
         selectedStatueIds: this.displayStatueIds
       }
     });
