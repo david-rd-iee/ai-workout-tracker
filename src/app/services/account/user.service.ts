@@ -2,7 +2,7 @@ import { Injectable, signal, computed, Signal, effect } from '@angular/core';
 import { AccountService } from './account.service';
 import { trainerProfile } from '../../Interfaces/Profiles/Trainer';
 import { clientProfile } from '../../Interfaces/Profiles/client';
-import { Firestore, setDoc, getDoc, doc, updateDoc } from '@angular/fire/firestore';
+import { Firestore, setDoc, getDoc, doc, updateDoc, serverTimestamp } from '@angular/fire/firestore';
 import { Observable, of } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { FileUploadService } from '../file-upload.service';
@@ -17,6 +17,7 @@ export class UserService {
   private readonly CLIENTS_COLLECTION = 'clients';
   private profileLoadPromise: Promise<boolean> | null = null;
   private loadedProfileUid: string | null = null;
+  private profileCompletionRoute = '/complete-profile';
 
   constructor(
     private accountService: AccountService,
@@ -34,7 +35,8 @@ export class UserService {
 
   async createUserProfile(formData: trainerProfile | clientProfile): Promise<boolean> {
     const userID = this.accountService.getCredentials()().uid;
-    formData.email = this.accountService.getCredentials()().email;
+    const authEmail = this.accountService.getCredentials()().email;
+    formData.email = authEmail;
 
     if (userID) {
       const collection = formData.accountType === 'trainer'
@@ -51,6 +53,27 @@ export class UserService {
 
       const userDocRef = doc(this.firestore, `${collection}/${userID}`);
       await setDoc(userDocRef, profileData);
+
+      const usersRef = doc(this.firestore, `users/${userID}`);
+      const firstName = typeof (formData as any)?.firstName === 'string'
+        ? (formData as any).firstName.trim()
+        : '';
+      const lastName = typeof (formData as any)?.lastName === 'string'
+        ? (formData as any).lastName.trim()
+        : '';
+
+      await setDoc(
+        usersRef,
+        {
+          userId: userID,
+          email: authEmail ?? '',
+          firstName,
+          lastName,
+          isPT: formData.accountType === 'trainer',
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
       return true;
     } else {
       throw new Error('User ID not found');
@@ -58,6 +81,8 @@ export class UserService {
   }
 
   async loadUserProfile(): Promise<boolean> {
+    this.profileCompletionRoute = '/complete-profile';
+
     if (!this.accountService.isLoggedIn()()) {
       return false;
     }
@@ -93,6 +118,14 @@ export class UserService {
       userDoc = await getDoc(doc(this.firestore, `${this.CLIENTS_COLLECTION}/${userID}`));
     }
 
+    const trainerNeedsNameCompletion = await this.ensureTrainerUsersDocIdentity(userID, email);
+    if (trainerNeedsNameCompletion) {
+      this.profileCompletionRoute = '/profile-creation/trainer';
+      this.userInfo.set(null);
+      this.loadedProfileUid = null;
+      return false;
+    }
+
     let hasRequiredStats = true;
     if (!isTrainerProfile) {
       const userStatsDoc = await getDoc(doc(this.firestore, 'userStats', userID));
@@ -117,12 +150,14 @@ export class UserService {
 
       // Keep complete-profile flow for signups until core identity fields are set.
       if (!firstName || !lastName || !username) {
+        this.profileCompletionRoute = '/complete-profile';
         this.userInfo.set(null);
         this.loadedProfileUid = null;
         return false;
       }
 
       if (!hasRequiredStats) {
+        this.profileCompletionRoute = '/complete-profile';
         this.userInfo.set(null);
         this.loadedProfileUid = null;
         return false;
@@ -155,6 +190,7 @@ export class UserService {
     }
 
     if (!isTrainerProfile && !hasRequiredStats) {
+      this.profileCompletionRoute = '/complete-profile';
       this.userInfo.set(null);
       this.loadedProfileUid = null;
       return false;
@@ -182,6 +218,44 @@ export class UserService {
     this.userInfo.set(userData);
     this.loadedProfileUid = userID;
     return true;
+  }
+
+  private async ensureTrainerUsersDocIdentity(userId: string, email: string): Promise<boolean> {
+    const userRef = doc(this.firestore, 'users', userId);
+    const userSnap = await getDoc(userRef);
+    if (!userSnap.exists()) {
+      return false;
+    }
+
+    const usersData = userSnap.data() as Record<string, unknown>;
+    const isTrainer = usersData?.['isPT'] === true;
+    if (!isTrainer) {
+      return false;
+    }
+
+    const firstName = typeof usersData?.['firstName'] === 'string'
+      ? usersData['firstName'].trim()
+      : '';
+    const lastName = typeof usersData?.['lastName'] === 'string'
+      ? usersData['lastName'].trim()
+      : '';
+    const usersEmail = typeof usersData?.['email'] === 'string'
+      ? usersData['email'].trim()
+      : '';
+    const authEmail = (email || '').trim();
+
+    if (!usersEmail && authEmail) {
+      await setDoc(
+        userRef,
+        {
+          email: authEmail,
+          updatedAt: new Date(),
+        },
+        { merge: true }
+      );
+    }
+
+    return !firstName || !lastName;
   }
 
   private async ensureBmiField(userId: string, statsData: any): Promise<void> {
@@ -241,6 +315,10 @@ export class UserService {
 
   getUserInfo(): Signal<trainerProfile | clientProfile | null> {
     return this.userInfo;
+  }
+
+  getProfileCompletionRoute(): string {
+    return this.profileCompletionRoute || '/complete-profile';
   }
 
   getUserById(userId: string, accountType: 'trainer' | 'client'): Signal<trainerProfile | clientProfile | null> {

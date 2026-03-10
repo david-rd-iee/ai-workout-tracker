@@ -43,7 +43,7 @@
             ></ion-input>
           </ion-item>
 
-          <ion-item lines="none">
+          <ion-item lines="none" *ngIf="!isTrainer">
             <ion-select
               class="settings-input"
               label="Sex"
@@ -75,7 +75,7 @@
             ></ion-input>
           </ion-item>
 
-          <ion-item lines="none">
+          <ion-item lines="none" *ngIf="!isTrainer">
             <ion-input
               class="settings-input"
               label="Age"
@@ -90,7 +90,7 @@
             ></ion-input>
           </ion-item>
 
-          <ion-item lines="none">
+          <ion-item lines="none" *ngIf="!isTrainer">
             <ion-input
               class="settings-input"
               label="Height (m)"
@@ -105,7 +105,7 @@
             ></ion-input>
           </ion-item>
 
-          <ion-item lines="none">
+          <ion-item lines="none" *ngIf="!isTrainer">
             <ion-input
               class="settings-input"
               label="Weight (kg)"

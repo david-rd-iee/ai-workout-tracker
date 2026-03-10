@@ -63,6 +63,7 @@ export class ProfileSettingsPage implements OnInit {
   heightMeters: string | number | null = '';
   weightKg: string | number | null = '';
   sex: string | number | null = null;
+  isTrainer = false;
 
   isLoading = false;
   isSaving = false;
@@ -105,35 +106,37 @@ export class ProfileSettingsPage implements OnInit {
       return;
     }
 
-    const parsedAge = this.parseNumber(this.age);
-    const parsedHeightMeters = this.parseNumber(this.heightMeters);
-    const parsedWeightKg = this.parseNumber(this.weightKg);
-    const parsedSex = this.parseSexValue(this.sex);
-    const bmi = parsedHeightMeters !== null && parsedWeightKg !== null
-      ? this.calculateBmi(parsedHeightMeters, parsedWeightKg)
-      : null;
+    const shouldSaveStats = !this.isTrainer;
+    const parsedAge = shouldSaveStats ? this.parseNumber(this.age) : null;
+    const parsedHeightMeters = shouldSaveStats ? this.parseNumber(this.heightMeters) : null;
+    const parsedWeightKg = shouldSaveStats ? this.parseNumber(this.weightKg) : null;
+    const parsedSex = shouldSaveStats ? this.parseSexValue(this.sex) : null;
+    const bmi =
+      shouldSaveStats && parsedHeightMeters !== null && parsedWeightKg !== null
+        ? this.calculateBmi(parsedHeightMeters, parsedWeightKg)
+        : null;
 
-    if (parsedAge === null || !Number.isInteger(parsedAge) || parsedAge <= 0) {
+    if (shouldSaveStats && (parsedAge === null || !Number.isInteger(parsedAge) || parsedAge <= 0)) {
       this.errorMessage = 'Age must be a whole number greater than 0.';
       return;
     }
 
-    if (parsedHeightMeters === null || parsedHeightMeters <= 0) {
+    if (shouldSaveStats && (parsedHeightMeters === null || parsedHeightMeters <= 0)) {
       this.errorMessage = 'Height (m) must be greater than 0.';
       return;
     }
 
-    if (parsedWeightKg === null || parsedWeightKg <= 0) {
+    if (shouldSaveStats && (parsedWeightKg === null || parsedWeightKg <= 0)) {
       this.errorMessage = 'Weight (kg) must be greater than 0.';
       return;
     }
 
-    if (parsedSex === null) {
+    if (shouldSaveStats && parsedSex === null) {
       this.errorMessage = 'Please select sex.';
       return;
     }
 
-    if (bmi === null) {
+    if (shouldSaveStats && bmi === null) {
       this.errorMessage = 'BMI could not be calculated from height and weight.';
       return;
     }
@@ -175,27 +178,33 @@ export class ProfileSettingsPage implements OnInit {
         { merge: true }
       );
 
-      const userStatsPayload: Record<string, unknown> = {
-        userId: uid,
-        age: parsedAge,
-        heightMeters: parsedHeightMeters,
-        weightKg: parsedWeightKg,
-        sex: parsedSex,
-        bmi,
-        updatedAt: serverTimestamp(),
-      };
+      if (shouldSaveStats) {
+        const userStatsPayload: Record<string, unknown> = {
+          userId: uid,
+          age: parsedAge,
+          heightMeters: parsedHeightMeters,
+          weightKg: parsedWeightKg,
+          sex: parsedSex,
+          bmi,
+          updatedAt: serverTimestamp(),
+        };
 
-      const userStatsRef = doc(this.firestore, 'userStats', uid);
-      await setDoc(userStatsRef, userStatsPayload, { merge: true });
+        const userStatsRef = doc(this.firestore, 'userStats', uid);
+        await setDoc(userStatsRef, userStatsPayload, { merge: true });
+      }
 
       if (emailVerificationSent) {
         this.errorMessage =
           'Verification email sent. Confirm the new email, then save again to sync it here.';
-        this.successMessage = 'Name, age, sex, height, and weight were saved.';
+        this.successMessage = shouldSaveStats
+          ? 'Name, age, sex, height, and weight were saved.'
+          : 'Name and email were saved.';
         this.email = emailForUsersDoc;
       } else if (emailUpdateError) {
         this.errorMessage = emailUpdateError;
-        this.successMessage = 'Name, age, sex, height, and weight were saved.';
+        this.successMessage = shouldSaveStats
+          ? 'Name, age, sex, height, and weight were saved.'
+          : 'Name and email were saved.';
         this.email = emailForUsersDoc;
       } else {
         this.successMessage = 'Settings saved.';
@@ -231,6 +240,7 @@ export class ProfileSettingsPage implements OnInit {
 
       if (userSnap.exists()) {
         const userData = userSnap.data();
+        this.isTrainer = userData?.['isPT'] === true;
         this.firstName = typeof userData?.['firstName'] === 'string' ? userData['firstName'] : '';
         this.lastName = typeof userData?.['lastName'] === 'string' ? userData['lastName'] : '';
         this.email = typeof userData?.['email'] === 'string' ? userData['email'] : '';

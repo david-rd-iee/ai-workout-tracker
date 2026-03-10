@@ -37,6 +37,28 @@ export const routes: Routes = [
       import('./pages/complete-profile/complete-profile.page').then((m) => m.CompleteProfilePage),
     canActivate: [authGuard],
   },
+  {
+    path: 'profile-creation',
+    loadComponent: () =>
+      import('./pages/profile-creation/profile-creation.page').then((m) => m.ProfileCreationPage),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'profile-creation/trainer',
+    loadComponent: () =>
+      import('./pages/profile-creation/profile-create-trainer/profile-create-trainer.page').then(
+        (m) => m.ProfileCreateTrainerPage
+      ),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'profile-creation/client',
+    loadComponent: () =>
+      import('./pages/profile-creation/profile-create-client/profile-create-client.page').then(
+        (m) => m.ProfileCreateClientPage
+      ),
+    canActivate: [authGuard],
+  },
 
   // Protected app shell
   {

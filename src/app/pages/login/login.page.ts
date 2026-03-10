@@ -80,7 +80,7 @@ export class LoginPage implements OnInit {
 
       const profileLoaded = await this.userService.loadUserProfile();
       if (!profileLoaded) {
-        await this.router.navigateByUrl('/complete-profile', { replaceUrl: true });
+        await this.router.navigateByUrl(this.userService.getProfileCompletionRoute(), { replaceUrl: true });
         return;
       }
 
@@ -106,7 +106,7 @@ export class LoginPage implements OnInit {
 
       const profileLoaded = await this.userService.loadUserProfile();
       if (!profileLoaded) {
-        await this.router.navigateByUrl('/complete-profile', { replaceUrl: true });
+        await this.router.navigateByUrl(this.userService.getProfileCompletionRoute(), { replaceUrl: true });
         return;
       }
 

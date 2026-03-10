@@ -43,6 +43,7 @@ export class CompleteProfilePage implements OnInit {
   heightMeters: string | number = '';
   weightKg: string | number = '';
   sex: string | number | null = null;
+  isTrainerNameOnly = false;
 
   isSubmitting = false;
   errorMessage = '';
@@ -57,15 +58,28 @@ export class CompleteProfilePage implements OnInit {
     const firstName = this.firstName.trim();
     const lastName = this.lastName.trim();
     const username = this.username.trim();
-    const age = this.parsePositiveInteger(this.age);
-    const heightMeters = this.parsePositiveNumber(this.heightMeters);
-    const weightKg = this.parsePositiveNumber(this.weightKg);
-    const sex = this.parseSexValue(this.sex);
-    const bmi = heightMeters !== null && weightKg !== null
-      ? this.calculateBmi(heightMeters, weightKg)
-      : null;
+    const requiresExtendedProfile = !this.isTrainerNameOnly;
+    const age = requiresExtendedProfile ? this.parsePositiveInteger(this.age) : null;
+    const heightMeters = requiresExtendedProfile ? this.parsePositiveNumber(this.heightMeters) : null;
+    const weightKg = requiresExtendedProfile ? this.parsePositiveNumber(this.weightKg) : null;
+    const sex = requiresExtendedProfile ? this.parseSexValue(this.sex) : null;
+    const bmi =
+      requiresExtendedProfile && heightMeters !== null && weightKg !== null
+        ? this.calculateBmi(heightMeters, weightKg)
+        : null;
 
-    if (!firstName || !lastName || !username || age === null || heightMeters === null || weightKg === null || bmi === null || sex === null) {
+    const missingRequiredFields =
+      !firstName ||
+      !lastName ||
+      (requiresExtendedProfile &&
+        (!username ||
+          age === null ||
+          heightMeters === null ||
+          weightKg === null ||
+          bmi === null ||
+          sex === null));
+
+    if (missingRequiredFields) {
       this.errorMessage = 'Please fill out all fields.';
       return;
     }
@@ -87,26 +101,28 @@ export class CompleteProfilePage implements OnInit {
           email: this.auth.currentUser?.email ?? '',
           firstName,
           lastName,
-          username,
+          ...(username ? { username } : {}),
           updatedAt: serverTimestamp(),
         },
         { merge: true }
       );
 
-      const userStatsRef = doc(this.firestore, 'userStats', uid);
-      await setDoc(
-        userStatsRef,
-        {
-          userId: uid,
-          age,
-          heightMeters,
-          weightKg,
-          bmi,
-          sex,
-          updatedAt: serverTimestamp(),
-        },
-        { merge: true }
-      );
+      if (requiresExtendedProfile) {
+        const userStatsRef = doc(this.firestore, 'userStats', uid);
+        await setDoc(
+          userStatsRef,
+          {
+            userId: uid,
+            age,
+            heightMeters,
+            weightKg,
+            bmi,
+            sex,
+            updatedAt: serverTimestamp(),
+          },
+          { merge: true }
+        );
+      }
 
       await this.router.navigateByUrl('/tabs', { replaceUrl: true });
     } catch (error) {
@@ -135,6 +151,11 @@ export class CompleteProfilePage implements OnInit {
       this.firstName = typeof data?.['firstName'] === 'string' ? data['firstName'] : '';
       this.lastName = typeof data?.['lastName'] === 'string' ? data['lastName'] : '';
       this.username = typeof data?.['username'] === 'string' ? data['username'] : '';
+      this.isTrainerNameOnly = data?.['isPT'] === true;
+
+      if (this.isTrainerNameOnly) {
+        return;
+      }
 
       const userStatsRef = doc(this.firestore, 'userStats', uid);
       const userStatsSnap = await getDoc(userStatsRef);

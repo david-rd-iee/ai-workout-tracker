@@ -92,8 +92,11 @@ export class ProfileCreateTrainerPage implements OnInit {
     this.isSubmitting = true;
     const formData: trainerProfile = this.trainerForm.value;
     this.userService.createUserProfile(formData)
-      .then((data) => {
-        console.log(data);
+      .then((created) => {
+        console.log(created);
+        return this.userService.loadUserProfile();
+      })
+      .then(() => {
         this.router.navigate([ROUTE_PATHS.APP.TABS.HOME]);
       })
       .catch((err) => {

@@ -4,7 +4,8 @@
   </div>
 
   <h1>Complete Your Profile</h1>
-  <p class="subtitle">Add your details before entering the app.</p>
+  <p class="subtitle" *ngIf="!isTrainerNameOnly">Add your details before entering the app.</p>
+  <p class="subtitle" *ngIf="isTrainerNameOnly">Please add your first and last name to continue.</p>
 
   <form (ngSubmit)="onSubmit()">
     <ion-item lines="none">
@@ -29,7 +30,7 @@
       ></ion-input>
     </ion-item>
 
-    <ion-item lines="none">
+    <ion-item lines="none" *ngIf="!isTrainerNameOnly">
       <ion-input
         label="Username"
         label-placement="floating"
@@ -40,7 +41,7 @@
       ></ion-input>
     </ion-item>
 
-    <ion-item lines="none">
+    <ion-item lines="none" *ngIf="!isTrainerNameOnly">
       <ion-input
         label="Age"
         label-placement="floating"
@@ -53,7 +54,7 @@
       ></ion-input>
     </ion-item>
 
-    <ion-item lines="none">
+    <ion-item lines="none" *ngIf="!isTrainerNameOnly">
       <ion-input
         label="Height (m)"
         label-placement="floating"
@@ -66,7 +67,7 @@
       ></ion-input>
     </ion-item>
 
-    <ion-item lines="none">
+    <ion-item lines="none" *ngIf="!isTrainerNameOnly">
       <ion-input
         label="Weight (kg)"
         label-placement="floating"
@@ -79,7 +80,7 @@
       ></ion-input>
     </ion-item>
 
-    <ion-item lines="none">
+    <ion-item lines="none" *ngIf="!isTrainerNameOnly">
       <ion-select
         label="Sex"
         label-placement="floating"
