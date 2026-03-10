@@ -3,7 +3,7 @@ import { WorkoutLogService } from '../../services/workout-log.service';
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { IonInput, IonButton, IonIcon, IonContent } from '@ionic/angular/standalone';
+import { IonInput, IonButton, IonIcon, IonContent, AlertController } from '@ionic/angular/standalone';
 import { Platform } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import { arrowUp, fitnessOutline } from 'ionicons/icons';
@@ -68,7 +68,8 @@ export class WorkoutChatbotPage implements OnInit, OnDestroy {
     private workoutChatService: WorkoutChatService,
     private workoutLogService: WorkoutLogService,
     private exerciseEstimatorsService: ExerciseEstimatorsService,
-    private platform: Platform
+    private platform: Platform,
+    private alertController: AlertController
   ) {
     addIcons({ fitnessOutline, arrowUp });
   }
@@ -204,7 +205,7 @@ export class WorkoutChatbotPage implements OnInit, OnDestroy {
       if (saveResult.scoreUpdate) {
         const addedTotalScore = this.roundToTwoDecimals(saveResult.scoreUpdate.addedTotalScore);
         const currentTotalScore = this.roundToTwoDecimals(saveResult.scoreUpdate.currentTotalScore);
-        window.alert(`added ${addedTotalScore} for a total of ${currentTotalScore}`);
+        await this.showScoreUpdateAlert(addedTotalScore, currentTotalScore);
       }
       return true;
     } catch (err) {
@@ -220,6 +221,19 @@ export class WorkoutChatbotPage implements OnInit, OnDestroy {
 
   private roundToTwoDecimals(value: number): number {
     return Math.round((Number(value) || 0) * 100) / 100;
+  }
+
+  private async showScoreUpdateAlert(addedTotalScore: number, currentTotalScore: number): Promise<void> {
+    const alert = await this.alertController.create({
+      mode: 'ios',
+      header: 'Score Updated',
+      subHeader: `+${addedTotalScore} points`,
+      message: `Your total score is now ${currentTotalScore}.`,
+      buttons: ['OK'],
+      translucent: true,
+    });
+
+    await alert.present();
   }
 
   private createEmptySession(): WorkoutSessionPerformance {
