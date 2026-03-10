@@ -144,6 +144,8 @@ export const routes: Routes = [
       import('./pages/workout-history-csv/workout-history-csv.page').then(
         (m) => m.WorkoutHistoryCsvPage
       ),
+  },
+  {
     path: 'workout-insights',
     loadComponent: () =>
       import('./pages/workout-insights/workout-insights.page').then((m) => m.WorkoutInsightsPage),
