@@ -18,12 +18,49 @@ export interface SummaryExercise {
   volume: number; // per-exercise volume
 }
 
+export type TrainingType = 'Strength' | 'Cardio' | 'Other';
+export type RowWeight = number | 'body weight';
+
+export interface WorkoutTrainingRow {
+  Training_Type: TrainingType;
+  estimated_calories: number;
+  exercise_type: string; // snake_case estimator id
+  sets: number;
+  reps: number;
+  weights: RowWeight; // in kg or "body weight"
+}
+
+export interface CardioTrainingRow {
+  Training_Type: 'Cardio';
+  estimated_calories: number;
+  cardio_type: string; // e.g. running, biking
+  distance?: number; // meters
+  time?: number; // minutes
+  [key: string]: unknown;
+}
+
+export interface OtherTrainingRow {
+  Training_Type: 'Other';
+  estimated_calories: number;
+  [key: string]: unknown;
+}
+
 export interface WorkoutSessionPerformance {
   date: string;
+  trainingRows: WorkoutTrainingRow[];
+  Training_Type?: TrainingType;
+  strengthTrainingRow?: WorkoutTrainingRow[] | WorkoutTrainingRow;
+  strengthTrainingRowss?: WorkoutTrainingRow[];
+  cardioTrainingRow?: CardioTrainingRow[] | CardioTrainingRow;
+  otherTrainingRow?: OtherTrainingRow[] | OtherTrainingRow;
+  estimated_calories: number;
+  trainer_notes: string;
+  isComplete?: boolean;        // true when notes phase is complete
+
+  // Legacy compatibility fields used by history/summary screens.
   sessionType?: string;
   notes?: string;              // overall notes for the trainer
   volume: number;              // total volume across all exercises
   calories: number;            // estimated calories for the workout
   exercises: SummaryExercise[]; // summarized exercises
-  isComplete?: boolean;        // view summary button after logs complete
 }

@@ -1,67 +1,91 @@
-ion-content {
-  --background: transparent;
+@use '../../styles/shared-chat-ui' as sharedChat;
+
+.chat-content {
+  --background: #ffffff;
 }
 
-.workout-summary-button-container {
+.workout-summary-card-container {
   padding: 16px 16px 8px;
-  background: var(--ion-background-color);
 }
 
-.workout-summary-button {
-  --background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  --background-hover: linear-gradient(135deg, #5568d3 0%, #653a8b 100%);
+.workout-summary-card {
+  background: #f6f6f6;
+  border: 1px solid rgba(0, 0, 0, 0.08);
   --border-radius: 12px;
-  font-weight: 600;
-  height: 48px;
-  margin: 0;
+  border-radius: 12px;
+  padding: 12px;
 }
 
-.chat-container {
-  padding: 16px;
+.summary-title {
+  margin: 0 0 8px 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: #3c3c43;
+}
+
+.summary-section {
+  padding-bottom: 6px;
+}
+
+.summary-section-title {
+  margin: 8px 0 2px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #6a6a70;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.summary-row {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 2px;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
 }
 
-.message {
+.summary-row:last-of-type {
+  border-bottom: 0;
+}
+
+.summary-exercise {
+  font-size: 14px;
+  font-weight: 600;
+  color: #111111;
+}
+
+.summary-metric {
+  font-size: 13px;
+  color: #555;
+}
+
+.summary-typing {
+  padding: 8px 0;
   display: flex;
-}
-
-.bot-message {
   justify-content: flex-start;
 }
 
-.user-message {
-  justify-content: flex-end;
+.submit-workout-button {
+  margin-top: 10px;
+  --background: #007aff;
+  --background-activated: #0051d5;
+  font-weight: 600;
 }
 
-.bubble {
-  max-width: 80%;
-  padding: 10px 14px;
-  border-radius: 16px;
-  font-size: 14px;
-  line-height: 1.4;
-  background: var(--ion-color-light);
-}
+@include sharedChat.ios-chat-ui;
 
-.bot-message .bubble {
-  background: var(--ion-color-medium);
-  color: #fff;
-}
-
-.user-message .bubble {
-  background: var(--ion-color-primary);
-  color: #fff;
+.messages-list {
+  padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px));
 }
 
 .input-container {
-  position: sticky;
-  bottom: 0;
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: calc(var(--keyboard-offset, 0px) + env(safe-area-inset-bottom, 0px));
   padding: 8px 12px 16px;
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  background: var(--ion-color-light);
+  background: #f6f6f6;
+  z-index: 20;
 }
 
 .typing-indicator {

@@ -44,6 +44,24 @@
           </ion-item>
 
           <ion-item lines="none">
+            <ion-select
+              class="settings-input"
+              label="Sex"
+              label-placement="stacked"
+              [(ngModel)]="sex"
+              name="sex"
+              placeholder="Select sex"
+              interface="popover"
+              [disabled]="isLoading || isSaving"
+              required
+            >
+              <ion-select-option [value]="1">Male</ion-select-option>
+              <ion-select-option [value]="2">Female</ion-select-option>
+              <ion-select-option [value]="1.5">Other</ion-select-option>
+            </ion-select>
+          </ion-item>
+
+          <ion-item lines="none">
             <ion-input
               class="settings-input"
               label="Email"
@@ -60,28 +78,45 @@
           <ion-item lines="none">
             <ion-input
               class="settings-input"
-              label="Weight"
+              label="Age"
               label-placement="stacked"
               type="number"
-              inputmode="decimal"
-              [(ngModel)]="weight"
-              name="weight"
-              placeholder="e.g. 180"
+              inputmode="numeric"
+              [(ngModel)]="age"
+              name="age"
+              placeholder="e.g. 29"
               [disabled]="isLoading || isSaving"
+              required
             ></ion-input>
           </ion-item>
 
           <ion-item lines="none">
             <ion-input
               class="settings-input"
-              label="Height"
+              label="Height (m)"
               label-placement="stacked"
               type="number"
               inputmode="decimal"
-              [(ngModel)]="height"
-              name="height"
-              placeholder="e.g. 70"
+              [(ngModel)]="heightMeters"
+              name="heightMeters"
+              placeholder="e.g. 1.78"
               [disabled]="isLoading || isSaving"
+              required
+            ></ion-input>
+          </ion-item>
+
+          <ion-item lines="none">
+            <ion-input
+              class="settings-input"
+              label="Weight (kg)"
+              label-placement="stacked"
+              type="number"
+              inputmode="decimal"
+              [(ngModel)]="weightKg"
+              name="weightKg"
+              placeholder="e.g. 72"
+              [disabled]="isLoading || isSaving"
+              required
             ></ion-input>
           </ion-item>
         </div>

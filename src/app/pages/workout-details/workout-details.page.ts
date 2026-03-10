@@ -84,7 +84,7 @@ export class WorkoutDetailsPage implements OnInit {
 
   startWorkout() {
     // Navigate to workout chatbot to start logging
-    this.router.navigate(['/tabs/chats/workout-chatbot']);
+    this.router.navigate(['/workout-chatbot']);
   }
 
   viewPreviousWorkouts() {
@@ -98,6 +98,6 @@ export class WorkoutDetailsPage implements OnInit {
 
   logCustomWorkout() {
     // Navigate to workout chatbot for custom logging
-    this.router.navigate(['/tabs/chats/workout-chatbot']);
+    this.router.navigate(['/workout-chatbot']);
   }
 }

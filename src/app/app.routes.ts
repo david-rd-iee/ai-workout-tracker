@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { authGuard } from './services/account/auth.guard';
+import { authChildGuard, authGuard, authMatchGuard } from './services/account/auth.guard';
 
 // Route paths constant for type-safe navigation
 export const ROUTE_PATHS = {
@@ -26,7 +26,7 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./pages/login/login.page').then((m) => m.LoginPage),
   },
-  {
+  { 
     path: 'sign-up',
     loadComponent: () =>
       import('./pages/sign-up/sign-up.page').then((m) => m.SignUpPage),
@@ -43,7 +43,9 @@ export const routes: Routes = [
     path: 'tabs',
     loadChildren: () =>
       import('./pages/tabs/tabs.routes').then((m) => m.routes),
+    canMatch: [authMatchGuard],
     canActivate: [authGuard],
+    canActivateChild: [authChildGuard],
   },
 
   // Other pages (optional: protect these too if you want)
@@ -64,6 +66,7 @@ export const routes: Routes = [
   loadComponent: () =>
     import('./pages/leaderboards/regional-leaderboard/regional-leaderboard.page')
       .then(m => m.RegionalLeaderboardPage),
+  canActivate: [authGuard],
   },
   {
     path: 'workout-details',
@@ -72,14 +75,32 @@ export const routes: Routes = [
     canActivate: [authGuard],
   },
   {
+    path: 'workout-chatbot',
+    loadComponent: () =>
+      import('./pages/workout-chatbot/workout-chatbot.page').then(
+        (m) => m.WorkoutChatbotPage
+      ),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'workout-summary',
+    loadComponent: () =>
+      import('./pages/workout-summary/workout-summary.page').then(
+        (m) => m.WorkoutSummaryPage
+      ),
+    canActivate: [authGuard],
+  },
+  {
     path: 'client-details',
     loadComponent: () =>
       import('./pages/client-details/client-details.page').then((m) => m.ClientDetailsPage),
+    canActivate: [authGuard],
   },
   {
     path: 'chat/:chatId',
     loadComponent: () =>
       import('./pages/chats/chat-detail/chat-detail.page').then((m) => m.ChatDetailPage),
+    canActivate: [authGuard],
   },
   {
     path: 'leaderboard/:groupID',
@@ -110,6 +131,19 @@ export const routes: Routes = [
     canActivate: [authGuard],
   },
   {
+    path: 'workout-history',
+    loadComponent: () =>
+      import('./pages/workout-history/workout-history.page').then(
+        (m) => m.WorkoutHistoryPage
+      ),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'workout-history-csv',
+    loadComponent: () =>
+      import('./pages/workout-history-csv/workout-history-csv.page').then(
+        (m) => m.WorkoutHistoryCsvPage
+      ),
     path: 'workout-insights',
     loadComponent: () =>
       import('./pages/workout-insights/workout-insights.page').then((m) => m.WorkoutInsightsPage),

@@ -1,7 +1,7 @@
 import { Component, Input, inject, OnInit, effect } from '@angular/core';
 import { IonHeader, IonToolbar, IonButton, IonIcon, IonTitle, IonAvatar, NavController } from '@ionic/angular/standalone';
-import { Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
+import { Router } from '@angular/router';
 import { addIcons } from 'ionicons';
 import { chevronBackOutline, personOutline, personCircleOutline } from 'ionicons/icons';
 import type { AppUser } from '../../models/user.model';
@@ -22,10 +22,11 @@ export class HeaderComponent implements OnInit {
   @Input() currentUser: AppUser | null = null;
 
   private navCtrl = inject(NavController);
+  private router = inject(Router);
   private userService = inject(UserService);
   private loadedUser: any = null;
 
-  constructor(private router: Router) {
+  constructor() {
     addIcons({
       chevronBackOutline,
       personOutline,
@@ -94,13 +95,10 @@ export class HeaderComponent implements OnInit {
   goBack() {
     // If backHref is provided, use it instead of browser history
     if (this.backHref) {
-      const useProfileAnimation = this.router.url.startsWith('/profile-user');
-      this.navCtrl.navigateBack(this.backHref, useProfileAnimation
-        ? {
-            animated: true,
-            animationDirection: 'back',
-          }
-        : { animated: false });
+      this.navCtrl.navigateBack(this.backHref, {
+        animated: true,
+        animationDirection: 'back',
+      });
     } else {
       // Otherwise use browser history
       this.navCtrl.back({ animated: false });

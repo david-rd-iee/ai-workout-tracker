@@ -1,24 +1,352 @@
 import { onRequest } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
+import { defineSecret } from "firebase-functions/params";
 import OpenAI from "openai";
 
-// ------------------------------
-//  Stats Functions
-// ------------------------------
-export { onBookingChange, onTrainerClientChange } from './stats/trainerStats';
-export { migrateTrainerStats } from './stats/migrateTrainerStats';
+const openaiApiKey = defineSecret("OPENAI_API_KEY");
 
-// ------------------------------
-//  Initialization
-// ------------------------------
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY ?? "",
-});
+function toPositiveNumber(value: unknown): number | undefined {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
+}
+
+function extractDistanceMeters(value: unknown): number | undefined {
+  const direct = toPositiveNumber(value);
+  if (typeof direct === "number") {
+    return direct;
+  }
+
+  const text = String(value ?? "").trim().toLowerCase();
+  if (!text) {
+    return undefined;
+  }
+
+  const match = text.match(/([0-9]*\.?[0-9]+)\s*(mi|mile|miles|km|kilometer|kilometers|m|meter|meters)\b/);
+  if (!match) {
+    return undefined;
+  }
+
+  const magnitude = Number(match[1]);
+  const unit = match[2];
+  if (!Number.isFinite(magnitude) || magnitude <= 0) {
+    return undefined;
+  }
+
+  if (unit === "mi" || unit === "mile" || unit === "miles") {
+    return Math.round(magnitude * 1609.344);
+  }
+  if (unit === "km" || unit === "kilometer" || unit === "kilometers") {
+    return Math.round(magnitude * 1000);
+  }
+  return Math.round(magnitude);
+}
+
+function extractTimeMinutes(value: unknown): number | undefined {
+  const direct = toPositiveNumber(value);
+  if (typeof direct === "number") {
+    return direct;
+  }
+
+  const text = String(value ?? "").trim().toLowerCase();
+  if (!text) {
+    return undefined;
+  }
+
+  const match = text.match(/([0-9]*\.?[0-9]+)\s*(h|hr|hrs|hour|hours|min|mins|minute|minutes)\b/);
+  if (!match) {
+    return undefined;
+  }
+
+  const magnitude = Number(match[1]);
+  const unit = match[2];
+  if (!Number.isFinite(magnitude) || magnitude <= 0) {
+    return undefined;
+  }
+
+  if (unit === "h" || unit === "hr" || unit === "hrs" || unit === "hour" || unit === "hours") {
+    return Math.round(magnitude * 60);
+  }
+  return Math.round(magnitude);
+}
+
+function extractDistanceAndTimeFromMessage(message: string): {distance?: number; time?: number} {
+  const text = String(message ?? "").toLowerCase();
+  const distanceMatch = text.match(/([0-9]*\.?[0-9]+)\s*(mi|mile|miles|km|kilometer|kilometers|m|meter|meters)\b/);
+  const timeMatch = text.match(/([0-9]*\.?[0-9]+)\s*(h|hr|hrs|hour|hours|min|mins|minute|minutes)\b/);
+
+  const distance = distanceMatch ? extractDistanceMeters(distanceMatch[0]) : undefined;
+  const time = timeMatch ? extractTimeMinutes(timeMatch[0]) : undefined;
+  return {distance, time};
+}
+
+function extractDistanceAndTimeTokensFromMessage(message: string): {distanceText?: string; timeText?: string} {
+  const text = String(message ?? "");
+  const distanceMatch = text.match(/([0-9]*\.?[0-9]+)\s*(mi|mile|miles|km|kilometer|kilometers|m|meter|meters)\b/i);
+  const timeMatch = text.match(/([0-9]*\.?[0-9]+)\s*(h|hr|hrs|hour|hours|min|mins|minute|minutes)\b/i);
+  return {
+    distanceText: distanceMatch?.[0]?.trim(),
+    timeText: timeMatch?.[0]?.trim(),
+  };
+}
+
+function inferCardioTypeFromMessage(message: string): string | undefined {
+  const text = String(message ?? "").toLowerCase();
+  if (!text.trim()) {
+    return undefined;
+  }
+
+  if (/\b(run|ran|running|jog|jogging|sprint|sprinting|treadmill)\b/.test(text)) {
+    return "running";
+  }
+  if (/\b(bike|biked|biking|cycle|cycling|spin|spinning)\b/.test(text)) {
+    return "biking";
+  }
+  if (/\b(swim|swam|swimming)\b/.test(text)) {
+    return "swimming";
+  }
+  if (/\b(walk|walked|walking|hike|hiked|hiking)\b/.test(text)) {
+    return "walking";
+  }
+  if (/\b(row|rowed|rowing)\b/.test(text)) {
+    return "rowing";
+  }
+  if (/\b(elliptical|stair|stairs|stepper)\b/.test(text)) {
+    return "cardio_machine";
+  }
+
+  return undefined;
+}
+
+function toObjectArray(value: unknown): Array<Record<string, unknown>> {
+  if (Array.isArray(value)) {
+    return value.filter((entry): entry is Record<string, unknown> => !!entry && typeof entry === "object");
+  }
+
+  if (value && typeof value === "object") {
+    return [value as Record<string, unknown>];
+  }
+
+  return [];
+}
+
+function normalizeSummaryRows(summary: unknown, latestMessage: string): unknown {
+  if (!summary || typeof summary !== "object") {
+    return summary;
+  }
+
+  const summaryRecord = summary as Record<string, unknown>;
+  const sessionEstimatedCalories = toPositiveNumber(summaryRecord["estimated_calories"]) ?? 0;
+  const legacyRows = toObjectArray(summaryRecord["trainingRows"]);
+  const legacyStrengthRows = legacyRows.filter((row) =>
+    String(row["Training_Type"] ?? row["training_type"] ?? row["trainingType"] ?? "")
+      .trim()
+      .toLowerCase() === "strength"
+  );
+  const legacyCardioRows = legacyRows.filter((row) =>
+    String(row["Training_Type"] ?? row["training_type"] ?? row["trainingType"] ?? "")
+      .trim()
+      .toLowerCase() === "cardio"
+  );
+  const legacyOtherRows = legacyRows.filter((row) =>
+    String(row["Training_Type"] ?? row["training_type"] ?? row["trainingType"] ?? "")
+      .trim()
+      .toLowerCase() === "other"
+  );
+
+  const strengthSource =
+    summaryRecord["strengthTrainingRow"] ??
+    summaryRecord["strengthTrainingRowss"] ??
+    legacyStrengthRows;
+  const strengthRows = toObjectArray(strengthSource).map((row) => {
+    const normalized = {...row};
+    normalized["Training_Type"] = "Strength";
+    normalized["estimated_calories"] = toPositiveNumber(
+      row["estimated_calories"] ?? row["estimatedCalories"]
+    ) ?? 0;
+    return normalized;
+  });
+
+  const rawRows =
+    summaryRecord["cardioTrainingRow"] ??
+    legacyCardioRows.map((row) => ({
+      cardio_type:
+        row["cardio_type"] ??
+        row["cardioType"] ??
+        row["exercise_type"] ??
+        row["exersice_type"] ??
+        row["type"],
+      distance_input:
+        row["distance_input"] ??
+        row["distanceText"] ??
+        row["distance_text"],
+      time_input:
+        row["time_input"] ??
+        row["timeText"] ??
+        row["time_text"],
+      distance:
+        row["distance"] ??
+        row["distance_meters"] ??
+        row["meters"],
+      time:
+        row["time"] ??
+        row["minutes"] ??
+        row["duration"] ??
+        row["reps"],
+      estimated_calories:
+        row["estimated_calories"] ??
+        row["estimatedCalories"],
+    }));
+  const cardioRows = toObjectArray(rawRows);
+
+  const fromMessage = extractDistanceAndTimeFromMessage(latestMessage);
+  const fromMessageText = extractDistanceAndTimeTokensFromMessage(latestMessage);
+  const inferredCardioType = inferCardioTypeFromMessage(latestMessage);
+  if (
+    cardioRows.length === 0 &&
+    inferredCardioType &&
+    (typeof fromMessage.distance === "number" || typeof fromMessage.time === "number")
+  ) {
+    cardioRows.push({
+      cardio_type: inferredCardioType,
+      distance_input: fromMessageText.distanceText,
+      time_input: fromMessageText.timeText,
+      distance: fromMessage.distance,
+      time: fromMessage.time,
+      estimated_calories: 0,
+    });
+  }
+
+  const normalizedRows = cardioRows.map((entry, index) => {
+    const row = {...entry};
+    const rowCardioType = String(
+      row["cardio_type"] ??
+      row["cardioType"] ??
+      row["exercise_type"] ??
+      row["type"] ??
+      ""
+    ).trim();
+    const rowDistanceInput = String(
+      row["distance_input"] ??
+      row["distanceText"] ??
+      row["distance_text"] ??
+      ""
+    ).trim();
+    const rowTimeInput = String(
+      row["time_input"] ??
+      row["timeText"] ??
+      row["time_text"] ??
+      ""
+    ).trim();
+    const rowDistance =
+      extractDistanceMeters(row["distance"]) ??
+      extractDistanceMeters(row["distance_meters"]) ??
+      extractDistanceMeters(row["meters"]);
+    const rowTime =
+      extractTimeMinutes(row["time"]) ??
+      extractTimeMinutes(row["minutes"]) ??
+      extractTimeMinutes(row["duration"]);
+
+    const distance = index === 0 && typeof fromMessage.distance === "number"
+      ? fromMessage.distance
+      : rowDistance;
+    const time = index === 0 && typeof fromMessage.time === "number"
+      ? fromMessage.time
+      : rowTime;
+
+    row["Training_Type"] = "Cardio";
+    row["cardio_type"] = rowCardioType || inferredCardioType || "cardio_activity";
+    const distanceInput = rowDistanceInput || (index === 0 ? fromMessageText.distanceText : undefined);
+    const timeInput = rowTimeInput || (index === 0 ? fromMessageText.timeText : undefined);
+    if (distanceInput) {
+      row["distance_input"] = distanceInput;
+    } else {
+      delete row["distance_input"];
+    }
+    if (timeInput) {
+      row["time_input"] = timeInput;
+    } else {
+      delete row["time_input"];
+    }
+    row["estimated_calories"] = toPositiveNumber(
+      row["estimated_calories"] ?? row["estimatedCalories"]
+    ) ?? 0;
+    row["distance"] = typeof distance === "number" ? distance : null;
+    row["time"] = typeof time === "number" ? time : null;
+    return row;
+  });
+
+  const otherSource = summaryRecord["otherTrainingRow"] ?? legacyOtherRows;
+  const otherRows = toObjectArray(otherSource).map((row) => {
+    const normalized = {...row};
+    normalized["Training_Type"] = "Other";
+    normalized["estimated_calories"] = toPositiveNumber(
+      row["estimated_calories"] ?? row["estimatedCalories"]
+    ) ?? 0;
+    return normalized;
+  });
+
+  const allRows = [...strengthRows, ...normalizedRows, ...otherRows];
+  if (allRows.length > 0) {
+    const fallbackPerRow = sessionEstimatedCalories > 0
+      ? Math.max(1, Math.round(sessionEstimatedCalories / allRows.length))
+      : 0;
+    allRows.forEach((row) => {
+      const rowCalories = toPositiveNumber(row["estimated_calories"]) ?? 0;
+      if (rowCalories <= 0) {
+        row["estimated_calories"] = fallbackPerRow;
+      }
+    });
+  }
+
+  if (!summaryRecord["Training_Type"]) {
+    const distinctTypes = new Set(
+      allRows.map((row) => String(row["Training_Type"] ?? "").trim()).filter(Boolean)
+    );
+    if (distinctTypes.size === 1) {
+      summaryRecord["Training_Type"] = Array.from(distinctTypes)[0];
+    }
+  }
+
+  summaryRecord["strengthTrainingRow"] = strengthRows;
+  summaryRecord["strengthTrainingRowss"] = strengthRows;
+  summaryRecord["cardioTrainingRow"] = normalizedRows;
+  summaryRecord["otherTrainingRow"] = otherRows;
+  summaryRecord["trainingRows"] = [
+    ...strengthRows,
+    ...normalizedRows.map((row) => ({
+      Training_Type: "Cardio",
+      estimated_calories: row["estimated_calories"],
+      exercise_type:
+        row["cardio_type"] ??
+        row["exercise_type"] ??
+        "cardio_activity",
+      sets: 1,
+      reps:
+        toPositiveNumber(row["time"]) ??
+        toPositiveNumber(row["distance"]) ??
+        0,
+      weights: "body weight",
+    })),
+    ...otherRows.map((row) => ({
+      Training_Type: "Other",
+      estimated_calories: row["estimated_calories"],
+      exercise_type:
+        row["exercise_type"] ??
+        row["activity"] ??
+        row["name"] ??
+        "other_activity",
+      sets: row["sets"] ?? 1,
+      reps: row["reps"] ?? row["time"] ?? 1,
+      weights: row["weights"] ?? "body weight",
+    })),
+  ];
+  return summaryRecord;
+}
 
 // ------------------------------
 //  Cloud Function: workoutChat
 // ------------------------------
-export const workoutChat = onRequest(async (req, res) => {
+export const workoutChat = onRequest({secrets: [openaiApiKey]}, async (req, res) => {
   logger.info("workoutChat called", { method: req.method });
 
   // ----- CORS -----
@@ -39,7 +367,19 @@ export const workoutChat = onRequest(async (req, res) => {
   }
 
   try {
-    const { message, session, history } = req.body || {};
+    const apiKey = openaiApiKey.value()?.trim() ?? "";
+    if (!apiKey) {
+      logger.error("Missing OPENAI_API_KEY secret for workoutChat");
+      res.status(500).json({
+        error: "Internal server error in workoutChat.",
+        details: "OPENAI_API_KEY is not configured for this function.",
+      });
+      return;
+    }
+
+    const openai = new OpenAI({ apiKey });
+
+    const { message, session, history, exerciseEstimatorIds } = req.body || {};
 
     if (!message || typeof message !== "string") {
       res.status(400).json({
@@ -52,90 +392,91 @@ export const workoutChat = onRequest(async (req, res) => {
     //  OpenAI Prompt
     // ------------------------------
     const prompt = `
-You are a friendly AI fitness coach. The user will describe their workout in
-messy natural language. Your job:
+You are a friendly AI fitness coach that logs workouts into spreadsheet-like rows.
+The user will describe a workout in messy natural language.
 
-1. Record exercises as the user gives them (exercise name, sets, reps, weight).
-2. Do NOT ask for notes yet.
-3. The conversation has two phases:
+You are given:
+- previousSummary: existing structured summary (if any)
+- history: recent chat turns
+- message: latest user message
+- exerciseEstimatorIds: list of known exercise IDs from Firestore
 
-   Phase 1 – Collecting exercises:
-   - Keep asking for more exercises with questions like
-     "Any other exercises to add?".
-   - If the user reply clearly means they are DONE adding exercises
-     (e.g. "no", "nope", "nah", "that's it", "done", "finished", "all done"),
-     then:
-       a) Do NOT talk about notes yet.
-       b) Briefly confirm that exercise logging is done.
-       c) THEN ask:
-          "Great. Do you want to add any notes for your trainer?"
-       d) isComplete must still be false at this point.
+Your job:
+1. Build/update a summary object with row-based workout logs.
+2. Keep conversation in two phases:
+   - Phase 1: collect workout rows
+   - Phase 2: collect trainer notes
+3. Ask concise follow-up questions if sets/reps/weights are missing.
 
-   Phase 2 – Notes:
-   - Only after you have explicitly asked a notes question like
-     "Do you want to add any notes for your trainer?" are you in the
-     notes phase.
-   - In this phase, interpret the user's reply according to the Notes rules below.
-
-4. After the user provides notes (or clearly declines), include them in the
-   summary under summary.notes, and set summary.isComplete = true to indicate
-   that the workout summary is finished.
-5. Ask clarifying questions when needed to capture missing sets/reps/weights.
-6. Build or update a workout summary object.
-
-The summary MUST have this exact shape:
-
+Required summary shape:
 {
-  "volume": number,               // total training volume across all exercises
-  "calories": number,             // estimated calories for the whole workout
-  "notes": string,                // optional notes for the trainer
-  "isComplete": boolean,          // true ONLY after notes phase is handled
-  "exercises": [
+  "strengthTrainingRow": [
     {
-      "name": string,             // e.g. "Bench Press"
-      "metric": string,           // e.g. "3 x 8 @ 135 lb"
-      "volume": number            // per-exercise volume
+      "Training_Type": "Strength",
+      "estimated_calories": number,
+      "exercise_type": string,
+      "sets": number,
+      "reps": number,
+      "weights": number | "body weight"
     }
-  ]
+  ],
+  "cardioTrainingRow": [
+    {
+      "Training_Type": "Cardio",
+      "estimated_calories": number,
+      "cardio_type": string,
+      "distance": number, // meters
+      "time": number // minutes
+    }
+  ],
+  "otherTrainingRow": [
+    {
+      "Training_Type": "Other",
+      "estimated_calories": number,
+      // dynamic fields chosen by you for non-strength/non-cardio activity
+    }
+  ],
+  "estimated_calories": number,
+  "trainer_notes": string,
+  "isComplete": boolean
 }
 
-Calories rules:
-- Always provide a positive, non-zero estimate for "calories" unless the workout
-  is clearly almost nothing.
-- Use your best judgment based on exercise type, volume, intensity, and any
-  bodyweight information the user gives.
-- If you really lack info, ask ONE short clarifying question (e.g. "About how
-  long did this take?" or "Roughly what do you weigh?") and then make a reasonable guess.
-- Never leave calories at 0 just because you are unsure.
+Rules:
+- You may include rows in one or more row collections in the same session.
+- Every row in every collection must include both Training_Type and estimated_calories.
+- strengthTrainingRow rows:
+  - Training_Type must be "Strength".
+  - exercise_type:
+    - Prefer matching an existing ID from exerciseEstimatorIds when it semantically fits.
+    - If none fits, create a new snake_case ID in style firstword_secondword.
+  - weights must be in kg when numeric.
+  - If no additional weight is used (pushups, pullups, bodyweight squats, etc.), set weights to "body weight".
+  - Each row is one spreadsheet row:
+    - If user says mixed set/rep patterns in one exercise (example: 2 sets of 5 reps, then 1 set of 10 reps),
+      create separate rows with same exercise_type but different sets/reps.
+- cardioTrainingRow rows:
+  - Training_Type must be "Cardio".
+  - Include cardio_type (running, biking, etc), distance in meters when available, and time in minutes when available.
+  - If time is given not in minutes, convert it to minutes from the given metric, then log it.
+  - If the distance is not given in meters, convert it to meters from the given metric and log it in minutes.
+  - Each row is one spreadsheet row
+- otherTrainingRow rows:
+  - Training_Type must be "Other".
+  - Choose practical dynamic fields based on what the user described.
+- trainer_notes and isComplete are session-level fields only (not per-row).
+- Keep estimated_calories as a positive estimate unless the workout is clearly almost nothing.
 
-Notes rules (ONLY in Phase 2 after a notes question):
-- When you have asked for notes, if the user's reply clearly means "no notes"
-  (e.g. "no", "nope", "nah", "I'm good", "I'm fine", "all good", "nothing",
-  "none", "I'm okay", "no notes"), then:
-  - Set summary.notes to an empty string "".
-  - Set summary.isComplete = true.
-  - In assistantMessage, briefly confirm that there are no extra notes.
-- Otherwise, treat the user's reply as their actual notes. Clean it up slightly
-  but keep their meaning, store that text in summary.notes, and set
-  summary.isComplete = true.
+Notes phase behavior:
+- Do not ask for notes until user indicates they are done adding exercises.
+- When they are done, ask: "Do you want to add any notes for your trainer?"
+- If they decline notes, set trainer_notes to "" and isComplete to true.
+- If they provide notes, clean lightly, preserve meaning, store in trainer_notes, and set isComplete to true.
 
-You will receive the previous summary (if any) and the latest user message.
-
-Respond ONLY with valid JSON like this:
-
+Respond ONLY as valid JSON:
 {
-  "assistantMessage": "what you say back to the user in natural language",
-  "summary": { ...the summary object above... }
+  "assistantMessage": "short friendly reply",
+  "summary": { ...shape above... }
 }
-
-The assistantMessage should be short, friendly, and usually end with a
-direct question that moves logging forward (either asking for the next
-exercise, or—once the user is done—asking for notes).
-
-If you still need more info, ask a specific follow-up question in
-assistantMessage and make your best guess for summary fields, leaving
-unknown things as 0, empty strings, or empty arrays (EXCEPT calories,
-which should still be a reasonable non-zero estimate).
 `;
 
 
@@ -156,6 +497,9 @@ which should still be a reasonable non-zero estimate).
             previousSummary: session ?? null,
             history,
             message,
+            exerciseEstimatorIds: Array.isArray(exerciseEstimatorIds)
+              ? exerciseEstimatorIds
+              : [],
           }),
         },
       ],
@@ -175,7 +519,10 @@ which should still be a reasonable non-zero estimate).
     const assistantMessage =
       parsed.assistantMessage ??
       "I had trouble understanding that. Can you rephrase your workout?";
-    const updatedSession = parsed.summary ?? session ?? null;
+    const updatedSession = normalizeSummaryRows(
+      parsed.summary ?? session ?? null,
+      message
+    );
 
     // ------------------------------
     //  Respond to frontend

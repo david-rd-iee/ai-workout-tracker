@@ -1,11 +1,11 @@
 import { Component, OnInit } from '@angular/core';
-import { CommonModule, Location } from '@angular/common';
+import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
-import { IonContent, IonCard, IonCardContent, IonCardHeader, IonCardTitle, IonButton, IonIcon, IonSegment, IonSegmentButton, IonLabel, ModalController } from '@ionic/angular/standalone';
+import { IonContent, IonHeader, IonToolbar, IonButtons, IonBackButton, IonCard, IonCardContent, IonCardHeader, IonCardTitle, IonButton, IonIcon, IonSegment, IonSegmentButton, IonLabel, ModalController } from '@ionic/angular/standalone';
+import { NavController } from '@ionic/angular';
 import { FormsModule } from '@angular/forms';
 import { addIcons } from 'ionicons';
-import { arrowBack, calendar, personCircle, fitness, card, createOutline, trophy, chatbubbles, barbell, heart, body, checkmarkCircle, flag, walk } from 'ionicons/icons';
-import { HeaderComponent } from 'src/app/components/header/header.component';
+import { calendar, personCircle, fitness, card, createOutline, trophy, chatbubbles, barbell, heart, body, checkmarkCircle, flag, walk } from 'ionicons/icons';
 import { WorkoutBuilderModalComponent } from 'src/app/components/modals/workout-builder-modal/workout-builder-modal.component';
 import { AppointmentSchedulerModalComponent } from 'src/app/components/modals/appointment-scheduler-modal/appointment-scheduler-modal.component';
 import { HomeCustomizationModalComponent } from 'src/app/components/modals/home-customization-modal/home-customization-modal.component';
@@ -18,6 +18,10 @@ import { HomeCustomizationModalComponent } from 'src/app/components/modals/home-
   imports: [
     CommonModule,
     FormsModule,
+    IonHeader,
+    IonToolbar,
+    IonButtons,
+    IonBackButton,
     IonContent,
     IonCard,
     IonCardContent,
@@ -28,7 +32,6 @@ import { HomeCustomizationModalComponent } from 'src/app/components/modals/home-
     IonSegment,
     IonSegmentButton,
     IonLabel,
-    HeaderComponent
   ],
 })
 export class ClientDetailsPage implements OnInit {
@@ -55,10 +58,10 @@ export class ClientDetailsPage implements OnInit {
 
   constructor(
     private router: Router,
-    private location: Location,
+    private navCtrl: NavController,
     private modalController: ModalController
   ) {
-    addIcons({ arrowBack, calendar, personCircle, fitness, card, createOutline, trophy, chatbubbles, barbell, heart, body, checkmarkCircle, flag, walk });
+    addIcons({ calendar, personCircle, fitness, card, createOutline, trophy, chatbubbles, barbell, heart, body, checkmarkCircle, flag, walk });
 
     // Get client data from navigation state
     const navigation = this.router.getCurrentNavigation();
@@ -83,10 +86,6 @@ export class ClientDetailsPage implements OnInit {
     // - Upcoming and past appointments from bookings collection
     // - Payment history from payments/transactions collection
     // - Recent activity feed
-  }
-
-  goBack() {
-    this.location.back();
   }
 
   segmentChanged(event: any) {
@@ -150,5 +149,21 @@ export class ClientDetailsPage implements OnInit {
   viewMessages() {
     // Navigate to the chat page with this client
     this.router.navigate(['/tabs/chats']);
+  }
+
+  viewClientWorkoutHistory() {
+    const clientId = this.client?.id;
+    if (!clientId) {
+      return;
+    }
+
+    this.navCtrl.navigateForward('/workout-history', {
+      animated: true,
+      animationDirection: 'forward',
+      queryParams: {
+        userId: clientId,
+        clientName: this.client?.name || 'Client',
+      },
+    });
   }
 }

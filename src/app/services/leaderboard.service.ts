@@ -8,6 +8,7 @@ import {
   getDocs,
   doc,
   getDoc,
+  setDoc,
   orderBy,
   limit as fsLimit,
 } from '@angular/fire/firestore';
@@ -70,37 +71,127 @@ export class LeaderboardService {
       : 'totalWorkScore';
   }
 
+  private metricToFirestoreField(metric: Metric): string {
+    return metric === 'cardio'
+      ? 'cardioScore.totalCardioScore'
+      : metric === 'strength'
+      ? 'strengthScore.totalStrengthScore'
+      : 'totalScore';
+  }
+
+  private toNumber(value: unknown): number {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  private extractScoreTotals(stats: any): {
+    cardioTotal: number;
+    strengthTotal: number;
+    total: number;
+  } {
+    const cardioTotal = this.toNumber(
+      stats?.cardioScore?.totalCardioScore ??
+      stats?.totalCardioScore ??
+      stats?.cardioWorkScore ??
+      stats?.cardio_work_score ??
+      stats?.cardio_workScore ??
+      0
+    );
+
+    const strengthTotal = this.toNumber(
+      stats?.strengthScore?.totalStrengthScore ??
+      stats?.workScore?.totalStrengthScore ??
+      stats?.totalStrengthScore ??
+      stats?.strengthWorkScore ??
+      stats?.strength_work_score ??
+      stats?.strength_workScore ??
+      0
+    );
+
+    return {
+      cardioTotal,
+      strengthTotal,
+      // totalScore is always derived from the two total map values
+      total: cardioTotal + strengthTotal,
+    };
+  }
+
+  private needsScoreSchemaInit(stats: any): boolean {
+    const hasCardioMap = typeof stats?.cardioScore === 'object' && stats?.cardioScore !== null;
+    const hasStrengthMap = typeof stats?.strengthScore === 'object' && stats?.strengthScore !== null;
+
+    const cardioMapTotal = Number(stats?.cardioScore?.totalCardioScore);
+    const strengthMapTotal = Number(stats?.strengthScore?.totalStrengthScore);
+    const hasCardioMapTotal = Number.isFinite(cardioMapTotal);
+    const hasStrengthMapTotal = Number.isFinite(strengthMapTotal);
+
+    const totals = this.extractScoreTotals(stats);
+    const totalScoreRaw = Number(stats?.totalScore);
+    const hasTotalScore = Number.isFinite(totalScoreRaw);
+    const totalMatches = hasTotalScore && totalScoreRaw === totals.total;
+
+    return !hasCardioMap || !hasStrengthMap || !hasCardioMapTotal || !hasStrengthMapTotal || !totalMatches;
+  }
+
+  private async ensureScoreSchema(userId: string, stats: any): Promise<void> {
+    if (!userId || !stats || !this.needsScoreSchemaInit(stats)) {
+      return;
+    }
+
+    const totals = this.extractScoreTotals(stats);
+    const currentCardioMap =
+      typeof stats?.cardioScore === 'object' && stats?.cardioScore !== null
+        ? stats.cardioScore
+        : {};
+    const currentStrengthMap =
+      typeof stats?.strengthScore === 'object' && stats?.strengthScore !== null
+        ? stats.strengthScore
+        : typeof stats?.workScore === 'object' && stats?.workScore !== null
+        ? stats.workScore
+        : {};
+
+    await setDoc(
+      doc(this.firestore, 'userStats', userId),
+      {
+        cardioScore: {
+          ...currentCardioMap,
+          totalCardioScore: totals.cardioTotal,
+        },
+        strengthScore: {
+          ...currentStrengthMap,
+          totalStrengthScore: totals.strengthTotal,
+        },
+        totalScore: totals.total,
+      },
+      { merge: true }
+    );
+
+    stats.cardioScore = {
+      ...currentCardioMap,
+      totalCardioScore: totals.cardioTotal,
+    };
+    stats.strengthScore = {
+      ...currentStrengthMap,
+      totalStrengthScore: totals.strengthTotal,
+    };
+    stats.totalScore = totals.total;
+  }
+
   /**
    * Backwards-compatible score reads:
-   * - New fields: totalWorkScore / cardioWorkScore / strengthWorkScore
+   * - New fields: cardioScore.totalCardioScore + strengthScore.totalStrengthScore + totalScore
    * - Old fields: total_work_score / cardio_work_score / strength_work_score
    */
   private readScores(stats: any): Pick<
     LeaderboardEntry,
     'totalWorkScore' | 'cardioWorkScore' | 'strengthWorkScore'
   > {
-    const total =
-      stats.totalWorkScore ??
-      stats.total_work_score ??
-      stats.total_workScore ?? // just in case
-      0;
-
-    const cardio =
-      stats.cardioWorkScore ??
-      stats.cardio_work_score ??
-      stats.cardio_workScore ??
-      0;
-
-    const strength =
-      stats.strengthWorkScore ??
-      stats.strength_work_score ??
-      stats.strength_workScore ??
-      0;
+    const totals = this.extractScoreTotals(stats);
 
     return {
-      totalWorkScore: Number(total) || 0,
-      cardioWorkScore: Number(cardio) || 0,
-      strengthWorkScore: Number(strength) || 0,
+      totalWorkScore: totals.total,
+      cardioWorkScore: totals.cardioTotal,
+      strengthWorkScore: totals.strengthTotal,
     };
   }
 
@@ -193,6 +284,9 @@ export class LeaderboardService {
         (docs as (UserStats & { userId: string })[])
           .filter((s: any) => !this.isTrainerRole(s))
           .map((s: any) => {
+            void this.ensureScoreSchema(s.userId, s).catch((err) => {
+              console.warn('[LeaderboardService] Failed to initialize score schema:', err);
+            });
             const scores = this.readScores(s);
 
             return {
@@ -239,14 +333,7 @@ export class LeaderboardService {
     }
 
     // Firestore field to orderBy
-    // IMPORTANT: This assumes your Firestore docs have camelCase fields.
-    // If you haven’t migrated yet, migrate scores to camelCase first.
-    const orderField =
-      metric === 'cardio'
-        ? 'cardioWorkScore'
-        : metric === 'strength'
-        ? 'strengthWorkScore'
-        : 'totalWorkScore';
+    const orderField = this.metricToFirestoreField(metric);
 
     // Build filter constraints
     const filterConstraints: any[] = [
@@ -272,7 +359,9 @@ export class LeaderboardService {
         fsLimit(maxResults)
       );
       const snap = await getDocs(q);
-      entries = snap.docs.map((d) => this.mapStatsDocToEntry(d.id, d.data()));
+      entries = await Promise.all(
+        snap.docs.map(async (d) => this.mapStatsDocToEntry(d.id, d.data()))
+      );
     } catch (err: any) {
       if (!this.isMissingIndexError(err)) {
         throw err;
@@ -285,7 +374,9 @@ export class LeaderboardService {
       );
       const q = query(statsRef, ...filterConstraints);
       const snap = await getDocs(q);
-      entries = snap.docs.map((d) => this.mapStatsDocToEntry(d.id, d.data()));
+      entries = await Promise.all(
+        snap.docs.map(async (d) => this.mapStatsDocToEntry(d.id, d.data()))
+      );
       const metricField = this.metricToField(metric);
       entries.sort((a, b) => ((b as any)[metricField] ?? 0) - ((a as any)[metricField] ?? 0));
       entries = entries.slice(0, maxResults);
@@ -295,6 +386,9 @@ export class LeaderboardService {
 
     // Exclude trainers, then assign ranks.
     entries = entries.filter((e) => !this.isTrainerRole(e));
+    const metricField = this.metricToField(metric);
+    entries.sort((a, b) => ((b as any)[metricField] ?? 0) - ((a as any)[metricField] ?? 0));
+    entries = entries.slice(0, maxResults);
     entries.forEach((e, idx) => (e.rank = idx + 1));
 
     console.log(
@@ -310,7 +404,8 @@ export class LeaderboardService {
     return entries;
   }
 
-  private mapStatsDocToEntry(userId: string, stats: any): LeaderboardEntry {
+  private async mapStatsDocToEntry(userId: string, stats: any): Promise<LeaderboardEntry> {
+    await this.ensureScoreSchema(userId, stats);
     const scores = this.readScores(stats);
     return {
       userId,
@@ -376,6 +471,7 @@ export class LeaderboardService {
         }
 
         const stats = statsSnap.data() as any;
+        await this.ensureScoreSchema(uid, stats);
         const user = userSnap.exists()
           ? ({ ...userSnap.data(), userId: uid } as AppUser)
           : undefined;

@@ -1,55 +1,114 @@
-<!-- Button to navigate to workout summary -->
-<div class="workout-summary-button-container">
+<app-header
+  [title]="'AI Coach'"
+  [showBack]="true"
+  [backHref]="'/profile-user'"
+></app-header>
+
+<ion-content [fullscreen]="true" class="chat-content">
+  <div
+    class="workout-summary-card-container"
+    *ngIf="(session.trainingRows.length > 0 || isLoading) && !hasSavedWorkout"
+  >
+    <div class="workout-summary-card">
+      <p class="summary-title">Workout Log Summary</p>
+
+      <div *ngIf="displayStrengthRows.length > 0" class="summary-section">
+        <p class="summary-section-title">Strength</p>
+        <div *ngFor="let row of displayStrengthRows" class="summary-row">
+          <span class="summary-exercise">{{ row.exercise_type }}</span>
+          <span class="summary-metric">{{ formatStrengthMetric(row) }}</span>
+        </div>
+      </div>
+
+      <div *ngIf="displayCardioRows.length > 0" class="summary-section">
+        <p class="summary-section-title">Cardio</p>
+        <div *ngFor="let row of displayCardioRows" class="summary-row">
+          <span class="summary-exercise">{{ row.cardio_type }}</span>
+          <span class="summary-metric">{{ formatCardioMetric(row) }}</span>
+        </div>
+      </div>
+
+      <div *ngIf="displayOtherRows.length > 0" class="summary-section">
+        <p class="summary-section-title">Other</p>
+        <div *ngFor="let row of displayOtherRows" class="summary-row">
+          <span class="summary-exercise">{{ row.exercise_type }}</span>
+          <span class="summary-metric">{{ formatOtherMetric(row) }}</span>
+        </div>
+      </div>
+
+      <div *ngIf="isLoading" class="summary-typing">
+        <div class="typing-indicator">
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
+      </div>
+
+      <ion-button
+        expand="block"
+        (click)="submitWorkout()"
+        class="submit-workout-button"
+        [disabled]="isSavingWorkout"
+      >
+        Submit Workout
+      </ion-button>
+    </div>
+  </div>
+
+  <div class="workout-summary-card-container" *ngIf="hasSavedWorkout">
     <ion-button
       expand="block"
-      (click)="navigateToWorkoutSummary()"
-      class="workout-summary-button"
-      [disabled]="!session.isComplete || !session.exercises.length"
+      (click)="viewWorkoutSummary()"
+      class="submit-workout-button"
     >
-      <ion-icon slot="start" name="fitness-outline"></ion-icon>
       View Workout Summary
     </ion-button>
   </div>
 
+    <div class="messages-list">
+      <div
+        *ngFor="let msg of messages"
+        [ngClass]="{
+          'message-row': true,
+          'received': msg.from === 'bot',
+          'sent': msg.from === 'user'
+        }"
+      >
+        <div class="message-bubble">
+          <p>{{ msg.text }}</p>
+        </div>
+      </div>
 
-  <div class="chat-container">
-    <div
-      *ngFor="let msg of messages"
-      [ngClass]="{
-        'message': true,
-        'bot-message': msg.from === 'bot',
-        'user-message': msg.from === 'user'
-      }"
-    >
-      <div class="bubble">
-        {{ msg.text }}
+      <div
+        *ngIf="isLoading"
+        class="message-row received typing-wrapper"
+      >
+        <div class="message-bubble typing-indicator">
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
       </div>
     </div>
 
-    <div
-      *ngIf="isLoading"
-      class="message bot-message typing-wrapper"
-    >
-      <div class="bubble typing-indicator">
-        <span></span>
-        <span></span>
-        <span></span>
+    <div class="input-container" [style.--keyboard-offset.px]="keyboardOffset">
+      <div class="input-wrapper">
+        <ion-input
+          [(ngModel)]="userInput"
+          placeholder="iMessage"
+          class="message-input"
+          (keyup.enter)="handleSend()"
+          [disabled]="isLoading"
+        ></ion-input>
+
+        <ion-button
+          (click)="handleSend()"
+          [disabled]="isLoading || !userInput.trim()"
+          shape="round"
+          class="send-button"
+        >
+          <ion-icon slot="icon-only" name="arrow-up"></ion-icon>
+        </ion-button>
       </div>
     </div>
-  </div>
-
-  <div class="input-container">
-    <ion-input
-      [(ngModel)]="userInput"
-      placeholder="Tell me about your workout..."
-      (keyup.enter)="handleSend()"
-      [disabled]="isLoading"
-    ></ion-input>
-
-    <ion-button
-      (click)="handleSend()"
-      [disabled]="isLoading"
-    >
-      {{ isLoading ? 'Thinking...' : 'Send' }}
-    </ion-button>
-  </div>
+</ion-content>

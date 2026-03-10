@@ -1,4 +1,10 @@
-<app-header></app-header>
+<ion-header>
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-back-button defaultHref="/tabs/home" text=""></ion-back-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
 
 <ion-content [fullscreen]="true">
   <div class="client-details-container">
@@ -215,6 +221,15 @@
           <p *ngIf="personalRecords.length === 0" style="text-align: center; color: var(--ion-color-medium); padding: 20px;">No personal records</p>
         </ion-card-content>
       </ion-card>
+
+      <ion-button
+        expand="block"
+        color="primary"
+        class="history-button"
+        (click)="viewClientWorkoutHistory()"
+      >
+        View Workout History
+      </ion-button>
     </div>
 
     <!-- Sessions Tab -->

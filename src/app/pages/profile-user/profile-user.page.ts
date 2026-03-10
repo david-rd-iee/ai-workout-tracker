@@ -303,7 +303,18 @@ export class ProfileUserPage implements OnInit, OnDestroy {
       animationDirection: 'forward',
     });
   }
-  goToLogWorkout(): void { this.router.navigate(['/tabs/chats/workout-chatbot']); }
+  goToLogWorkout(): void {
+    this.navCtrl.navigateForward('/workout-chatbot', {
+      animated: true,
+      animationDirection: 'forward',
+    });
+  }
+  goToWorkoutHistory(): void {
+    this.navCtrl.navigateForward('/workout-history', {
+      animated: true,
+      animationDirection: 'forward',
+    });
+  }
   goToFindPT(): void {}
   goToRegional(): void { this.router.navigateByUrl('/regional-leaderboard'); }
   goToAnalyzeWorkout(): void {

@@ -85,10 +85,20 @@ export class UserService {
   }
 
   private async loadUserProfileInternal(userID: string, email: string): Promise<boolean> {
-    let userDoc = await getDoc(doc(this.firestore, `${this.TRAINERS_COLLECTION}/${userID}`));
+    const trainerDoc = await getDoc(doc(this.firestore, `${this.TRAINERS_COLLECTION}/${userID}`));
+    const isTrainerProfile = trainerDoc.exists();
+    let userDoc = trainerDoc;
 
-    if (!userDoc.exists()) {
+    if (!isTrainerProfile) {
       userDoc = await getDoc(doc(this.firestore, `${this.CLIENTS_COLLECTION}/${userID}`));
+    }
+
+    let hasRequiredStats = true;
+    if (!isTrainerProfile) {
+      const userStatsDoc = await getDoc(doc(this.firestore, 'userStats', userID));
+      const userStatsData = userStatsDoc.exists() ? userStatsDoc.data() : null;
+      await this.ensureBmiField(userID, userStatsData);
+      hasRequiredStats = this.hasRequiredUserStats(userStatsData);
     }
 
     if (!userDoc.exists()) {
@@ -107,6 +117,12 @@ export class UserService {
 
       // Keep complete-profile flow for signups until core identity fields are set.
       if (!firstName || !lastName || !username) {
+        this.userInfo.set(null);
+        this.loadedProfileUid = null;
+        return false;
+      }
+
+      if (!hasRequiredStats) {
         this.userInfo.set(null);
         this.loadedProfileUid = null;
         return false;
@@ -138,6 +154,12 @@ export class UserService {
       return true;
     }
 
+    if (!isTrainerProfile && !hasRequiredStats) {
+      this.userInfo.set(null);
+      this.loadedProfileUid = null;
+      return false;
+    }
+
     const userData = userDoc.data() as trainerProfile | clientProfile;
     userData.email = email;
 
@@ -160,6 +182,61 @@ export class UserService {
     this.userInfo.set(userData);
     this.loadedProfileUid = userID;
     return true;
+  }
+
+  private async ensureBmiField(userId: string, statsData: any): Promise<void> {
+    if (!statsData) {
+      return;
+    }
+
+    const hasBmiField = Object.prototype.hasOwnProperty.call(statsData, 'bmi');
+    const currentBmi = statsData?.['bmi'];
+    if (hasBmiField && typeof currentBmi === 'number' && Number.isFinite(currentBmi)) {
+      return;
+    }
+
+    const heightMeters = this.parsePositiveNumber(statsData?.['heightMeters']);
+    const weightKg = this.parsePositiveNumber(statsData?.['weightKg']);
+    const bmi = heightMeters !== null && weightKg !== null
+      ? this.calculateBmi(heightMeters, weightKg)
+      : 0;
+
+    await setDoc(
+      doc(this.firestore, 'userStats', userId),
+      { bmi },
+      { merge: true }
+    );
+  }
+
+  private hasRequiredUserStats(statsData: any): boolean {
+    const age = this.parsePositiveNumber(statsData?.['age']);
+    const sex = this.parseSexValue(statsData?.['sex']);
+    const heightMeters = this.parsePositiveNumber(statsData?.['heightMeters']);
+    const weightKg = this.parsePositiveNumber(statsData?.['weightKg']);
+
+    return age !== null && Number.isInteger(age) && sex !== null && heightMeters !== null && weightKg !== null;
+  }
+
+  private parsePositiveNumber(value: unknown): number | null {
+    if (typeof value === 'number') {
+      return Number.isFinite(value) && value > 0 ? value : null;
+    }
+
+    const parsed = Number(String(value ?? '').trim());
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+  }
+
+  private calculateBmi(heightMeters: number, weightKg: number): number {
+    const bmi = weightKg / (heightMeters * heightMeters);
+    return Number.isFinite(bmi) ? Number(bmi.toFixed(2)) : 0;
+  }
+
+  private parseSexValue(value: unknown): number | null {
+    const parsed = Number(String(value ?? '').trim());
+    if (parsed === 1 || parsed === 1.5 || parsed === 2) {
+      return parsed;
+    }
+    return null;
   }
 
   getUserInfo(): Signal<trainerProfile | clientProfile | null> {
