@@ -305,7 +305,6 @@ export class ProfileUserPage implements OnInit, OnDestroy {
   }
   goToLogWorkout(): void { this.router.navigate(['/tabs/chats/workout-chatbot']); }
   goToFindPT(): void {}
-  goToStatues(): void {}
   goToRegional(): void { this.router.navigateByUrl('/regional-leaderboard'); }
   goToAnalyzeWorkout(): void {
     this.navCtrl.navigateForward('/camera', {
@@ -321,6 +320,39 @@ export class ProfileUserPage implements OnInit, OnDestroy {
   }
 
   private async loadTrainerStats(trainerId: string): Promise<void> {
+    try {
+      // First, try to load from userBadges (fast path - stored stats)
+      const badgeRef = doc(this.firestore, 'userBadges', trainerId);
+      const badgeSnap = await getDoc(badgeRef);
+      
+      if (badgeSnap.exists()) {
+        const data = badgeSnap.data();
+        const values = data?.['values'] || {};
+        
+        // Check if we have trainer stats stored
+        if (values['athena-wisdom'] !== undefined || 
+            values['zeus-mentor'] !== undefined || 
+            values['hermes-prosperity'] !== undefined) {
+          
+          this.trainerStats.totalSessions = values['athena-wisdom'] || 0;
+          this.trainerStats.totalClients = values['zeus-mentor'] || 0;
+          this.trainerStats.totalRevenue = values['hermes-prosperity'] || 0;
+          
+          console.log('[ProfileUser] Loaded trainer stats from userBadges:', this.trainerStats);
+          return; // Stats loaded successfully from database
+        }
+      }
+      
+      // Fallback: Calculate from bookings (backwards compatibility)
+      console.log('[ProfileUser] No stored stats found, calculating from bookings...');
+      await this.calculateTrainerStatsFromBookings(trainerId);
+      
+    } catch (error) {
+      console.error('[ProfileUser] Error loading trainer stats:', error);
+    }
+  }
+
+  private async calculateTrainerStatsFromBookings(trainerId: string): Promise<void> {
     try {
       // Get all bookings for this trainer
       const bookingsRef = collection(this.firestore, 'bookings');
@@ -348,64 +380,13 @@ export class ProfileUserPage implements OnInit, OnDestroy {
       if (trainerClientsSnap.exists()) {
         const data = trainerClientsSnap.data();
         clients = data?.['clients'] || [];
-        this.trainerStats.totalClients = clients.length;
-      } else {
-        this.trainerStats.totalClients = 0;
       }
-
-      // Find longest standing client
-      let longestClient = { name: 'N/A', durationDays: 0 };
-      const now = new Date();
       
-      for (const client of clients) {
-        const joinedDate = client.joinedDate ? new Date(client.joinedDate) : null;
-        if (joinedDate) {
-          const durationMs = now.getTime() - joinedDate.getTime();
-          const durationDays = Math.floor(durationMs / (1000 * 60 * 60 * 24));
-          
-          if (durationDays > longestClient.durationDays) {
-            const firstName = client.firstName || '';
-            const lastName = client.lastName || '';
-            longestClient = {
-              name: `${firstName} ${lastName}`.trim() || 'Unknown Client',
-              durationDays
-            };
-          }
-        }
-      }
-      this.trainerStats.longestStandingClient = longestClient;
-
-      // Find top performing client (most sessions completed)
-      const clientSessionCounts: { [clientId: string]: { name: string, count: number } } = {};
+      this.trainerStats.totalClients = clients.length;
       
-      for (const booking of completedSessions) {
-        const clientId = booking.data()['clientId'];
-        const clientFirstName = booking.data()['clientFirstName'] || '';
-        const clientLastName = booking.data()['clientLastName'] || '';
-        const clientName = `${clientFirstName} ${clientLastName}`.trim() || 'Unknown Client';
-        
-        if (!clientSessionCounts[clientId]) {
-          clientSessionCounts[clientId] = { name: clientName, count: 0 };
-        }
-        clientSessionCounts[clientId].count++;
-      }
-
-      let topClient = { name: 'N/A', improvement: '0 sessions' };
-      let maxSessions = 0;
-      
-      for (const clientId in clientSessionCounts) {
-        if (clientSessionCounts[clientId].count > maxSessions) {
-          maxSessions = clientSessionCounts[clientId].count;
-          topClient = {
-            name: clientSessionCounts[clientId].name,
-            improvement: `${maxSessions} sessions`
-          };
-        }
-      }
-      this.trainerStats.topPerformingClient = topClient;
-
+      console.log('[ProfileUser] Calculated trainer stats from bookings:', this.trainerStats);
     } catch (error) {
-      console.error('[ProfileUserPage] Error loading trainer stats:', error);
+      console.error('[ProfileUser] Error calculating trainer stats from bookings:', error);
     }
   }
 
@@ -414,26 +395,30 @@ export class ProfileUserPage implements OnInit, OnDestroy {
       const badgeRef = doc(this.firestore, 'userBadges', trainerId);
       const badgeSnap = await getDoc(badgeRef);
 
-      // Calculate statue values from trainer stats
-      const statueValues: { [key: string]: number } = {
-        'zeus-mentor': this.trainerStats.totalClients,
-        'athena-wisdom': this.trainerStats.totalSessions,
-        'hermes-prosperity': this.trainerStats.totalRevenue
-      };
-
       let displayStatueIds: string[] = [];
       let percentiles: { [key: string]: number } = {};
+      let statueValues: { [key: string]: number } = {};
 
       if (badgeSnap.exists()) {
         const data = badgeSnap.data() as any;
         displayStatueIds = data.displayStatueIds || data.displayBadgeIds || [];
         percentiles = data.percentiles || {};
+        
+        // Read values from userBadges (already populated by migration/cloud functions)
+        const values = data?.['values'] || {};
+        statueValues = {
+          'zeus-mentor': values['zeus-mentor'] || this.trainerStats.totalClients || 0,
+          'athena-wisdom': values['athena-wisdom'] || this.trainerStats.totalSessions || 0,
+          'hermes-prosperity': values['hermes-prosperity'] || this.trainerStats.totalRevenue || 0
+        };
       } else {
-        // Default display statues for trainers
-        displayStatueIds = ['zeus-mentor', 'athena-wisdom', 'hermes-prosperity'];
+        // Fallback: use calculated stats if no userBadges document exists
+        statueValues = {
+          'zeus-mentor': this.trainerStats.totalClients || 0,
+          'athena-wisdom': this.trainerStats.totalSessions || 0,
+          'hermes-prosperity': this.trainerStats.totalRevenue || 0
+        };
       }
-
-      this.displayStatueIds = displayStatueIds;
 
       // Filter to trainer-specific statues only
       const trainerStatueIds = ['zeus-mentor', 'athena-wisdom', 'hermes-prosperity'];
@@ -451,6 +436,12 @@ export class ProfileUserPage implements OnInit, OnDestroy {
             currentLevel: level || undefined,
           };
         });
+
+      // Only keep display statues that actually exist and have progress
+      this.displayStatueIds = displayStatueIds.filter(id => {
+        const statue = this.allStatues.find(s => s.id === id);
+        return statue && statue.currentLevel;
+      });
 
       this.updateDisplayStatues();
     } catch (error) {
@@ -499,6 +490,13 @@ export class ProfileUserPage implements OnInit, OnDestroy {
           };
         });
 
+      // Only keep display statues that actually exist and have progress
+      const savedDisplayStatueIds = data.displayStatueIds || data.displayBadgeIds || [];
+      this.displayStatueIds = savedDisplayStatueIds.filter(id => {
+        const statue = this.allStatues.find(s => s.id === id);
+        return statue && statue.currentLevel;
+      });
+
       this.updateDisplayStatues();
     } catch (err) {
       console.error('[ProfileUserPage] Error loading statues from Firestore:', err);
@@ -515,12 +513,10 @@ export class ProfileUserPage implements OnInit, OnDestroy {
   }
 
   async openBadgeSelector() {
-    const carvedStatues = this.allStatues.filter(s => s.currentLevel);
-
     const modal = await this.modalCtrl.create({
       component: StatueSelectorComponent,
       componentProps: {
-        carvedStatues: carvedStatues,
+        carvedStatues: this.allStatues,
         selectedStatueIds: this.displayStatueIds
       }
     });

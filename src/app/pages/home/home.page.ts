@@ -101,6 +101,7 @@ export class HomePage implements OnInit, OnDestroy {
 
   private userSub?: Subscription;
   private trainerClientsUnsubscribe: (() => void) | null = null;
+  private userProfileUnsubscribe: (() => void) | null = null;
   private activeUserDataKey: string | null = null;
   private hydratedHeaderUid: string | null = null;
 
@@ -193,13 +194,14 @@ export class HomePage implements OnInit, OnDestroy {
 
         if (this.currentUser?.userId && this.hydratedHeaderUid !== this.currentUser.userId) {
           this.hydratedHeaderUid = this.currentUser.userId;
-          void this.hydrateHeaderProfileFields(this.currentUser.userId);
+          this.hydrateHeaderProfileFields(this.currentUser.userId);
         }
 
         if (!this.currentUser) {
           this.activeUserDataKey = null;
           this.hydratedHeaderUid = null;
           this.stopTrainerClientsListener();
+          this.stopUserProfileListener();
           this.clearRoleData();
           return;
         }
@@ -230,35 +232,46 @@ export class HomePage implements OnInit, OnDestroy {
     });
   }
 
-  private async hydrateHeaderProfileFields(uid: string): Promise<void> {
+  private hydrateHeaderProfileFields(uid: string): void {
     try {
+      // Clean up any existing listener
+      this.stopUserProfileListener();
+
       const userRef = doc(this.firestore, 'users', uid);
-      const userSnap = await getDoc(userRef);
+      
+      // Use real-time listener so profile picture updates are reflected immediately
+      this.userProfileUnsubscribe = onSnapshot(userRef, (userSnap) => {
+        if (!userSnap.exists()) return;
+        if (!this.currentUser || this.currentUser.userId !== uid) return;
 
-      if (!userSnap.exists()) return;
-      if (!this.currentUser || this.currentUser.userId !== uid) return;
+        const userData = userSnap.data() as any;
+        const usersProfilepic = typeof userData?.profilepic === 'string' ? userData.profilepic.trim() : '';
+        const usersUsername = typeof userData?.username === 'string' ? userData.username.trim() : '';
+        const usersFirstName = typeof userData?.firstName === 'string' ? userData.firstName.trim() : '';
+        const usersLastName = typeof userData?.lastName === 'string' ? userData.lastName.trim() : '';
 
-      const userData = userSnap.data() as any;
-      const usersProfilepic = typeof userData?.profilepic === 'string' ? userData.profilepic.trim() : '';
-      const usersUsername = typeof userData?.username === 'string' ? userData.username.trim() : '';
-      const usersFirstName = typeof userData?.firstName === 'string' ? userData.firstName.trim() : '';
-      const usersLastName = typeof userData?.lastName === 'string' ? userData.lastName.trim() : '';
-
-      this.currentUser = {
-        ...this.currentUser,
-        profilepic: usersProfilepic || this.currentUser.profilepic,
-        username: usersUsername || this.currentUser.username,
-        firstName: usersFirstName || this.currentUser.firstName,
-        lastName: usersLastName || this.currentUser.lastName,
-      };
+        this.currentUser = {
+          ...this.currentUser,
+          profilepic: usersProfilepic || this.currentUser.profilepic,
+          username: usersUsername || this.currentUser.username,
+          firstName: usersFirstName || this.currentUser.firstName,
+          lastName: usersLastName || this.currentUser.lastName,
+        };
+      });
     } catch (error) {
       console.error('Error hydrating header profile fields:', error);
     }
   }
 
+  private stopUserProfileListener(): void {
+    this.userProfileUnsubscribe?.();
+    this.userProfileUnsubscribe = null;
+  }
+
   ngOnDestroy(): void {
     this.userSub?.unsubscribe();
     this.stopTrainerClientsListener();
+    this.stopUserProfileListener();
   }
 
   private stopTrainerClientsListener(): void {
@@ -288,7 +301,7 @@ export class HomePage implements OnInit, OnDestroy {
     try {
       const trainerClientsRef = doc(this.firestore, 'trainerClients', trainerId);
 
-      this.trainerClientsUnsubscribe = onSnapshot(trainerClientsRef, (snapshot) => {
+      this.trainerClientsUnsubscribe = onSnapshot(trainerClientsRef, async (snapshot) => {
         if (this.activeUserDataKey !== `${trainerId}:trainer`) {
           return;
         }
@@ -315,6 +328,46 @@ export class HomePage implements OnInit, OnDestroy {
               lastWorkout: client.lastSession ? new Date(client.lastSession) : new Date(Date.now() - 172800000)
             };
           });
+          const clientsData = data['clients'] || [];
+          
+          // Fetch profile pictures from users collection for each client
+          const clientsWithProfilePics = await Promise.all(
+            clientsData.map(async (client: any) => {
+              // Support both new (firstName/lastName) and old (clientName) formats
+              let displayName = '';
+              if (client.firstName || client.lastName) {
+                displayName = `${client.firstName || ''} ${client.lastName || ''}`.trim();
+              } else if (client.clientName) {
+                displayName = client.clientName;
+              }
+              displayName = displayName || 'Unknown Client';
+              
+              // Fetch the client's profile picture from users collection
+              let profilepic = '';
+              try {
+                const clientUserRef = doc(this.firestore, 'users', client.clientId);
+                const clientUserSnap = await getDoc(clientUserRef);
+                if (clientUserSnap.exists()) {
+                  profilepic = clientUserSnap.data()?.['profilepic'] || '';
+                }
+              } catch (error) {
+                console.warn(`Failed to fetch profile pic for client ${client.clientId}:`, error);
+              }
+              
+              return {
+                id: client.clientId,
+                firstName: client.firstName || '',
+                lastName: client.lastName || '',
+                name: displayName,
+                profilepic: profilepic,
+                nextSession: client.nextSession ? new Date(client.nextSession) : new Date(Date.now() + 86400000),
+                totalSessions: client.totalSessions || 0,
+                lastWorkout: client.lastSession ? new Date(client.lastSession) : new Date(Date.now() - 172800000)
+              };
+            })
+          );
+          
+          this.clients = clientsWithProfilePics;
         } else {
           this.clients = [];
         }

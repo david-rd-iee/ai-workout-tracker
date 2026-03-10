@@ -9,7 +9,7 @@ import { HeaderComponent } from '../../../components/header/header.component';
 import { documentTextOutline, peopleOutline, walletOutline } from 'ionicons/icons';
 import { addIcons } from 'ionicons';
 import { trainerProfile } from 'src/app/Interfaces/Profiles/Trainer';
-import { clientProfile } from 'src/app/Interfaces/Profiles/Client';
+import { clientProfile } from 'src/app/Interfaces/Profiles/client';
 import { PasswordChangeModalComponent } from '../../../components/password-change-modal/password-change-modal.component';
 @Component({
   selector: 'app-client-account',

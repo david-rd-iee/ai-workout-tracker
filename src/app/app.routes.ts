@@ -1,6 +1,24 @@
 import { Routes } from '@angular/router';
 import { authGuard } from './services/account/auth.guard';
 
+// Route paths constant for type-safe navigation
+export const ROUTE_PATHS = {
+  APP: {
+    TABS: {
+      HOME: '/tabs/home',
+      STRIPE_SETUP: '/tabs/stripe-setup',
+      ACCOUNT: '/tabs/account',
+      CALENDAR: '/tabs/calendar',
+      PROFILE: '/tabs/profile'
+    }
+  },
+  AUTH: {
+    LOGIN: '/login',
+    SIGN_UP: '/sign-up',
+    COMPLETE_PROFILE: '/complete-profile'
+  }
+} as const;
+
 export const routes: Routes = [
   // Auth pages
   {

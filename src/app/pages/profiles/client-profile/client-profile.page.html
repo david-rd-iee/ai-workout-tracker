@@ -137,48 +137,6 @@
       </ion-card-content>
     </ion-card>
 
-    <div class="section-divider" *ngIf="allStatues.length > 0 && isOwnProfile && accountType() !== 'trainer'"></div>
-
-    <!-- All Achievements Section (Only visible to profile owner, hidden for trainers) -->
-    <ion-card *ngIf="allStatues.length > 0 && isOwnProfile && accountType() !== 'trainer'">
-      <ion-list lines="full">
-        <ion-item>
-          <ion-icon slot="start" name="medal" color="primary"></ion-icon>
-          <ion-label>
-            <h2>All Statues</h2>
-            <p class="achievement-subtitle">{{ carvedStatuesCount }}/{{ allStatues.length }} carved • Only you can see this</p>
-          </ion-label>
-        </ion-item>
-      </ion-list>
-      <ion-card-content>
-        <div class="achievements-container" [class.collapsed]="!showAllAchievements">
-          <div class="all-badges-list">
-            <ng-container *ngFor="let statue of visibleAchievements; let i = index; let last = last">
-              <div class="achievement-item" [class.faded]="!showAllAchievements && i === initialAchievementsCount">
-                <app-greek-statue 
-                  [statue]="statue" 
-                  [showProgress]="true"
-                  size="small"
-                ></app-greek-statue>
-              </div>
-              <div class="achievement-divider" *ngIf="!last"></div>
-            </ng-container>
-          </div>
-          
-          <ion-button 
-            *ngIf="allStatues.length > initialAchievementsCount"
-            expand="block" 
-            fill="solid" 
-            (click)="toggleShowAllAchievements()"
-            class="show-more-button"
-          >
-            <ion-icon slot="start" [name]="showAllAchievements ? 'chevron-up' : 'chevron-down'"></ion-icon>
-            {{ showAllAchievements ? 'Show Less' : 'Show More (' + (allStatues.length - initialAchievementsCount) + ' more)' }}
-          </ion-button>
-        </div>
-      </ion-card-content>
-    </ion-card>
-
     <div class="section-divider" *ngIf="isOwnProfile"></div>
 
     <ion-card *ngIf="isOwnProfile">
