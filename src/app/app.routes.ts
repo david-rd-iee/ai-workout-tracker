@@ -98,6 +98,12 @@ export const routes: Routes = [
     canActivate: [authGuard],
   },
   {
+    path: 'live-session',
+    loadComponent: () =>
+      import('./pages/live-session/live-session.page').then((m) => m.LiveSessionPage),
+    canActivate: [authGuard],
+  },
+  {
     path: '',
     redirectTo: 'login',
     pathMatch: 'full',
