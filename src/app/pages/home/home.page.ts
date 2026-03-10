@@ -103,6 +103,7 @@ export class HomePage implements OnInit, OnDestroy {
   private trainerClientsUnsubscribe: (() => void) | null = null;
   private userProfileUnsubscribe: (() => void) | null = null;
   private activeUserDataKey: string | null = null;
+  private hydratedHeaderUid: string | null = null;
   private headerUserFieldCache = new Map<string, Partial<AppUser>>();
 
   isLoadingUser = true;
