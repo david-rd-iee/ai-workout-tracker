@@ -1,6 +1,8 @@
 import { Injectable } from '@angular/core';
 import {
   Firestore,
+  DocumentData,
+  DocumentReference,
   doc,
   getDoc,
   setDoc,
@@ -14,16 +16,23 @@ import {
   WorkoutTrainingRow,
 } from '../models/workout-session.model';
 import { ChatsService } from './chats.service';
+import { UpdateScoreResult, UpdateScoreService } from './update-score.service';
+
+export interface SaveCompletedWorkoutResult {
+  workoutLogRef: DocumentReference<DocumentData>;
+  scoreUpdate: UpdateScoreResult | null;
+}
 
 @Injectable({ providedIn: 'root' })
 export class WorkoutLogService {
   constructor(
     private firestore: Firestore,
     private auth: Auth,
-    private chatsService: ChatsService
+    private chatsService: ChatsService,
+    private updateScoreService: UpdateScoreService
   ) {}
 
-  async saveCompletedWorkout(session: WorkoutSessionPerformance) {
+  async saveCompletedWorkout(session: WorkoutSessionPerformance): Promise<SaveCompletedWorkoutResult> {
     const user = this.auth.currentUser;
 
     if (!user) {
@@ -69,6 +78,17 @@ export class WorkoutLogService {
       version: 2,
     });
 
+    let scoreUpdate: UpdateScoreResult | null = null;
+    try {
+      scoreUpdate = await this.updateScoreService.updateScoreAfterWorkout({
+        userId: user.uid,
+        session,
+        workoutLogId: workoutLogRef.id,
+      });
+    } catch (error) {
+      console.error('[WorkoutLogService] Failed to update user score:', error);
+    }
+
     await this.sendSummaryToCurrentTrainer({
       trainerUid,
       clientUid: user.uid,
@@ -88,7 +108,10 @@ export class WorkoutLogService {
       trainerNotes,
     });
 
-    return workoutLogRef;
+    return {
+      workoutLogRef,
+      scoreUpdate,
+    };
   }
 
   private async sendSummaryToCurrentTrainer(params: {

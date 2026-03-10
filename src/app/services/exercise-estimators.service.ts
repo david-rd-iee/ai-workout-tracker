@@ -283,7 +283,7 @@ export class ExerciseEstimatorsService {
 
     if (!estimatorSnap.exists()) {
       await setDoc(estimatorRef, {
-        model: 'WeightedLeastSquares',
+        model: 'NONE',
         coefficients: {},
         isUserDefined: true,
         createdBy: 'workout_chatbot',

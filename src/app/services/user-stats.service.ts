@@ -32,6 +32,7 @@ export class UserStatsService {
       strengthScore: {
         totalStrengthScore: Math.floor(totalWorkScore * 0.5),
       },
+      expected_strength_scores: {},
       totalScore: totalWorkScore,
       level: 5,
       region,

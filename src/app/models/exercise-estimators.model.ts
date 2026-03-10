@@ -1,4 +1,4 @@
-export type ExerciseEstimatorModel = 'WeightedLeastSquares' | 'ExponentialRegression';
+export type ExerciseEstimatorModel = 'WeightedLeastSquares' | 'ExponentialRegression' | 'NONE';
 
 export type ExerciseEstimatorCoefficientMap = Record<string, number>;
 

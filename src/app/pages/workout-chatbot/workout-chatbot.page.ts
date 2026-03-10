@@ -199,8 +199,13 @@ export class WorkoutChatbotPage implements OnInit, OnDestroy {
 
     this.isSavingWorkout = true;
     try {
-      await this.workoutLogService.saveCompletedWorkout(this.session);
+      const saveResult = await this.workoutLogService.saveCompletedWorkout(this.session);
       this.hasSavedWorkout = true;
+      if (saveResult.scoreUpdate) {
+        const addedTotalScore = this.roundToTwoDecimals(saveResult.scoreUpdate.addedTotalScore);
+        const currentTotalScore = this.roundToTwoDecimals(saveResult.scoreUpdate.currentTotalScore);
+        window.alert(`added ${addedTotalScore} for a total of ${currentTotalScore}`);
+      }
       return true;
     } catch (err) {
       console.error('Failed to save workout:', err);
@@ -211,6 +216,10 @@ export class WorkoutChatbotPage implements OnInit, OnDestroy {
     } finally {
       this.isSavingWorkout = false;
     }
+  }
+
+  private roundToTwoDecimals(value: number): number {
+    return Math.round((Number(value) || 0) * 100) / 100;
   }
 
   private createEmptySession(): WorkoutSessionPerformance {

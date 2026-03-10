@@ -6,10 +6,12 @@ export interface Region {
 }
 
 export interface CardioScoreMap {
+  [key: string]: number;
   totalCardioScore: number;
 }
 
 export interface StrengthScoreMap {
+  [key: string]: number;
   totalStrengthScore: number;
 }
 
@@ -24,6 +26,7 @@ export interface UserStats {
 
   cardioScore: CardioScoreMap;
   strengthScore: StrengthScoreMap;
+  expected_strength_scores?: Record<string, number>;
   totalScore: number;
 
   level?: number;

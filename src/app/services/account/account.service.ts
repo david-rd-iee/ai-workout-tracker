@@ -89,6 +89,7 @@ export class AccountService {
         strengthScore: {
           totalStrengthScore: 0,
         },
+        expected_strength_scores: {},
         totalScore: 0,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
