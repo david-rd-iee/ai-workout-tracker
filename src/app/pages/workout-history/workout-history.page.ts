@@ -185,7 +185,7 @@ export class WorkoutHistoryPage implements OnInit {
     private router: Router
   ) {}
 
-  async ngOnInit() {
+  async ngOnInit() { //checkers, transform each workout to display 
     this.isLoading = true;
     try {
       const requestedUserId = (this.route.snapshot.queryParamMap.get('userId') || '').trim();
@@ -235,7 +235,7 @@ export class WorkoutHistoryPage implements OnInit {
     });
   }
 
-  private toHistoryGroup(workout: WorkoutLogDoc): WorkoutHistoryDateGroup {
+  private toHistoryGroup(workout: WorkoutLogDoc): WorkoutHistoryDateGroup { //takes workout and formats to what the UI uses
     const date = this.resolveWorkoutDate(workout);
     const totalCalories = this.toRoundedNonNegative(
       workout.estimatedCalories ?? workout.calories
