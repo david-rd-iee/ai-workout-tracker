@@ -5,7 +5,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
-        <string>ai-health-assistant</string>
+	<string>ai-health-assistant</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -45,5 +45,9 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+	<key>NSHealthShareUsageDescription</key>
+	<string>Atlas reads workout data to generate post-workout summaries.</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>Atlas may save workout summaries to Apple Health.</string>
 </dict>
 </plist>

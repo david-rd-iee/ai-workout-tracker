@@ -17,6 +17,14 @@ export interface GreekStatue {
   title: string; // e.g., "God of Strength", "Goddess of Victory"
   icon: string; // ionicon name
   customIcon?: string; // Optional custom image path
+  stageImages?: { // Optional per-stage custom images
+    rough?: string;
+    outlined?: string;
+    detailed?: string;
+    polished?: string;
+    gilded?: string;
+    divine?: string;
+  };
   description: string;
   category: StatueCategory;
   metric: string; // What we're measuring (e.g., 'totalWeight', 'workoutStreak', 'sessionCount')
@@ -104,7 +112,14 @@ export const GREEK_STATUES: GreekStatue[] = [
     godName: 'Heracles',
     title: 'God of Strength',
     icon: 'barbell',
-
+    stageImages: {
+      rough: 'assets/statues/athena/athena-rough.png',
+      outlined: 'assets/statues/athena/athena-outlined.png',
+      detailed: 'assets/statues/athena/athena-detailed.png',
+      polished: 'assets/statues/athena/athena-polished.png',
+      gilded: 'assets/statues/athena/athena-gilded.png',
+      divine: 'assets/statues/athena/athena-divine.png'
+    },
     description: 'Total weight lifted across all exercises',
     mythology: 'Son of Zeus, known for his incredible strength and twelve labors',
     category: 'strength',
@@ -124,7 +139,14 @@ export const GREEK_STATUES: GreekStatue[] = [
     godName: 'Ares',
     title: 'God of War',
     icon: 'shield',
-
+    stageImages: {
+      rough: 'assets/statues/athena/athena-rough.png',
+      outlined: 'assets/statues/athena/athena-outlined.png',
+      detailed: 'assets/statues/athena/athena-detailed.png',
+      polished: 'assets/statues/athena/athena-polished.png',
+      gilded: 'assets/statues/athena/athena-gilded.png',
+      divine: 'assets/statues/athena/athena-divine.png'
+    },
     description: 'Total completed workout sessions',
     mythology: 'God of war and courage, representing the warrior spirit',
     category: 'consistency',
@@ -144,6 +166,14 @@ export const GREEK_STATUES: GreekStatue[] = [
     godName: 'Hestia',
     title: 'Goddess of the Eternal Flame',
     icon: 'flame',
+    stageImages: {
+      rough: 'assets/statues/athena/athena-rough.png',
+      outlined: 'assets/statues/athena/athena-outlined.png',
+      detailed: 'assets/statues/athena/athena-detailed.png',
+      polished: 'assets/statues/athena/athena-polished.png',
+      gilded: 'assets/statues/athena/athena-gilded.png',
+      divine: 'assets/statues/athena/athena-divine.png'
+    },
     description: 'Longest consecutive days with workouts',
     mythology: 'Keeper of the eternal flame, representing unwavering dedication',
     category: 'consistency',
@@ -163,7 +193,14 @@ export const GREEK_STATUES: GreekStatue[] = [
     godName: 'Hermes',
     title: 'God of Swiftness',
     icon: 'flash',
-
+    stageImages: {
+      rough: 'assets/statues/athena/athena-rough.png',
+      outlined: 'assets/statues/athena/athena-outlined.png',
+      detailed: 'assets/statues/athena/athena-detailed.png',
+      polished: 'assets/statues/athena/athena-polished.png',
+      gilded: 'assets/statues/athena/athena-gilded.png',
+      divine: 'assets/statues/athena/athena-divine.png'
+    },
     description: 'Total cardio time logged',
     mythology: 'Swift messenger of the gods, master of speed and endurance',
     category: 'endurance',
@@ -183,7 +220,14 @@ export const GREEK_STATUES: GreekStatue[] = [
     godName: 'Nike',
     title: 'Goddess of Victory',
     icon: 'ribbon',
-
+    stageImages: {
+      rough: 'assets/statues/athena/athena-rough.png',
+      outlined: 'assets/statues/athena/athena-outlined.png',
+      detailed: 'assets/statues/athena/athena-detailed.png',
+      polished: 'assets/statues/athena/athena-polished.png',
+      gilded: 'assets/statues/athena/athena-gilded.png',
+      divine: 'assets/statues/athena/athena-divine.png'
+    },
     description: 'Personal records set',
     mythology: 'Winged goddess of victory, celebrating triumph and achievement',
     category: 'progress',
@@ -203,6 +247,14 @@ export const GREEK_STATUES: GreekStatue[] = [
     godName: 'Eos',
     title: 'Goddess of the Dawn',
     icon: 'sunny',
+    stageImages: {
+      rough: 'assets/statues/athena/athena-rough.png',
+      outlined: 'assets/statues/athena/athena-outlined.png',
+      detailed: 'assets/statues/athena/athena-detailed.png',
+      polished: 'assets/statues/athena/athena-polished.png',
+      gilded: 'assets/statues/athena/athena-gilded.png',
+      divine: 'assets/statues/athena/athena-divine.png'
+    },
     description: 'Workouts completed before 7 AM',
     mythology: 'Goddess who brings the dawn, celebrating early risers',
     category: 'consistency',
@@ -222,7 +274,14 @@ export const GREEK_STATUES: GreekStatue[] = [
     godName: 'Dionysus',
     title: 'God of Fellowship',
     icon: 'beer',
-
+    stageImages: {
+      rough: 'assets/statues/athena/athena-rough.png',
+      outlined: 'assets/statues/athena/athena-outlined.png',
+      detailed: 'assets/statues/athena/athena-detailed.png',
+      polished: 'assets/statues/athena/athena-polished.png',
+      gilded: 'assets/statues/athena/athena-gilded.png',
+      divine: 'assets/statues/athena/athena-divine.png'
+    },
     description: 'Group workouts or partner sessions',
     mythology: 'God of celebration and community, bringing people together',
     category: 'social',
@@ -242,7 +301,14 @@ export const GREEK_STATUES: GreekStatue[] = [
     godName: 'Apollo',
     title: 'God of Perfection',
     icon: 'sparkles',
-
+    stageImages: {
+      rough: 'assets/statues/athena/athena-rough.png',
+      outlined: 'assets/statues/athena/athena-outlined.png',
+      detailed: 'assets/statues/athena/athena-detailed.png',
+      polished: 'assets/statues/athena/athena-polished.png',
+      gilded: 'assets/statues/athena/athena-gilded.png',
+      divine: 'assets/statues/athena/athena-divine.png'
+    },
     description: 'Body weight change achieved',
     mythology: 'God of beauty and perfection, representing physical transformation',
     category: 'progress',
@@ -262,7 +328,14 @@ export const GREEK_STATUES: GreekStatue[] = [
     godName: 'Chronos',
     title: 'God of Time',
     icon: 'hourglass',
-
+    stageImages: {
+      rough: 'assets/statues/athena/athena-rough.png',
+      outlined: 'assets/statues/athena/athena-outlined.png',
+      detailed: 'assets/statues/athena/athena-detailed.png',
+      polished: 'assets/statues/athena/athena-polished.png',
+      gilded: 'assets/statues/athena/athena-gilded.png',
+      divine: 'assets/statues/athena/athena-divine.png'
+    },
     description: 'Days with logged activity',
     mythology: 'Personification of time, rewarding consistent dedication',
     category: 'milestone',
@@ -283,6 +356,14 @@ export const GREEK_STATUES: GreekStatue[] = [
     title: 'Titan Bearer of Burdens',
     icon: 'fitness',
     customIcon: 'assets/icons/atlas-svgrepo-com.svg',
+    stageImages: {
+      rough: 'assets/statues/athena/athena-rough.png',
+      outlined: 'assets/statues/athena/athena-outlined.png',
+      detailed: 'assets/statues/athena/athena-detailed.png',
+      polished: 'assets/statues/athena/athena-polished.png',
+      gilded: 'assets/statues/athena/athena-gilded.png',
+      divine: 'assets/statues/athena/athena-divine.png'
+    },
     description: 'Highest single-rep max',
     mythology: 'Titan who bears the weight of the heavens on his shoulders',
     category: 'strength',
@@ -303,6 +384,14 @@ export const GREEK_STATUES: GreekStatue[] = [
     godName: 'Zeus',
     title: 'King of Olympus - Master Mentor',
     icon: 'people',
+    stageImages: {
+      rough: 'assets/statues/athena/athena-rough.png',
+      outlined: 'assets/statues/athena/athena-outlined.png',
+      detailed: 'assets/statues/athena/athena-detailed.png',
+      polished: 'assets/statues/athena/athena-polished.png',
+      gilded: 'assets/statues/athena/athena-gilded.png',
+      divine: 'assets/statues/athena/athena-divine.png'
+    },
     description: 'Total clients trained',
     mythology: 'King of the gods, guiding others to greatness',
     category: 'milestone',
@@ -322,6 +411,14 @@ export const GREEK_STATUES: GreekStatue[] = [
     godName: 'Athena',
     title: 'Goddess of Wisdom',
     icon: 'school',
+    stageImages: {
+      rough: 'assets/statues/athena/athena-rough.png',
+      outlined: 'assets/statues/athena/athena-outlined.png',
+      detailed: 'assets/statues/athena/athena-detailed.png',
+      polished: 'assets/statues/athena/athena-polished.png',
+      gilded: 'assets/statues/athena/athena-gilded.png',
+      divine: 'assets/statues/athena/athena-divine.png'
+    },
     description: 'Total training sessions completed',
     mythology: 'Goddess of wisdom and strategic warfare',
     category: 'consistency',
@@ -341,6 +438,14 @@ export const GREEK_STATUES: GreekStatue[] = [
     godName: 'Hermes',
     title: 'God of Commerce',
     icon: 'cash',
+    stageImages: {
+      rough: 'assets/statues/athena/athena-rough.png',
+      outlined: 'assets/statues/athena/athena-outlined.png',
+      detailed: 'assets/statues/athena/athena-detailed.png',
+      polished: 'assets/statues/athena/athena-polished.png',
+      gilded: 'assets/statues/athena/athena-gilded.png',
+      divine: 'assets/statues/athena/athena-divine.png'
+    },
     description: 'Total revenue generated',
     mythology: 'Messenger god and patron of commerce and trade',
     category: 'milestone',

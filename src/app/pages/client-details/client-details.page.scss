@@ -16,6 +16,14 @@ ion-header {
   padding: 20px;
   max-width: 1200px;
   margin: 0 auto;
+
+  ion-card {
+    margin-bottom: 16px;
+    
+    &:last-child {
+      margin-bottom: 0;
+    }
+  }
 }
 
 // Client Header Card
@@ -143,10 +151,18 @@ ion-segment {
 
 // Appointment Cards
 .appointment-card {
-  margin-bottom: 12px;
+  margin-bottom: 16px;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
 
   &.past {
     opacity: 0.7;
+  }
+
+  ion-card-content {
+    padding: 20px;
   }
 
   .appointment-content {
@@ -187,7 +203,15 @@ ion-segment {
 
 // Payment Cards
 .payment-card {
-  margin-bottom: 12px;
+  margin-bottom: 16px;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+
+  ion-card-content {
+    padding: 20px;
+  }
 
   .payment-content {
     display: flex;
@@ -253,15 +277,22 @@ ion-segment {
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
+  grid-auto-rows: 1fr;
   gap: 12px;
   margin-bottom: 20px;
 
   .stat-card {
     margin: 0;
+    height: 100%;
 
     ion-card-content {
       text-align: center;
       padding: 16px;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
 
       ion-icon {
         font-size: 32px;
@@ -292,7 +323,21 @@ ion-segment {
   }
 }
 
-// Action Buttons
+// Overview Tab Cards (Quick Actions & Recent Activity)
+.tab-content > ion-card:not(.stat-card) {
+  margin-left: 0;
+  margin-right: 0;
+  
+  ion-card-header {
+    padding: 16px 16px 0 16px;
+  }
+  
+  ion-card-content {
+    padding: 16px;
+  }
+}
+
+// Quick Actions Card
 .action-buttons {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -300,6 +345,7 @@ ion-segment {
 }
 
 // Activity List
+
 .activity-list {
   .activity-item {
     display: flex;
@@ -339,6 +385,18 @@ ion-segment {
 
 // Progress Tab Styles
 .progress-metrics {
+  ion-card {
+    margin-bottom: 16px;
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+
+    ion-card-content {
+      padding: 20px;
+    }
+  }
+
   .metric {
     margin-bottom: 24px;
 
@@ -405,6 +463,10 @@ ion-segment {
 
 // Goals List
 .goals-list {
+  ion-card-content {
+    padding: 20px;
+  }
+
   .goal-item {
     display: flex;
     justify-content: space-between;
@@ -465,6 +527,10 @@ ion-segment {
   display: flex;
   flex-direction: column;
   gap: 12px;
+
+  ion-card-content {
+    padding: 20px;
+  }
 
   .record {
     display: flex;

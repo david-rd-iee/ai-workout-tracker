@@ -1,0 +1,74 @@
+<ion-header>
+    <ion-toolbar>
+      <ion-buttons slot="start">
+        <ion-back-button defaultHref="/tabs/home"></ion-back-button>
+      </ion-buttons>
+      <ion-title>Workout Insights</ion-title>
+    </ion-toolbar>
+  </ion-header>
+  
+  <ion-content class="ion-padding">
+    <ion-card class="apple-health-widget">
+      <ion-card-content>
+        <h2>Apple Health</h2>
+        <p>{{ healthStatus }}</p>
+  
+        <ion-button
+          expand="block"
+          (click)="connectAppleHealth()"
+          [disabled]="isConnectingHealth || healthStatus === 'Apple Health connected'">
+          {{
+            isConnectingHealth
+              ? 'Connecting...'
+              : healthStatus === 'Apple Health connected'
+                ? 'Connected ✓'
+                : 'Connect Apple Health'
+          }}
+        </ion-button>
+  
+        <ion-button
+          expand="block"
+          (click)="loadLatestHeartRate()"
+          [disabled]="healthStatus !== 'Apple Health connected'">
+          Load Heart Rate Insights
+        </ion-button>
+  
+        <p *ngIf="avgHeartRate !== null">
+          Avg heart rate: {{ avgHeartRate }} BPM
+        </p>
+  
+        <p *ngIf="maxHeartRate !== null">
+          Max heart rate: {{ maxHeartRate }} BPM
+        </p>
+  
+        <p *ngIf="latestHeartRate !== null">
+          Latest heart rate: {{ latestHeartRate }} BPM
+        </p>
+  
+        <p *ngIf="latestHeartRateTime">
+          Sample time: {{ formattedHeartRateTime }}
+        </p>
+
+        <div *ngIf="heartRateChartData.length > 0">
+            <h3>Heart Rate Trend</h3>
+          
+            <ngx-charts-line-chart
+              [view]="chartView"
+              [results]="heartRateChartData"
+              [scheme]="colorScheme"
+              [gradient]="gradient"
+              [xAxis]="showXAxis"
+              [yAxis]="showYAxis"
+              [legend]="showLegend"
+              [showXAxisLabel]="showXAxisLabel"
+              [showYAxisLabel]="showYAxisLabel"
+              [xAxisLabel]="xAxisLabel"
+              [yAxisLabel]="yAxisLabel"
+              [autoScale]="autoScale">
+            </ngx-charts-line-chart>
+          
+        </div>
+
+      </ion-card-content>
+    </ion-card>
+  </ion-content>

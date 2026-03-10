@@ -23,11 +23,11 @@
           </div>
         </div>
         <div class="header-actions">
-          <ion-button expand="block" color="primary" (click)="scheduleAppointment()">
+          <ion-button expand="block" color="light" (click)="scheduleAppointment()">
             <ion-icon name="calendar" slot="start"></ion-icon>
             Schedule Session
           </ion-button>
-          <ion-button expand="block" fill="outline" color="primary" (click)="customizeHomePage()">
+          <ion-button expand="block" color="light" (click)="customizeHomePage()">
             <ion-icon name="create-outline" slot="start"></ion-icon>
             Customize Home
           </ion-button>
@@ -36,7 +36,7 @@
     </ion-card>
 
     <!-- Segmented Navigation -->
-    <ion-segment [(ngModel)]="selectedTab" (ionChange)="segmentChanged($event)" mode="md">
+    <ion-segment [(ngModel)]="selectedTab" (ionChange)="segmentChanged($event)" mode="md" scrollable="true">
       <ion-segment-button value="overview">
         <ion-label>Overview</ion-label>
       </ion-segment-button>
@@ -114,7 +114,7 @@
           <ion-card-title>Recent Activity</ion-card-title>
         </ion-card-header>
         <ion-card-content>
-          <div class="activity-list">
+          <div class="activity-list" *ngIf="recentActivity.length > 0">
             <div class="activity-item" *ngFor="let activity of recentActivity">
               <div class="activity-icon">
                 <ion-icon [name]="activity.icon" [color]="activity.color"></ion-icon>
@@ -125,6 +125,7 @@
               </div>
             </div>
           </div>
+          <p *ngIf="recentActivity.length === 0" style="text-align: center; color: var(--ion-color-medium); padding: 20px;">No recent activity</p>
         </ion-card-content>
       </ion-card>
     </div>
@@ -149,7 +150,6 @@
                 </div>
                 <span class="progress-value">{{ strengthProgress }}%</span>
               </div>
-              <p class="metric-detail">+15 lbs this month</p>
             </div>
             <div class="metric">
               <div class="metric-header">
@@ -162,7 +162,6 @@
                 </div>
                 <span class="progress-value">{{ cardioProgress }}%</span>
               </div>
-              <p class="metric-detail">+2 min avg duration</p>
             </div>
             <div class="metric">
               <div class="metric-header">
@@ -175,7 +174,6 @@
                 </div>
                 <span class="progress-value">{{ bodyProgress }}%</span>
               </div>
-              <p class="metric-detail">-3% body fat</p>
             </div>
           </div>
         </ion-card-content>
@@ -187,7 +185,7 @@
           <ion-card-title>Active Goals</ion-card-title>
         </ion-card-header>
         <ion-card-content>
-          <div class="goals-list">
+          <div class="goals-list" *ngIf="activeGoals.length > 0">
             <div class="goal-item" *ngFor="let goal of activeGoals">
               <div class="goal-info">
                 <h4>{{ goal.title }}</h4>
@@ -200,6 +198,7 @@
               </div>
             </div>
           </div>
+          <p *ngIf="activeGoals.length === 0" style="text-align: center; color: var(--ion-color-medium); padding: 20px;">No active goals</p>
         </ion-card-content>
       </ion-card>
 
@@ -209,7 +208,7 @@
           <ion-card-title>Personal Records</ion-card-title>
         </ion-card-header>
         <ion-card-content>
-          <div class="records-grid">
+          <div class="records-grid" *ngIf="personalRecords.length > 0">
             <div class="record" *ngFor="let record of personalRecords">
               <ion-icon [name]="record.icon" color="warning"></ion-icon>
               <div class="record-info">
@@ -219,6 +218,7 @@
               </div>
             </div>
           </div>
+          <p *ngIf="personalRecords.length === 0" style="text-align: center; color: var(--ion-color-medium); padding: 20px;">No personal records</p>
         </ion-card-content>
       </ion-card>
 
@@ -236,6 +236,7 @@
     <div *ngIf="selectedTab === 'sessions'" class="tab-content">
       <!-- Upcoming Sessions -->
       <h2>Upcoming</h2>
+      <p *ngIf="upcomingAppointments.length === 0" style="text-align: center; color: var(--ion-color-medium); padding: 20px;">No upcoming sessions</p>
       <ion-card *ngFor="let appointment of upcomingAppointments" class="appointment-card">
         <ion-card-content>
           <div class="appointment-content">
@@ -256,6 +257,7 @@
 
       <!-- Past Sessions -->
       <h2>Past Sessions</h2>
+      <p *ngIf="pastAppointments.length === 0" style="text-align: center; color: var(--ion-color-medium); padding: 20px;">No past sessions</p>
       <ion-card *ngFor="let appointment of pastAppointments" class="appointment-card past">
         <ion-card-content>
           <div class="appointment-content">
@@ -276,6 +278,7 @@
     <!-- Payments Tab -->
     <div *ngIf="selectedTab === 'payments'" class="tab-content">
       <h2>Payment History</h2>
+      <p *ngIf="payments.length === 0" style="text-align: center; color: var(--ion-color-medium); padding: 20px;">No payment history</p>
       <ion-card *ngFor="let payment of payments" class="payment-card">
         <ion-card-content>
           <div class="payment-content">

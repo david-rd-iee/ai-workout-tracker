@@ -1,6 +1,24 @@
 import { Routes } from '@angular/router';
 import { authChildGuard, authGuard, authMatchGuard } from './services/account/auth.guard';
 
+// Route paths constant for type-safe navigation
+export const ROUTE_PATHS = {
+  APP: {
+    TABS: {
+      HOME: '/tabs/home',
+      STRIPE_SETUP: '/tabs/stripe-setup',
+      ACCOUNT: '/tabs/account',
+      CALENDAR: '/tabs/calendar',
+      PROFILE: '/tabs/profile'
+    }
+  },
+  AUTH: {
+    LOGIN: '/login',
+    SIGN_UP: '/sign-up',
+    COMPLETE_PROFILE: '/complete-profile'
+  }
+} as const;
+
 export const routes: Routes = [
   // Auth pages
   {
@@ -126,6 +144,15 @@ export const routes: Routes = [
       import('./pages/workout-history-csv/workout-history-csv.page').then(
         (m) => m.WorkoutHistoryCsvPage
       ),
+    path: 'workout-insights',
+    loadComponent: () =>
+      import('./pages/workout-insights/workout-insights.page').then((m) => m.WorkoutInsightsPage),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'live-session',
+    loadComponent: () =>
+      import('./pages/live-session/live-session.page').then((m) => m.LiveSessionPage),
     canActivate: [authGuard],
   },
   {

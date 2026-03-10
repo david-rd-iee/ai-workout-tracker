@@ -112,8 +112,6 @@ export class ClientProfilePage implements OnInit {
     clientWorkoutsCompleted: 487,
     leaderboardPlace: 12
   };
-  showAllAchievements: boolean = false;
-  initialAchievementsCount: number = 3; // Show first 3 fully, 4th faded
   currentSlideIndex: number = 0; // Track active slide for pagination
 
   // Profile viewing properties
@@ -122,16 +120,6 @@ export class ClientProfilePage implements OnInit {
 
   get carvedStatuesCount(): number {
     return this.allStatues.filter(s => s.currentLevel).length;
-  }
-
-  get visibleAchievements(): GreekStatue[] {
-    return this.showAllAchievements
-      ? this.allStatues
-      : this.allStatues.slice(0, this.initialAchievementsCount + 1);
-  }
-
-  toggleShowAllAchievements(): void {
-    this.showAllAchievements = !this.showAllAchievements;
   }
 
   viewStatDetails(statType: string): void {
@@ -277,20 +265,31 @@ export class ClientProfilePage implements OnInit {
       const values = data.values || {};
       const percentiles = data.percentiles || {};
       // Support both old and new field names
-      this.displayStatueIds = data.displayStatueIds || data.displayBadgeIds || [];
+      const displayStatueIds = data.displayStatueIds || data.displayBadgeIds || [];
 
+      // Filter out trainer-specific statues for clients
+      const trainerStatueIds = ['zeus-mentor', 'athena-wisdom', 'hermes-prosperity'];
+      
       // Merge Firestore progress into GREEK_STATUES definition
-      this.allStatues = GREEK_STATUES.map(statue => {
-        const currentValue = values[statue.id] ?? 0;
-        const percentile = percentiles[statue.id];
+      this.allStatues = GREEK_STATUES
+        .filter(statue => !trainerStatueIds.includes(statue.id))
+        .map(statue => {
+          const currentValue = values[statue.id] ?? 0;
+          const percentile = percentiles[statue.id];
 
-        const level = calculateStatueLevel(statue, currentValue || 0);
-        return {
-          ...statue,
-          currentValue,
-          percentile,
-          currentLevel: level || undefined,
-        };
+          const level = calculateStatueLevel(statue, currentValue || 0);
+          return {
+            ...statue,
+            currentValue,
+            percentile,
+            currentLevel: level || undefined,
+          };
+        });
+
+      // Only show statues that are carved (have currentLevel)
+      this.displayStatueIds = displayStatueIds.filter(id => {
+        const statue = this.allStatues.find(s => s.id === id);
+        return statue && statue.currentLevel;
       });
 
       this.updateDisplayStatues();
@@ -378,12 +377,10 @@ export class ClientProfilePage implements OnInit {
   }
 
   async openBadgeSelector() {
-    const carvedStatues = this.allStatues.filter(s => s.currentLevel);
-
     const modal = await this.modalCtrl.create({
       component: StatueSelectorComponent,
       componentProps: {
-        carvedStatues: carvedStatues,
+        carvedStatues: this.allStatues,
         selectedStatueIds: this.displayStatueIds
       }
     });

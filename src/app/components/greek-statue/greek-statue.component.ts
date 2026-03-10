@@ -93,6 +93,13 @@ export class GreekStatueComponent implements OnInit {
     return !this.progress?.currentLevel;
   }
 
+  get currentStageImage(): string | null {
+    if (!this.statue.stageImages || !this.progress?.currentLevel) {
+      return null;
+    }
+    return this.statue.stageImages[this.progress.currentLevel] || null;
+  }
+
   get percentileText() {
     if (this.statue.percentile !== undefined) {
       return `Top ${this.statue.percentile.toFixed(1)}%`;

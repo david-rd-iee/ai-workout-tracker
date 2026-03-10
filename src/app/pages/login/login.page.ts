@@ -60,6 +60,7 @@ export class LoginPage implements OnInit {
 
   async onLoginSubmit() {
     this.errorMessage = '';
+    this.accountService.clearLastAuthError();
 
     if (!this.email || !this.password) {
       this.errorMessage = 'Please enter your email and password.';
@@ -71,7 +72,9 @@ export class LoginPage implements OnInit {
       const loggedIn = await this.accountService.login(this.email.trim(), this.password);
 
       if (!loggedIn) {
-        this.errorMessage = 'Login failed. Check your email/password and try again.';
+        this.errorMessage =
+          this.accountService.getLastAuthErrorMessage() ||
+          'Login failed. Check your email/password and try again.';
         return;
       }
 

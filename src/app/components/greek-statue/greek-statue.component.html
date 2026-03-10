@@ -2,25 +2,34 @@
   <div class="statue-container">
     <!-- Statue Icon with Gradient Background -->
     <div class="statue-icon" [style.background]="statueGradient">
-      <!-- Custom Icon Image -->
+      <!-- Uncarved Stone Image -->
       <img 
-        *ngIf="statue.customIcon"
+        *ngIf="isUncarved"
+        src="assets/statues/uncarved-stone.png" 
+        alt="Uncarved Stone"
+        class="uncarved-stone-img"
+      />
+      <!-- Stage-specific Image (when carved and stageImages available) -->
+      <img 
+        *ngIf="!isUncarved && currentStageImage"
+        [src]="currentStageImage" 
+        [alt]="statue.godName"
+        class="stage-img"
+      />
+      <!-- Custom Icon Image (when carved, no stage images) -->
+      <img 
+        *ngIf="!isUncarved && !currentStageImage && statue.customIcon"
         [src]="statue.customIcon" 
         [alt]="statue.godName"
-        [class.uncarved-icon]="isUncarved"
         class="custom-icon-img"
       />
-      <!-- Ionicon -->
+      <!-- Ionicon (when carved, no stage images or custom icon) -->
       <ion-icon 
-        *ngIf="!statue.customIcon"
-        [name]="statue.icon" 
-        [class.uncarved-icon]="isUncarved"
+        *ngIf="!isUncarved && !currentStageImage && !statue.customIcon"
+        [name]="statue.icon"
       ></ion-icon>
       
-      <!-- Uncarved Overlay -->
-      <div class="uncarved-overlay" *ngIf="isUncarved">
-        <ion-icon name="lock-closed"></ion-icon>
-      </div>
+      <!-- Uncarved Overlay (removed lock icon) -->
     </div>
 
     <!-- Statue Info -->

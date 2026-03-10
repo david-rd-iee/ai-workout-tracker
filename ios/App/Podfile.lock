@@ -17,6 +17,8 @@ PODS:
     - Capacitor
   - CapacitorStatusBar (7.0.3):
     - Capacitor
+  - CapgoCapacitorHealth (7.2.15):
+    - Capacitor
   - IONFilesystemLib (1.0.1)
 
 DEPENDENCIES:
@@ -29,6 +31,7 @@ DEPENDENCIES:
   - "CapacitorHaptics (from `../../node_modules/@capacitor/haptics`)"
   - "CapacitorKeyboard (from `../../node_modules/@capacitor/keyboard`)"
   - "CapacitorStatusBar (from `../../node_modules/@capacitor/status-bar`)"
+  - "CapgoCapacitorHealth (from `../../node_modules/@capgo/capacitor-health`)"
 
 SPEC REPOS:
   trunk:
@@ -53,6 +56,8 @@ EXTERNAL SOURCES:
     :path: "../../node_modules/@capacitor/keyboard"
   CapacitorStatusBar:
     :path: "../../node_modules/@capacitor/status-bar"
+  CapgoCapacitorHealth:
+    :path: "../../node_modules/@capgo/capacitor-health"
 
 SPEC CHECKSUMS:
   Capacitor: 358dd1c3fdd71d969547b17e159fd8a7736cb45f
@@ -64,8 +69,9 @@ SPEC CHECKSUMS:
   CapacitorHaptics: b3fb2869e72c4466e18ce9ccbeb60a3d8723b3d4
   CapacitorKeyboard: 62f36104f26d53d8b3a2a43f2a69fe714f1777d5
   CapacitorStatusBar: 0659ddc7b1713764a05831463d215b177a15d054
+  CapgoCapacitorHealth: 03b829ed77af08a98cc87eff8f14be2db6b6284e
   IONFilesystemLib: 89258b8e3e85465da93127d25d7ce37f977e8a6f
 
-PODFILE CHECKSUM: a054d7ef0d7fd05a284ae3c169cce52b69127920
+PODFILE CHECKSUM: 13c189278cccd0b035ce7471fd0389f5606be64f
 
 COCOAPODS: 1.16.2

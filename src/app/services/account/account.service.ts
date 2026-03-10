@@ -36,6 +36,7 @@ export class AccountService {
   private credentials = signal<Credentials>({ uid: '', email: '' });
   private authInitialized = signal(false);
   private isAuthenticated = computed(() => !!this.credentials().uid);
+  private lastAuthError = signal('');
   
   // Event system for authentication state changes
   private authStateChange$ = new Subject<{ user: any; isAuthenticated: boolean }>();
@@ -182,17 +183,51 @@ export class AccountService {
     return this.credentials.asReadonly();
   }
 
+  getLastAuthErrorMessage(): string {
+    return this.lastAuthError();
+  }
+
+  clearLastAuthError(): void {
+    this.lastAuthError.set('');
+  }
+
+  private mapFirebaseAuthError(error: any): string {
+    const code = error?.code as string | undefined;
+    switch (code) {
+      case 'auth/invalid-email':
+        return 'Invalid email format.';
+      case 'auth/invalid-credential':
+        return 'Incorrect email or password.';
+      case 'auth/user-disabled':
+        return 'This account has been disabled.';
+      case 'auth/too-many-requests':
+        return 'Too many attempts. Try again later or reset your password.';
+      case 'auth/network-request-failed':
+        return 'Network error. Check your internet connection and try again.';
+      case 'auth/operation-not-allowed':
+        return 'Email/password sign-in is not enabled in Firebase Auth.';
+      case 'auth/unauthorized-domain':
+        return 'This domain is not authorized in Firebase Authentication settings.';
+      default:
+        return error?.message || 'Login failed. Please try again.';
+    }
+  }
+
   // Update the signup method
   async signup(email: string, password: string): Promise<boolean> {
     try {
-      const userCredential = await this.afAuth.createUserWithEmailAndPassword(email, password);
+      this.lastAuthError.set('');
+      const cleanEmail = email.trim();
+      const userCredential = await this.afAuth.createUserWithEmailAndPassword(cleanEmail, password);
       if (!userCredential.user) {
         return false;
       }
-      await this.ensureUsersDocument(userCredential.user.uid, userCredential.user.email ?? email);
-      this.credentials.set({ uid: userCredential.user.uid, email: email });
+      await this.ensureUsersDocument(userCredential.user.uid, userCredential.user.email ?? cleanEmail);
+      this.credentials.set({ uid: userCredential.user.uid, email: cleanEmail });
       return true;
-    } catch (e) {
+    } catch (e: any) {
+      console.error('Signup failed:', e);
+      this.lastAuthError.set(this.mapFirebaseAuthError(e));
       return false;
     }
   }
@@ -200,16 +235,20 @@ export class AccountService {
   // Update the login method
   async login(email: string, password: string): Promise<boolean> {
     try {
-
-      const userCredential = await this.afAuth.signInWithEmailAndPassword(email, password);
+      this.lastAuthError.set('');
+      const cleanEmail = email.trim();
+      const userCredential = await this.afAuth.signInWithEmailAndPassword(cleanEmail, password);
       if (userCredential.user === null) {
+        this.lastAuthError.set('Login failed. No user returned from Firebase.');
         return false;
       }
 
       await this.ensureUsersDocument(userCredential.user.uid, userCredential.user.email ?? email);
       this.credentials.set({ uid: userCredential.user.uid, email: email });
       return true;
-    } catch (e) {
+    } catch (e: any) {
+      console.error('Login failed:', e);
+      this.lastAuthError.set(this.mapFirebaseAuthError(e));
       return false;
     }
   }
