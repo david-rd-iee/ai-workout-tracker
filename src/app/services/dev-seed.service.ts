@@ -391,39 +391,15 @@ export class DevSeedService {
 
     const badgeRef = doc(this.firestore, 'userBadges', uid);
 
-    // Greek statue progress values - showing various carving stages
+    // Initialize empty statue progress - no hardcoded values
     await setDoc(
       badgeRef,
       {
         userId: uid,
-        values: {
-          // Greek god statue IDs with impressive progress
-          'heracles-strength': 5500000,      // Heracles - God of Strength (Divine level)
-          'ares-warrior': 650,               // Ares - God of War (Gilded level)
-          'atlas-burden': 550,               // Atlas - Titan (Gilded level)
-          'hestia-eternal-flame': 120,       // Hestia - Eternal Flame (Polished level)
-          'hermes-swiftness': 12000,         // Hermes - God of Swiftness (Detailed level)
-          'nike-victory': 22,                // Nike - Goddess of Victory (Outlined level)
-          'chronos-time': 175,               // Chronos - God of Time (Outlined level)
-          'dionysus-fellowship': 35,         // Dionysus - God of Fellowship (Rough level)
-          'eos-dawn': 18,                    // Eos - Goddess of Dawn (Rough level)
-          'apollo-transformation': 5,        // Apollo - God of Perfection (Just started)
-        },
-        percentiles: {
-          'heracles-strength': 0.5,    // Top 0.5% - very rare
-          'ares-warrior': 2.3,         // Top 2.3%
-          'atlas-burden': 0.1,         // Top 0.1% - extremely rare
-          'hestia-eternal-flame': 6.7,
-          'hermes-swiftness': 11.2,
-          'nike-victory': 18.9,
-          'chronos-time': 23.4,
-          'dionysus-fellowship': 38.6,
-          'eos-dawn': 42.1,
-        },
-        // Display the most impressive statues
-        displayStatueIds: ['heracles-strength', 'ares-warrior', 'atlas-burden'],
-        // Keep old field for backwards compatibility
-        displayBadgeIds: ['heracles-strength', 'ares-warrior', 'atlas-burden'],
+        values: {},
+        percentiles: {},
+        displayStatueIds: [],
+        displayBadgeIds: [],
         last_updated_at: serverTimestamp(),
       },
       { merge: true },
@@ -437,23 +413,15 @@ export class DevSeedService {
 
     const badgeRef = doc(this.firestore, 'userBadges', uid);
 
-    // Trainer statue progress values
+    // Initialize empty trainer statue progress - no hardcoded values
     await setDoc(
       badgeRef,
       {
         userId: uid,
-        values: {
-          'zeus-mentor': 42,           // Zeus - Mentor (Polished level - 30-50 clients)
-          'athena-wisdom': 1250,       // Athena - Wisdom (Gilded level - 1000-2500 sessions)
-          'hermes-prosperity': 62500,  // Hermes - Prosperity (Polished level - $50k-100k revenue)
-        },
-        percentiles: {
-          'zeus-mentor': 8.5,         // Top 8.5%
-          'athena-wisdom': 5.2,       // Top 5.2%
-          'hermes-prosperity': 12.3,  // Top 12.3%
-        },
-        displayStatueIds: ['zeus-mentor', 'athena-wisdom', 'hermes-prosperity'],
-        displayBadgeIds: ['zeus-mentor', 'athena-wisdom', 'hermes-prosperity'],
+        values: {},
+        percentiles: {},
+        displayStatueIds: [],
+        displayBadgeIds: [],
         last_updated_at: serverTimestamp(),
       },
       { merge: true },

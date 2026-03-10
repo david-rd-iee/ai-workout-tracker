@@ -253,8 +253,8 @@ ion-header {
 
 .statue-showcase {
   width: 100%;
-  padding: 5px 12px;
-  margin-bottom: -10px;
+  padding: 3px 10px;
+  margin-bottom: -8px;
   z-index: 2;
 }
 
@@ -263,7 +263,7 @@ ion-header {
   perspective: 800px;
 
   .podium-top {
-    height: 15px;
+    height: 12px;
     background: linear-gradient(135deg, #F5E6D3, #E5D6C1);
     border: 2px solid #D4AF37;
     border-bottom: none;
@@ -289,7 +289,7 @@ ion-header {
       #E5D6C1 0%,
       #D4C5B0 50%,
       #C9BCAC 100%);
-    padding: 20px 20px 15px;
+    padding: 16px 16px 12px;
     border: 2px solid #D4AF37;
     border-top: none;
     box-shadow:
@@ -321,11 +321,11 @@ ion-header {
   .podium-inscription {
     text-align: center;
     font-family: 'Georgia', serif;
-    font-size: 1.2em;
+    font-size: 1.05em;
     font-weight: 700;
     color: #8B6F47;
     text-transform: uppercase;
-    letter-spacing: 2px;
+    letter-spacing: 1.5px;
     position: relative;
     z-index: 1;
     text-shadow: 0 1px 2px rgba(255, 255, 255, 0.5);

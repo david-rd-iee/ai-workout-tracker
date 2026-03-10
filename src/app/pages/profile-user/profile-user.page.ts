@@ -305,7 +305,6 @@ export class ProfileUserPage implements OnInit, OnDestroy {
   }
   goToLogWorkout(): void { this.router.navigate(['/tabs/chats/workout-chatbot']); }
   goToFindPT(): void {}
-  goToStatues(): void {}
   goToRegional(): void { this.router.navigateByUrl('/regional-leaderboard'); }
   goToAnalyzeWorkout(): void {
     this.navCtrl.navigateForward('/camera', {

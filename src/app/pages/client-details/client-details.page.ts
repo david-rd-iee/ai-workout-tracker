@@ -36,13 +36,13 @@ export class ClientDetailsPage implements OnInit {
   selectedTab: string = 'overview';
 
   // Overview stats
-  currentStreak: number = 7;
-  paymentStatus: string = 'Paid';
+  currentStreak: number = 0;
+  paymentStatus: string = 'N/A';
 
   // Progress tracking data
-  strengthProgress: number = 75;
-  cardioProgress: number = 68;
-  bodyProgress: number = 82;
+  strengthProgress: number = 0;
+  cardioProgress: number = 0;
+  bodyProgress: number = 0;
 
   activeGoals: any[] = [];
   personalRecords: any[] = [];
@@ -68,95 +68,21 @@ export class ClientDetailsPage implements OnInit {
   }
 
   ngOnInit() {
-    // If no client data, set fake client
+    // Get client data from navigation state if not already set
     if (!this.client) {
-      this.client = {
-        id: 'client1',
-        name: 'John Smith',
-        profilepic: '',
-        nextSession: new Date(Date.now() + 86400000),
-        totalSessions: 12,
-        lastWorkout: new Date(Date.now() - 172800000)
-      };
+      const navigation = this.router.getCurrentNavigation();
+      if (navigation?.extras?.state) {
+        this.client = navigation.extras.state['client'];
+      }
     }
 
-    // Load fake appointments
-    this.upcomingAppointments = [
-      {
-        id: '1',
-        date: new Date(Date.now() + 86400000),
-        type: 'Strength Training',
-        duration: 60,
-        status: 'confirmed'
-      },
-      {
-        id: '2',
-        date: new Date(Date.now() + 259200000),
-        type: 'HIIT Session',
-        duration: 45,
-        status: 'pending'
-      }
-    ];
-
-    this.pastAppointments = [
-      {
-        id: '3',
-        date: new Date(Date.now() - 172800000),
-        type: 'Upper Body Focus',
-        duration: 60,
-        status: 'completed'
-      },
-      {
-        id: '4',
-        date: new Date(Date.now() - 604800000),
-        type: 'Cardio & Core',
-        duration: 45,
-        status: 'completed'
-      }
-    ];
-
-    this.payments = [
-      {
-        id: '1',
-        date: new Date(Date.now() - 86400000),
-        amount: 75,
-        status: 'paid',
-        method: 'Credit Card'
-      },
-      {
-        id: '2',
-        date: new Date(Date.now() - 604800000),
-        amount: 75,
-        status: 'paid',
-        method: 'Credit Card'
-      },
-      {
-        id: '3',
-        date: new Date(Date.now() + 172800000),
-        amount: 75,
-        status: 'pending',
-        method: 'N/A'
-      }
-    ];
-
-    // Load progress data
-    this.activeGoals = [
-      { title: 'Bench Press 200 lbs', target: '200 lbs', progress: 85 },
-      { title: 'Run 5K in under 25 min', target: '25:00', progress: 70 },
-      { title: 'Lose 10 lbs', target: '10 lbs', progress: 60 }
-    ];
-
-    this.personalRecords = [
-      { exercise: 'Bench Press', value: '185 lbs', date: new Date(Date.now() - 604800000), icon: 'barbell' },
-      { exercise: 'Squat', value: '225 lbs', date: new Date(Date.now() - 1209600000), icon: 'fitness' },
-      { exercise: '5K Run', value: '26:45', date: new Date(Date.now() - 259200000), icon: 'walk' }
-    ];
-
-    this.recentActivity = [
-      { title: 'Completed workout: Upper Body', date: new Date(Date.now() - 172800000), icon: 'checkmark-circle', color: 'success' },
-      { title: 'New personal record: Bench Press', date: new Date(Date.now() - 604800000), icon: 'trophy', color: 'warning' },
-      { title: 'Goal updated: 5K time', date: new Date(Date.now() - 1209600000), icon: 'flag', color: 'primary' }
-    ];
+    // TODO: Load real data from Firebase
+    // - Client stats (currentStreak, paymentStatus)
+    // - Progress metrics (strengthProgress, cardioProgress, bodyProgress)
+    // - Active goals and personal records
+    // - Upcoming and past appointments from bookings collection
+    // - Payment history from payments/transactions collection
+    // - Recent activity feed
   }
 
   goBack() {
