@@ -49,6 +49,9 @@ export class WorkoutChatbotPage implements OnInit, OnDestroy {
   isLoading = false;
   keyboardOffset = 0;
   exerciseEstimatorIds: string[] = [];
+  displayStrengthRows: WorkoutTrainingRow[] = [];
+  displayCardioRows: CardioTrainingRow[] = [];
+  displayOtherRows: WorkoutTrainingRow[] = [];
 
   // Save guards
   hasSavedWorkout = false;
@@ -82,6 +85,7 @@ export class WorkoutChatbotPage implements OnInit, OnDestroy {
     this.isIPhone = this.platform.is('iphone');
     this.initKeyboardBehavior();
     this.estimatorIdsLoadPromise = this.loadEstimatorIds();
+    this.refreshSummaryDisplayRows();
   }
 
   ngOnDestroy() {
@@ -132,7 +136,8 @@ export class WorkoutChatbotPage implements OnInit, OnDestroy {
       const wasComplete = !!this.session?.isComplete;
 
       const nextSession = this.normalizeSession(
-        (response.updatedSession as Partial<WorkoutSessionPerformance> | undefined) ?? this.session
+        (response.updatedSession as Partial<WorkoutSessionPerformance> | undefined) ?? this.session,
+        text
       );
       const strengthRowsForEstimator = Array.isArray(nextSession.strengthTrainingRow)
         ? nextSession.strengthTrainingRow
@@ -141,6 +146,7 @@ export class WorkoutChatbotPage implements OnInit, OnDestroy {
           : (nextSession.strengthTrainingRowss ?? []);
       await this.ensureEstimatorDocsForRows(strengthRowsForEstimator);
       this.session = nextSession;
+      this.refreshSummaryDisplayRows();
       this.logRowsToConsole(this.session);
 
       const isNowComplete = !!this.session?.isComplete;
@@ -227,7 +233,8 @@ export class WorkoutChatbotPage implements OnInit, OnDestroy {
   }
 
   private normalizeSession(
-    candidate: Partial<WorkoutSessionPerformance> | null | undefined
+    candidate: Partial<WorkoutSessionPerformance> | null | undefined,
+    latestUserMessage?: string
   ): WorkoutSessionPerformance {
     const session = candidate ?? {};
     const source = session as Record<string, unknown>;
@@ -250,6 +257,7 @@ export class WorkoutChatbotPage implements OnInit, OnDestroy {
         ? source['cardioTrainingRow']
         : legacyCardioRows
     );
+    this.applyUserFacingCardioMetrics(cardioRows, latestUserMessage);
     const otherRows = this.normalizeOtherRows(
       this.hasOwnKey(source, 'otherTrainingRow')
         ? source['otherTrainingRow']
@@ -375,6 +383,8 @@ export class WorkoutChatbotPage implements OnInit, OnDestroy {
         estimated_calories: estimatedRowCalories,
         cardio_type: normalizedCardioType,
       };
+      const distanceInput = this.resolveDistanceInputText(row);
+      const timeInput = this.resolveTimeInputText(row);
 
       if (typeof distance === 'number') {
         normalizedRow.distance = distance;
@@ -386,6 +396,18 @@ export class WorkoutChatbotPage implements OnInit, OnDestroy {
         normalizedRow.time = time;
       } else {
         delete normalizedRow.time;
+      }
+
+      if (distanceInput) {
+        normalizedRow['distance_input'] = distanceInput;
+      } else {
+        delete normalizedRow['distance_input'];
+      }
+
+      if (timeInput) {
+        normalizedRow['time_input'] = timeInput;
+      } else {
+        delete normalizedRow['time_input'];
       }
 
       return normalizedRow;
@@ -420,6 +442,14 @@ export class WorkoutChatbotPage implements OnInit, OnDestroy {
           row['exercise_type'] ??
           row['exersice_type'] ??
           row['type'],
+        distance_input:
+          row['distance_input'] ??
+          row['distanceText'] ??
+          row['distance_text'],
+        time_input:
+          row['time_input'] ??
+          row['timeText'] ??
+          row['time_text'],
         distance:
           row['distance'] ??
           row['distance_meters'] ??
@@ -523,6 +553,149 @@ export class WorkoutChatbotPage implements OnInit, OnDestroy {
   private toPositiveNumber(value: unknown): number | undefined {
     const parsed = Number(value);
     return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
+  }
+
+  private resolveDistanceInputText(row: Record<string, unknown>): string | undefined {
+    const explicit = this.readMetricText(
+      row['distance_input'] ?? row['distanceText'] ?? row['distance_text']
+    );
+    if (explicit) {
+      return explicit;
+    }
+
+    return (
+      this.extractDistanceMetricText(row['distance']) ??
+      this.extractDistanceMetricText(row['distance_meters']) ??
+      this.extractDistanceMetricText(row['meters'])
+    );
+  }
+
+  private resolveTimeInputText(row: Record<string, unknown>): string | undefined {
+    const explicit = this.readMetricText(
+      row['time_input'] ?? row['timeText'] ?? row['time_text']
+    );
+    if (explicit) {
+      return explicit;
+    }
+
+    return (
+      this.extractTimeMetricText(row['time']) ??
+      this.extractTimeMetricText(row['minutes']) ??
+      this.extractTimeMetricText(row['duration'])
+    );
+  }
+
+  private extractDistanceMetricText(value: unknown): string | undefined {
+    const text = this.readMetricText(value);
+    if (!text) {
+      return undefined;
+    }
+
+    const match = text.match(/([0-9]*\.?[0-9]+)\s*(mi|mile|miles|km|kilometer|kilometers|m|meter|meters)\b/i);
+    return match?.[0]?.trim();
+  }
+
+  private extractTimeMetricText(value: unknown): string | undefined {
+    const text = this.readMetricText(value);
+    if (!text) {
+      return undefined;
+    }
+
+    const match = text.match(/([0-9]*\.?[0-9]+)\s*(h|hr|hrs|hour|hours|min|mins|minute|minutes)\b/i);
+    return match?.[0]?.trim();
+  }
+
+  private readMetricText(value: unknown): string | undefined {
+    if (typeof value !== 'string') {
+      return undefined;
+    }
+    const text = value.trim();
+    return text ? text : undefined;
+  }
+
+  private applyUserFacingCardioMetrics(
+    rows: CardioTrainingRow[],
+    latestUserMessage?: string
+  ): void {
+    if (!latestUserMessage || rows.length === 0) {
+      return;
+    }
+
+    const distanceText = this.extractDistanceMetricText(latestUserMessage);
+    const timeText = this.extractTimeMetricText(latestUserMessage);
+    if (!distanceText && !timeText) {
+      return;
+    }
+
+    const primaryRow = rows[0] as unknown as Record<string, unknown>;
+    if (distanceText && !this.resolveDistanceInputText(primaryRow)) {
+      primaryRow['distance_input'] = distanceText;
+    }
+    if (timeText && !this.resolveTimeInputText(primaryRow)) {
+      primaryRow['time_input'] = timeText;
+    }
+  }
+
+  private refreshSummaryDisplayRows(): void {
+    this.displayStrengthRows = this.normalizeRows(
+      this.session.strengthTrainingRow ?? this.session.strengthTrainingRowss ?? [],
+      'Strength'
+    );
+    this.displayCardioRows = this.normalizeCardioRows(this.session.cardioTrainingRow ?? []);
+    this.displayOtherRows = this.normalizeRows(
+      (this.session.trainingRows ?? []).filter((row) => row.Training_Type === 'Other'),
+      'Other'
+    );
+  }
+
+  formatStrengthMetric(row: WorkoutTrainingRow): string {
+    const weightText = row.weights === 'body weight' ? 'body weight' : `${row.weights} kg`;
+    return `${row.sets} x ${row.reps} @ ${weightText}`;
+  }
+
+  formatOtherMetric(row: WorkoutTrainingRow): string {
+    const weightText = row.weights === 'body weight' ? 'body weight' : `${row.weights} kg`;
+    return `${row.sets} x ${row.reps} @ ${weightText}`;
+  }
+
+  formatCardioMetric(row: CardioTrainingRow): string {
+    const distanceText = this.getCardioDistanceText(row);
+    const timeText = this.getCardioTimeText(row);
+
+    if (distanceText && timeText) {
+      return `${distanceText} in ${timeText}`;
+    }
+    if (distanceText) {
+      return distanceText;
+    }
+    if (timeText) {
+      return timeText;
+    }
+    return 'details pending';
+  }
+
+  private getCardioDistanceText(row: CardioTrainingRow): string | undefined {
+    const fromInput = this.readMetricText(row['distance_input']);
+    if (fromInput) {
+      return fromInput;
+    }
+
+    if (typeof row.distance === 'number' && Number.isFinite(row.distance)) {
+      return `${row.distance} m`;
+    }
+    return undefined;
+  }
+
+  private getCardioTimeText(row: CardioTrainingRow): string | undefined {
+    const fromInput = this.readMetricText(row['time_input']);
+    if (fromInput) {
+      return fromInput;
+    }
+
+    if (typeof row.time === 'number' && Number.isFinite(row.time)) {
+      return `${row.time} min`;
+    }
+    return undefined;
   }
 
   private parseDistanceMeters(value: unknown): number | undefined {

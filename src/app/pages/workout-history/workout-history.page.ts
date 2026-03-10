@@ -40,6 +40,7 @@ type WorkoutExerciseRow = { name: string; metric: string; volume: number };
 
 type WorkoutLogDoc = {
   createdAt?: any;
+  date?: string;
   calories?: number;
   estimatedCalories?: number;
   totalVolume?: number;
@@ -47,15 +48,50 @@ type WorkoutLogDoc = {
   trainerNotes?: string;
   isComplete?: boolean;
   trainingRows?: WorkoutTrainingRow[];
+  strengthTrainingRow?: unknown;
+  cardioTrainingRow?: unknown;
+  otherTrainingRow?: unknown;
   exercises?: WorkoutExerciseRow[];
 };
 
-type WorkoutHistoryRow = {
-  date: string;
-  exersise: string;
-  rep: number;
+type StrengthHistoryEntry = {
+  exercise: string;
   sets: number;
+  reps: number;
   weights: string;
+  caloriesBurned: number;
+};
+
+type CardioHistoryEntry = {
+  exercise: string;
+  distance: string;
+  time: string;
+  caloriesBurned: number;
+};
+
+type OtherHistoryEntry = {
+  exercise: string;
+  details: string;
+  caloriesBurned: number;
+};
+
+type WorkoutHistoryDateGroup = {
+  date: string;
+  strength: StrengthHistoryEntry[];
+  cardio: CardioHistoryEntry[];
+  other: OtherHistoryEntry[];
+  totalCaloriesBurned: number;
+};
+
+type WorkoutHistoryExportRow = {
+  date: string;
+  trainingType: 'Strength' | 'Cardio' | 'Other';
+  exercise: string;
+  sets: string;
+  reps: string;
+  weights: string;
+  distance: string;
+  time: string;
   caloriesBurned: number;
 };
 
@@ -76,7 +112,7 @@ type WorkoutHistoryRow = {
       <ion-button
         expand="block"
         (click)="exportCsv()"
-        [disabled]="isLoading || historyRows.length === 0"
+        [disabled]="isLoading || exportRows.length === 0"
         style="margin-bottom: 12px;"
       >
         Export CSV
@@ -87,18 +123,47 @@ type WorkoutHistoryRow = {
           <ion-label>Loading workouts...</ion-label>
         </ion-item>
 
-        <ion-item *ngIf="!isLoading && historyRows.length === 0">
+        <ion-item *ngIf="!isLoading && historyGroups.length === 0">
           <ion-label>No workouts saved yet.</ion-label>
         </ion-item>
 
-        <ion-item *ngFor="let row of historyRows">
-          <ion-label>
-            <p><strong>Date:</strong> {{ row.date }}</p>
-            <p><strong>Exersise:</strong> {{ row.exersise }}</p>
-            <p><strong>Rep:</strong> {{ row.rep }}</p>
-            <p><strong>Sets:</strong> {{ row.sets }}</p>
-            <p><strong>Weights:</strong> {{ row.weights }}</p>
-            <p><strong>Calories Burned:</strong> {{ row.caloriesBurned }}</p>
+        <ion-item *ngFor="let day of historyGroups">
+          <ion-label class="ion-text-wrap">
+            <p><strong>{{ day.date }}</strong></p>
+
+            <div *ngIf="day.strength.length > 0" style="margin-top: 8px;">
+              <p><strong>Strength:</strong></p>
+              <div *ngFor="let entry of day.strength" style="margin-left: 12px;">
+                <p><strong>{{ entry.exercise }}</strong></p>
+                <p style="margin-left: 12px;">Sets: {{ entry.sets }}</p>
+                <p style="margin-left: 12px;">Reps: {{ entry.reps }}</p>
+                <p style="margin-left: 12px;">Weights: {{ entry.weights }}</p>
+                <p style="margin-left: 12px;">Calories Burned: {{ entry.caloriesBurned }}</p>
+              </div>
+            </div>
+
+            <div *ngIf="day.cardio.length > 0" style="margin-top: 8px;">
+              <p><strong>Cardio:</strong></p>
+              <div *ngFor="let entry of day.cardio" style="margin-left: 12px;">
+                <p><strong>{{ entry.exercise }}</strong></p>
+                <p style="margin-left: 12px;">Distance: {{ entry.distance || 'N/A' }}</p>
+                <p style="margin-left: 12px;">Time: {{ entry.time || 'N/A' }}</p>
+                <p style="margin-left: 12px;">Calories Burned: {{ entry.caloriesBurned }}</p>
+              </div>
+            </div>
+
+            <div *ngIf="day.other.length > 0" style="margin-top: 8px;">
+              <p><strong>Other:</strong></p>
+              <div *ngFor="let entry of day.other" style="margin-left: 12px;">
+                <p><strong>{{ entry.exercise }}</strong></p>
+                <p style="margin-left: 12px;">Details: {{ entry.details }}</p>
+                <p style="margin-left: 12px;">Calories Burned: {{ entry.caloriesBurned }}</p>
+              </div>
+            </div>
+
+            <p style="margin-top: 10px;">
+              <strong>Total Calories Burned:</strong> {{ day.totalCaloriesBurned }}
+            </p>
           </ion-label>
         </ion-item>
       </ion-list>
@@ -120,7 +185,8 @@ type WorkoutHistoryRow = {
 })
 export class WorkoutHistoryPage implements OnInit {
   workouts: WorkoutLogDoc[] = [];
-  historyRows: WorkoutHistoryRow[] = [];
+  historyGroups: WorkoutHistoryDateGroup[] = [];
+  exportRows: WorkoutHistoryExportRow[] = [];
   isLoading = false;
   pageTitle = 'Workout History';
 
@@ -147,6 +213,8 @@ export class WorkoutHistoryPage implements OnInit {
       const targetUserId = requestedUserId || user?.uid || '';
       if (!targetUserId) {
         this.workouts = [];
+        this.historyGroups = [];
+        this.exportRows = [];
         return;
       }
 
@@ -155,9 +223,10 @@ export class WorkoutHistoryPage implements OnInit {
       const snap = await getDocs(q);
 
       this.workouts = snap.docs.map((d) => d.data() as WorkoutLogDoc);
-      this.historyRows = this.workouts.reduce<WorkoutHistoryRow[]>(
-        (rows, workout: WorkoutLogDoc) => {
-          rows.push(...this.toHistoryRows(workout));
+      this.historyGroups = this.workouts.map((workout) => this.toHistoryGroup(workout));
+      this.exportRows = this.historyGroups.reduce<WorkoutHistoryExportRow[]>(
+        (rows, group) => {
+          rows.push(...this.toExportRows(group));
           return rows;
         },
         []
@@ -165,7 +234,8 @@ export class WorkoutHistoryPage implements OnInit {
     } catch (e) {
       console.error('Failed to load workout logs:', e);
       this.workouts = [];
-      this.historyRows = [];
+      this.historyGroups = [];
+      this.exportRows = [];
     } finally {
       this.isLoading = false;
     }
@@ -174,24 +244,30 @@ export class WorkoutHistoryPage implements OnInit {
   exportCsv() {
     const header = [
       'Date',
-      'Exersise',
-      'Rep',
+      'Training Type',
+      'Exercise',
       'Sets',
+      'Reps',
       'Weights',
+      'Distance',
+      'Time',
       'Calories Burned',
     ];
 
     const rows: string[] = [];
     rows.push(header.join(','));
 
-    for (const row of this.historyRows ?? []) {
+    for (const row of this.exportRows) {
       rows.push(
         [
           this.csvEscape(row.date),
-          this.csvEscape(row.exersise),
-          Number(row.rep),
-          Number(row.sets),
+          this.csvEscape(row.trainingType),
+          this.csvEscape(row.exercise),
+          this.csvEscape(row.sets),
+          this.csvEscape(row.reps),
           this.csvEscape(row.weights),
+          this.csvEscape(row.distance),
+          this.csvEscape(row.time),
           Number(row.caloriesBurned),
         ].join(',')
       );
@@ -211,71 +287,230 @@ export class WorkoutHistoryPage implements OnInit {
     URL.revokeObjectURL(url);
   }
 
-  private csvEscape(value: string): string {
-    const v = (value ?? '').toString();
-    if (/[",\n]/.test(v)) return `"${v.replace(/"/g, '""')}"`;
-    return v;
-  }
+  private toHistoryGroup(workout: WorkoutLogDoc): WorkoutHistoryDateGroup {
+    const date = this.resolveWorkoutDate(workout);
+    const totalCalories = this.toRoundedNonNegative(
+      workout.estimatedCalories ?? workout.calories
+    );
 
-  private formatDateCsv(createdAt: any): string {
-    try {
-      const dt = createdAt?.toDate?.() ?? null;
-      if (!dt) return new Date().toISOString().slice(0, 10);
-      return dt.toISOString().slice(0, 10);
-    } catch {
-      return new Date().toISOString().slice(0, 10);
-    }
-  }
+    const trainingRows = Array.isArray(workout.trainingRows) ? workout.trainingRows : [];
+    const calorieShares = this.resolveCalorieShares(trainingRows, totalCalories);
 
-  private toHistoryRows(workout: WorkoutLogDoc): WorkoutHistoryRow[] {
-    const date = this.formatDateCsv(workout.createdAt);
-    const calories = Number(workout.estimatedCalories ?? workout.calories ?? 0);
-    const trainingRows = workout.trainingRows ?? [];
+    const fallbackStrength: StrengthHistoryEntry[] = [];
+    const fallbackCardio: CardioHistoryEntry[] = [];
+    const fallbackOther: OtherHistoryEntry[] = [];
 
-    if (trainingRows.length > 0) {
-      const explicitCalories = trainingRows.map((row) =>
-        Math.max(0, Math.round(Number(row.estimated_calories ?? 0)))
-      );
-      const hasExplicitCalories = explicitCalories.some((value) => value > 0);
-      const calorieShares = hasExplicitCalories
-        ? explicitCalories
-        : this.allocateCalories(trainingRows, calories);
-      return trainingRows.map((row, index) => ({
-        date,
-        exersise: this.toDisplayExerciseName(row.exercise_type),
-        rep: Number(row.reps ?? 0),
-        sets: Number(row.sets ?? 0),
-        weights:
-          typeof row.weights === 'number'
-            ? `${row.weights} kg`
-            : 'body weight',
-        caloriesBurned: calorieShares[index] ?? 0,
-      }));
-    }
+    trainingRows.forEach((row, index) => {
+      const type = row.Training_Type ?? 'Other';
+      const caloriesBurned = calorieShares[index] ?? 0;
+      if (type === 'Strength') {
+        fallbackStrength.push({
+          exercise: this.toDisplayExerciseName(row.exercise_type),
+          sets: this.toRoundedNonNegative(row.sets),
+          reps: this.toRoundedNonNegative(row.reps),
+          weights: this.formatWeight(row.weights),
+          caloriesBurned,
+        });
+        return;
+      }
 
-    const legacyExercises = workout.exercises ?? [];
-    if (legacyExercises.length > 0) {
-      const equalCalories = legacyExercises.length > 0
-        ? Math.round(calories / legacyExercises.length)
-        : 0;
+      if (type === 'Cardio') {
+        fallbackCardio.push({
+          exercise: this.toDisplayExerciseName(row.exercise_type),
+          distance: '',
+          time: this.toRoundedNonNegative(row.reps) > 0 ? `${this.toRoundedNonNegative(row.reps)} min` : '',
+          caloriesBurned,
+        });
+        return;
+      }
 
-      return legacyExercises.map((exercise) => {
+      fallbackOther.push({
+        exercise: this.toDisplayExerciseName(row.exercise_type),
+        details: `${this.toRoundedNonNegative(row.sets)} x ${this.toRoundedNonNegative(row.reps)} @ ${this.formatWeight(row.weights)}`,
+        caloriesBurned,
+      });
+    });
+
+    const strengthStructured = this.toObjectArray(workout.strengthTrainingRow);
+    const cardioStructured = this.toObjectArray(workout.cardioTrainingRow);
+    const otherStructured = this.toObjectArray(workout.otherTrainingRow);
+
+    const strength = strengthStructured.length > 0
+      ? strengthStructured.map((row) => ({
+          exercise: this.toDisplayExerciseName(String(row['exercise_type'] ?? row['exercise'] ?? 'strength_exercise')),
+          sets: this.toRoundedNonNegative(row['sets']),
+          reps: this.toRoundedNonNegative(row['reps']),
+          weights: this.formatWeight(row['weights']),
+          caloriesBurned: this.toRoundedNonNegative(row['estimated_calories']),
+        }))
+      : fallbackStrength;
+
+    const cardio = cardioStructured.length > 0
+      ? cardioStructured.map((row) => ({
+          exercise: this.toDisplayExerciseName(
+            String(row['cardio_type'] ?? row['exercise_type'] ?? row['type'] ?? 'cardio_activity')
+          ),
+          distance: this.resolveCardioDistanceText(row),
+          time: this.resolveCardioTimeText(row),
+          caloriesBurned: this.toRoundedNonNegative(row['estimated_calories']),
+        }))
+      : fallbackCardio;
+
+    const other = otherStructured.length > 0
+      ? otherStructured.map((row) => ({
+          exercise: this.toDisplayExerciseName(
+            String(row['exercise_type'] ?? row['activity'] ?? row['name'] ?? 'other_activity')
+          ),
+          details: this.resolveOtherDetails(row),
+          caloriesBurned: this.toRoundedNonNegative(row['estimated_calories']),
+        }))
+      : fallbackOther;
+
+    if (strength.length === 0 && cardio.length === 0 && other.length === 0) {
+      const legacyExercises = workout.exercises ?? [];
+      legacyExercises.forEach((exercise) => {
         const parsed = this.parseLegacyMetric(exercise.metric);
-        return {
-          date,
-          exersise: exercise.name || '',
-          rep: parsed.reps,
-          sets: parsed.sets,
-          weights: parsed.weights,
-          caloriesBurned: equalCalories,
-        };
+        other.push({
+          exercise: exercise.name || 'Exercise',
+          details: `${parsed.sets} x ${parsed.reps} @ ${parsed.weights}`,
+          caloriesBurned: 0,
+        });
       });
     }
 
-    return [];
+    const allCalories = [
+      ...strength.map((entry) => entry.caloriesBurned),
+      ...cardio.map((entry) => entry.caloriesBurned),
+      ...other.map((entry) => entry.caloriesBurned),
+    ];
+
+    const sumOfRowCalories = allCalories.reduce((sum, value) => sum + value, 0);
+    const displayTotalCalories = totalCalories > 0 ? totalCalories : sumOfRowCalories;
+
+    if (displayTotalCalories > 0 && sumOfRowCalories === 0) {
+      const rowCount = strength.length + cardio.length + other.length;
+      if (rowCount > 0) {
+        const equalShare = Math.round(displayTotalCalories / rowCount);
+        strength.forEach((entry) => { entry.caloriesBurned = equalShare; });
+        cardio.forEach((entry) => { entry.caloriesBurned = equalShare; });
+        other.forEach((entry) => { entry.caloriesBurned = equalShare; });
+      }
+    }
+
+    return {
+      date,
+      strength,
+      cardio,
+      other,
+      totalCaloriesBurned: displayTotalCalories,
+    };
   }
 
-  private allocateCalories(rows: WorkoutTrainingRow[], totalCalories: number): number[] {
+  private toExportRows(group: WorkoutHistoryDateGroup): WorkoutHistoryExportRow[] {
+    const rows: WorkoutHistoryExportRow[] = [];
+
+    group.strength.forEach((entry) => {
+      rows.push({
+        date: group.date,
+        trainingType: 'Strength',
+        exercise: entry.exercise,
+        sets: String(entry.sets),
+        reps: String(entry.reps),
+        weights: entry.weights,
+        distance: '',
+        time: '',
+        caloriesBurned: entry.caloriesBurned,
+      });
+    });
+
+    group.cardio.forEach((entry) => {
+      rows.push({
+        date: group.date,
+        trainingType: 'Cardio',
+        exercise: entry.exercise,
+        sets: '',
+        reps: '',
+        weights: '',
+        distance: entry.distance,
+        time: entry.time,
+        caloriesBurned: entry.caloriesBurned,
+      });
+    });
+
+    group.other.forEach((entry) => {
+      rows.push({
+        date: group.date,
+        trainingType: 'Other',
+        exercise: entry.exercise,
+        sets: '',
+        reps: '',
+        weights: '',
+        distance: '',
+        time: entry.details,
+        caloriesBurned: entry.caloriesBurned,
+      });
+    });
+
+    return rows;
+  }
+
+  private resolveCardioDistanceText(row: Record<string, unknown>): string {
+    const text = this.readText(
+      row['distance_input'] ??
+      row['distanceText'] ??
+      row['distance_text']
+    );
+    if (text) {
+      return text;
+    }
+
+    const distance = Number(row['distance']);
+    if (Number.isFinite(distance) && distance > 0) {
+      return `${Math.round(distance * 100) / 100} m`;
+    }
+
+    return '';
+  }
+
+  private resolveCardioTimeText(row: Record<string, unknown>): string {
+    const text = this.readText(
+      row['time_input'] ??
+      row['timeText'] ??
+      row['time_text']
+    );
+    if (text) {
+      return text;
+    }
+
+    const minutes = Number(row['time']);
+    if (Number.isFinite(minutes) && minutes > 0) {
+      return `${Math.round(minutes * 100) / 100} min`;
+    }
+
+    return '';
+  }
+
+  private resolveOtherDetails(row: Record<string, unknown>): string {
+    const sets = this.toRoundedNonNegative(row['sets']);
+    const reps = this.toRoundedNonNegative(row['reps'] ?? row['time']);
+    const weight = this.formatWeight(row['weights'] ?? row['weight'] ?? row['load']);
+
+    if (sets > 0 || reps > 0) {
+      return `${sets} x ${reps} @ ${weight}`;
+    }
+
+    const activity = this.readText(row['activity'] ?? row['name'] ?? row['type']);
+    return activity || 'Activity logged';
+  }
+
+  private resolveCalorieShares(rows: WorkoutTrainingRow[], totalCalories: number): number[] {
+    const explicitCalories = rows.map((row) =>
+      this.toRoundedNonNegative(row.estimated_calories)
+    );
+    if (explicitCalories.some((value) => value > 0)) {
+      return explicitCalories;
+    }
+
     if (rows.length === 0 || totalCalories <= 0) {
       return rows.map(() => 0);
     }
@@ -284,7 +519,9 @@ export class WorkoutHistoryPage implements OnInit {
       if (typeof row.weights !== 'number') {
         return 0;
       }
-      return Math.max(0, Number(row.weights)) * Math.max(0, Number(row.reps)) * Math.max(0, Number(row.sets));
+      return Math.max(0, Number(row.weights)) *
+        Math.max(0, Number(row.reps)) *
+        Math.max(0, Number(row.sets));
     });
     const totalVolume = volumes.reduce((sum, value) => sum + value, 0);
 
@@ -293,7 +530,24 @@ export class WorkoutHistoryPage implements OnInit {
       return rows.map(() => equal);
     }
 
-    return volumes.map((volume) => Math.round(totalCalories * (volume / totalVolume)));
+    return volumes.map((volume) =>
+      Math.round(totalCalories * (volume / totalVolume))
+    );
+  }
+
+  private formatWeight(value: unknown): string {
+    if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
+      return `${value} kg`;
+    }
+
+    const text = this.readText(value);
+    if (!text) {
+      return 'body weight';
+    }
+    if (text.toLowerCase().includes('body')) {
+      return 'body weight';
+    }
+    return text;
   }
 
   private toDisplayExerciseName(value: string): string {
@@ -329,6 +583,59 @@ export class WorkoutHistoryPage implements OnInit {
       sets,
       reps,
       weights: `${Math.round(kgValue * 100) / 100} kg`,
+    };
+  }
+
+  private resolveWorkoutDate(workout: WorkoutLogDoc): string {
+    const explicitDate = this.readText(workout.date);
+    if (explicitDate) {
+      return explicitDate;
     }
+    return this.formatDateCsv(workout.createdAt);
+  }
+
+  private formatDateCsv(createdAt: any): string {
+    try {
+      const dt = createdAt?.toDate?.() ?? null;
+      if (!dt) return new Date().toISOString().slice(0, 10);
+      return dt.toISOString().slice(0, 10);
+    } catch {
+      return new Date().toISOString().slice(0, 10);
+    }
+  }
+
+  private toRoundedNonNegative(value: unknown): number {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed) || parsed < 0) {
+      return 0;
+    }
+    return Math.round(parsed);
+  }
+
+  private readText(value: unknown): string {
+    if (typeof value !== 'string') {
+      return '';
+    }
+    return value.trim();
+  }
+
+  private csvEscape(value: string): string {
+    const v = (value ?? '').toString();
+    if (/[",\n]/.test(v)) return `"${v.replace(/"/g, '""')}"`;
+    return v;
+  }
+
+  private toObjectArray(value: unknown): Array<Record<string, unknown>> {
+    if (Array.isArray(value)) {
+      return value.filter(
+        (entry): entry is Record<string, unknown> => !!entry && typeof entry === 'object'
+      );
+    }
+
+    if (value && typeof value === 'object') {
+      return [value as Record<string, unknown>];
+    }
+
+    return [];
   }
 }

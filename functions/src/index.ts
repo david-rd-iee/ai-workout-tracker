@@ -79,6 +79,16 @@ function extractDistanceAndTimeFromMessage(message: string): {distance?: number;
   return {distance, time};
 }
 
+function extractDistanceAndTimeTokensFromMessage(message: string): {distanceText?: string; timeText?: string} {
+  const text = String(message ?? "");
+  const distanceMatch = text.match(/([0-9]*\.?[0-9]+)\s*(mi|mile|miles|km|kilometer|kilometers|m|meter|meters)\b/i);
+  const timeMatch = text.match(/([0-9]*\.?[0-9]+)\s*(h|hr|hrs|hour|hours|min|mins|minute|minutes)\b/i);
+  return {
+    distanceText: distanceMatch?.[0]?.trim(),
+    timeText: timeMatch?.[0]?.trim(),
+  };
+}
+
 function inferCardioTypeFromMessage(message: string): string | undefined {
   const text = String(message ?? "").toLowerCase();
   if (!text.trim()) {
@@ -165,6 +175,14 @@ function normalizeSummaryRows(summary: unknown, latestMessage: string): unknown 
         row["exercise_type"] ??
         row["exersice_type"] ??
         row["type"],
+      distance_input:
+        row["distance_input"] ??
+        row["distanceText"] ??
+        row["distance_text"],
+      time_input:
+        row["time_input"] ??
+        row["timeText"] ??
+        row["time_text"],
       distance:
         row["distance"] ??
         row["distance_meters"] ??
@@ -181,6 +199,7 @@ function normalizeSummaryRows(summary: unknown, latestMessage: string): unknown 
   const cardioRows = toObjectArray(rawRows);
 
   const fromMessage = extractDistanceAndTimeFromMessage(latestMessage);
+  const fromMessageText = extractDistanceAndTimeTokensFromMessage(latestMessage);
   const inferredCardioType = inferCardioTypeFromMessage(latestMessage);
   if (
     cardioRows.length === 0 &&
@@ -189,6 +208,8 @@ function normalizeSummaryRows(summary: unknown, latestMessage: string): unknown 
   ) {
     cardioRows.push({
       cardio_type: inferredCardioType,
+      distance_input: fromMessageText.distanceText,
+      time_input: fromMessageText.timeText,
       distance: fromMessage.distance,
       time: fromMessage.time,
       estimated_calories: 0,
@@ -202,6 +223,18 @@ function normalizeSummaryRows(summary: unknown, latestMessage: string): unknown 
       row["cardioType"] ??
       row["exercise_type"] ??
       row["type"] ??
+      ""
+    ).trim();
+    const rowDistanceInput = String(
+      row["distance_input"] ??
+      row["distanceText"] ??
+      row["distance_text"] ??
+      ""
+    ).trim();
+    const rowTimeInput = String(
+      row["time_input"] ??
+      row["timeText"] ??
+      row["time_text"] ??
       ""
     ).trim();
     const rowDistance =
@@ -222,6 +255,18 @@ function normalizeSummaryRows(summary: unknown, latestMessage: string): unknown 
 
     row["Training_Type"] = "Cardio";
     row["cardio_type"] = rowCardioType || inferredCardioType || "cardio_activity";
+    const distanceInput = rowDistanceInput || (index === 0 ? fromMessageText.distanceText : undefined);
+    const timeInput = rowTimeInput || (index === 0 ? fromMessageText.timeText : undefined);
+    if (distanceInput) {
+      row["distance_input"] = distanceInput;
+    } else {
+      delete row["distance_input"];
+    }
+    if (timeInput) {
+      row["time_input"] = timeInput;
+    } else {
+      delete row["time_input"];
+    }
     row["estimated_calories"] = toPositiveNumber(
       row["estimated_calories"] ?? row["estimatedCalories"]
     ) ?? 0;

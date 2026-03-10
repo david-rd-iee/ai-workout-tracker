@@ -37,6 +37,11 @@ export class WorkoutLogService {
     );
 
     const trainingRows = Array.isArray(session.trainingRows) ? session.trainingRows : [];
+    const strengthTrainingRow = this.toObjectArray(
+      session.strengthTrainingRow ?? session.strengthTrainingRowss ?? []
+    );
+    const cardioTrainingRow = this.toObjectArray(session.cardioTrainingRow ?? []);
+    const otherTrainingRow = this.toObjectArray(session.otherTrainingRow ?? []);
     const estimatedCalories = Number(
       session.estimated_calories ?? session.calories ?? 0
     );
@@ -56,6 +61,9 @@ export class WorkoutLogService {
       trainerNotes,
       isComplete: !!session.isComplete,
       trainingRows,
+      strengthTrainingRow,
+      cardioTrainingRow,
+      otherTrainingRow,
       exercises: this.rowsToLegacyExercises(trainingRows),
       source: 'ai_logger',
       version: 2,
@@ -225,5 +233,19 @@ export class WorkoutLogService {
       .filter(Boolean)
       .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
       .join(' ');
+  }
+
+  private toObjectArray(value: unknown): Array<Record<string, unknown>> {
+    if (Array.isArray(value)) {
+      return value.filter(
+        (entry): entry is Record<string, unknown> => !!entry && typeof entry === 'object'
+      );
+    }
+
+    if (value && typeof value === 'object') {
+      return [value as Record<string, unknown>];
+    }
+
+    return [];
   }
 }

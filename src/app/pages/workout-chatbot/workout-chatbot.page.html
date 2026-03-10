@@ -12,12 +12,28 @@
     <div class="workout-summary-card">
       <p class="summary-title">Workout Log Summary</p>
 
-      <div *ngFor="let row of session.trainingRows" class="summary-row">
-        <span class="summary-exercise">{{ row.exercise_type }}</span>
-        <span class="summary-metric">
-          {{ row.Training_Type }} · {{ row.sets }} x {{ row.reps }} @
-          {{ row.weights }}{{ row.weights === 'body weight' ? '' : ' kg' }}
-        </span>
+      <div *ngIf="displayStrengthRows.length > 0" class="summary-section">
+        <p class="summary-section-title">Strength</p>
+        <div *ngFor="let row of displayStrengthRows" class="summary-row">
+          <span class="summary-exercise">{{ row.exercise_type }}</span>
+          <span class="summary-metric">{{ formatStrengthMetric(row) }}</span>
+        </div>
+      </div>
+
+      <div *ngIf="displayCardioRows.length > 0" class="summary-section">
+        <p class="summary-section-title">Cardio</p>
+        <div *ngFor="let row of displayCardioRows" class="summary-row">
+          <span class="summary-exercise">{{ row.cardio_type }}</span>
+          <span class="summary-metric">{{ formatCardioMetric(row) }}</span>
+        </div>
+      </div>
+
+      <div *ngIf="displayOtherRows.length > 0" class="summary-section">
+        <p class="summary-section-title">Other</p>
+        <div *ngFor="let row of displayOtherRows" class="summary-row">
+          <span class="summary-exercise">{{ row.exercise_type }}</span>
+          <span class="summary-metric">{{ formatOtherMetric(row) }}</span>
+        </div>
       </div>
 
       <div *ngIf="isLoading" class="summary-typing">

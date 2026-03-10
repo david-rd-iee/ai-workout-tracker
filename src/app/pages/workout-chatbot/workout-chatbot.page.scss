@@ -23,6 +23,19 @@
   color: #3c3c43;
 }
 
+.summary-section {
+  padding-bottom: 6px;
+}
+
+.summary-section-title {
+  margin: 8px 0 2px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #6a6a70;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
 .summary-row {
   display: flex;
   flex-direction: column;
