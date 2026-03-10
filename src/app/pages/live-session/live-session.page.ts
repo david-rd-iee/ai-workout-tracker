@@ -1,4 +1,4 @@
-import { Component, OnDestroy } from '@angular/core';
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {
   IonButton,
@@ -12,7 +12,8 @@ import {
   IonBackButton,
 } from '@ionic/angular/standalone';
 import { NgxChartsModule, ScaleType } from '@swimlane/ngx-charts';
-import { Health } from '@capgo/capacitor-health';
+import WorkoutSession from '../../services/workout-session.plugin';
+import { PluginListenerHandle } from '@capacitor/core';
 
 @Component({
   selector: 'app-live-session',
@@ -33,7 +34,7 @@ import { Health } from '@capgo/capacitor-health';
     NgxChartsModule,
   ],
 })
-export class LiveSessionPage implements OnDestroy {
+export class LiveSessionPage implements OnInit, OnDestroy {
   healthStatus = 'Not connected';
   isConnectingHealth = false;
 
@@ -46,7 +47,8 @@ export class LiveSessionPage implements OnDestroy {
   maxHeartRate: number | null = null;
 
   timerInterval: any = null;
-  heartRateInterval: any = null;
+  heartRateListener: PluginListenerHandle | null = null;
+  workoutStateListener: PluginListenerHandle | null = null;
 
   heartRateSamples: { timestamp: string; value: number }[] = [];
 
@@ -82,6 +84,18 @@ export class LiveSessionPage implements OnDestroy {
       .join(':');
   }
 
+  async ngOnInit() {
+    // Check if HealthKit is available
+    try {
+      const { available } = await WorkoutSession.checkAvailability();
+      if (!available) {
+        this.healthStatus = 'HealthKit not available on this device';
+      }
+    } catch (error) {
+      console.error('Error checking HealthKit availability:', error);
+    }
+  }
+
   async connectAppleHealth() {
     if (this.isConnectingHealth) return;
 
@@ -89,11 +103,7 @@ export class LiveSessionPage implements OnDestroy {
     this.healthStatus = 'Connecting...';
 
     try {
-      await Health.requestAuthorization({
-        read: ['heartRate'],
-        write: [],
-      });
-
+      await WorkoutSession.requestAuthorization();
       this.healthStatus = 'Apple Health connected';
     } catch (error) {
       this.healthStatus = 'Apple Health connection failed';
@@ -103,7 +113,7 @@ export class LiveSessionPage implements OnDestroy {
     }
   }
 
-  startSession() {
+  async startSession() {
     if (this.sessionStarted) return;
 
     this.sessionStarted = true;
@@ -115,106 +125,123 @@ export class LiveSessionPage implements OnDestroy {
     this.avgHeartRate = null;
     this.maxHeartRate = null;
 
+    // Start elapsed time timer
     this.timerInterval = setInterval(() => {
       this.elapsedSeconds += 1;
     }, 1000);
 
-    this.fetchLatestHeartRate();
-    this.heartRateInterval = setInterval(() => {
-      this.fetchLatestHeartRate();
-    }, 5000);
-  }
-
-  async fetchLatestHeartRate() {
-    try {
-      const endDate = new Date();
-      const startDate = new Date(Date.now() - 10 * 60 * 1000);
-  
-      const { samples } = await Health.readSamples({
-        dataType: 'heartRate',
-        startDate: startDate.toISOString(),
-        endDate: endDate.toISOString(),
-        limit: 10,
-      });
-  
-      if (!samples || samples.length === 0) {
-        return;
+    // Set up real-time heart rate listener
+    this.heartRateListener = await WorkoutSession.addListener(
+      'heartRateUpdate',
+      (data) => {
+        this.handleHeartRateUpdate(data.heartRate, data.timestamp);
       }
-  
-      const validSamples = samples
-        .filter((s: any) => typeof s?.value === 'number')
-        .sort(
-          (a: any, b: any) =>
-            new Date(a.endDate || a.startDate).getTime() -
-            new Date(b.endDate || b.startDate).getTime()
-        );
-  
-      if (validSamples.length === 0) return;
-  
-      const latestSample = validSamples[validSamples.length - 1];
-      const latestValue = Math.round(latestSample.value);
+    );
 
-      console.log('Latest Health sample:', {
-        timestamp: latestSample.endDate || latestSample.startDate,
-        value: latestSample.value,
-      });
-  
-      this.currentHeartRate = latestValue;
-  
-      this.heartRateSamples.push({
-        timestamp: new Date().toISOString(),
-        value: latestValue,
-      });
-  
-      const values = this.heartRateSamples.map((s) => s.value);
-      const sum = values.reduce((a, b) => a + b, 0);
-  
-      this.avgHeartRate = Math.round(sum / values.length);
-      this.maxHeartRate = Math.round(Math.max(...values));
-  
-      const recentSamples = this.heartRateSamples.slice(-10);
+    // Set up workout state listener
+    this.workoutStateListener = await WorkoutSession.addListener(
+      'workoutStateChanged',
+      (data) => {
+        console.log('Workout state changed:', data.state);
+      }
+    );
 
-      this.heartRateChartData = [
-        {
-          name: 'Heart Rate',
-          series: recentSamples.map((sample) => ({
-            name: new Date(sample.timestamp).toLocaleTimeString([], {
-              minute: '2-digit',
-              second: '2-digit',
-            }),
-            value: Math.round(sample.value),
-          })),
-        },
-      ];
+    // Start the HKWorkoutSession
+    try {
+      await WorkoutSession.startWorkout();
+      console.log('HKWorkoutSession started successfully');
     } catch (error) {
-      console.error('Live heart rate fetch error:', error);
+      console.error('Failed to start workout session:', error);
+      this.healthStatus = 'Failed to start workout session';
+      this.finishSession();
     }
   }
 
-  finishSession() {
-    this.stopIntervals();
+  handleHeartRateUpdate(heartRate: number, timestamp: string) {
+    const roundedHeartRate = Math.round(heartRate);
+    
+    console.log('Real-time heart rate update:', {
+      heartRate: roundedHeartRate,
+      timestamp
+    });
+
+    this.currentHeartRate = roundedHeartRate;
+
+    this.heartRateSamples.push({
+      timestamp,
+      value: roundedHeartRate,
+    });
+
+    // Calculate statistics
+    const values = this.heartRateSamples.map((s) => s.value);
+    const sum = values.reduce((a, b) => a + b, 0);
+
+    this.avgHeartRate = Math.round(sum / values.length);
+    this.maxHeartRate = Math.round(Math.max(...values));
+
+    // Update chart with last 20 samples
+    const recentSamples = this.heartRateSamples.slice(-20);
+
+    this.heartRateChartData = [
+      {
+        name: 'Heart Rate',
+        series: recentSamples.map((sample) => ({
+          name: new Date(sample.timestamp).toLocaleTimeString([], {
+            minute: '2-digit',
+            second: '2-digit',
+          }),
+          value: Math.round(sample.value),
+        })),
+      },
+    ];
+  }
+
+  async finishSession() {
+    // Stop HKWorkoutSession
+    if (this.sessionStarted) {
+      try {
+        await WorkoutSession.stopWorkout();
+        console.log('Workout saved to HealthKit');
+      } catch (error) {
+        console.error('Error stopping workout:', error);
+      }
+    }
+
+    this.cleanup();
     this.sessionStarted = false;
+    
     console.log('Session finished', {
       durationSeconds: this.elapsedSeconds,
       avgHeartRate: this.avgHeartRate,
       maxHeartRate: this.maxHeartRate,
-      samples: this.heartRateSamples,
+      totalSamples: this.heartRateSamples.length,
     });
   }
 
-  private stopIntervals() {
+  private async cleanup() {
+    // Stop timer
     if (this.timerInterval) {
       clearInterval(this.timerInterval);
       this.timerInterval = null;
     }
 
-    if (this.heartRateInterval) {
-      clearInterval(this.heartRateInterval);
-      this.heartRateInterval = null;
+    // Remove listeners
+    if (this.heartRateListener) {
+      await this.heartRateListener.remove();
+      this.heartRateListener = null;
+    }
+
+    if (this.workoutStateListener) {
+      await this.workoutStateListener.remove();
+      this.workoutStateListener = null;
     }
   }
 
-  ngOnDestroy(): void {
-    this.stopIntervals();
+  async ngOnDestroy() {
+    if (this.sessionStarted) {
+      await this.finishSession();
+    } else {
+      await this.cleanup();
+    }
   }
 }
