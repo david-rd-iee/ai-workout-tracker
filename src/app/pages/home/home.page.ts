@@ -294,7 +294,8 @@ export class HomePage implements OnInit, OnDestroy {
   async loadTrainerClients(trainerId: string) {
     if (!trainerId) return;
 
-    await this.calculateRevenueFromBookings(trainerId);
+    // Load revenue data in parallel, don't block client list loading
+    void this.calculateRevenueFromBookings(trainerId);
 
     this.stopTrainerClientsListener();
 
