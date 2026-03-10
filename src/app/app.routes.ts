@@ -110,6 +110,18 @@ export const routes: Routes = [
     canActivate: [authGuard],
   },
   {
+    path: 'workout-insights',
+    loadComponent: () =>
+      import('./pages/workout-insights/workout-insights.page').then((m) => m.WorkoutInsightsPage),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'live-session',
+    loadComponent: () =>
+      import('./pages/live-session/live-session.page').then((m) => m.LiveSessionPage),
+    canActivate: [authGuard],
+  },
+  {
     path: '',
     redirectTo: 'login',
     pathMatch: 'full',

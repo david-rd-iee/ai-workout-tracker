@@ -9,6 +9,7 @@
 		"FilesystemPlugin",
 		"HapticsPlugin",
 		"KeyboardPlugin",
-		"StatusBarPlugin"
+		"StatusBarPlugin",
+		"HealthPlugin"
 	]
 }

@@ -6,7 +6,7 @@
   <div class="home-container">
     <!-- Welcome Section -->
     <div class="welcome-section">
-      <h1>Welcome Back, {{ userName() }}!</h1>
+      <h1>Welcome back, {{ userName() }}!</h1>
       <p class="date">{{ currentDate | date:'EEEE, MMMM d' }}</p>
     </div>
 
@@ -30,6 +30,22 @@
             </div>
             <ion-icon name="chevron-forward" class="chevron"></ion-icon>
           </div>
+        </ion-card-content>
+      </ion-card>
+
+      <!-- Live Session -->
+      <ion-card button="true" (click)="navigateTo('live-session')">
+        <ion-card-content>
+          <h2>Start Live Session</h2>
+          <p>Track heart rate live during your workout</p>
+        </ion-card-content>
+      </ion-card>
+
+      <!-- Workout Insights -->
+      <ion-card button="true" (click)="navigateTo('workout-insights')">
+        <ion-card-content>
+          <h2>Workout Insights</h2>
+          <p>View heart rate metrics and workout analytics</p>
         </ion-card-content>
       </ion-card>
 
