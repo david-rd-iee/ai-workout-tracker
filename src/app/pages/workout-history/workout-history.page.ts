@@ -1,6 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute } from '@angular/router';
+import { Router } from '@angular/router';
 
 import {
   IonContent,
@@ -83,18 +84,6 @@ type WorkoutHistoryDateGroup = {
   totalCaloriesBurned: number;
 };
 
-type WorkoutHistoryExportRow = {
-  date: string;
-  trainingType: 'Strength' | 'Cardio' | 'Other';
-  exercise: string;
-  sets: string;
-  reps: string;
-  weights: string;
-  distance: string;
-  time: string;
-  caloriesBurned: number;
-};
-
 @Component({
   selector: 'app-workout-history',
   standalone: true,
@@ -111,11 +100,11 @@ type WorkoutHistoryExportRow = {
     <ion-content class="ion-padding">
       <ion-button
         expand="block"
-        (click)="exportCsv()"
-        [disabled]="isLoading || exportRows.length === 0"
+        (click)="viewCsv()"
+        [disabled]="isLoading || historyGroups.length === 0"
         style="margin-bottom: 12px;"
       >
-        Export CSV
+        View CSV
       </ion-button>
 
       <ion-list>
@@ -186,14 +175,14 @@ type WorkoutHistoryExportRow = {
 export class WorkoutHistoryPage implements OnInit {
   workouts: WorkoutLogDoc[] = [];
   historyGroups: WorkoutHistoryDateGroup[] = [];
-  exportRows: WorkoutHistoryExportRow[] = [];
   isLoading = false;
   pageTitle = 'Workout History';
 
   constructor(
     private firestore: Firestore,
     private auth: Auth,
-    private route: ActivatedRoute
+    private route: ActivatedRoute,
+    private router: Router
   ) {}
 
   async ngOnInit() {
@@ -214,7 +203,6 @@ export class WorkoutHistoryPage implements OnInit {
       if (!targetUserId) {
         this.workouts = [];
         this.historyGroups = [];
-        this.exportRows = [];
         return;
       }
 
@@ -224,67 +212,27 @@ export class WorkoutHistoryPage implements OnInit {
 
       this.workouts = snap.docs.map((d) => d.data() as WorkoutLogDoc);
       this.historyGroups = this.workouts.map((workout) => this.toHistoryGroup(workout));
-      this.exportRows = this.historyGroups.reduce<WorkoutHistoryExportRow[]>(
-        (rows, group) => {
-          rows.push(...this.toExportRows(group));
-          return rows;
-        },
-        []
-      );
     } catch (e) {
       console.error('Failed to load workout logs:', e);
       this.workouts = [];
       this.historyGroups = [];
-      this.exportRows = [];
     } finally {
       this.isLoading = false;
     }
   }
 
-  exportCsv() {
-    const header = [
-      'Date',
-      'Training Type',
-      'Exercise',
-      'Sets',
-      'Reps',
-      'Weights',
-      'Distance',
-      'Time',
-      'Calories Burned',
-    ];
-
-    const rows: string[] = [];
-    rows.push(header.join(','));
-
-    for (const row of this.exportRows) {
-      rows.push(
-        [
-          this.csvEscape(row.date),
-          this.csvEscape(row.trainingType),
-          this.csvEscape(row.exercise),
-          this.csvEscape(row.sets),
-          this.csvEscape(row.reps),
-          this.csvEscape(row.weights),
-          this.csvEscape(row.distance),
-          this.csvEscape(row.time),
-          Number(row.caloriesBurned),
-        ].join(',')
-      );
-    }
-
-    const csv = rows.join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-
-    const dateTag = new Date().toISOString().slice(0, 10);
-    const filename = `workouts_${dateTag}.csv`;
-
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    a.click();
-    URL.revokeObjectURL(url);
+  viewCsv() {
+    const requestedUserId = (this.route.snapshot.queryParamMap.get('userId') || '').trim();
+    const clientName = (this.route.snapshot.queryParamMap.get('clientName') || '').trim();
+    this.router.navigate(['/workout-history-csv'], {
+      queryParams: {
+        userId: requestedUserId,
+        clientName,
+      },
+      state: {
+        historyGroups: this.historyGroups,
+      },
+    });
   }
 
   private toHistoryGroup(workout: WorkoutLogDoc): WorkoutHistoryDateGroup {
@@ -404,54 +352,6 @@ export class WorkoutHistoryPage implements OnInit {
       other,
       totalCaloriesBurned: displayTotalCalories,
     };
-  }
-
-  private toExportRows(group: WorkoutHistoryDateGroup): WorkoutHistoryExportRow[] {
-    const rows: WorkoutHistoryExportRow[] = [];
-
-    group.strength.forEach((entry) => {
-      rows.push({
-        date: group.date,
-        trainingType: 'Strength',
-        exercise: entry.exercise,
-        sets: String(entry.sets),
-        reps: String(entry.reps),
-        weights: entry.weights,
-        distance: '',
-        time: '',
-        caloriesBurned: entry.caloriesBurned,
-      });
-    });
-
-    group.cardio.forEach((entry) => {
-      rows.push({
-        date: group.date,
-        trainingType: 'Cardio',
-        exercise: entry.exercise,
-        sets: '',
-        reps: '',
-        weights: '',
-        distance: entry.distance,
-        time: entry.time,
-        caloriesBurned: entry.caloriesBurned,
-      });
-    });
-
-    group.other.forEach((entry) => {
-      rows.push({
-        date: group.date,
-        trainingType: 'Other',
-        exercise: entry.exercise,
-        sets: '',
-        reps: '',
-        weights: '',
-        distance: '',
-        time: entry.details,
-        caloriesBurned: entry.caloriesBurned,
-      });
-    });
-
-    return rows;
   }
 
   private resolveCardioDistanceText(row: Record<string, unknown>): string {
@@ -617,12 +517,6 @@ export class WorkoutHistoryPage implements OnInit {
       return '';
     }
     return value.trim();
-  }
-
-  private csvEscape(value: string): string {
-    const v = (value ?? '').toString();
-    if (/[",\n]/.test(v)) return `"${v.replace(/"/g, '""')}"`;
-    return v;
   }
 
   private toObjectArray(value: unknown): Array<Record<string, unknown>> {

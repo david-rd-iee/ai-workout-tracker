@@ -121,6 +121,14 @@ export const routes: Routes = [
     canActivate: [authGuard],
   },
   {
+    path: 'workout-history-csv',
+    loadComponent: () =>
+      import('./pages/workout-history-csv/workout-history-csv.page').then(
+        (m) => m.WorkoutHistoryCsvPage
+      ),
+    canActivate: [authGuard],
+  },
+  {
     path: '',
     redirectTo: 'login',
     pathMatch: 'full',

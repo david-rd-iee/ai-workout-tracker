@@ -1,0 +1,60 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-back-button defaultHref="/workout-history"></ion-back-button>
+    </ion-buttons>
+    <ion-title>{{ pageTitle }}</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding">
+  <div class="csv-controls">
+    <ion-item class="type-select" lines="none">
+      <ion-label>CSV Table</ion-label>
+      <ion-select
+        interface="popover"
+        [(ngModel)]="selectedType"
+        (ionChange)="refreshPreview()"
+      >
+        <ion-select-option value="Strength">Strength CSV</ion-select-option>
+        <ion-select-option value="Cardio">Cardio CSV</ion-select-option>
+        <ion-select-option value="Other">Other CSV</ion-select-option>
+      </ion-select>
+    </ion-item>
+
+    <ion-button
+      (click)="exportCsv()"
+      [disabled]="isLoading || historyGroups.length === 0"
+    >
+      Export CSV
+    </ion-button>
+  </div>
+
+  <ion-item *ngIf="isLoading">
+    <ion-label>Loading CSV data...</ion-label>
+  </ion-item>
+
+  <ion-item *ngIf="!isLoading && historyGroups.length === 0">
+    <ion-label>No workout data available. Open this page from Workout History.</ion-label>
+  </ion-item>
+
+  <div class="csv-preview-wrap" *ngIf="!isLoading && historyGroups.length > 0">
+    <table class="csv-table">
+      <thead>
+        <tr>
+          <th *ngFor="let heading of tableHeaders">{{ heading }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let row of tableRows">
+          <td *ngFor="let cell of row">{{ cell }}</td>
+        </tr>
+        <tr *ngIf="tableRows.length === 0">
+          <td class="empty-cell" [attr.colspan]="tableHeaders.length">
+            No rows in this table.
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</ion-content>
