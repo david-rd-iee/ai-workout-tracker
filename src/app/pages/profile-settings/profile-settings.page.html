@@ -138,5 +138,20 @@
         </ion-button>
       </form>
     </section>
+
+    <section class="settings-panel">
+      <h2>Account</h2>
+      <p class="page-copy">Manage your session.</p>
+
+      <ion-button
+        color="danger"
+        fill="outline"
+        class="logout-settings-btn"
+        [disabled]="isLoading || isSaving"
+        (click)="logout()"
+      >
+        Logout
+      </ion-button>
+    </section>
   </div>
 </ion-content>

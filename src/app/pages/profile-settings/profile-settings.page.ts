@@ -25,6 +25,7 @@ import { EmailAuthProvider, reauthenticateWithCredential, updateEmail, User, ver
 import { FirebaseError } from 'firebase/app';
 import { AlertController } from '@ionic/angular';
 import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
+import { AccountService } from '../../services/account/account.service';
 
 @Component({
   selector: 'app-profile-settings',
@@ -54,6 +55,7 @@ export class ProfileSettingsPage implements OnInit {
   private auth = inject(Auth);
   private router = inject(Router);
   private alertCtrl = inject(AlertController);
+  private accountService = inject(AccountService);
 
   firstName = '';
   lastName = '';
@@ -83,6 +85,10 @@ export class ProfileSettingsPage implements OnInit {
       animated: true,
       animationDirection: 'back',
     });
+  }
+
+  async logout(): Promise<void> {
+    await this.accountService.logout();
   }
 
   async saveSettings(): Promise<void> {
