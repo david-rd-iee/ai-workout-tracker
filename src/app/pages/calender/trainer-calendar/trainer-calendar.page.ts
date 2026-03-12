@@ -3,8 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { IonContent, IonDatetime, IonCard, IonCardHeader, IonCardTitle, IonCardContent, IonSpinner, IonButton, IonIcon, IonInput, IonTextarea, IonList, IonItem, IonLabel, IonFab, IonFabButton, AlertController, ActionSheetController, ModalController, ToastController } from '@ionic/angular/standalone';
 import { HeaderComponent } from '../../../components/header/header.component';
-// import { SessionBookingService } from '../../../services/session-booking.service';
-type SessionBookingService = any;
+import { SessionBookingService } from '../../../services/session-booking.service';
 import { UserService } from '../../../services/account/user.service';
 import { ListSessionsComponent, SessionData } from '../../../components/sessions/list-sessions/list-sessions.component';
 import { ActivatedRoute } from '@angular/router';
@@ -69,7 +68,6 @@ export class TrainerCalendarPage implements OnInit {
       if (params['selectedDate']) {
         // If a date was passed in the URL, use it
         this.selectedDate = params['selectedDate'];
-        console.log('Using date from URL:', this.selectedDate);
         
         // Parse the ISO date string to get year, month, day
         // The format should be something like: 2025-04-27T19:00:00.000Z
@@ -84,14 +82,11 @@ export class TrainerCalendarPage implements OnInit {
   }
 
   ionViewWillEnter() {
-    console.log('Trainer calendar page entered');
-    
     // Check if we need to refresh data (if more than 5 seconds have passed since last refresh)
     const now = Date.now();
     const refreshInterval = 5000; // 5 seconds in milliseconds
     
     if (now - this.lastRefreshTime > refreshInterval) {
-      console.log('Refreshing calendar data');
       this.isLoading.set(true);
       this.loadMonthlyBookings();
       
@@ -101,7 +96,6 @@ export class TrainerCalendarPage implements OnInit {
       
       this.lastRefreshTime = now;
     } else {
-      console.log('Skipping refresh - last refresh was too recent');
       
       // Still load trainings for the selected date even if we skip the monthly refresh
       const selectedDateObj = new Date(this.selectedDate);
@@ -135,20 +129,38 @@ export class TrainerCalendarPage implements OnInit {
     }
     try {
       const bookedSessions = await this.sessionBookingService.getTrainerBookedSessions(this.trainerId);
+      
       this.monthlyBookings = bookedSessions;
       this.allTrainings = bookedSessions.map((booking: any) => {
-        return {
+        // Build client name and image from stored fields if available
+        let clientName = 'Client';
+        let clientImage = '';
+        if (booking.clientFirstName || booking.clientLastName) {
+          const firstName = booking.clientFirstName || '';
+          const lastName = booking.clientLastName || '';
+          clientName = `${firstName} ${lastName}`.trim() || 'Client';
+          clientImage = booking.clientProfilePic || '';
+        }
+        
+        const mapped = {
           id: booking.bookingId || booking.id,
           datetime: this.createDateTimeString(booking.date, booking.time || booking.startTime),
-          clientName: booking.clientName || 'Client',
+          clientName: clientName,
           clientId: booking.clientId,
+          trainerId: this.trainerId,
           type: booking.sessionType || 'Training Session',
           date: booking.date,
           time: booking.time || booking.startTime,
           endTime: booking.endTime,
-          duration: booking.duration || 30, // Default to 30 minutes if not specified
-          status: booking.status || 'confirmed'
+          duration: booking.duration || 30,
+          status: booking.status || 'confirmed',
+          otherPartyName: clientName,
+          otherPartyImage: clientImage,
+          otherPartyType: 'Client',
+          isProfileLoading: false
         };
+        
+        return mapped;
       });
       
       // Update highlighted dates for the calendar
@@ -206,7 +218,6 @@ export class TrainerCalendarPage implements OnInit {
     
     // Format date for logging
     const formattedDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-    console.log(`Loading trainings for date: ${formattedDate}`);
     
     this.trainings = this.allTrainings.filter(training => {
       // Create a new date from the training datetime to compare
@@ -216,11 +227,6 @@ export class TrainerCalendarPage implements OnInit {
       const matchesDate = trainingDate.getFullYear() === year &&
         trainingDate.getMonth() === month &&
         trainingDate.getDate() === day;
-      
-      // Log for debugging
-      if (matchesDate) {
-        console.log(`Matched training: ${trainingDate.toISOString()} for selected date: ${formattedDate}`);
-      }
       
       return matchesDate && training.status !== 'cancelled';
     }).map(training => ({
@@ -253,7 +259,6 @@ export class TrainerCalendarPage implements OnInit {
       };
     });
     
-    console.log('Updated highlighted dates:', this.highlightedDates);
   }
   
   /**
@@ -261,8 +266,6 @@ export class TrainerCalendarPage implements OnInit {
    * @param event The session change event containing action and sessionId
    */
   onSessionChanged(event: {action: string, sessionId: string}) {
-    console.log('Session changed event received in trainer calendar:', event);
-    
     // Refresh the sessions list when a session is rescheduled or canceled
     if (event.action === 'reschedule' || event.action === 'cancel') {
       // Reload all bookings for the month to update the calendar highlights

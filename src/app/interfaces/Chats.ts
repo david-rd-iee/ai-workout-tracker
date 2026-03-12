@@ -6,7 +6,7 @@ export interface Message {
     text: string;
     timestamp: string;
     read: boolean;
-    type?: 'text' | 'group_invite' | 'join_request';
+    type?: 'text' | 'group_invite' | 'join_request' | 'session_reschedule';
     groupInvite?: {
         groupId: string;
         groupName: string;

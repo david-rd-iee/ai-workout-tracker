@@ -16,6 +16,13 @@
       [class.received]="!isMyMessage(message)"
     >
       <div class="message-bubble">
+        <ng-container *ngIf="isRescheduleMessage(message); else groupInviteOrOther">
+          <!-- Reschedule message -->
+          <app-session-reschedule-message 
+            [rescheduleId]="getRescheduleRequestId(message)">
+          </app-session-reschedule-message>
+        </ng-container>
+        <ng-template #groupInviteOrOther>
         <ng-container *ngIf="isGroupInvite(message); else joinRequestOrPlain">
           <p>{{ message.text }}</p>
           <ion-button
@@ -54,6 +61,7 @@
           <ng-template #plainMessage>
             <p>{{ message.text }}</p>
           </ng-template>
+        </ng-template>
         </ng-template>
         <span class="timestamp">{{ formatTimestamp(message.timestamp) }}</span>
       </div>

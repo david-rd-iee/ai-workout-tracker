@@ -41,43 +41,46 @@
         </ion-item>
       </ion-list>
       <ion-card-content>
-        <div class="display-statues-carousel" *ngIf="displayStatues.length > 0; else noBadges">
-          <swiper-container
-            *ngIf="displayStatues && displayStatues.length > 0"
-            [slidesPerView]="1"
-            [centeredSlides]="true"
-            [spaceBetween]="20"
-            [pagination]="false"
-            class="statue-swiper"
-            (swiperslidechange)="onSlideChange($event)"
-          >
-            <swiper-slide *ngFor="let statue of displayStatues">
-              <div class="podium-container">
-                <div class="statue-showcase">
-                  <app-greek-statue 
-                    [statue]="statue" 
-                    [showProgress]="true"
-                    size="large"
-                  ></app-greek-statue>
-                </div>
-                <div class="podium">
-                  <div class="podium-top"></div>
-                  <div class="podium-body">
-                    <div class="podium-inscription">{{ statue.godName }}</div>
+        @if (displayStatues.length > 0) {
+          <div class="display-statues-carousel">
+            <swiper-container
+              slides-per-view="1"
+              centered-slides="true"
+              space-between="20"
+              pagination="false"
+              class="statue-swiper"
+              (swiperslidechange)="onSlideChange($event)"
+            >
+              @for (statue of displayStatues; track statue.id) {
+                <swiper-slide>
+                  <div class="podium-container">
+                    <div class="statue-showcase">
+                      <app-greek-statue 
+                        [statue]="statue" 
+                        [showProgress]="true"
+                        size="large"
+                      ></app-greek-statue>
+                    </div>
+                    <div class="podium">
+                      <div class="podium-top"></div>
+                      <div class="podium-body">
+                        <div class="podium-inscription">{{ statue.godName }}</div>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
-            </swiper-slide>
-          </swiper-container>
-          <div class="custom-pagination">
-            <span 
-              class="pagination-dot" 
-              *ngFor="let statue of displayStatues; let i = index"
-              [class.active]="i === currentSlideIndex"
-            ></span>
+                </swiper-slide>
+              }
+            </swiper-container>
+            <div class="custom-pagination">
+              @for (statue of displayStatues; track statue.id; let i = $index) {
+                <span 
+                  class="pagination-dot" 
+                      [class.active]="i === currentSlideIndex"
+                ></span>
+              }
+            </div>
           </div>
-        </div>
-        <ng-template #noBadges>
+        } @else {
           <p class="no-badges-text" *ngIf="carvedStatuesCount === 0">
             Complete workouts to begin carving your statues! 
             <br><small>Track your progress and showcase your divine masterpieces.</small>
@@ -86,7 +89,7 @@
             No statues selected for display.
             <br><small>Click the button above to choose which statues to showcase.</small>
           </p>
-        </ng-template>
+        }
       </ion-card-content>
     </ion-card>
 

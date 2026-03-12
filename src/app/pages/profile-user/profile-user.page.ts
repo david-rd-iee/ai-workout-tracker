@@ -23,7 +23,8 @@ import {
 import { NavController } from '@ionic/angular';
 
 import { Auth } from '@angular/fire/auth';
-import { Firestore, doc, getDoc, setDoc, collection, query, where, getDocs, serverTimestamp, onSnapshot } from '@angular/fire/firestore';
+import { Firestore } from '@angular/fire/firestore';
+import { doc, getDoc, setDoc, collection, query, where, getDocs, serverTimestamp, onSnapshot } from 'firebase/firestore';
 import { Storage, ref, deleteObject } from '@angular/fire/storage';
 import { effect } from '@angular/core';
 
@@ -235,8 +236,11 @@ export class ProfileUserPage implements OnInit, OnDestroy {
       const roleLoadKey = `${uid}:${this.currentUser.accountType}`;
       if (this.pendingRoleLoadKey === roleLoadKey && this.loadedRoleLoadKey !== roleLoadKey) {
         if (this.currentUser.accountType === 'trainer') {
-          await this.loadTrainerStats(uid);
-          await this.loadTrainerStatues(uid);
+          // Load trainer stats and statues in parallel for faster rendering
+          await Promise.all([
+            this.loadTrainerStats(uid),
+            this.loadTrainerStatues(uid),
+          ]);
         } else {
           await this.loadGreekStatuesFromFirestore(uid);
         }

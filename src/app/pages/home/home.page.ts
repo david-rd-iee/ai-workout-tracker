@@ -132,6 +132,7 @@ export class HomePage implements OnInit, OnDestroy {
   constructor() {
     addIcons({
       constructOutline,
+      personCircle,
       personCircleOutline,
       personOutline,
       trophyOutline,
@@ -311,6 +312,16 @@ export class HomePage implements OnInit, OnDestroy {
     this.userSub?.unsubscribe();
     this.stopTrainerClientsListener();
     this.stopUserProfileListener();
+  }
+
+  ionViewWillEnter(): void {
+    // Refresh bookings when returning to this tab (for clients)
+    if (this.currentUser && !this.currentUser.isPT) {
+      const clientId = this.currentUser.userId;
+      if (clientId) {
+        void this.loadUpcomingSessions(clientId);
+      }
+    }
   }
 
   private stopTrainerClientsListener(): void {
@@ -601,7 +612,34 @@ export class HomePage implements OnInit, OnDestroy {
       
       querySnapshot.forEach((doc) => {
         const booking = doc.data();
-        const sessionDate = new Date(booking['startTimeUTC']);
+        
+        // Parse the date and time to create a proper Date object
+        let sessionDate = now;
+        try {
+          const dateStr = booking['date']; // YYYY-MM-DD
+          const timeStr = booking['time']; // HH:MM AM/PM
+          
+          if (dateStr && timeStr) {
+            // Parse date parts
+            const [year, month, day] = dateStr.split('-').map((n: string) => parseInt(n, 10));
+            
+            // Parse time
+            const timeMatch = timeStr.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+            if (timeMatch) {
+              let hours = parseInt(timeMatch[1], 10);
+              const minutes = parseInt(timeMatch[2], 10);
+              const period = timeMatch[3].toUpperCase();
+              
+              // Convert to 24-hour format
+              if (period === 'PM' && hours < 12) hours += 12;
+              else if (period === 'AM' && hours === 12) hours = 0;
+              
+              sessionDate = new Date(year, month - 1, day, hours, minutes);
+            }
+          }
+        } catch (error) {
+          console.error('Error parsing booking date/time:', error);
+        }
         
         if (sessionDate > now) {
           this.upcomingSessions.push({

@@ -27,13 +27,13 @@
     <div *ngFor="let session of processedSessions; let i = index" 
          class="session-card"
          [ngClass]="'color-' + (i % 4 + 1)">  
-      <!-- X Button for opening agreement modal -->
+      <!-- X Button for opening cancel/reschedule modal -->
       <div class="x-button" (click)="openCancelModal(session, $event)">
         <ion-icon name="close-outline"></ion-icon>
       </div>
       
-      <!-- Main card content that navigates to session details -->
-      <div class="card-content" (click)="viewSessionDetails(session)">
+      <!-- Main card content -->
+      <div class="card-content">
       
       <!-- Profile image -->
       <ion-avatar *ngIf="session.otherPartyImage">

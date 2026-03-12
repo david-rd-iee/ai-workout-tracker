@@ -2,7 +2,8 @@ import { Injectable, signal, computed, Signal, effect } from '@angular/core';
 import { AccountService } from './account.service';
 import { trainerProfile } from '../../Interfaces/Profiles/Trainer';
 import { clientProfile } from '../../Interfaces/Profiles/client';
-import { Firestore, setDoc, getDoc, doc, updateDoc } from '@angular/fire/firestore';
+import { Firestore } from '@angular/fire/firestore';
+import { setDoc, getDoc, doc, updateDoc } from 'firebase/firestore';
 import { Observable, of } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { FileUploadService } from '../file-upload.service';
@@ -253,15 +254,25 @@ export class UserService {
         if (docSnap.exists()) {
           const userData = docSnap.data() as trainerProfile | clientProfile;
           
-          // If profilepic is missing, try to load from users collection as fallback
-          if (!(userData as any).profilepic) {
+          // If profilepic, firstName, or lastName is missing, try to load from users collection as fallback
+          const needsUsersData = !(userData as any).profilepic || !(userData as any).firstName || !(userData as any).lastName;
+          
+          if (needsUsersData) {
             try {
               const usersDoc = await getDoc(doc(this.firestore, 'users', userId));
               if (usersDoc.exists()) {
                 const usersData = usersDoc.data();
-                const fallbackImage = usersData?.['profilepic'];
-                if (fallbackImage) {
-                  (userData as any).profilepic = fallbackImage;
+                
+                if (!(userData as any).profilepic && usersData?.['profilepic']) {
+                  (userData as any).profilepic = usersData['profilepic'];
+                }
+                
+                if (!(userData as any).firstName && usersData?.['firstName']) {
+                  (userData as any).firstName = usersData['firstName'];
+                }
+                
+                if (!(userData as any).lastName && usersData?.['lastName']) {
+                  (userData as any).lastName = usersData['lastName'];
                 }
               }
             } catch (error) {
@@ -271,11 +282,12 @@ export class UserService {
           
           userSignal.set(userData);
         } else {
+          console.warn(`[UserService] getUserById - User NOT found in ${collection} collection for ID: ${userId}`);
           userSignal.set(null);
         }
       })
       .catch((error) => {
-        console.error('Error fetching user:', error);
+        console.error(`[UserService] Error fetching user from ${collection}:`, error);
         userSignal.set(null);
       });
 
@@ -306,15 +318,25 @@ export class UserService {
       if (docSnap.exists()) {
         const userData = docSnap.data() as (trainerProfile | clientProfile);
         
-        // If profilepic is missing, try to load from users collection as fallback
-        if (!(userData as any).profilepic) {
+        // If profilepic, firstName, or lastName is missing, try to load from users collection as fallback
+        const needsUsersData = !(userData as any).profilepic || !(userData as any).firstName || !(userData as any).lastName;
+        
+        if (needsUsersData) {
           try {
             const usersDoc = await getDoc(doc(this.firestore, 'users', uid));
             if (usersDoc.exists()) {
               const usersData = usersDoc.data();
-              const fallbackImage = usersData?.['profilepic'];
-              if (fallbackImage) {
-                (userData as any).profilepic = fallbackImage;
+              
+              if (!(userData as any).profilepic && usersData?.['profilepic']) {
+                (userData as any).profilepic = usersData['profilepic'];
+              }
+              
+              if (!(userData as any).firstName && usersData?.['firstName']) {
+                (userData as any).firstName = usersData['firstName'];
+              }
+              
+              if (!(userData as any).lastName && usersData?.['lastName']) {
+                (userData as any).lastName = usersData['lastName'];
               }
             }
           } catch (error) {

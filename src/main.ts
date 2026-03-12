@@ -29,6 +29,7 @@ import { getStorage, provideStorage } from '@angular/fire/storage';
 import { getFunctions, provideFunctions } from '@angular/fire/functions';
 
 import { provideHttpClient } from '@angular/common/http';
+
 // Register Swiper web components
 import { register } from 'swiper/element/bundle';
 register();

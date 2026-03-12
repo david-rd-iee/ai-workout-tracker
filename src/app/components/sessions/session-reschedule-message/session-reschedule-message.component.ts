@@ -1,6 +1,6 @@
 import { Component, Input, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { IonicModule, ToastController, AlertController } from '@ionic/angular';
+import { ToastController, AlertController } from '@ionic/angular';
 import { IonCard, IonCardContent, IonButton, IonIcon, IonSpinner, IonText, IonRow, IonCol, IonItem, IonLabel } from '@ionic/angular/standalone';
 import { SessionBookingService } from '../../../services/session-booking.service';
 import { SessionRescheduleRequest } from '../../../Interfaces/SessionReschedule';
@@ -16,7 +16,6 @@ import { calendarOutline, timeOutline, checkmarkOutline, closeOutline, alertCirc
   standalone: true,
   imports: [
     CommonModule,
-    IonicModule,
     IonCard,
     IonCardContent,
     IonButton,
