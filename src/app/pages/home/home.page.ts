@@ -30,7 +30,7 @@ import {
 } from 'ionicons/icons';
 
 import { Auth } from '@angular/fire/auth';
-import { Firestore, doc, docData, getDoc, onSnapshot, collection, query, where, getDocs, Timestamp, limit } from '@angular/fire/firestore';
+import { Firestore, doc, docData, getDoc, onSnapshot, collection, query, where, getDocs, Timestamp, limit, deleteDoc } from '@angular/fire/firestore';
 import { authState } from 'rxfire/auth';
 import { switchMap, of } from 'rxjs';
 import { Subscription } from 'rxjs';
@@ -105,6 +105,7 @@ export class HomePage implements OnInit, OnDestroy {
   private activeUserDataKey: string | null = null;
   private hydratedHeaderUid: string | null = null;
   private headerUserFieldCache = new Map<string, Partial<AppUser>>();
+  private isReconcilingTrainerClients = false;
 
   isLoadingUser = true;
   currentUser: AppUser | null = null;
@@ -330,6 +331,28 @@ export class HomePage implements OnInit, OnDestroy {
     this.currentMonthIndex = 0;
   }
 
+  private coerceDate(value: unknown, fallback: Date): Date {
+    if (value instanceof Date && !Number.isNaN(value.getTime())) {
+      return value;
+    }
+
+    if (value && typeof value === 'object' && typeof (value as any).toDate === 'function') {
+      const converted = (value as any).toDate();
+      if (converted instanceof Date && !Number.isNaN(converted.getTime())) {
+        return converted;
+      }
+    }
+
+    if (typeof value === 'string' || typeof value === 'number') {
+      const converted = new Date(value);
+      if (!Number.isNaN(converted.getTime())) {
+        return converted;
+      }
+    }
+
+    return fallback;
+  }
+
   async loadTrainerClients(trainerId: string) {
     if (!trainerId) return;
 
@@ -339,78 +362,68 @@ export class HomePage implements OnInit, OnDestroy {
     this.stopTrainerClientsListener();
 
     try {
-      const trainerClientsRef = doc(this.firestore, 'trainerClients', trainerId);
+      const trainerClientsRef = collection(this.firestore, `trainers/${trainerId}/clients`);
 
       this.trainerClientsUnsubscribe = onSnapshot(trainerClientsRef, async (snapshot) => {
         if (this.activeUserDataKey !== `${trainerId}:trainer`) {
           return;
         }
 
-        if (snapshot.exists()) {
-          const data = snapshot.data();
-          this.clients = (data['clients'] || []).map((client: any) => {
-            let displayName = '';
-            if (client.firstName || client.lastName) {
-              displayName = `${client.firstName || ''} ${client.lastName || ''}`.trim();
-            } else if (client.clientName) {
-              displayName = client.clientName;
-            }
-            displayName = displayName || 'Unknown Client';
-            
-            return {
-              id: client.clientId,
-              firstName: client.firstName || '',
-              lastName: client.lastName || '',
-              name: displayName,
-              profilepic: client.profilepic || '',
-              nextSession: client.nextSession ? new Date(client.nextSession) : new Date(Date.now() + 86400000),
-              totalSessions: client.totalSessions || 0,
-              lastWorkout: client.lastSession ? new Date(client.lastSession) : new Date(Date.now() - 172800000)
-            };
-          });
-          const clientsData = data['clients'] || [];
-          
-          // Fetch profile pictures from users collection for each client
-          const clientsWithProfilePics = await Promise.all(
-            clientsData.map(async (client: any) => {
-              // Support both new (firstName/lastName) and old (clientName) formats
-              let displayName = '';
-              if (client.firstName || client.lastName) {
-                displayName = `${client.firstName || ''} ${client.lastName || ''}`.trim();
-              } else if (client.clientName) {
-                displayName = client.clientName;
-              }
-              displayName = displayName || 'Unknown Client';
-              
-              // Fetch the client's profile picture from users collection
-              let profilepic = '';
+        if (snapshot.empty) {
+          this.clients = [];
+          return;
+        }
+
+        const clientsData = snapshot.docs.map((clientDoc) => ({
+          userId: clientDoc.id,
+          ...(clientDoc.data() as any),
+        }));
+
+        const validClientsData = await this.reconcileTrainerClients(trainerId, clientsData);
+        if (this.activeUserDataKey !== `${trainerId}:trainer`) {
+          return;
+        }
+
+        const clientsWithProfilePics = await Promise.all(
+          validClientsData.map(async (client: any) => {
+            const clientId = String(client['clientId'] || client['userId'] || '').trim();
+            const firstName = String(client['firstName'] || '').trim();
+            const lastName = String(client['lastName'] || '').trim();
+            const fallbackName = String(client['clientName'] || '').trim();
+            const displayName = `${firstName} ${lastName}`.trim() || fallbackName || 'Unknown Client';
+            const parsedTotalSessions = Number(client['totalSessions']);
+
+            let profilepic = String(client['profilepic'] || '').trim();
+            if (!profilepic && clientId) {
               try {
-                const clientUserRef = doc(this.firestore, 'users', client.clientId);
+                const clientUserRef = doc(this.firestore, 'users', clientId);
                 const clientUserSnap = await getDoc(clientUserRef);
                 if (clientUserSnap.exists()) {
-                  profilepic = clientUserSnap.data()?.['profilepic'] || '';
+                  profilepic = String(clientUserSnap.data()?.['profilepic'] || '').trim();
                 }
               } catch (error) {
-                console.warn(`Failed to fetch profile pic for client ${client.clientId}:`, error);
+                console.warn(`Failed to fetch profile pic for client ${clientId}:`, error);
               }
-              
-              return {
-                id: client.clientId,
-                firstName: client.firstName || '',
-                lastName: client.lastName || '',
-                name: displayName,
-                profilepic: profilepic,
-                nextSession: client.nextSession ? new Date(client.nextSession) : new Date(Date.now() + 86400000),
-                totalSessions: client.totalSessions || 0,
-                lastWorkout: client.lastSession ? new Date(client.lastSession) : new Date(Date.now() - 172800000)
-              };
-            })
-          );
-          
-          this.clients = clientsWithProfilePics;
-        } else {
-          this.clients = [];
+            }
+
+            return {
+              id: clientId,
+              firstName,
+              lastName,
+              name: displayName,
+              profilepic,
+              nextSession: this.coerceDate(client['nextSession'], new Date(Date.now() + 86400000)),
+              totalSessions: Number.isFinite(parsedTotalSessions) ? parsedTotalSessions : 0,
+              lastWorkout: this.coerceDate(client['lastSession'], new Date(Date.now() - 172800000)),
+            };
+          }),
+        );
+
+        if (this.activeUserDataKey !== `${trainerId}:trainer`) {
+          return;
         }
+
+        this.clients = clientsWithProfilePics;
       }, (error) => {
         console.error('Error listening to trainer clients:', error);
         this.clients = [];
@@ -418,6 +431,59 @@ export class HomePage implements OnInit, OnDestroy {
     } catch (error) {
       console.error('Error setting up real-time listener:', error);
       this.clients = [];
+    }
+  }
+
+  private async reconcileTrainerClients(trainerId: string, clientsData: any[]): Promise<any[]> {
+    if (!clientsData.length) {
+      return clientsData;
+    }
+
+    if (this.isReconcilingTrainerClients) {
+      return clientsData;
+    }
+
+    this.isReconcilingTrainerClients = true;
+    try {
+      const validationResults = await Promise.all(
+        clientsData.map(async (client) => {
+          const clientDocId = String(client['userId'] || '').trim();
+          const clientId = String(client['clientId'] || clientDocId).trim();
+          if (!clientDocId || !clientId) {
+            return { clientDocId, shouldRemove: true };
+          }
+
+          try {
+            const clientProfileSnap = await getDoc(doc(this.firestore, 'clients', clientId));
+            if (!clientProfileSnap.exists()) {
+              return { clientDocId, shouldRemove: true };
+            }
+
+            const assignedTrainerId = String(clientProfileSnap.data()?.['trainerId'] || '').trim();
+            return { clientDocId, shouldRemove: assignedTrainerId !== trainerId };
+          } catch (error) {
+            console.warn(`[HomePage] Failed validating trainer-client link for ${clientId}:`, error);
+            return { clientDocId, shouldRemove: false };
+          }
+        })
+      );
+
+      const staleClientDocIds = validationResults
+        .filter((result) => result.shouldRemove && result.clientDocId)
+        .map((result) => result.clientDocId);
+
+      if (staleClientDocIds.length) {
+        await Promise.all(
+          staleClientDocIds.map((clientDocId) =>
+            deleteDoc(doc(this.firestore, `trainers/${trainerId}/clients/${clientDocId}`))
+          )
+        );
+      }
+
+      const staleClientDocIdSet = new Set(staleClientDocIds);
+      return clientsData.filter((client) => !staleClientDocIdSet.has(String(client['userId'] || '').trim()));
+    } finally {
+      this.isReconcilingTrainerClients = false;
     }
   }
 

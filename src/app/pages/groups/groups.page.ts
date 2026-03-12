@@ -314,10 +314,10 @@ export class GroupsPage implements OnInit, OnDestroy {
     this.trainingSelectedPointUserIds.clear();
 
     try {
-      const ptUID = (user?.ptUID || '').trim();
-      if (!ptUID) return;
+      const trainerId = (user?.trainerId || '').trim();
+      if (!trainerId) return;
 
-      const trainer = await firstValueFrom(this.groupService.getUser(ptUID));
+      const trainer = await firstValueFrom(this.groupService.getUser(trainerId));
       if (!trainer) return;
 
       const trainerName = `${(trainer.firstName || '').trim()} ${(trainer.lastName || '').trim()}`.trim();

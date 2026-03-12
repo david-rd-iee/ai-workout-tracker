@@ -1,0 +1,65 @@
+@use '../../../theme/settings-page.shared' as *;
+
+.page-copy {
+  margin: 0;
+  color: #4b5563;
+  line-height: 1.5;
+}
+
+.form-message {
+  margin: 10px 0 0;
+  font-size: 14px;
+}
+
+.loading-state,
+.empty-state {
+  display: grid;
+  place-items: center;
+  min-height: 140px;
+  color: #6b7280;
+}
+
+.trainer-list {
+  margin-top: 14px;
+  display: grid;
+  gap: 12px;
+}
+
+.trainer-block {
+  border: 1px solid #d1d5db;
+  border-radius: 12px;
+  padding: 12px;
+  background: #f9fafb;
+  display: grid;
+  gap: 12px;
+}
+
+.trainer-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.trainer-avatar {
+  width: 56px;
+  height: 56px;
+  border: 1px solid #d1d5db;
+}
+
+.trainer-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.trainer-action-btn {
+  margin: 0;
+}
+
+.trainer-action-btn.blocked {
+  --background: #d1d5db;
+  --background-hover: #d1d5db;
+  --background-activated: #d1d5db;
+  --color: #6b7280;
+  opacity: 1;
+}

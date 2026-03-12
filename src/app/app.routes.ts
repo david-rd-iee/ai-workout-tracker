@@ -143,6 +143,14 @@ export const routes: Routes = [
     canActivate: [authGuard],
   },
   {
+    path: 'client-find-trainer',
+    loadComponent: () =>
+      import('./pages/client-find-trainer/client-find-trainer.page').then(
+        (m) => m.ClientFindTrainerPage
+      ),
+    canActivate: [authGuard],
+  },
+  {
     path: 'profile-settings',
     redirectTo: 'user-settings',
     pathMatch: 'full',

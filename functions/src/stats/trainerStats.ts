@@ -72,14 +72,12 @@ export const onBookingChange = onDocumentWritten('bookings/{bookingId}', async (
  * Updates trainer client count when a new client relationship is established
  * This provides an alternative/backup to counting from bookings
  */
-export const onTrainerClientChange = onDocumentWritten('trainerClients/{trainerId}', async (event) => {
-  const data = event.data?.after?.data();
-  
-  if (!data) return;
-  
+export const onTrainerClientChange = onDocumentWritten('trainers/{trainerId}/clients/{clientId}', async (event) => {
   const trainerId = event.params.trainerId;
-  const clients = data.clients || [];
-  const totalClients = clients.length;
+  const clientsSnapshot = await admin.firestore()
+    .collection(`trainers/${trainerId}/clients`)
+    .get();
+  const totalClients = clientsSnapshot.size;
   
   console.log(`[TrainerStats] Updating client count for trainer ${trainerId}: ${totalClients} clients`);
   

@@ -16,6 +16,6 @@ export interface AppUser {
 
   created_at?: any; // Firestore timestamp if you use it
 
-  ptUID?: string;
+  trainerId?: string;
   ownedGroupID?: string;
 }

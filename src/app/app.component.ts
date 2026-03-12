@@ -2,7 +2,6 @@
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
 import { IonApp, IonRouterOutlet } from '@ionic/angular/standalone';
-import { DevSeedService } from './services/dev-seed.service';
 import { AccountService } from './services/account/account.service';
 import { UserService } from './services/account/user.service';
 import { ExerciseEstimatorsService } from './services/exercise-estimators.service';
@@ -21,7 +20,6 @@ export class AppComponent implements OnInit, OnDestroy {
   private loadedProfileUid: string | null = null;
 
   constructor(
-    private devSeedService: DevSeedService,
     private accountService: AccountService,
     private userService: UserService,
     private exerciseEstimatorsService: ExerciseEstimatorsService,
@@ -29,11 +27,7 @@ export class AppComponent implements OnInit, OnDestroy {
   ) {
     // Expose dev methods globally for console access
     if (!environment.production) {
-      (window as any).devSeed = this.devSeedService;
       (window as any).account = this.accountService;
-      (window as any).connectClientToTrainer = async () => {
-        await this.devSeedService.connectClientToTrainer();
-      };
       (window as any).loginAndNavigate = async (email: string, password: string) => {
         const success = await this.accountService.login(email, password);
         if (success) {

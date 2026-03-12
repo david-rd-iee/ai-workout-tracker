@@ -17,6 +17,97 @@ export class BookingService {
     private functions: Functions
   ) { }
 
+  private async syncTrainerClientRecord(trainerId: string, clientId: string): Promise<void> {
+    const normalizedTrainerId = String(trainerId || '').trim();
+    const normalizedClientId = String(clientId || '').trim();
+    if (!normalizedTrainerId || !normalizedClientId) {
+      return;
+    }
+
+    const clientRef = doc(this.firestore, `clients/${normalizedClientId}`);
+    const usersRef = doc(this.firestore, `users/${normalizedClientId}`);
+    const trainerClientRef = doc(this.firestore, `trainers/${normalizedTrainerId}/clients/${normalizedClientId}`);
+    const bookingsRef = collection(this.firestore, 'bookings');
+    const bookingsQuery = query(bookingsRef, where('trainerId', '==', normalizedTrainerId));
+
+    const [clientSnap, usersSnap, trainerClientSnap, bookingsSnap] = await Promise.all([
+      getDoc(clientRef),
+      getDoc(usersRef),
+      getDoc(trainerClientRef),
+      getDocs(bookingsQuery),
+    ]);
+
+    const clientData = clientSnap.exists() ? clientSnap.data() : {};
+    const usersData = usersSnap.exists() ? usersSnap.data() : {};
+    const existingData = trainerClientSnap.exists() ? trainerClientSnap.data() : {};
+
+    const firstName = String(clientData?.['firstName'] || usersData?.['firstName'] || '').trim();
+    const lastName = String(clientData?.['lastName'] || usersData?.['lastName'] || '').trim();
+    const fullName = `${firstName} ${lastName}`.trim();
+    const clientEmail = String(clientData?.['email'] || usersData?.['email'] || '').trim();
+    const profilepic = String(clientData?.['profilepic'] || usersData?.['profilepic'] || '').trim();
+    const joinedDate = String(existingData?.['joinedDate'] || '').trim() || new Date().toISOString();
+
+    const now = Date.now();
+    let totalSessions = 0;
+    let lastSessionMs: number | null = null;
+    let nextSessionMs: number | null = null;
+
+    bookingsSnap.forEach((bookingDoc) => {
+      const booking = bookingDoc.data();
+      if (String(booking?.['clientId'] || '').trim() !== normalizedClientId) {
+        return;
+      }
+      if (booking?.['status'] === 'cancelled') {
+        return;
+      }
+
+      totalSessions += 1;
+      const startTimeUTC = typeof booking?.['startTimeUTC'] === 'string' ? booking['startTimeUTC'] : '';
+      if (!startTimeUTC) {
+        return;
+      }
+
+      const bookingDate = new Date(startTimeUTC);
+      if (Number.isNaN(bookingDate.getTime())) {
+        return;
+      }
+      const bookingMs = bookingDate.getTime();
+
+      if (bookingMs <= now) {
+        if (lastSessionMs === null || bookingMs > lastSessionMs) {
+          lastSessionMs = bookingMs;
+        }
+      } else if (nextSessionMs === null || bookingMs < nextSessionMs) {
+        nextSessionMs = bookingMs;
+      }
+    });
+
+    const existingLastSession = typeof existingData?.['lastSession'] === 'string'
+      ? existingData['lastSession']
+      : null;
+    const existingNextSession = typeof existingData?.['nextSession'] === 'string'
+      ? existingData['nextSession']
+      : null;
+
+    await setDoc(
+      trainerClientRef,
+      {
+        clientId: normalizedClientId,
+        firstName,
+        lastName,
+        clientName: fullName,
+        clientEmail,
+        profilepic,
+        joinedDate,
+        totalSessions,
+        lastSession: lastSessionMs !== null ? new Date(lastSessionMs).toISOString() : existingLastSession,
+        nextSession: nextSessionMs !== null ? new Date(nextSessionMs).toISOString() : existingNextSession,
+      },
+      { merge: true },
+    );
+  }
+
   /**
    * Book a session (online or in-person)
    * Note: The Cloud Function will convert local date/time to UTC and update the booking
@@ -70,6 +161,8 @@ export class BookingService {
         bookingId,
         createdAt: new Date()
       });
+
+      await this.syncTrainerClientRecord(bookingData.trainerId, bookingData.clientId);
       
       console.log('Session booked successfully:', bookingId);
       
@@ -185,7 +278,18 @@ export class BookingService {
   async cancelBooking(bookingId: string): Promise<void> {
     try {
       const bookingRef = doc(this.firestore, `bookings/${bookingId}`);
+      const bookingSnap = await getDoc(bookingRef);
       await updateDoc(bookingRef, { status: 'cancelled' });
+
+      if (bookingSnap.exists()) {
+        const bookingData = bookingSnap.data();
+        const trainerId = String(bookingData?.['trainerId'] || '').trim();
+        const clientId = String(bookingData?.['clientId'] || '').trim();
+        if (trainerId && clientId) {
+          await this.syncTrainerClientRecord(trainerId, clientId);
+        }
+      }
+
       console.log('Booking cancelled:', bookingId);
     } catch (error) {
       console.error('Error cancelling booking:', error);

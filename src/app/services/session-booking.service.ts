@@ -9,6 +9,118 @@ import { SessionRescheduleRequest } from '../Interfaces/SessionReschedule';
 export class SessionBookingService {
   constructor(private firestore: Firestore) { }
 
+  private parseBookingDate(booking: any): Date | null {
+    const utc = booking?.['startTimeUTC'];
+    if (typeof utc === 'string' && utc.trim()) {
+      const utcDate = new Date(utc);
+      if (!Number.isNaN(utcDate.getTime())) {
+        return utcDate;
+      }
+    }
+
+    const date = booking?.['date'];
+    const time = booking?.['time'] || booking?.['startTime'] || '';
+    if (typeof date === 'string' && date.trim()) {
+      const combined = new Date(`${date} ${time}`.trim());
+      if (!Number.isNaN(combined.getTime())) {
+        return combined;
+      }
+
+      const dateOnly = new Date(date);
+      if (!Number.isNaN(dateOnly.getTime())) {
+        return dateOnly;
+      }
+    }
+
+    return null;
+  }
+
+  private async syncTrainerClientRecord(trainerId: string, clientId: string): Promise<void> {
+    const normalizedTrainerId = String(trainerId || '').trim();
+    const normalizedClientId = String(clientId || '').trim();
+    if (!normalizedTrainerId || !normalizedClientId) {
+      return;
+    }
+
+    const clientRef = doc(this.firestore, `clients/${normalizedClientId}`);
+    const usersRef = doc(this.firestore, `users/${normalizedClientId}`);
+    const trainerClientRef = doc(this.firestore, `trainers/${normalizedTrainerId}/clients/${normalizedClientId}`);
+    const bookingsRef = collection(this.firestore, 'bookings');
+    const bookingsQuery = query(bookingsRef, where('trainerId', '==', normalizedTrainerId));
+
+    const [clientSnap, usersSnap, trainerClientSnap, bookingsSnap] = await Promise.all([
+      getDoc(clientRef),
+      getDoc(usersRef),
+      getDoc(trainerClientRef),
+      getDocs(bookingsQuery),
+    ]);
+
+    const clientData = clientSnap.exists() ? clientSnap.data() : {};
+    const usersData = usersSnap.exists() ? usersSnap.data() : {};
+    const existingData = trainerClientSnap.exists() ? trainerClientSnap.data() : {};
+
+    const firstName = String(clientData?.['firstName'] || usersData?.['firstName'] || '').trim();
+    const lastName = String(clientData?.['lastName'] || usersData?.['lastName'] || '').trim();
+    const fullName = `${firstName} ${lastName}`.trim();
+    const clientEmail = String(clientData?.['email'] || usersData?.['email'] || '').trim();
+    const profilepic = String(clientData?.['profilepic'] || usersData?.['profilepic'] || '').trim();
+    const joinedDate = String(existingData?.['joinedDate'] || '').trim() || new Date().toISOString();
+
+    const now = Date.now();
+    let totalSessions = 0;
+    let lastSessionMs: number | null = null;
+    let nextSessionMs: number | null = null;
+
+    bookingsSnap.forEach((bookingDoc) => {
+      const booking = bookingDoc.data();
+      if (String(booking?.['clientId'] || '').trim() !== normalizedClientId) {
+        return;
+      }
+      if (booking?.['status'] === 'cancelled') {
+        return;
+      }
+
+      totalSessions += 1;
+      const bookingDate = this.parseBookingDate(booking);
+      if (!bookingDate) {
+        return;
+      }
+      const bookingMs = bookingDate.getTime();
+
+      if (bookingMs <= now) {
+        if (lastSessionMs === null || bookingMs > lastSessionMs) {
+          lastSessionMs = bookingMs;
+        }
+      } else if (nextSessionMs === null || bookingMs < nextSessionMs) {
+        nextSessionMs = bookingMs;
+      }
+    });
+
+    const existingLastSession = typeof existingData?.['lastSession'] === 'string'
+      ? existingData['lastSession']
+      : null;
+    const existingNextSession = typeof existingData?.['nextSession'] === 'string'
+      ? existingData['nextSession']
+      : null;
+
+    await setDoc(
+      trainerClientRef,
+      {
+        clientId: normalizedClientId,
+        firstName,
+        lastName,
+        clientName: fullName,
+        clientEmail,
+        profilepic,
+        joinedDate,
+        totalSessions,
+        lastSession: lastSessionMs !== null ? new Date(lastSessionMs).toISOString() : existingLastSession,
+        nextSession: nextSessionMs !== null ? new Date(nextSessionMs).toISOString() : existingNextSession,
+      },
+      { merge: true },
+    );
+  }
+
   /**
    * Book a session at a specific time slot
    * @param bookingData The booking request data
@@ -58,6 +170,8 @@ export class SessionBookingService {
           bookedSessions: [bookedSession]
         }, { merge: true });
       }
+
+      await this.syncTrainerClientRecord(bookingData.trainerId, bookingData.clientId);
       
       console.log('Booking created successfully with ID:', bookingId);
       return bookingId;
@@ -267,10 +381,12 @@ export class SessionBookingService {
       
       if (trainerAvailabilityDoc.exists() && trainerAvailabilityDoc.data()['bookedSessions']) {
         const bookedSessions = trainerAvailabilityDoc.data()['bookedSessions'];
+        let cancelledClientId = '';
         
         // Find the booking to cancel
         const updatedSessions = bookedSessions.map((session: any) => {
           if (session.bookingId === bookingId) {
+            cancelledClientId = String(session.clientId || '').trim();
             return { ...session, status: 'cancelled' };
           }
           return session;
@@ -286,6 +402,10 @@ export class SessionBookingService {
         await updateDoc(bookingRef, {
           status: 'cancelled'
         });
+
+        if (cancelledClientId) {
+          await this.syncTrainerClientRecord(trainerId, cancelledClientId);
+        }
       }
     } catch (error) {
       console.error('Error cancelling booked session:', error);

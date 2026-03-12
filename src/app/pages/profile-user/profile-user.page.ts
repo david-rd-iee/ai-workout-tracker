@@ -315,7 +315,12 @@ export class ProfileUserPage implements OnInit, OnDestroy {
       animationDirection: 'forward',
     });
   }
-  goToFindPT(): void {}
+  goToFindPT(): void {
+    this.navCtrl.navigateForward('/client-find-trainer', {
+      animated: true,
+      animationDirection: 'forward',
+    });
+  }
   goToRegional(): void { this.router.navigateByUrl('/regional-leaderboard'); }
   goToAnalyzeWorkout(): void {
     this.navCtrl.navigateForward('/camera', {
@@ -383,17 +388,10 @@ export class ProfileUserPage implements OnInit, OnDestroy {
         return sum + (doc.data()['price'] || 0);
       }, 0);
 
-      // Get all clients for this trainer from trainerClients collection
-      const trainerClientsRef = doc(this.firestore, 'trainerClients', trainerId);
-      const trainerClientsSnap = await getDoc(trainerClientsRef);
-      
-      let clients: any[] = [];
-      if (trainerClientsSnap.exists()) {
-        const data = trainerClientsSnap.data();
-        clients = data?.['clients'] || [];
-      }
-      
-      this.trainerStats.totalClients = clients.length;
+      // Count all clients for this trainer from trainers/{trainerId}/clients
+      const trainerClientsRef = collection(this.firestore, `trainers/${trainerId}/clients`);
+      const trainerClientsSnap = await getDocs(trainerClientsRef);
+      this.trainerStats.totalClients = trainerClientsSnap.size;
       
       console.log('[ProfileUser] Calculated trainer stats from bookings:', this.trainerStats);
     } catch (error) {

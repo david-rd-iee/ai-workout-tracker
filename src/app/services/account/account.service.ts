@@ -65,7 +65,7 @@ export class AccountService {
         lastName: '',
         username: '',
         isPT: false,
-        ptUID: '',
+        trainerId: '',
         groups: [],
         profilepic: '',
         created_at: serverTimestamp(),

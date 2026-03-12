@@ -164,6 +164,7 @@
       <!-- My Clients Section -->
       <div class="clients-section">
         <h2>My Clients</h2>
+        <p *ngIf="clients.length === 0">No Clients, yet.</p>
         <ion-card class="client-card" *ngFor="let client of clients" button="true" (click)="viewClientDetails(client)">
           <ion-card-content>
             <div class="client-content">

@@ -58,12 +58,15 @@ async function migrateTrainerStats() {
       }
     });
     
-    // Strategy 2: Find users who have trainerClients documents
-    console.log('[Migration] Finding trainers from trainerClients...');
-    const trainerClientsSnapshot = await db.collection('trainerClients').get();
-    trainerClientsSnapshot.forEach(doc => {
-      trainerIds.add(doc.id);
-    });
+    // Strategy 2: Find users who have trainer client subcollection docs
+    console.log('[Migration] Finding trainers from trainers/*/clients...');
+    const trainersSnapshot = await db.collection('trainers').get();
+    for (const trainerDoc of trainersSnapshot.docs) {
+      const clientsSnapshot = await db.collection(`trainers/${trainerDoc.id}/clients`).limit(1).get();
+      if (!clientsSnapshot.empty) {
+        trainerIds.add(trainerDoc.id);
+      }
+    }
     
     console.log(`[Migration] Found ${trainerIds.size} unique trainers to migrate\n`);
     
@@ -111,15 +114,11 @@ async function migrateTrainerStats() {
         
         const totalClients = uniqueClients.size;
         
-        // Also check trainerClients collection for additional client count
-        const trainerClientsDoc = await db.doc(`trainerClients/${trainerId}`).get();
-        let clientsFromCollection = 0;
-        if (trainerClientsDoc.exists) {
-          const clients = trainerClientsDoc.data().clients || [];
-          clientsFromCollection = clients.length;
-        }
+        // Also check trainers/{trainerId}/clients subcollection for additional client count
+        const trainerClientsSnapshot = await db.collection(`trainers/${trainerId}/clients`).get();
+        const clientsFromCollection = trainerClientsSnapshot.size;
         
-        // Use the higher count (in case trainerClients has more accurate data)
+        // Use the higher count (in case the trainer clients subcollection has more accurate data)
         const finalClientCount = Math.max(totalClients, clientsFromCollection);
         
         // Update userBadges

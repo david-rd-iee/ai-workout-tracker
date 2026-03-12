@@ -216,9 +216,7 @@ export class WorkoutLogService {
     const userDocRef = doc(this.firestore, 'users', clientUid);
     const userDocSnap = await getDoc(userDocRef);
     const userData = userDocSnap.exists() ? userDocSnap.data() as Record<string, unknown> : null;
-    const fromUsersDoc = String(
-      userData?.['ptUID'] ?? userData?.['trainerId'] ?? ''
-    ).trim();
+    const fromUsersDoc = String(userData?.['trainerId'] ?? '').trim();
     if (fromUsersDoc) {
       return fromUsersDoc;
     }

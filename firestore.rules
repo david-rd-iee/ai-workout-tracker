@@ -38,6 +38,24 @@ service cloud.firestore {
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['unreadMessageCount']) &&
         request.resource.data.unreadMessageCount is number &&
         request.resource.data.unreadMessageCount >= 0;
+
+      // Trainer-owned clients subcollection
+      match /clients/{clientId} {
+        // Trainer can manage all client relationship docs under their profile
+        allow read, write: if isOwner(userId);
+
+        // Client can read their own relationship doc
+        allow read: if isOwner(clientId);
+
+        // Client can create/update/delete only their own relationship doc
+        // and only under the trainer currently assigned in /users/{clientId}.
+        allow create, update: if isOwner(clientId) &&
+          get(/databases/$(database)/documents/users/$(clientId)).data.trainerId == userId &&
+          request.resource.data.clientId == request.auth.uid;
+
+        allow delete: if isOwner(clientId) &&
+          get(/databases/$(database)/documents/users/$(clientId)).data.trainerId == userId;
+      }
     }
     
     // User profiles - clients collection
@@ -391,16 +409,6 @@ service cloud.firestore {
       
       // Only allow group admins to delete groups
       allow delete: if isSignedIn() && resource.data.admins.hasAny([request.auth.uid]);
-    }
-    
-    // Trainer Clients collection - manages trainer-client relationships
-    match /trainerClients/{trainerId} {
-      // Trainers can read and write their own client lists
-      allow read, write: if isOwner(trainerId);
-      
-      // Allow clients to read if they are in the clients array (for verification purposes)
-      allow read: if isSignedIn() && 
-        resource.data.clients.hasAny([{'clientId': request.auth.uid}]);
     }
     
     // Client Home Configurations - allows trainers to customize client home pages
