@@ -41,8 +41,8 @@ export class BookingService {
     const usersData = usersSnap.exists() ? usersSnap.data() : {};
     const existingData = trainerClientSnap.exists() ? trainerClientSnap.data() : {};
 
-    const firstName = String(clientData?.['firstName'] || usersData?.['firstName'] || '').trim();
-    const lastName = String(clientData?.['lastName'] || usersData?.['lastName'] || '').trim();
+    const firstName = String(usersData?.['firstName'] || clientData?.['firstName'] || '').trim();
+    const lastName = String(usersData?.['lastName'] || clientData?.['lastName'] || '').trim();
     const fullName = `${firstName} ${lastName}`.trim();
     const clientEmail = String(clientData?.['email'] || usersData?.['email'] || '').trim();
     const profilepic = String(clientData?.['profilepic'] || usersData?.['profilepic'] || '').trim();

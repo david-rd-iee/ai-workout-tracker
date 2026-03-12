@@ -350,9 +350,6 @@ export class ClientFindTrainerPage implements OnInit {
   ): Promise<void> {
     const trainerClientRef = doc(this.firestore, `trainers/${trainerUid}/clients/${clientUid}`);
     const trainerClientSnap = await getDoc(trainerClientRef);
-    if (trainerClientSnap.exists()) {
-      return;
-    }
 
     const [clientSnap, latestUsersSnap] = await Promise.all([
       getDoc(doc(this.firestore, 'clients', clientUid)),
@@ -369,17 +366,20 @@ export class ClientFindTrainerPage implements OnInit {
         : {});
 
     const firstName =
-      this.pickString(clientData['firstName']) || this.pickString(resolvedUsersData['firstName']);
+      this.pickString(resolvedUsersData['firstName']) || this.pickString(clientData['firstName']);
     const lastName =
-      this.pickString(clientData['lastName']) || this.pickString(resolvedUsersData['lastName']);
+      this.pickString(resolvedUsersData['lastName']) || this.pickString(clientData['lastName']);
     const clientEmail =
       this.pickString(clientData['email']) || this.pickString(resolvedUsersData['email']);
     const profilepic =
-      this.pickString(clientData['profilepic']) ||
-      this.pickString(clientData['profileImage']) ||
       this.pickString(resolvedUsersData['profilepic']) ||
       this.pickString(resolvedUsersData['profileImage']) ||
+      this.pickString(clientData['profilepic']) ||
+      this.pickString(clientData['profileImage']) ||
       this.fallbackProfileImage;
+    const joinedDate =
+      this.pickString((trainerClientSnap.exists() ? trainerClientSnap.data() : {})?.['joinedDate']) ||
+      new Date().toISOString();
 
     await setDoc(
       trainerClientRef,
@@ -390,8 +390,8 @@ export class ClientFindTrainerPage implements OnInit {
         clientName: `${firstName} ${lastName}`.trim(),
         clientEmail,
         profilepic,
-        joinedDate: new Date().toISOString(),
-        createdAt: serverTimestamp(),
+        joinedDate,
+        ...(trainerClientSnap.exists() ? {} : { createdAt: serverTimestamp() }),
         updatedAt: serverTimestamp(),
       },
       { merge: true }

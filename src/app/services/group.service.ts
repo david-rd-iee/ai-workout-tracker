@@ -8,6 +8,7 @@ import {
   getDocs,
   collection,
   addDoc,
+  setDoc,
   updateDoc,
   arrayUnion,
   serverTimestamp,
@@ -121,5 +122,178 @@ export class GroupService {
     });
 
     return groupId;
+  }
+
+  /**
+   * Resolve a trainer's PT group using trainers/{uid}.trainerGroupID.
+   */
+  async getTrainerPtGroupByTrainerUid(trainerUid: string): Promise<Group | undefined> {
+    const normalizedTrainerUid = this.normalizeString(trainerUid);
+    if (!normalizedTrainerUid) {
+      return undefined;
+    }
+
+    const trainerSnap = await getDoc(doc(this.firestore, 'trainers', normalizedTrainerUid));
+    if (!trainerSnap.exists()) {
+      return undefined;
+    }
+
+    const trainerData = trainerSnap.data() as Record<string, unknown>;
+    const groupId = this.normalizeString(trainerData['trainerGroupID']);
+    if (!groupId) {
+      return undefined;
+    }
+
+    return this.getGroupOnce(groupId);
+  }
+
+  async hasTrainerProfile(trainerUid: string): Promise<boolean> {
+    const normalizedTrainerUid = this.normalizeString(trainerUid);
+    if (!normalizedTrainerUid) {
+      return false;
+    }
+
+    const trainerSnap = await getDoc(doc(this.firestore, 'trainers', normalizedTrainerUid));
+    if (trainerSnap.exists()) {
+      return true;
+    }
+
+    const userSnap = await getDoc(doc(this.firestore, 'users', normalizedTrainerUid));
+    if (!userSnap.exists()) {
+      return false;
+    }
+
+    const userData = userSnap.data() as Record<string, unknown>;
+    return userData['isPT'] === true;
+  }
+
+  /**
+   * Ensure a trainer has a PT group. If missing, create one and add trainer clients as members.
+   */
+  async ensureTrainerPtGroup(trainerUid: string): Promise<Group | undefined> {
+    const normalizedTrainerUid = this.normalizeString(trainerUid);
+    if (!normalizedTrainerUid) {
+      return undefined;
+    }
+
+    const trainerRef = doc(this.firestore, 'trainers', normalizedTrainerUid);
+    const userRef = doc(this.firestore, 'users', normalizedTrainerUid);
+    const [trainerSnap, userSnap] = await Promise.all([
+      getDoc(trainerRef),
+      getDoc(userRef),
+    ]);
+
+    const trainerData = trainerSnap.exists()
+      ? (trainerSnap.data() as Record<string, unknown>)
+      : {};
+    const userData = userSnap.exists()
+      ? (userSnap.data() as Record<string, unknown>)
+      : {};
+
+    const isPtUser = trainerData['isPT'] === true || userData['isPT'] === true;
+    if (!isPtUser) {
+      return undefined;
+    }
+
+    const existingTrainerGroupId = this.normalizeString(trainerData['trainerGroupID']);
+    if (existingTrainerGroupId) {
+      const existingGroup = await this.getGroupOnce(existingTrainerGroupId);
+      if (existingGroup) {
+        return existingGroup;
+      }
+    }
+
+    const trainerIdentityData = trainerSnap.exists() ? trainerData : userData;
+
+    // Ensure trainer doc exists so trainerGroupID can be persisted there.
+    await setDoc(
+      trainerRef,
+      {
+        firstName: this.normalizeString(trainerIdentityData['firstName']),
+        lastName: this.normalizeString(trainerIdentityData['lastName']),
+        isPT: true,
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true }
+    );
+
+    const clientIds = await this.getTrainerClientUserIds(normalizedTrainerUid);
+    const userIds = Array.from(new Set(clientIds));
+    const groupName = this.resolveTrainerGroupName(trainerIdentityData);
+
+    const groupDocRef = await addDoc(collection(this.firestore, this.groupsCollectionName), {
+      name: groupName,
+      isPTGroup: true,
+      ownerUserId: normalizedTrainerUid,
+      groupImage: '',
+      created_at: serverTimestamp(),
+      userIDs: userIds,
+    });
+
+    const groupId = groupDocRef.id;
+
+    await setDoc(
+      trainerRef,
+      {
+        trainerGroupID: groupId,
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true }
+    );
+
+    return this.getGroupOnce(groupId);
+  }
+
+  private async getTrainerClientUserIds(trainerUid: string): Promise<string[]> {
+    const clientsSnap = await getDocs(collection(this.firestore, `trainers/${trainerUid}/clients`));
+    const userIds = new Set<string>();
+
+    clientsSnap.forEach((clientDoc) => {
+      const data = clientDoc.data() as Record<string, unknown>;
+      const candidateId =
+        this.normalizeString(data['clientId']) ||
+        this.normalizeString(data['uid']) ||
+        this.normalizeString(data['userId']) ||
+        this.normalizeString(clientDoc.id);
+
+      if (candidateId) {
+        userIds.add(candidateId);
+      }
+    });
+
+    return Array.from(userIds);
+  }
+
+  private resolveTrainerGroupName(trainerData: Record<string, unknown>): string {
+    const firstName = this.normalizeString(trainerData['firstName']);
+    const lastName = this.normalizeString(trainerData['lastName']);
+    const fullName = `${firstName} ${lastName}`.trim();
+    if (fullName) {
+      return `${fullName}'s Trainees`;
+    }
+    return 'PT Trainees';
+  }
+
+  private async getGroupOnce(groupId: string): Promise<Group | undefined> {
+    const normalizedGroupId = this.normalizeString(groupId);
+    if (!normalizedGroupId) {
+      return undefined;
+    }
+
+    const ref = doc(this.firestore, this.groupsCollectionName, normalizedGroupId);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) {
+      return undefined;
+    }
+
+    const data = snap.data() as Omit<Group, 'groupId'>;
+    return { groupId: normalizedGroupId, ...data };
+  }
+
+  private normalizeString(value: unknown): string {
+    if (typeof value !== 'string') {
+      return '';
+    }
+    return value.trim();
   }
 }

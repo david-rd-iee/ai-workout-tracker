@@ -186,6 +186,7 @@ export class UserService {
 
       this.userInfo.set(fallbackProfile);
       this.loadedProfileUid = userID;
+      await this.syncClientTrainerRecordOnLogin(userID, fallbackProfile as unknown as Record<string, unknown>);
       return true;
     }
 
@@ -217,7 +218,118 @@ export class UserService {
 
     this.userInfo.set(userData);
     this.loadedProfileUid = userID;
+
+    if (!isTrainerProfile) {
+      await this.syncClientTrainerRecordOnLogin(userID, userData as unknown as Record<string, unknown>);
+    }
+
     return true;
+  }
+
+  private async syncClientTrainerRecordOnLogin(
+    userId: string,
+    loadedClientProfile: Record<string, unknown> | null
+  ): Promise<void> {
+    try {
+      const clientUid = String(userId || '').trim();
+      if (!clientUid) {
+        return;
+      }
+
+      const usersRef = doc(this.firestore, 'users', clientUid);
+      const clientRef = doc(this.firestore, 'clients', clientUid);
+      const [usersSnap, clientSnap] = await Promise.all([getDoc(usersRef), getDoc(clientRef)]);
+
+      const usersData = usersSnap.exists() ? (usersSnap.data() as Record<string, unknown>) : {};
+      const clientData = clientSnap.exists() ? (clientSnap.data() as Record<string, unknown>) : {};
+
+      let trainerId = String(
+        usersData?.['trainerId'] ||
+        clientData?.['trainerId'] ||
+        ''
+      ).trim();
+
+      if (!trainerId) {
+        return;
+      }
+
+      const trainerRef = doc(this.firestore, 'trainers', trainerId);
+      const trainerSnap = await getDoc(trainerRef);
+      if (!trainerSnap.exists()) {
+        return;
+      }
+
+      if (String(usersData?.['trainerId'] || '').trim() !== trainerId) {
+        await setDoc(
+          usersRef,
+          {
+            trainerId,
+            updatedAt: serverTimestamp(),
+          },
+          { merge: true }
+        );
+      }
+
+      if (String(clientData?.['trainerId'] || '').trim() !== trainerId) {
+        await setDoc(
+          clientRef,
+          {
+            trainerId,
+            updatedAt: serverTimestamp(),
+          },
+          { merge: true }
+        );
+      }
+
+      const firstName = String(
+        usersData?.['firstName'] ||
+        loadedClientProfile?.['firstName'] ||
+        clientData?.['firstName'] ||
+        ''
+      ).trim();
+      const lastName = String(
+        usersData?.['lastName'] ||
+        loadedClientProfile?.['lastName'] ||
+        clientData?.['lastName'] ||
+        ''
+      ).trim();
+      const clientEmail = String(
+        loadedClientProfile?.['email'] ||
+        clientData?.['email'] ||
+        usersData?.['email'] ||
+        ''
+      ).trim();
+      const profilepic = String(
+        loadedClientProfile?.['profilepic'] ||
+        clientData?.['profilepic'] ||
+        usersData?.['profilepic'] ||
+        ''
+      ).trim();
+
+      const trainerClientRef = doc(this.firestore, `trainers/${trainerId}/clients/${clientUid}`);
+      const trainerClientSnap = await getDoc(trainerClientRef);
+      const trainerClientData = trainerClientSnap.exists()
+        ? (trainerClientSnap.data() as Record<string, unknown>)
+        : {};
+      const joinedDate = String(trainerClientData?.['joinedDate'] || '').trim() || new Date().toISOString();
+
+      await setDoc(
+        trainerClientRef,
+        {
+          clientId: clientUid,
+          firstName,
+          lastName,
+          clientName: `${firstName} ${lastName}`.trim(),
+          clientEmail,
+          profilepic,
+          joinedDate,
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+    } catch (error) {
+      console.error('[UserService] Failed to sync trainer client record on login:', error);
+    }
   }
 
   private async ensureTrainerUsersDocIdentity(userId: string, email: string): Promise<boolean> {

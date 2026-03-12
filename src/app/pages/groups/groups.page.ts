@@ -314,6 +314,27 @@ export class GroupsPage implements OnInit, OnDestroy {
     this.trainingSelectedPointUserIds.clear();
 
     try {
+      const trainerUid = (this.currentUserId || '').trim();
+      const isCurrentUserTrainer = !!trainerUid && (
+        user?.isPT === true || await this.groupService.hasTrainerProfile(trainerUid)
+      );
+
+      if (isCurrentUserTrainer) {
+        if (!trainerUid) return;
+
+        const trainerName = `${(user?.firstName || '').trim()} ${(user?.lastName || '').trim()}`.trim();
+        this.trainingTitle = trainerName ? `${trainerName}'s Trainees` : 'PT Trainees';
+
+        const trainerGroup = await this.groupService.ensureTrainerPtGroup(trainerUid);
+        if (!trainerGroup) return;
+
+        this.trainingGroup = trainerGroup;
+        this.trainingEnabled = true;
+        this.userGroupIds.add(trainerGroup.groupId);
+        await this.loadTrainingLeaderboard(trainerGroup.groupId);
+        return;
+      }
+
       const trainerId = (user?.trainerId || '').trim();
       if (!trainerId) return;
 
@@ -321,13 +342,9 @@ export class GroupsPage implements OnInit, OnDestroy {
       if (!trainer) return;
 
       const trainerName = `${(trainer.firstName || '').trim()} ${(trainer.lastName || '').trim()}`.trim();
-      this.trainingTitle = `${trainerName}'s Trainees`;
+      this.trainingTitle = trainerName ? `${trainerName}'s Trainees` : 'PT Trainees';
 
-      const ownedGroupIdRaw = (trainer as any).ownedGroupIDn ?? trainer.ownedGroupID;
-      const ownedGroupId = typeof ownedGroupIdRaw === 'string' ? ownedGroupIdRaw.trim() : '';
-      if (!ownedGroupId) return;
-
-      const group = await firstValueFrom(this.groupService.getGroup(ownedGroupId));
+      const group = await this.groupService.getTrainerPtGroupByTrainerUid(trainerId);
       if (!group) return;
 
       this.trainingGroup = group;

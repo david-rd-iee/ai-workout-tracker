@@ -7,6 +7,7 @@ import { Subject } from 'rxjs';
 import { Router } from '@angular/router';
 import firebase from 'firebase/compat/app';
 import { Firestore, doc, getDoc, setDoc, serverTimestamp } from '@angular/fire/firestore';
+import { GroupService } from '../group.service';
 // Import for Capacitor plugins
 import { registerPlugin } from '@capacitor/core';
 
@@ -37,6 +38,7 @@ export class AccountService {
   private authInitialized = signal(false);
   private isAuthenticated = computed(() => !!this.credentials().uid);
   private lastAuthError = signal('');
+  private lastTrainerGroupBootstrapUid = '';
   
   // Event system for authentication state changes
   private authStateChange$ = new Subject<{ user: any; isAuthenticated: boolean }>();
@@ -48,7 +50,8 @@ export class AccountService {
     private afAuth: AngularFireAuth,
     private router: Router,
     private platform: Platform,
-    private firestore: Firestore
+    private firestore: Firestore,
+    private groupService: GroupService
   ) {
     this.initializeAuth();
   }
@@ -152,6 +155,10 @@ export class AccountService {
         if (user && user.uid) {
           try {
             await this.ensureUsersDocument(user.uid, user.email ?? null);
+            if (this.lastTrainerGroupBootstrapUid !== user.uid) {
+              await this.groupService.ensureTrainerPtGroup(user.uid);
+              this.lastTrainerGroupBootstrapUid = user.uid;
+            }
           } catch (ensureError) {
             console.error('Error ensuring user documents:', ensureError);
           }
@@ -161,6 +168,7 @@ export class AccountService {
           this.authStateChange$.next({ user, isAuthenticated: true });
         } else {
           this.credentials.set({ uid: '', email: '' });
+          this.lastTrainerGroupBootstrapUid = '';
           this.authStateChange$.next({ user: null, isAuthenticated: false });
         }
         this.authInitialized.set(true);
