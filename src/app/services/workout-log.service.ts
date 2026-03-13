@@ -256,7 +256,7 @@ export class WorkoutLogService {
 
     const notes = String(trainerNotes ?? '').trim();
     if (notes) {
-      lines.push('', 'Notes:', notes);
+      lines.push('', 'Notes for Trainer:', notes);
     }
 
     return lines.join('\n').replace(/\n{3,}/g, '\n\n').trim();
