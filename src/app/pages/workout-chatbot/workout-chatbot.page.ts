@@ -56,6 +56,7 @@ export class WorkoutChatbotPage implements OnInit, OnDestroy {
   // Save guards
   hasSavedWorkout = false;
   isSavingWorkout = false;
+  savedWorkoutLoggedAt: string | null = null;
   private estimatorIdsLoadPromise: Promise<void> | null = null;
   private isIPhone = false;
   private removeKeyboardListeners: Array<() => void> = [];
@@ -78,6 +79,7 @@ export class WorkoutChatbotPage implements OnInit, OnDestroy {
     // New page load = new workout attempt
     this.hasSavedWorkout = false;
     this.isSavingWorkout = false;
+    this.savedWorkoutLoggedAt = null;
 
     this.addBotMessage(
       'Hey! Ready to log your workout? Include exercise, sets/reps, weight (kg or body weight), and I will turn it into training rows.'
@@ -191,7 +193,10 @@ export class WorkoutChatbotPage implements OnInit, OnDestroy {
 
   viewWorkoutSummary(): void {
     this.router.navigate(['/workout-summary'], {
-      state: { summary: this.session },
+      state: {
+        summary: this.session,
+        loggedAt: this.savedWorkoutLoggedAt,
+      },
     });
   }
 
@@ -200,8 +205,10 @@ export class WorkoutChatbotPage implements OnInit, OnDestroy {
 
     this.isSavingWorkout = true;
     try {
+      const loggedAt = new Date().toISOString();
       const saveResult = await this.workoutLogService.saveCompletedWorkout(this.session);
       this.hasSavedWorkout = true;
+      this.savedWorkoutLoggedAt = loggedAt;
       if (saveResult.scoreUpdate) {
         const addedTotalScore = this.roundToTwoDecimals(saveResult.scoreUpdate.addedTotalScore);
         const currentTotalScore = this.roundToTwoDecimals(saveResult.scoreUpdate.currentTotalScore);

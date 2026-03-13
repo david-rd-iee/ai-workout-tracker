@@ -12,40 +12,47 @@
 <ion-content [fullscreen]="true">
   <div class="background-gradient"></div>
   <div class="ion-padding">
-    <ion-card>
+    <ion-card class="summary-card">
       <ion-card-header>
-        <div class="score-block">
-          <div class="score-main">{{ summary.volume }}</div>
-          <div class="score-label">Total Volume</div>
+        <div class="summary-meta">
+          <p class="logged-date">{{ loggedDateLabel }}</p>
+          <p class="logged-time" *ngIf="loggedTimeLabel">{{ loggedTimeLabel }}</p>
+          <p class="calories-text">
+            Estimated Total Calories: <strong>{{ summary.estimated_calories || summary.calories }} kcal</strong>
+          </p>
         </div>
       </ion-card-header>
 
       <ion-card-content>
-        <p class="calories-text">
-          Estimated Calories: <strong>{{ summary.estimated_calories || summary.calories }} kcal</strong>
-        </p>
+        <div class="summary-section" *ngIf="strengthRows.length > 0">
+          <h3 class="section-title">Strength:</h3>
+          <div class="entry-card" *ngFor="let row of strengthRows">
+            <p class="entry-title">{{ formatExerciseName(row.exercise_type) }}</p>
+            <p>Sets: {{ row.sets }}</p>
+            <p>Reps: {{ row.reps }}</p>
+            <p>Weights: {{ formatWeight(row.weights) }}</p>
+            <p>Calories Burned: {{ row.estimated_calories }}</p>
+          </div>
+        </div>
 
-        <h3 class="section-title">Training Rows</h3>
+        <div class="summary-section" *ngIf="cardioRows.length > 0">
+          <h3 class="section-title">Cardio:</h3>
+          <div class="entry-card" *ngFor="let row of cardioRows">
+            <p class="entry-title">{{ formatExerciseName(row.cardio_type) }}</p>
+            <p>Distance: {{ formatCardioDistance(row) }}</p>
+            <p>Time: {{ formatCardioTime(row) }}</p>
+            <p>Calories Burned: {{ row.estimated_calories }}</p>
+          </div>
+        </div>
 
-        <ion-grid>
-          <ion-row class="table-header">
-            <ion-col size="4" class="header-col">Exercise Type</ion-col>
-            <ion-col size="3" class="header-col center">Type</ion-col>
-            <ion-col size="2" class="header-col center">Sets</ion-col>
-            <ion-col size="1" class="header-col center">Reps</ion-col>
-            <ion-col size="2" class="header-col right">Weight</ion-col>
-          </ion-row>
-
-          <ion-row *ngFor="let row of summary.trainingRows">
-            <ion-col size="4">{{ row.exercise_type }}</ion-col>
-            <ion-col size="3" class="ion-text-center">{{ row.Training_Type }}</ion-col>
-            <ion-col size="2" class="ion-text-center">{{ row.sets }}</ion-col>
-            <ion-col size="1" class="ion-text-center">{{ row.reps }}</ion-col>
-            <ion-col size="2" class="ion-text-right">
-              {{ row.weights }}{{ row.weights === 'body weight' ? '' : ' kg' }}
-            </ion-col>
-          </ion-row>
-        </ion-grid>
+        <div class="summary-section" *ngIf="otherRows.length > 0">
+          <h3 class="section-title">Other:</h3>
+          <div class="entry-card" *ngFor="let row of otherRows">
+            <p class="entry-title">{{ formatOtherExerciseName(row) }}</p>
+            <p>Details: {{ formatOtherDetails(row) }}</p>
+            <p>Calories Burned: {{ row.estimated_calories }}</p>
+          </div>
+        </div>
 
         <div class="actions">
           <ion-button
