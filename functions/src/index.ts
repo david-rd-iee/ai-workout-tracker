@@ -1,4 +1,4 @@
-import { onRequest } from "firebase-functions/v2/https";
+import { HttpsError, onCall, onRequest } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import { defineSecret } from "firebase-functions/params";
 import OpenAI from "openai";
@@ -343,55 +343,34 @@ function normalizeSummaryRows(summary: unknown, latestMessage: string): unknown 
   return summaryRecord;
 }
 
-// ------------------------------
-//  Cloud Function: workoutChat
-// ------------------------------
-export const workoutChat = onRequest({secrets: [openaiApiKey]}, async (req, res) => {
-  logger.info("workoutChat called", { method: req.method });
-
-  // ----- CORS -----
-  res.set("Access-Control-Allow-Origin", "*");
-  res.set("Access-Control-Allow-Headers", "Content-Type");
-  res.set("Access-Control-Allow-Methods", "POST, OPTIONS");
-
-  // Allow OPTIONS preflight
-  if (req.method === "OPTIONS") {
-    res.status(204).send("");
-    return;
+async function handleWorkoutChatRequest(body: unknown): Promise<{botMessage: string; updatedSession: unknown}> {
+  const apiKey = openaiApiKey.value()?.trim() ?? "";
+  if (!apiKey) {
+    logger.error("Missing OPENAI_API_KEY secret for workoutChat");
+    throw new HttpsError(
+      "internal",
+      "Internal server error in workoutChat.",
+      "OPENAI_API_KEY is not configured for this function."
+    );
   }
 
-  // Only allow POST requests
-  if (req.method !== "POST") {
-    res.status(405).send("Method Not Allowed");
-    return;
+  const openai = new OpenAI({ apiKey });
+  const requestBody =
+    body && typeof body === "object" ? body as Record<string, unknown> : {};
+
+  const message = requestBody["message"];
+  const session = requestBody["session"];
+  const history = requestBody["history"];
+  const exerciseEstimatorIds = requestBody["exerciseEstimatorIds"];
+
+  if (!message || typeof message !== "string") {
+    throw new HttpsError("invalid-argument", "Missing 'message' in request body");
   }
 
-  try {
-    const apiKey = openaiApiKey.value()?.trim() ?? "";
-    if (!apiKey) {
-      logger.error("Missing OPENAI_API_KEY secret for workoutChat");
-      res.status(500).json({
-        error: "Internal server error in workoutChat.",
-        details: "OPENAI_API_KEY is not configured for this function.",
-      });
-      return;
-    }
-
-    const openai = new OpenAI({ apiKey });
-
-    const { message, session, history, exerciseEstimatorIds } = req.body || {};
-
-    if (!message || typeof message !== "string") {
-      res.status(400).json({
-        error: "Missing 'message' in request body",
-      });
-      return;
-    }
-
-    // ------------------------------
-    //  OpenAI Prompt
-    // ------------------------------
-    const prompt = `
+  // ------------------------------
+  //  OpenAI Prompt
+  // ------------------------------
+  const prompt = `
 You are a friendly AI fitness coach that logs workouts into spreadsheet-like rows.
 The user will describe a workout in messy natural language.
 
@@ -482,61 +461,113 @@ Respond ONLY as valid JSON:
 
 
 
-    // ------------------------------
-    //  Call OpenAI
-    // ------------------------------
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4.1-mini",
-      response_format: { type: "json_object" },
-      messages: [
-        { role: "system", content: "You are a workout logging assistant." },
-        {
-          role: "user",
-          content: JSON.stringify({
-            instructions: prompt,
-            previousSummary: session ?? null,
-            history,
-            message,
-            exerciseEstimatorIds: Array.isArray(exerciseEstimatorIds)
-              ? exerciseEstimatorIds
-              : [],
-          }),
-        },
-      ],
-      max_tokens: 512,
-    });
+  // ------------------------------
+  //  Call OpenAI
+  // ------------------------------
+  const completion = await openai.chat.completions.create({
+    model: "gpt-4.1-mini",
+    response_format: { type: "json_object" },
+    messages: [
+      { role: "system", content: "You are a workout logging assistant." },
+      {
+        role: "user",
+        content: JSON.stringify({
+          instructions: prompt,
+          previousSummary: session ?? null,
+          history,
+          message,
+          exerciseEstimatorIds: Array.isArray(exerciseEstimatorIds)
+            ? exerciseEstimatorIds
+            : [],
+        }),
+      },
+    ],
+    max_tokens: 512,
+  });
 
-    const raw = completion.choices[0]?.message?.content ?? "{}";
+  const raw = completion.choices[0]?.message?.content ?? "{}";
 
-    let parsed: any;
-    try {
-      parsed = JSON.parse(raw);
-    } catch (e) {
-      logger.error("Failed to parse JSON from OpenAI:", raw);
-      parsed = {};
-    }
+  let parsed: any;
+  try {
+    parsed = JSON.parse(raw);
+  } catch (e) {
+    logger.error("Failed to parse JSON from OpenAI:", raw);
+    parsed = {};
+  }
 
-    const assistantMessage =
-      parsed.assistantMessage ??
-      "I had trouble understanding that. Can you rephrase your workout?";
-    const updatedSession = normalizeSummaryRows(
-      parsed.summary ?? session ?? null,
-      message
-    );
+  const assistantMessage =
+    parsed.assistantMessage ??
+    "I had trouble understanding that. Can you rephrase your workout?";
+  const updatedSession = normalizeSummaryRows(
+    parsed.summary ?? session ?? null,
+    message
+  );
 
-    // ------------------------------
-    //  Respond to frontend
-    // ------------------------------
-    res.status(200).json({
-      botMessage: assistantMessage,
-      updatedSession,
-    });
+  return {
+    botMessage: assistantMessage,
+    updatedSession,
+  };
+}
+
+// ------------------------------
+//  Cloud Function: workoutChat (HTTP fallback)
+// ------------------------------
+export const workoutChat = onRequest({secrets: [openaiApiKey]}, async (req, res) => {
+  logger.info("workoutChat called", { method: req.method });
+
+  // ----- CORS -----
+  res.set("Access-Control-Allow-Origin", "*");
+  res.set("Access-Control-Allow-Headers", "Content-Type");
+  res.set("Access-Control-Allow-Methods", "POST, OPTIONS");
+
+  if (req.method === "OPTIONS") {
+    res.status(204).send("");
+    return;
+  }
+
+  if (req.method !== "POST") {
+    res.status(405).send("Method Not Allowed");
+    return;
+  }
+
+  try {
+    const response = await handleWorkoutChatRequest(req.body);
+    res.status(200).json(response);
   } catch (error: any) {
     logger.error("Error in workoutChat:", error);
+    const details = error instanceof HttpsError
+      ? error.details ?? error.message
+      : error?.message ?? String(error);
+    const statusCode = error instanceof HttpsError && error.code === "invalid-argument"
+      ? 400
+      : 500;
 
-    res.status(500).json({
+    res.status(statusCode).json({
       error: "Internal server error in workoutChat.",
-      details: error?.message ?? String(error),
+      details,
     });
+  }
+});
+
+// ------------------------------
+//  Cloud Function: workoutChatCallable
+// ------------------------------
+export const workoutChatCallable = onCall({secrets: [openaiApiKey]}, async (request) => {
+  logger.info("workoutChatCallable called");
+
+  try {
+    return await handleWorkoutChatRequest(request.data);
+  } catch (error: any) {
+    logger.error("Error in workoutChatCallable:", error);
+
+    if (error instanceof HttpsError) {
+      throw error;
+    }
+
+    throw new HttpsError(
+      "internal",
+      "Internal server error in workoutChat.",
+      error?.message ?? String(error)
+    );
   }
 });

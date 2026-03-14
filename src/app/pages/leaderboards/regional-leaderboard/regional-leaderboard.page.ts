@@ -6,10 +6,15 @@ import {
 } from '@ionic/angular/standalone';
 
 import { Auth, onAuthStateChanged, User } from '@angular/fire/auth';
-import { Firestore, QueryConstraint, collection, doc, docData, onSnapshot, query, where } from '@angular/fire/firestore';
+import { Firestore, doc, docData } from '@angular/fire/firestore';
 import { Subscription } from 'rxjs';
 
-import { LeaderboardService, LeaderboardEntry, Metric } from '../../../services/leaderboard.service';
+import {
+  LeaderboardService,
+  LeaderboardEntry,
+  Metric,
+  RegionalQuery,
+} from '../../../services/leaderboard.service';
 import {
   DistributionPoint,
   LeaderboardScope,
@@ -30,8 +35,7 @@ export class RegionalLeaderboardPage implements OnInit, OnDestroy {
   private navCtrl = inject(NavController);
 
   private sub?: Subscription;
-  private regionalUnsubscribe: (() => void) | null = null;
-  private refreshTimer: ReturnType<typeof setTimeout> | null = null;
+  private leaderboardSub?: Subscription;
 
   loading = true;
   errorMsg = '';
@@ -57,6 +61,14 @@ export class RegionalLeaderboardPage implements OnInit, OnDestroy {
     onAuthStateChanged(this.auth, (u) => {
       this.authUser = u;
       if (!u) {
+        this.sub?.unsubscribe();
+        this.sub = undefined;
+        this.leaderboardSub?.unsubscribe();
+        this.leaderboardSub = undefined;
+        this.entries = [];
+        this.resetChartSelection();
+        this.distributionCurvePath = '';
+        this.distributionPoints = [];
         this.loading = false;
         this.errorMsg = 'Not signed in.';
         return;
@@ -68,8 +80,7 @@ export class RegionalLeaderboardPage implements OnInit, OnDestroy {
       this.sub = docData(statsRef).subscribe({
         next: (stats: any) => {
           this.userRegion = stats?.region ?? null;
-          this.setupRegionalRealtimeSubscription();
-          this.refresh();
+          this.subscribeToRegionalLeaderboard();
         },
         error: (err) => {
           console.warn('[RegionalLeaderboard] userStats read failed', err);
@@ -82,62 +93,45 @@ export class RegionalLeaderboardPage implements OnInit, OnDestroy {
 
   ngOnDestroy() {
     this.sub?.unsubscribe();
-    this.regionalUnsubscribe?.();
-    this.regionalUnsubscribe = null;
-    if (this.refreshTimer) {
-      clearTimeout(this.refreshTimer);
-      this.refreshTimer = null;
-    }
+    this.leaderboardSub?.unsubscribe();
   }
 
-  async refresh() {
+  private subscribeToRegionalLeaderboard(): void {
+    this.leaderboardSub?.unsubscribe();
     this.errorMsg = '';
 
-    if (!this.authUser) return;
-    if (!this.userRegion?.countryCode) {
+    if (!this.authUser) {
+      return;
+    }
+
+    const regional = this.resolveRegionalQuery();
+    if (!regional) {
       this.loading = false;
-      this.entries = [];
-      this.errorMsg = 'Your userStats.region is missing (countryCode).';
       return;
     }
 
     this.loading = true;
-
-    try {
-      const regional =
-        this.scope === 'country'
-          ? {
-              scope: 'country' as const,
-              countryCode: this.userRegion.countryCode,
-            }
-          : this.scope === 'state'
-          ? {
-              scope: 'state' as const,
-              countryCode: this.userRegion.countryCode,
-              stateCode: this.userRegion.stateCode,
-            }
-          : {
-              scope: 'city' as const,
-              countryCode: this.userRegion.countryCode,
-              stateCode: this.userRegion.stateCode,
-              cityId: this.userRegion.cityId,
-            };
-
-      const raw = await this.leaderboard.getRegionalLeaderboard(regional, this.metric, 100);
-      this.entries = raw;
-      this.buildDistributionChart();
-    } catch (err: any) {
-      console.warn('[RegionalLeaderboard] refresh failed', err);
-      this.errorMsg =
-        err?.message ??
-        'Failed to load regional leaderboard (check indexes + region fields).';
-      this.entries = [];
-      this.resetChartSelection();
-      this.distributionCurvePath = '';
-      this.distributionPoints = [];
-    } finally {
-      this.loading = false;
-    }
+    this.leaderboardSub = this.leaderboard
+      .watchRegionalLeaderboard(regional, this.metric, 100)
+      .subscribe({
+        next: (entries) => {
+          this.entries = entries;
+          this.errorMsg = '';
+          this.loading = false;
+          this.buildDistributionChart();
+        },
+        error: (err: any) => {
+          console.warn('[RegionalLeaderboard] subscription failed', err);
+          this.errorMsg =
+            err?.message ??
+            'Failed to load regional leaderboard (check indexes + region fields).';
+          this.entries = [];
+          this.resetChartSelection();
+          this.distributionCurvePath = '';
+          this.distributionPoints = [];
+          this.loading = false;
+        },
+      });
   }
 
   goBack() {
@@ -146,13 +140,12 @@ export class RegionalLeaderboardPage implements OnInit, OnDestroy {
 
   onMetricChanged(metric: Metric): void {
     this.metric = metric;
-    this.refresh();
+    this.subscribeToRegionalLeaderboard();
   }
 
   onScopeChanged(scope: LeaderboardScope): void {
     this.scope = scope;
-    this.setupRegionalRealtimeSubscription();
-    this.refresh();
+    this.subscribeToRegionalLeaderboard();
   }
 
   regionLabel(): string {
@@ -223,48 +216,55 @@ export class RegionalLeaderboardPage implements OnInit, OnDestroy {
     this.selectedPointUserIds.clear();
   }
 
-  private setupRegionalRealtimeSubscription(): void {
-    this.regionalUnsubscribe?.();
-    this.regionalUnsubscribe = null;
-
+  private resolveRegionalQuery(): RegionalQuery | null {
     if (!this.userRegion?.countryCode) {
-      return;
+      this.entries = [];
+      this.resetChartSelection();
+      this.distributionCurvePath = '';
+      this.distributionPoints = [];
+      this.errorMsg = 'Your userStats.region is missing (countryCode).';
+      return null;
     }
 
-    const constraints: QueryConstraint[] = [
-      where('region.countryCode', '==', this.userRegion.countryCode),
-    ];
-
-    if (this.scope === 'state' || this.scope === 'city') {
-      if (!this.userRegion.stateCode) {
-        return;
-      }
-      constraints.push(where('region.stateCode', '==', this.userRegion.stateCode));
+    if (this.scope === 'country') {
+      return {
+        scope: 'country',
+        countryCode: this.userRegion.countryCode,
+      };
     }
 
-    if (this.scope === 'city') {
-      if (!this.userRegion.cityId) {
-        return;
-      }
-      constraints.push(where('region.cityId', '==', this.userRegion.cityId));
+    if (!this.userRegion.stateCode) {
+      this.entries = [];
+      this.resetChartSelection();
+      this.distributionCurvePath = '';
+      this.distributionPoints = [];
+      this.errorMsg = 'Your userStats.region is missing (stateCode).';
+      return null;
     }
 
-    const statsRef = collection(this.firestore, 'userStats');
-    const regionalQuery = query(statsRef, ...constraints);
-    this.regionalUnsubscribe = onSnapshot(regionalQuery, () => {
-      this.scheduleRefreshFromRealtime();
-    });
-  }
-
-  private scheduleRefreshFromRealtime(): void {
-    if (this.refreshTimer) {
-      return;
+    if (this.scope === 'state') {
+      return {
+        scope: 'state',
+        countryCode: this.userRegion.countryCode,
+        stateCode: this.userRegion.stateCode,
+      };
     }
 
-    this.refreshTimer = setTimeout(() => {
-      this.refreshTimer = null;
-      this.refresh();
-    }, 120);
+    if (!this.userRegion.cityId) {
+      this.entries = [];
+      this.resetChartSelection();
+      this.distributionCurvePath = '';
+      this.distributionPoints = [];
+      this.errorMsg = 'Your userStats.region is missing (cityId).';
+      return null;
+    }
+
+    return {
+      scope: 'city',
+      countryCode: this.userRegion.countryCode,
+      stateCode: this.userRegion.stateCode,
+      cityId: this.userRegion.cityId,
+    };
   }
 
   private buildDistributionChart(): void {

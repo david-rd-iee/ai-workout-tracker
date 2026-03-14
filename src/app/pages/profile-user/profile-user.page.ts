@@ -1,4 +1,13 @@
-import { Component, OnDestroy, OnInit, inject, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
+import {
+  Component,
+  OnDestroy,
+  OnInit,
+  inject,
+  CUSTOM_ELEMENTS_SCHEMA,
+  effect,
+  ViewChild,
+  ElementRef,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import {
@@ -23,13 +32,15 @@ import {
 import { NavController } from '@ionic/angular';
 
 import { Auth } from '@angular/fire/auth';
-import { Firestore, doc, getDoc, setDoc, collection, query, where, getDocs, serverTimestamp, onSnapshot } from '@angular/fire/firestore';
+import { Firestore } from '@angular/fire/firestore';
 import { Storage, ref, deleteObject } from '@angular/fire/storage';
-import { effect } from '@angular/core';
+import { collection, doc, getDocs, query, serverTimestamp, setDoc, where } from 'firebase/firestore';
 
 import { UserService } from '../../services/account/user.service';
+import { ProfileRepositoryService } from '../../services/account/profile-repository.service';
 import { FileUploadService } from '../../services/file-upload.service';
 import { ImagePickerService } from '../../services/image-picker.service';
+import { UserBadgesService } from '../../services/user-badges.service';
 import type { trainerProfile } from '../../Interfaces/Profiles/Trainer';
 import type { clientProfile } from '../../Interfaces/Profiles/client';
 import { addIcons } from 'ionicons';
@@ -79,6 +90,8 @@ import { AccountService } from '../../services/account/account.service';
   ],
 })
 export class ProfileUserPage implements OnInit, OnDestroy {
+  @ViewChild('statueSwiper') private statueSwiperRef?: ElementRef<HTMLElement>;
+
   private router = inject(Router);
   private navCtrl = inject(NavController);
   private auth = inject(Auth);
@@ -89,9 +102,11 @@ export class ProfileUserPage implements OnInit, OnDestroy {
   private alertCtrl = inject(AlertController);
   private storage = inject(Storage);
   private userService = inject(UserService);
+  private profileRepository = inject(ProfileRepositoryService);
   private fileUploadService = inject(FileUploadService);
   private imagePickerService = inject(ImagePickerService);
   private accountService = inject(AccountService);
+  private userBadgesService = inject(UserBadgesService);
 
   isLoading = true;
   currentUser: (trainerProfile | clientProfile) | null = null;
@@ -109,6 +124,13 @@ export class ProfileUserPage implements OnInit, OnDestroy {
   private loadedRoleLoadKey: string | null = null;
   private usersDocUnsubscribe: (() => void) | null = null;
   private usersDocListenerUid: string | null = null;
+  private userBadgesUnsubscribe: (() => void) | null = null;
+  private userBadgesListenerKey: string | null = null;
+  private latestUserBadges: UserBadgesDoc | null = null;
+  private trainerStatsFallbackPromise: Promise<void> | null = null;
+  private trainerStatsFallbackUid: string | null = null;
+  private trainerStatsFallbackLoadedUid: string | null = null;
+  private pendingSwiperSyncFrame: number | null = null;
 
   // Greek Statue properties
   allStatues: GreekStatue[] = [];
@@ -182,6 +204,8 @@ export class ProfileUserPage implements OnInit, OnDestroy {
         this.loadedIdentityUid = null;
         this.pendingRoleLoadKey = null;
         this.loadedRoleLoadKey = null;
+        this.latestUserBadges = null;
+        this.stopUserBadgesRealtimeListener();
         this.isLoading = false;
       }
     });
@@ -196,6 +220,10 @@ export class ProfileUserPage implements OnInit, OnDestroy {
     const uid = this.auth.currentUser?.uid ?? null;
     if (uid) {
       this.startUsersDocRealtimeListener(uid);
+      const accountType = this.currentUser?.accountType;
+      if (accountType === 'trainer' || accountType === 'client') {
+        this.startUserBadgesRealtimeListener(uid, accountType);
+      }
     }
     void this.runDeferredLoads();
   }
@@ -203,12 +231,18 @@ export class ProfileUserPage implements OnInit, OnDestroy {
   ionViewDidLeave(): void {
     this.hasEnteredView = false;
     this.stopUsersDocRealtimeListener();
+    this.stopUserBadgesRealtimeListener();
   }
 
   ngOnDestroy(): void {
     this.hasEnteredView = false;
     this.roleLoadInFlight = false;
     this.stopUsersDocRealtimeListener();
+    this.stopUserBadgesRealtimeListener();
+    if (this.pendingSwiperSyncFrame !== null) {
+      cancelAnimationFrame(this.pendingSwiperSyncFrame);
+      this.pendingSwiperSyncFrame = null;
+    }
   }
 
   private async runDeferredLoads(): Promise<void> {
@@ -234,13 +268,7 @@ export class ProfileUserPage implements OnInit, OnDestroy {
 
       const roleLoadKey = `${uid}:${this.currentUser.accountType}`;
       if (this.pendingRoleLoadKey === roleLoadKey && this.loadedRoleLoadKey !== roleLoadKey) {
-        if (this.currentUser.accountType === 'trainer') {
-          await this.loadTrainerStats(uid);
-          await this.loadTrainerStatues(uid);
-        } else {
-          await this.loadGreekStatuesFromFirestore(uid);
-        }
-
+        this.startUserBadgesRealtimeListener(uid, this.currentUser.accountType);
         this.loadedRoleLoadKey = roleLoadKey;
         this.pendingRoleLoadKey = null;
       }
@@ -335,39 +363,6 @@ export class ProfileUserPage implements OnInit, OnDestroy {
     this.currentSlideIndex = event.detail[0].activeIndex;
   }
 
-  private async loadTrainerStats(trainerId: string): Promise<void> {
-    try {
-      // First, try to load from userBadges (fast path - stored stats)
-      const badgeRef = doc(this.firestore, 'userBadges', trainerId);
-      const badgeSnap = await getDoc(badgeRef);
-      
-      if (badgeSnap.exists()) {
-        const data = badgeSnap.data();
-        const values = data?.['values'] || {};
-        
-        // Check if we have trainer stats stored
-        if (values['athena-wisdom'] !== undefined || 
-            values['zeus-mentor'] !== undefined || 
-            values['hermes-prosperity'] !== undefined) {
-          
-          this.trainerStats.totalSessions = values['athena-wisdom'] || 0;
-          this.trainerStats.totalClients = values['zeus-mentor'] || 0;
-          this.trainerStats.totalRevenue = values['hermes-prosperity'] || 0;
-          
-          console.log('[ProfileUser] Loaded trainer stats from userBadges:', this.trainerStats);
-          return; // Stats loaded successfully from database
-        }
-      }
-      
-      // Fallback: Calculate from bookings (backwards compatibility)
-      console.log('[ProfileUser] No stored stats found, calculating from bookings...');
-      await this.calculateTrainerStatsFromBookings(trainerId);
-      
-    } catch (error) {
-      console.error('[ProfileUser] Error loading trainer stats:', error);
-    }
-  }
-
   private async calculateTrainerStatsFromBookings(trainerId: string): Promise<void> {
     try {
       // Get all bookings for this trainer
@@ -399,119 +394,150 @@ export class ProfileUserPage implements OnInit, OnDestroy {
     }
   }
 
-  private async loadTrainerStatues(trainerId: string): Promise<void> {
-    try {
-      const badgeRef = doc(this.firestore, 'userBadges', trainerId);
-      const badgeSnap = await getDoc(badgeRef);
-
-      let displayStatueIds: string[] = [];
-      let percentiles: { [key: string]: number } = {};
-      let statueValues: { [key: string]: number } = {};
-
-      if (badgeSnap.exists()) {
-        const data = badgeSnap.data() as any;
-        displayStatueIds = data.displayStatueIds || data.displayBadgeIds || [];
-        percentiles = data.percentiles || {};
-        
-        // Read values from userBadges (already populated by migration/cloud functions)
-        const values = data?.['values'] || {};
-        statueValues = {
-          'zeus-mentor': values['zeus-mentor'] || this.trainerStats.totalClients || 0,
-          'athena-wisdom': values['athena-wisdom'] || this.trainerStats.totalSessions || 0,
-          'hermes-prosperity': values['hermes-prosperity'] || this.trainerStats.totalRevenue || 0
-        };
-      } else {
-        // Fallback: use calculated stats if no userBadges document exists
-        statueValues = {
-          'zeus-mentor': this.trainerStats.totalClients || 0,
-          'athena-wisdom': this.trainerStats.totalSessions || 0,
-          'hermes-prosperity': this.trainerStats.totalRevenue || 0
-        };
-      }
-
-      // Filter to trainer-specific statues only
-      const trainerStatueIds = ['zeus-mentor', 'athena-wisdom', 'hermes-prosperity'];
-      this.allStatues = GREEK_STATUES
-        .filter(statue => trainerStatueIds.includes(statue.id))
-        .map(statue => {
-          const currentValue = statueValues[statue.id] || 0;
-          const percentile = percentiles[statue.id];
-          const level = calculateStatueLevel(statue, currentValue || 0);
-          
-          return {
-            ...statue,
-            currentValue,
-            percentile,
-            currentLevel: level || undefined,
-          };
-        });
-
-      // Only keep display statues that actually exist and have progress
-      this.displayStatueIds = displayStatueIds.filter(id => {
-        const statue = this.allStatues.find(s => s.id === id);
-        return statue && statue.currentLevel;
-      });
-
-      this.updateDisplayStatues();
-    } catch (error) {
-      console.error('[ProfileUserPage] Error loading trainer statues:', error);
-      this.allStatues = [];
-      this.displayStatueIds = [];
-      this.displayStatues = [];
+  private startUserBadgesRealtimeListener(
+    uid: string,
+    accountType: 'trainer' | 'client'
+  ): void {
+    const normalizedUid = String(uid ?? '').trim();
+    if (!normalizedUid) {
+      return;
     }
+
+    const listenerKey = `${normalizedUid}:${accountType}`;
+    if (this.userBadgesUnsubscribe && this.userBadgesListenerKey === listenerKey) {
+      return;
+    }
+
+    this.stopUserBadgesRealtimeListener();
+    this.userBadgesListenerKey = listenerKey;
+    this.userBadgesUnsubscribe = this.userBadgesService.observeUserBadges(
+      normalizedUid,
+      (userBadges) => {
+        this.latestUserBadges = userBadges;
+        if (accountType === 'trainer') {
+          this.applyTrainerBadges(normalizedUid, userBadges);
+          return;
+        }
+
+        this.applyClientStatuesFromBadges(userBadges);
+      }
+    );
   }
 
-  private async loadGreekStatuesFromFirestore(userId: string): Promise<void> {
-    try {
-      const badgeRef = doc(this.firestore, 'userBadges', userId);
-      const badgeSnap = await getDoc(badgeRef);
+  private stopUserBadgesRealtimeListener(): void {
+    this.userBadgesUnsubscribe?.();
+    this.userBadgesUnsubscribe = null;
+    this.userBadgesListenerKey = null;
+    this.latestUserBadges = null;
+    this.trainerStatsFallbackUid = null;
+    this.trainerStatsFallbackLoadedUid = null;
+  }
 
-      if (!badgeSnap.exists()) {
-        console.warn('[ProfileUserPage] No userBadges doc found; using empty statue list.');
-        this.allStatues = [];
-        this.displayStatueIds = [];
-        this.displayStatues = [];
-        return;
-      }
-
-      const data = badgeSnap.data() as UserBadgesDoc;
-      const values = data.values || {};
-      const percentiles = data.percentiles || {};
-      // Support both old and new field names
-      this.displayStatueIds = data.displayStatueIds || data.displayBadgeIds || [];
-
-      // Filter out trainer-specific statues for clients
-      const trainerStatueIds = ['zeus-mentor', 'athena-wisdom', 'hermes-prosperity'];
-      
-      // Merge Firestore progress into GREEK_STATUES definition
-      this.allStatues = GREEK_STATUES
-        .filter(statue => !trainerStatueIds.includes(statue.id))
-        .map(statue => {
-          const currentValue = values[statue.id] ?? 0;
-          const percentile = percentiles[statue.id];
-
-          const level = calculateStatueLevel(statue, currentValue || 0);
-          return {
-            ...statue,
-            currentValue,
-            percentile,
-            currentLevel: level || undefined,
-          };
-        });
-
-      // Only keep display statues that actually exist and have progress
-      const savedDisplayStatueIds = data.displayStatueIds || data.displayBadgeIds || [];
-      this.displayStatueIds = savedDisplayStatueIds.filter(id => {
-        const statue = this.allStatues.find(s => s.id === id);
-        return statue && statue.currentLevel;
-      });
-
-      this.updateDisplayStatues();
-    } catch (err) {
-      console.error('[ProfileUserPage] Error loading statues from Firestore:', err);
+  private applyClientStatuesFromBadges(userBadges: UserBadgesDoc | null): void {
+    if (!userBadges) {
       this.allStatues = [];
       this.displayStatueIds = [];
-      this.displayStatues = [];
+      this.updateDisplayStatues();
+      return;
+    }
+
+    const values = userBadges.values || {};
+    const percentiles = userBadges.percentiles || {};
+    const savedDisplayStatueIds = userBadges.displayStatueIds || userBadges.displayBadgeIds || [];
+    const trainerStatueIds = ['zeus-mentor', 'athena-wisdom', 'hermes-prosperity'];
+
+    this.allStatues = GREEK_STATUES
+      .filter((statue) => !trainerStatueIds.includes(statue.id))
+      .map((statue) => {
+        const currentValue = values[statue.id] ?? 0;
+        const percentile = percentiles[statue.id];
+        const level = calculateStatueLevel(statue, currentValue || 0);
+
+        return {
+          ...statue,
+          currentValue,
+          percentile,
+          currentLevel: level || undefined,
+        };
+      });
+
+    this.displayStatueIds = savedDisplayStatueIds.filter((id) => {
+      const statue = this.allStatues.find((candidate) => candidate.id === id);
+      return !!statue?.currentLevel;
+    });
+    this.updateDisplayStatues();
+  }
+
+  private applyTrainerBadges(userId: string, userBadges: UserBadgesDoc | null): void {
+    const values = userBadges?.values || {};
+    const hasStoredStats =
+      values['athena-wisdom'] !== undefined ||
+      values['zeus-mentor'] !== undefined ||
+      values['hermes-prosperity'] !== undefined;
+
+    if (hasStoredStats) {
+      this.trainerStats.totalSessions = values['athena-wisdom'] || 0;
+      this.trainerStats.totalClients = values['zeus-mentor'] || 0;
+      this.trainerStats.totalRevenue = values['hermes-prosperity'] || 0;
+      this.trainerStatsFallbackLoadedUid = userId;
+    } else if (this.trainerStatsFallbackLoadedUid !== userId) {
+      void this.ensureTrainerFallbackStats(userId);
+    }
+
+    const displayStatueIds = userBadges?.displayStatueIds || userBadges?.displayBadgeIds || [];
+    const percentiles = userBadges?.percentiles || {};
+    const trainerStatueIds = ['zeus-mentor', 'athena-wisdom', 'hermes-prosperity'];
+    const statueValues: Record<string, number> = {
+      'zeus-mentor': values['zeus-mentor'] || this.trainerStats.totalClients || 0,
+      'athena-wisdom': values['athena-wisdom'] || this.trainerStats.totalSessions || 0,
+      'hermes-prosperity': values['hermes-prosperity'] || this.trainerStats.totalRevenue || 0,
+    };
+
+    this.allStatues = GREEK_STATUES
+      .filter((statue) => trainerStatueIds.includes(statue.id))
+      .map((statue) => {
+        const currentValue = statueValues[statue.id] || 0;
+        const percentile = percentiles[statue.id];
+        const level = calculateStatueLevel(statue, currentValue || 0);
+
+        return {
+          ...statue,
+          currentValue,
+          percentile,
+          currentLevel: level || undefined,
+        };
+      });
+
+    this.displayStatueIds = displayStatueIds.filter((id) => {
+      const statue = this.allStatues.find((candidate) => candidate.id === id);
+      return !!statue?.currentLevel;
+    });
+    this.updateDisplayStatues();
+  }
+
+  private async ensureTrainerFallbackStats(userId: string): Promise<void> {
+    const normalizedUserId = String(userId ?? '').trim();
+    if (!normalizedUserId) {
+      return;
+    }
+
+    if (
+      this.trainerStatsFallbackPromise &&
+      this.trainerStatsFallbackUid === normalizedUserId
+    ) {
+      return this.trainerStatsFallbackPromise;
+    }
+
+    this.trainerStatsFallbackUid = normalizedUserId;
+    this.trainerStatsFallbackPromise = this.calculateTrainerStatsFromBookings(normalizedUserId)
+      .finally(() => {
+        this.trainerStatsFallbackPromise = null;
+      });
+
+    await this.trainerStatsFallbackPromise;
+    this.trainerStatsFallbackLoadedUid = normalizedUserId;
+    if (this.currentUser?.accountType === 'trainer') {
+      this.applyTrainerBadges(normalizedUserId, this.latestUserBadges);
     }
   }
 
@@ -519,6 +545,64 @@ export class ProfileUserPage implements OnInit, OnDestroy {
     this.displayStatues = this.displayStatueIds
       .map(id => this.allStatues.find(s => s.id === id))
       .filter(statue => statue !== undefined) as GreekStatue[];
+
+    if (this.displayStatues.length === 0) {
+      this.currentSlideIndex = 0;
+      return;
+    }
+
+    this.currentSlideIndex = Math.min(
+      this.currentSlideIndex,
+      Math.max(this.displayStatues.length - 1, 0)
+    );
+    this.scheduleStatueSwiperSync();
+  }
+
+  private scheduleStatueSwiperSync(): void {
+    if (this.pendingSwiperSyncFrame !== null) {
+      cancelAnimationFrame(this.pendingSwiperSyncFrame);
+    }
+
+    if (this.displayStatues.length === 0) {
+      this.pendingSwiperSyncFrame = null;
+      return;
+    }
+
+    this.pendingSwiperSyncFrame = requestAnimationFrame(() => {
+      this.pendingSwiperSyncFrame = null;
+      const swiperElement = this.statueSwiperRef?.nativeElement as
+        | (HTMLElement & {
+            swiper?: {
+              update?: () => void;
+              slideTo?: (index: number, speed?: number) => void;
+            };
+            initialize?: () => void;
+            slidesPerView?: number;
+            centeredSlides?: boolean;
+            spaceBetween?: number;
+            pagination?: boolean;
+            allowTouchMove?: boolean;
+          })
+        | undefined;
+
+      if (!swiperElement || this.displayStatues.length === 0) {
+        return;
+      }
+
+      if (!swiperElement.swiper) {
+        swiperElement.slidesPerView = 1;
+        swiperElement.centeredSlides = true;
+        swiperElement.spaceBetween = 20;
+        swiperElement.pagination = false;
+        swiperElement.allowTouchMove = this.displayStatues.length > 1;
+        swiperElement.initialize?.();
+      } else {
+        swiperElement.allowTouchMove = this.displayStatues.length > 1;
+      }
+
+      swiperElement.swiper?.update?.();
+      swiperElement.swiper?.slideTo?.(this.currentSlideIndex, 0);
+    });
   }
 
   async openBadgeSelector() {
@@ -554,13 +638,7 @@ export class ProfileUserPage implements OnInit, OnDestroy {
     await loading.present();
 
     try {
-      const badgeRef = doc(this.firestore, 'userBadges', uid);
-      await setDoc(
-        badgeRef,
-        { displayStatueIds: this.displayStatueIds },
-        { merge: true }
-      );
-
+      await this.userBadgesService.saveDisplayStatues(uid, this.displayStatueIds);
       this.showToast('Display statues updated successfully');
     } catch (error) {
       console.error('Error updating display statues:', error);
@@ -587,17 +665,14 @@ export class ProfileUserPage implements OnInit, OnDestroy {
 
   private async loadProfileImageFromUserDoc(uid: string): Promise<void> {
     try {
-      const userRef = doc(this.firestore, 'users', uid);
-      const userSnap = await getDoc(userRef);
-
-      if (!userSnap.exists()) {
+      const userSummary = await this.profileRepository.getUserSummary(uid);
+      if (!userSummary) {
         this.profilepicUrl = this.defaultProfileImage;
         return;
       }
 
-      const userData = userSnap.data();
       const userDocPic = this.normalizeProfileImage(
-        userData?.['profilepic'] || ''
+        userSummary.profilepic || ''
       );
       this.profilepicUrl = userDocPic ?? this.defaultProfileImage;
     } catch (error) {
@@ -608,16 +683,14 @@ export class ProfileUserPage implements OnInit, OnDestroy {
 
   private async loadIdentityFromUsersDoc(uid: string): Promise<void> {
     try {
-      const userRef = doc(this.firestore, 'users', uid);
-      const userSnap = await getDoc(userRef);
-      if (!userSnap.exists()) {
+      const userSummary = await this.profileRepository.getUserSummary(uid);
+      if (!userSummary) {
         return;
       }
 
-      const userData = userSnap.data();
-      this.usersDocFirstName = typeof userData?.['firstName'] === 'string' ? userData['firstName'] : '';
-      this.usersDocLastName = typeof userData?.['lastName'] === 'string' ? userData['lastName'] : '';
-      this.usersDocUsername = typeof userData?.['username'] === 'string' ? userData['username'] : '';
+      this.usersDocFirstName = typeof userSummary.firstName === 'string' ? userSummary.firstName : '';
+      this.usersDocLastName = typeof userSummary.lastName === 'string' ? userSummary.lastName : '';
+      this.usersDocUsername = typeof userSummary.username === 'string' ? userSummary.username : '';
     } catch (error) {
       console.error('[ProfileUserPage] Error loading users doc identity:', error);
     }
@@ -632,19 +705,17 @@ export class ProfileUserPage implements OnInit, OnDestroy {
     this.stopUsersDocRealtimeListener();
     this.usersDocListenerUid = uid;
 
-    const userRef = doc(this.firestore, 'users', uid);
-    this.usersDocUnsubscribe = onSnapshot(
-      userRef,
-      (snapshot) => {
-        if (!snapshot.exists()) {
+    this.usersDocUnsubscribe = this.profileRepository.observeUserSummary(
+      uid,
+      (userSummary) => {
+        if (!userSummary) {
           return;
         }
 
-        const data = snapshot.data();
-        const nextFirstName = typeof data?.['firstName'] === 'string' ? data['firstName'] : '';
-        const nextLastName = typeof data?.['lastName'] === 'string' ? data['lastName'] : '';
-        const nextUsername = typeof data?.['username'] === 'string' ? data['username'] : '';
-        const nextProfilePic = this.normalizeProfileImage(data?.['profilepic'] || '');
+        const nextFirstName = typeof userSummary.firstName === 'string' ? userSummary.firstName : '';
+        const nextLastName = typeof userSummary.lastName === 'string' ? userSummary.lastName : '';
+        const nextUsername = typeof userSummary.username === 'string' ? userSummary.username : '';
+        const nextProfilePic = this.normalizeProfileImage(userSummary.profilepic || '');
 
         this.usersDocFirstName = nextFirstName;
         this.usersDocLastName = nextLastName;
@@ -657,9 +728,6 @@ export class ProfileUserPage implements OnInit, OnDestroy {
           (this.currentUser as any).username = nextUsername || (this.currentUser as any).username;
           (this.currentUser as any).profilepic = nextProfilePic ?? (this.currentUser as any).profilepic;
         }
-      },
-      (error) => {
-        console.error('[ProfileUserPage] users realtime listener error:', error);
       }
     );
   }
@@ -705,6 +773,8 @@ export class ProfileUserPage implements OnInit, OnDestroy {
         },
         { merge: true }
       );
+      this.profileRepository.applyUserSummaryPatch(uid, { profilepic: downloadUrl });
+      this.userService.syncCurrentUserSummaryPatch(uid, { profilepic: downloadUrl });
 
       if (oldUrl && oldUrl !== this.defaultProfileImage && oldUrl !== downloadUrl) {
         await this.deleteExistingProfileImage(oldUrl);

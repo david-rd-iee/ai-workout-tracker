@@ -1,11 +1,46 @@
 import { Injectable } from '@angular/core';
-import { Firestore, doc, getDoc } from '@angular/fire/firestore';
+import { Firestore } from '@angular/fire/firestore';
+import { collection, doc, getDoc, getDocs, onSnapshot } from 'firebase/firestore';
+import { Observable } from 'rxjs';
 import { AppUser } from '../../models/user.model';
-import { trainerProfile } from '../../Interfaces/Profiles/Trainer';
-import { clientProfile } from '../../Interfaces/Profiles/client';
 
 export type AccountType = 'trainer' | 'client';
-type UserProfile = trainerProfile | clientProfile;
+type ProfileTimeSlot = { start: string; end: string };
+type ProfileAvailability = Record<string, ProfileTimeSlot[]>;
+type ProfileTrainingLocation = {
+  remote: boolean;
+  inPerson: boolean;
+};
+
+export interface UserProfile extends Record<string, unknown> {
+  id?: string;
+  userId?: string;
+  accountType?: AccountType;
+  isPT?: boolean;
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  phone?: string;
+  profilepic?: string;
+  city?: string;
+  state?: string;
+  zip?: number;
+  gclid?: string;
+  unreadMessageCount?: number;
+  username?: string;
+  trainerId?: string;
+  trainerGroupID?: string;
+  trainingLocation?: ProfileTrainingLocation;
+  availability?: ProfileAvailability;
+  additionalPhotos?: string[];
+  displayBadges?: string[];
+}
+
+export type ResolvedAppUser = AppUser &
+  Partial<UserProfile> & {
+    userId: string;
+    accountType?: AccountType;
+  };
 
 interface CacheEntry<T> {
   fetchedAt: number;
@@ -22,22 +57,34 @@ export class ProfileRepositoryService {
 
   private userSummaryCache = new Map<string, CacheEntry<AppUser | null>>();
   private userSummaryPromiseCache = new Map<string, Promise<AppUser | null>>();
+  private userSummaryPatchCache = new Map<string, Partial<AppUser>>();
+  private userSummaryListCache: CacheEntry<AppUser[]> | null = null;
+  private userSummaryListPromiseCache: Promise<AppUser[]> | null = null;
 
   private profileCache = new Map<string, CacheEntry<UserProfile | null>>();
   private profilePromiseCache = new Map<string, Promise<UserProfile | null>>();
+  private profilePatchCache = new Map<string, Partial<Record<string, unknown>>>();
 
   private resolvedProfileCache = new Map<string, CacheEntry<UserProfile | null>>();
   private resolvedProfilePromiseCache = new Map<string, Promise<UserProfile | null>>();
+  private profileListCache = new Map<AccountType, CacheEntry<UserProfile[]>>();
+  private profileListPromiseCache = new Map<AccountType, Promise<UserProfile[]>>();
 
   constructor(private firestore: Firestore) {}
 
   clear(): void {
     this.userSummaryCache.clear();
     this.userSummaryPromiseCache.clear();
+    this.userSummaryPatchCache.clear();
+    this.userSummaryListCache = null;
+    this.userSummaryListPromiseCache = null;
     this.profileCache.clear();
     this.profilePromiseCache.clear();
+    this.profilePatchCache.clear();
     this.resolvedProfileCache.clear();
     this.resolvedProfilePromiseCache.clear();
+    this.profileListCache.clear();
+    this.profileListPromiseCache.clear();
   }
 
   invalidateUser(userId: string): void {
@@ -48,20 +95,228 @@ export class ProfileRepositoryService {
 
     this.userSummaryCache.delete(normalizedUserId);
     this.userSummaryPromiseCache.delete(normalizedUserId);
+    this.userSummaryPatchCache.delete(normalizedUserId);
 
     for (const accountType of ['trainer', 'client'] as const) {
       const key = this.profileKey(normalizedUserId, accountType);
       this.profileCache.delete(key);
       this.profilePromiseCache.delete(key);
+      this.profilePatchCache.delete(key);
     }
 
-    for (const key of [
-      this.resolvedProfileKey(normalizedUserId, undefined),
-      this.resolvedProfileKey(normalizedUserId, 'trainer'),
-      this.resolvedProfileKey(normalizedUserId, 'client'),
-    ]) {
-      this.resolvedProfileCache.delete(key);
-      this.resolvedProfilePromiseCache.delete(key);
+    this.clearResolvedProfileCachesForUser(normalizedUserId);
+    this.clearUserSummaryList();
+    this.clearProfileLists();
+  }
+
+  primeUserSummary(userId: string, summary: Partial<AppUser>): void {
+    const normalizedUserId = this.normalizeUserId(userId);
+    if (!normalizedUserId) {
+      return;
+    }
+
+    const mergedSummary = this.mergeAppUserData(
+      normalizedUserId,
+      this.userSummaryCache.get(normalizedUserId)?.value ?? null,
+      summary
+    );
+
+    this.userSummaryCache.set(normalizedUserId, {
+      fetchedAt: Date.now(),
+      value: mergedSummary,
+    });
+    this.userSummaryPatchCache.delete(normalizedUserId);
+    this.syncCachedProfilesWithUserSummary(normalizedUserId, mergedSummary);
+    this.clearResolvedProfileCachesForUser(normalizedUserId);
+    this.clearUserSummaryList();
+    this.clearProfileLists();
+  }
+
+  applyUserSummaryPatch(userId: string, patch: Partial<AppUser>): void {
+    const normalizedUserId = this.normalizeUserId(userId);
+    if (!normalizedUserId) {
+      return;
+    }
+
+    const nextPatch = {
+      ...(this.userSummaryPatchCache.get(normalizedUserId) ?? {}),
+      ...patch,
+      userId: normalizedUserId,
+    };
+    this.userSummaryPatchCache.set(normalizedUserId, nextPatch);
+
+    const cached = this.userSummaryCache.get(normalizedUserId);
+    if (cached) {
+      const mergedSummary = this.mergeAppUserData(normalizedUserId, cached.value, nextPatch);
+      this.userSummaryCache.set(normalizedUserId, {
+        fetchedAt: Date.now(),
+        value: mergedSummary,
+      });
+      this.syncCachedProfilesWithUserSummary(normalizedUserId, mergedSummary);
+    }
+
+    this.clearResolvedProfileCachesForUser(normalizedUserId);
+    this.clearUserSummaryList();
+    this.clearProfileLists();
+  }
+
+  primeProfile(
+    userId: string,
+    accountType: AccountType,
+    profile: Partial<Record<string, unknown>>
+  ): void {
+    const normalizedUserId = this.normalizeUserId(userId);
+    if (!normalizedUserId) {
+      return;
+    }
+
+    const key = this.profileKey(normalizedUserId, accountType);
+    const mergedProfile = this.mergeProfileData(
+      normalizedUserId,
+      accountType,
+      this.profileCache.get(key)?.value ?? null,
+      profile
+    );
+
+    this.profileCache.set(key, {
+      fetchedAt: Date.now(),
+      value: mergedProfile,
+    });
+    this.profilePatchCache.delete(key);
+    this.clearResolvedProfileCachesForUser(normalizedUserId);
+    this.clearProfileLists();
+  }
+
+  applyProfilePatch(
+    userId: string,
+    accountType: AccountType,
+    patch: Partial<Record<string, unknown>>
+  ): void {
+    const normalizedUserId = this.normalizeUserId(userId);
+    if (!normalizedUserId) {
+      return;
+    }
+
+    const key = this.profileKey(normalizedUserId, accountType);
+    const nextPatch = {
+      ...(this.profilePatchCache.get(key) ?? {}),
+      ...patch,
+    };
+    this.profilePatchCache.set(key, nextPatch);
+
+    const cached = this.profileCache.get(key);
+    if (cached) {
+      this.profileCache.set(key, {
+        fetchedAt: Date.now(),
+        value: this.mergeProfileData(normalizedUserId, accountType, cached.value, nextPatch),
+      });
+    }
+
+    this.clearResolvedProfileCachesForUser(normalizedUserId);
+    this.clearProfileLists();
+  }
+
+  observeUserSummary(
+    userId: string,
+    observer: (userSummary: AppUser | null) => void
+  ): () => void {
+    const normalizedUserId = this.normalizeUserId(userId);
+    if (!normalizedUserId) {
+      observer(null);
+      return () => undefined;
+    }
+
+    const userRef = doc(this.firestore, 'users', normalizedUserId);
+    return onSnapshot(
+      userRef,
+      (snapshot) => {
+        if (!snapshot.exists()) {
+          this.userSummaryCache.delete(normalizedUserId);
+          this.userSummaryPromiseCache.delete(normalizedUserId);
+          this.clearResolvedProfileCachesForUser(normalizedUserId);
+          this.clearUserSummaryList();
+          this.clearProfileLists();
+          observer(null);
+          return;
+        }
+
+        const mergedSummary = this.mergeAppUserData(
+          normalizedUserId,
+          {
+            userId: normalizedUserId,
+            ...(snapshot.data() as AppUser),
+          },
+          this.userSummaryPatchCache.get(normalizedUserId) ?? {}
+        );
+
+        this.userSummaryCache.set(normalizedUserId, {
+          fetchedAt: Date.now(),
+          value: mergedSummary,
+        });
+        this.userSummaryPatchCache.delete(normalizedUserId);
+        this.syncCachedProfilesWithUserSummary(normalizedUserId, mergedSummary);
+        this.clearResolvedProfileCachesForUser(normalizedUserId);
+        this.clearUserSummaryList();
+        this.clearProfileLists();
+        observer(this.cloneAppUser(mergedSummary));
+      },
+      (error) => {
+        console.error('[ProfileRepositoryService] Failed to observe user summary:', error);
+        observer(this.cloneAppUser(this.userSummaryCache.get(normalizedUserId)?.value ?? null));
+      }
+    );
+  }
+
+  watchUserSummary(userId: string): Observable<AppUser | undefined> {
+    return new Observable<AppUser | undefined>((subscriber) => {
+      const unsubscribe = this.observeUserSummary(userId, (userSummary) => {
+        subscriber.next(userSummary ?? undefined);
+      });
+
+      return () => unsubscribe();
+    });
+  }
+
+  async getResolvedAppUser(
+    userId: string,
+    preferredType?: AccountType,
+    forceRefresh = false
+  ): Promise<ResolvedAppUser | null> {
+    const normalizedUserId = this.normalizeUserId(userId);
+    if (!normalizedUserId) {
+      return null;
+    }
+
+    const userSummary = await this.getUserSummary(normalizedUserId, forceRefresh);
+    const inferredPreferredType =
+      preferredType ??
+      (userSummary?.isPT === true ? 'trainer' : userSummary?.isPT === false ? 'client' : undefined);
+    const profile = await this.getResolvedProfile(normalizedUserId, inferredPreferredType, forceRefresh);
+
+    return this.mergeAppUserAndProfile(normalizedUserId, userSummary, profile);
+  }
+
+  async listUserSummaries(forceRefresh = false): Promise<AppUser[]> {
+    if (!forceRefresh && this.isFresh(this.userSummaryListCache ?? undefined)) {
+      return this.cloneAppUserList(this.userSummaryListCache!.value);
+    }
+
+    if (!forceRefresh && this.userSummaryListPromiseCache) {
+      return this.cloneAppUserList(await this.userSummaryListPromiseCache);
+    }
+
+    const loadPromise = this.loadUserSummaries();
+    this.userSummaryListPromiseCache = loadPromise;
+
+    try {
+      const userSummaries = await loadPromise;
+      this.userSummaryListCache = {
+        fetchedAt: Date.now(),
+        value: userSummaries,
+      };
+      return this.cloneAppUserList(userSummaries);
+    } finally {
+      this.userSummaryListPromiseCache = null;
     }
   }
 
@@ -74,7 +329,13 @@ export class ProfileRepositoryService {
     if (!forceRefresh) {
       const cached = this.userSummaryCache.get(normalizedUserId);
       if (this.isFresh(cached)) {
-        return this.cloneAppUser(cached.value);
+        return this.cloneAppUser(
+          this.mergeAppUserData(
+            normalizedUserId,
+            cached.value,
+            this.userSummaryPatchCache.get(normalizedUserId) ?? {}
+          )
+        );
       }
 
       const inFlight = this.userSummaryPromiseCache.get(normalizedUserId);
@@ -87,11 +348,18 @@ export class ProfileRepositoryService {
     this.userSummaryPromiseCache.set(normalizedUserId, loadPromise);
 
     try {
-      const summary = await loadPromise;
+      const loadedSummary = await loadPromise;
+      const summary = this.mergeAppUserData(
+        normalizedUserId,
+        loadedSummary,
+        this.userSummaryPatchCache.get(normalizedUserId) ?? {}
+      );
       this.userSummaryCache.set(normalizedUserId, {
         fetchedAt: Date.now(),
         value: summary,
       });
+      this.userSummaryPatchCache.delete(normalizedUserId);
+      this.syncCachedProfilesWithUserSummary(normalizedUserId, summary);
       return this.cloneAppUser(summary);
     } finally {
       this.userSummaryPromiseCache.delete(normalizedUserId);
@@ -113,7 +381,14 @@ export class ProfileRepositoryService {
     if (!forceRefresh) {
       const cached = this.profileCache.get(key);
       if (this.isFresh(cached)) {
-        return this.cloneProfile(cached.value);
+        return this.cloneProfile(
+          this.mergeProfileData(
+            normalizedUserId,
+            accountType,
+            cached.value,
+            this.profilePatchCache.get(key) ?? {}
+          )
+        );
       }
 
       const inFlight = this.profilePromiseCache.get(key);
@@ -126,11 +401,20 @@ export class ProfileRepositoryService {
     this.profilePromiseCache.set(key, loadPromise);
 
     try {
-      const profile = await loadPromise;
+      const loadedProfile = await loadPromise;
+      const profile = this.mergeProfileData(
+        normalizedUserId,
+        accountType,
+        loadedProfile,
+        this.profilePatchCache.get(key) ?? {}
+      );
       this.profileCache.set(key, {
         fetchedAt: Date.now(),
         value: profile,
       });
+      if (profile) {
+        this.profilePatchCache.delete(key);
+      }
       return this.cloneProfile(profile);
     } finally {
       this.profilePromiseCache.delete(key);
@@ -186,7 +470,35 @@ export class ProfileRepositoryService {
       return null;
     }
 
-    return profile.accountType;
+    return profile.accountType ?? null;
+  }
+
+  async listProfiles(accountType: AccountType, forceRefresh = false): Promise<UserProfile[]> {
+    if (!forceRefresh) {
+      const cached = this.profileListCache.get(accountType);
+      if (this.isFresh(cached)) {
+        return this.cloneProfileList(cached.value);
+      }
+
+      const inFlight = this.profileListPromiseCache.get(accountType);
+      if (inFlight) {
+        return this.cloneProfileList(await inFlight);
+      }
+    }
+
+    const loadPromise = this.loadProfiles(accountType);
+    this.profileListPromiseCache.set(accountType, loadPromise);
+
+    try {
+      const profiles = await loadPromise;
+      this.profileListCache.set(accountType, {
+        fetchedAt: Date.now(),
+        value: profiles,
+      });
+      return this.cloneProfileList(profiles);
+    } finally {
+      this.profileListPromiseCache.delete(accountType);
+    }
   }
 
   private async loadUserSummary(userId: string): Promise<AppUser | null> {
@@ -206,6 +518,36 @@ export class ProfileRepositoryService {
     }
   }
 
+  private async loadUserSummaries(): Promise<AppUser[]> {
+    try {
+      const userSnapshot = await getDocs(collection(this.firestore, 'users'));
+      const fetchedAt = Date.now();
+
+      return userSnapshot.docs.map((userDoc) => {
+        const userSummary = this.mergeAppUserData(
+          userDoc.id,
+          {
+            userId: userDoc.id,
+            ...(userDoc.data() as AppUser),
+          },
+          this.userSummaryPatchCache.get(userDoc.id) ?? {}
+        );
+
+        this.userSummaryCache.set(userDoc.id, {
+          fetchedAt,
+          value: userSummary,
+        });
+        this.userSummaryPatchCache.delete(userDoc.id);
+        this.syncCachedProfilesWithUserSummary(userDoc.id, userSummary);
+
+        return userSummary!;
+      });
+    } catch (error) {
+      console.error('[ProfileRepositoryService] Failed to load user summaries:', error);
+      return [];
+    }
+  }
+
   private async loadProfile(userId: string, accountType: AccountType): Promise<UserProfile | null> {
     try {
       const collection = accountType === 'trainer'
@@ -218,9 +560,10 @@ export class ProfileRepositoryService {
 
       const rawProfile = {
         ...(profileSnap.data() as UserProfile),
-      };
+      } as UserProfile & Record<string, unknown>;
 
-      return this.mergeWithUserSummary(userId, rawProfile, accountType);
+      const userSummary = await this.getUserSummary(userId);
+      return this.applyUserSummaryToProfile(rawProfile, userId, accountType, userSummary, true);
     } catch (error) {
       console.error(`[ProfileRepositoryService] Failed to load ${accountType} profile:`, error);
       return null;
@@ -232,8 +575,12 @@ export class ProfileRepositoryService {
     preferredType?: AccountType,
     forceRefresh = false
   ): Promise<UserProfile | null> {
-    const accountTypes: AccountType[] = preferredType
-      ? [preferredType, this.otherAccountType(preferredType)]
+    const userSummary = await this.getUserSummary(userId, forceRefresh);
+    const inferredPreferredType =
+      preferredType ??
+      (userSummary?.isPT === true ? 'trainer' : userSummary?.isPT === false ? 'client' : undefined);
+    const accountTypes: AccountType[] = inferredPreferredType
+      ? [inferredPreferredType, this.otherAccountType(inferredPreferredType)]
       : ['trainer', 'client'];
 
     for (const accountType of accountTypes) {
@@ -246,43 +593,42 @@ export class ProfileRepositoryService {
     return null;
   }
 
-  private async mergeWithUserSummary(
-    userId: string,
-    profile: UserProfile,
-    accountType: AccountType
-  ): Promise<UserProfile> {
-    const merged = { ...profile } as UserProfile & Record<string, unknown>;
-    const needsUserSummary =
-      !this.hasValue(merged['firstName']) ||
-      !this.hasValue(merged['lastName']) ||
-      !this.hasValue(merged['email']) ||
-      !this.hasValue(merged['profilepic']);
-    const userSummary = needsUserSummary
-      ? await this.getUserSummary(userId)
-      : null;
+  private async loadProfiles(accountType: AccountType): Promise<UserProfile[]> {
+    try {
+      const collectionName = accountType === 'trainer'
+        ? this.TRAINERS_COLLECTION
+        : this.CLIENTS_COLLECTION;
+      const snapshot = await getDocs(collection(this.firestore, collectionName));
 
-    if (!this.hasValue(merged['id'])) {
-      merged['id'] = userId;
+      return Promise.all(
+        snapshot.docs.map(async (profileDoc) => {
+          const rawProfile = {
+            ...(profileDoc.data() as UserProfile),
+          } as UserProfile & Record<string, unknown>;
+          const cachedUserSummary = this.userSummaryCache.get(profileDoc.id)?.value ?? null;
+          const needsUserSummary =
+            !this.hasValue(rawProfile['firstName']) ||
+            !this.hasValue(rawProfile['lastName']) ||
+            !this.hasValue(rawProfile['email']) ||
+            !this.hasValue(rawProfile['profilepic']) ||
+            !this.hasValue(rawProfile['username']);
+          const userSummary = cachedUserSummary ?? (needsUserSummary
+            ? await this.getUserSummary(profileDoc.id)
+            : null);
+
+          return this.applyUserSummaryToProfile(
+            rawProfile,
+            profileDoc.id,
+            accountType,
+            userSummary,
+            !!cachedUserSummary
+          );
+        })
+      );
+    } catch (error) {
+      console.error(`[ProfileRepositoryService] Failed to load ${accountType} profiles:`, error);
+      return [];
     }
-
-    if (!this.hasValue(merged['firstName']) && userSummary?.firstName) {
-      merged['firstName'] = userSummary.firstName;
-    }
-
-    if (!this.hasValue(merged['lastName']) && userSummary?.lastName) {
-      merged['lastName'] = userSummary.lastName;
-    }
-
-    if (!this.hasValue(merged['email']) && userSummary?.email) {
-      merged['email'] = userSummary.email;
-    }
-
-    if (!this.hasValue(merged['profilepic']) && userSummary?.profilepic) {
-      merged['profilepic'] = userSummary.profilepic;
-    }
-
-    merged['accountType'] = accountType;
-    return merged as UserProfile;
   }
 
   private isFresh<T>(entry: CacheEntry<T> | undefined): entry is CacheEntry<T> {
@@ -309,8 +655,195 @@ export class ProfileRepositoryService {
     return typeof value === 'string' ? value.trim().length > 0 : value !== null && value !== undefined;
   }
 
+  private clearResolvedProfileCachesForUser(userId: string): void {
+    for (const key of [
+      this.resolvedProfileKey(userId, undefined),
+      this.resolvedProfileKey(userId, 'trainer'),
+      this.resolvedProfileKey(userId, 'client'),
+    ]) {
+      this.resolvedProfileCache.delete(key);
+      this.resolvedProfilePromiseCache.delete(key);
+    }
+  }
+
+  private clearProfileLists(): void {
+    this.profileListCache.clear();
+    this.profileListPromiseCache.clear();
+  }
+
+  private clearUserSummaryList(): void {
+    this.userSummaryListCache = null;
+    this.userSummaryListPromiseCache = null;
+  }
+
+  private mergeAppUserData(
+    userId: string,
+    base: AppUser | null,
+    patch: Partial<AppUser>
+  ): AppUser | null {
+    if (!base && !Object.keys(patch).length) {
+      return null;
+    }
+
+    return {
+      ...(base ?? { isPT: false }),
+      ...patch,
+      userId,
+    };
+  }
+
+  private mergeProfileData(
+    userId: string,
+    accountType: AccountType,
+    base: UserProfile | null,
+    patch: Partial<Record<string, unknown>>
+  ): UserProfile | null {
+    if (!base && !Object.keys(patch).length) {
+      return null;
+    }
+
+    const merged = {
+      ...((base ?? {}) as Record<string, unknown>),
+      ...patch,
+    } as UserProfile & Record<string, unknown>;
+    const userSummary = this.userSummaryCache.get(userId)?.value ?? null;
+    return this.applyUserSummaryToProfile(merged, userId, accountType, userSummary, true);
+  }
+
+  private applyUserSummaryToProfile(
+    profile: UserProfile | (UserProfile & Record<string, unknown>),
+    userId: string,
+    accountType: AccountType,
+    userSummary: AppUser | null,
+    preferUserSummary: boolean
+  ): UserProfile {
+    const merged = { ...(profile as Record<string, unknown>) };
+
+    if (!this.hasValue(merged['id'])) {
+      merged['id'] = userId;
+    }
+
+    if (preferUserSummary && userSummary?.firstName) {
+      merged['firstName'] = userSummary.firstName;
+    } else if (!this.hasValue(merged['firstName']) && userSummary?.firstName) {
+      merged['firstName'] = userSummary.firstName;
+    }
+
+    if (preferUserSummary && userSummary?.lastName) {
+      merged['lastName'] = userSummary.lastName;
+    } else if (!this.hasValue(merged['lastName']) && userSummary?.lastName) {
+      merged['lastName'] = userSummary.lastName;
+    }
+
+    if (preferUserSummary && userSummary?.email) {
+      merged['email'] = userSummary.email;
+    } else if (!this.hasValue(merged['email']) && userSummary?.email) {
+      merged['email'] = userSummary.email;
+    }
+
+    if (preferUserSummary && userSummary?.profilepic) {
+      merged['profilepic'] = userSummary.profilepic;
+    } else if (!this.hasValue(merged['profilepic']) && userSummary?.profilepic) {
+      merged['profilepic'] = userSummary.profilepic;
+    }
+
+    if (preferUserSummary && userSummary?.username) {
+      merged['username'] = userSummary.username;
+    } else if (!this.hasValue(merged['username']) && userSummary?.username) {
+      merged['username'] = userSummary.username;
+    }
+
+    if (preferUserSummary && this.hasValue(userSummary?.trainerId)) {
+      merged['trainerId'] = userSummary?.trainerId;
+    } else if (!this.hasValue(merged['trainerId']) && this.hasValue(userSummary?.trainerId)) {
+      merged['trainerId'] = userSummary?.trainerId;
+    }
+
+    merged['accountType'] = accountType;
+    return merged as unknown as UserProfile;
+  }
+
+  private mergeAppUserAndProfile(
+    userId: string,
+    userSummary: AppUser | null,
+    profile: UserProfile | null
+  ): ResolvedAppUser | null {
+    if (!userSummary && !profile) {
+      return null;
+    }
+
+    const merged = {
+      ...(userSummary ?? {}),
+      ...((profile as unknown as Record<string, unknown>) ?? {}),
+      userId,
+    } as Record<string, unknown>;
+
+    if (profile) {
+      merged['accountType'] = profile.accountType;
+      merged['isPT'] = profile.accountType === 'trainer';
+    } else if (typeof userSummary?.isPT === 'boolean') {
+      merged['accountType'] = userSummary.isPT ? 'trainer' : 'client';
+      merged['isPT'] = userSummary.isPT;
+    }
+
+    if (userSummary?.firstName) {
+      merged['firstName'] = userSummary.firstName;
+    }
+
+    if (userSummary?.lastName) {
+      merged['lastName'] = userSummary.lastName;
+    }
+
+    if (userSummary?.email) {
+      merged['email'] = userSummary.email;
+    }
+
+    if (userSummary?.profilepic) {
+      merged['profilepic'] = userSummary.profilepic;
+    }
+
+    if (userSummary?.username) {
+      merged['username'] = userSummary.username;
+    }
+
+    if (this.hasValue(userSummary?.trainerId)) {
+      merged['trainerId'] = userSummary?.trainerId;
+    }
+
+    if (typeof merged['isPT'] !== 'boolean') {
+      merged['isPT'] = false;
+    }
+
+    return merged as unknown as ResolvedAppUser;
+  }
+
+  private syncCachedProfilesWithUserSummary(userId: string, userSummary: AppUser | null): void {
+    for (const accountType of ['trainer', 'client'] as const) {
+      const key = this.profileKey(userId, accountType);
+      const cached = this.profileCache.get(key);
+      if (!cached?.value) {
+        continue;
+      }
+
+      this.profileCache.set(key, {
+        fetchedAt: Date.now(),
+        value: this.applyUserSummaryToProfile(
+          cached.value,
+          userId,
+          accountType,
+          userSummary,
+          true
+        ),
+      });
+    }
+  }
+
   private cloneAppUser(user: AppUser | null): AppUser | null {
     return user ? { ...user } : null;
+  }
+
+  private cloneAppUserList(users: AppUser[]): AppUser[] {
+    return users.map((user) => this.cloneAppUser(user)!).filter((user): user is AppUser => !!user);
   }
 
   private cloneProfile<T extends UserProfile | null>(profile: T): T {
@@ -336,5 +869,9 @@ export class ProfileRepositoryService {
     }
 
     return cloned as T;
+  }
+
+  private cloneProfileList(profiles: UserProfile[]): UserProfile[] {
+    return profiles.map((profile) => this.cloneProfile(profile)!);
   }
 }

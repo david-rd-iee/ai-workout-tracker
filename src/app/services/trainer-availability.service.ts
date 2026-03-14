@@ -1,6 +1,6 @@
 import { Injectable, signal, computed, Signal } from '@angular/core';
-import { Firestore, collection, doc, getDoc, setDoc, updateDoc } from '@angular/fire/firestore';
-import { onSnapshot } from 'firebase/firestore';
+import { Firestore } from '@angular/fire/firestore';
+import { doc, getDoc, onSnapshot, setDoc, updateDoc } from 'firebase/firestore';
 import { TimeSlot } from '../Interfaces/Calendar';
 
 @Injectable({
@@ -9,6 +9,8 @@ import { TimeSlot } from '../Interfaces/Calendar';
 export class TrainerAvailabilityService {
   // Signals for reactive state management
   private availableTimeSlots = signal<TimeSlot[]>([]);
+  private trainerProfileUnsubscribe: (() => void) | null = null;
+  private trainerAvailabilityUnsubscribe: (() => void) | null = null;
   
   constructor(private firestore: Firestore) { }
 
@@ -28,18 +30,18 @@ export class TrainerAvailabilityService {
     const dayOfWeek = dateObj.toLocaleString('en-US', { weekday: 'long' });
     
     // Check both possible document paths for trainer availability
-    const trainerDocRef = doc(this.firestore, `trainers/${trainerId}`);
+    const trainerProfileRef = doc(this.firestore, 'trainers', trainerId);
     const trainerAvailabilityRef = doc(this.firestore, `trainerAvailability/${trainerId}`);
-    
+    this.stopRealtimeListeners();
 
     // Check both paths for availability data
     Promise.all([
-      getDoc(trainerDocRef),
+      getDoc(trainerProfileRef),
       getDoc(trainerAvailabilityRef)
-    ]).then(([trainerSnap, availabilitySnap]) => {
+    ]).then(([trainerProfileSnap, availabilitySnap]) => {
       
-      if (trainerSnap.exists()) {
-        const trainerData = trainerSnap.data();
+      if (trainerProfileSnap.exists()) {
+        const trainerData = trainerProfileSnap.data() as Record<string, unknown>;
         
         // Check if availability array exists in the trainer document
         if (trainerData['availability'] && Array.isArray(trainerData['availability'])) {
@@ -71,20 +73,24 @@ export class TrainerAvailabilityService {
     });
     
     // Set up real-time listeners for changes
-    const unsubscribeTrainer = onSnapshot(trainerDocRef, (snapshot) => {
-      console.log(`DEBUG: Real-time update from trainers/${trainerId}: ${snapshot.exists() ? 'Document exists' : 'Document does not exist'}`);
-      
-      if (snapshot.exists()) {
-        const trainerData = snapshot.data();
-        if (trainerData['availability'] && Array.isArray(trainerData['availability'])) {
+    this.trainerProfileUnsubscribe = onSnapshot(
+      trainerProfileRef,
+      (snapshot) => {
+        console.log(`DEBUG: Real-time update from trainers/${trainerId}: ${snapshot.exists() ? 'Profile loaded' : 'Profile missing'}`);
+
+        const trainerData = snapshot.exists()
+          ? (snapshot.data() as Record<string, unknown>)
+          : null;
+        if (trainerData?.['availability'] && Array.isArray(trainerData['availability'])) {
           this.processAvailabilityFromArray(trainerId, date, trainerData['availability'], dayOfWeek);
         }
+      },
+      (error) => {
+        console.error('DEBUG: Error in trainer profile listener:', error);
       }
-    }, (error) => {
-      console.error('DEBUG: Error in trainer document listener:', error);
-    });
+    );
     
-    const unsubscribeAvailability = onSnapshot(trainerAvailabilityRef, (snapshot) => {
+    this.trainerAvailabilityUnsubscribe = onSnapshot(trainerAvailabilityRef, (snapshot) => {
       console.log(`DEBUG: Real-time update from trainerAvailability/${trainerId}: ${snapshot.exists() ? 'Document exists' : 'Document does not exist'}`);
       
       if (snapshot.exists()) {
@@ -98,6 +104,13 @@ export class TrainerAvailabilityService {
     });
     
     return this.availableTimeSlots;
+  }
+
+  private stopRealtimeListeners(): void {
+    this.trainerProfileUnsubscribe?.();
+    this.trainerAvailabilityUnsubscribe?.();
+    this.trainerProfileUnsubscribe = null;
+    this.trainerAvailabilityUnsubscribe = null;
   }
   
   /**

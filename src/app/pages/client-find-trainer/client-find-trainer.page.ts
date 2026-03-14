@@ -18,17 +18,16 @@ import { arrowBackOutline } from 'ionicons/icons';
 import { Auth, onAuthStateChanged } from '@angular/fire/auth';
 import {
   Firestore,
-  collection,
   deleteDoc,
   doc,
   getDoc,
-  getDocs,
   serverTimestamp,
   setDoc,
 } from '@angular/fire/firestore';
 import { Router } from '@angular/router';
 import { User } from 'firebase/auth';
 import { UserService } from '../../services/account/user.service';
+import { ProfileRepositoryService } from '../../services/account/profile-repository.service';
 
 interface TrainerCard {
   uid: string;
@@ -62,6 +61,7 @@ export class ClientFindTrainerPage implements OnInit {
   private firestore = inject(Firestore);
   private router = inject(Router);
   private userService = inject(UserService);
+  private profileRepository = inject(ProfileRepositoryService);
 
   trainers: TrainerCard[] = [];
   selectedTrainerUid = '';
@@ -171,10 +171,8 @@ export class ClientFindTrainerPage implements OnInit {
 
   private async syncExistingAssignment(clientUid: string): Promise<void> {
     const usersRef = doc(this.firestore, 'users', clientUid);
-    const usersSnap = await getDoc(usersRef);
-    const usersData = usersSnap.exists()
-      ? (usersSnap.data() as Record<string, unknown>)
-      : {};
+    const userSummary = await this.userService.getUserSummaryDirectly(clientUid);
+    const usersData = userSummary ? (userSummary as unknown as Record<string, unknown>) : {};
 
     const assignedTrainerUid = this.extractAssignedTrainerUid(usersData);
     if (!assignedTrainerUid) {
@@ -182,9 +180,8 @@ export class ClientFindTrainerPage implements OnInit {
       return;
     }
 
-    const trainerRef = doc(this.firestore, 'trainers', assignedTrainerUid);
-    const trainerSnap = await getDoc(trainerRef);
-    if (!trainerSnap.exists()) {
+    const trainerProfile = await this.userService.getUserProfileDirectly(assignedTrainerUid, 'trainer');
+    if (!trainerProfile) {
       await Promise.all([
         setDoc(
           usersRef,
@@ -203,6 +200,10 @@ export class ClientFindTrainerPage implements OnInit {
           { merge: true }
         ),
       ]);
+      this.profileRepository.applyUserSummaryPatch(clientUid, { trainerId: '' });
+      this.profileRepository.applyProfilePatch(clientUid, 'client', { trainerId: '' });
+      this.userService.syncCurrentUserSummaryPatch(clientUid, { trainerId: '' });
+      this.userService.syncCurrentUserProfilePatch(clientUid, 'client', { trainerId: '' });
       this.selectedTrainerUid = '';
       return;
     }
@@ -220,55 +221,29 @@ export class ClientFindTrainerPage implements OnInit {
       ),
       this.ensureTrainerClientRecord(assignedTrainerUid, clientUid, usersData),
     ]);
+    this.profileRepository.applyUserSummaryPatch(clientUid, { trainerId: assignedTrainerUid });
+    this.profileRepository.applyProfilePatch(clientUid, 'client', { trainerId: assignedTrainerUid });
+    this.userService.syncCurrentUserSummaryPatch(clientUid, { trainerId: assignedTrainerUid });
+    this.userService.syncCurrentUserProfilePatch(clientUid, 'client', { trainerId: assignedTrainerUid });
   }
 
   private async loadTrainers(): Promise<void> {
-    const trainersSnap = await getDocs(collection(this.firestore, 'trainers'));
-    const trainerEntries = trainersSnap.docs.map((trainerDoc) => ({
-      uid: trainerDoc.id,
-      data: trainerDoc.data() as Record<string, unknown>,
-    }));
+    const trainerProfiles = await this.profileRepository.listProfiles('trainer');
 
-    const needsUserFallback = trainerEntries
-      .filter(({ data }) => {
-        const hasFirstName = this.pickString(data['firstName']).length > 0;
-        const hasLastName = this.pickString(data['lastName']).length > 0;
-        const hasProfileImage =
-          this.pickString(data['profileImage']).length > 0 ||
-          this.pickString(data['profilepic']).length > 0 ||
-          this.pickString(data['profilePic']).length > 0;
-        return !hasFirstName || !hasLastName || !hasProfileImage;
-      })
-      .map(({ uid }) => uid);
-
-    const usersFallbackByUid = new Map<string, Record<string, unknown>>();
-    await Promise.all(
-      needsUserFallback.map(async (uid) => {
-        const userSummary = await this.userService.getUserSummaryDirectly(uid);
-        if (userSummary) {
-          usersFallbackByUid.set(uid, userSummary as unknown as Record<string, unknown>);
-        }
-      })
-    );
-
-    this.trainers = trainerEntries
-      .map(({ uid, data }) => {
-        const usersFallback = usersFallbackByUid.get(uid) ?? {};
+    this.trainers = trainerProfiles
+      .map((trainerProfile) => {
+        const data = trainerProfile as unknown as Record<string, unknown>;
+        const uid = this.pickString(data['id']) || this.pickString(data['userId']);
         const firstName =
           this.pickString(data['firstName']) ||
-          this.pickString(usersFallback['firstName']) ||
           'Trainer';
         const lastName =
           this.pickString(data['lastName']) ||
-          this.pickString(usersFallback['lastName']) ||
           '';
         const profileImage =
           this.pickString(data['profileImage']) ||
           this.pickString(data['profilepic']) ||
           this.pickString(data['profilePic']) ||
-          this.pickString(usersFallback['profileImage']) ||
-          this.pickString(usersFallback['profilepic']) ||
-          this.pickString(usersFallback['profilePic']) ||
           this.fallbackProfileImage;
 
         return {
@@ -286,16 +261,14 @@ export class ClientFindTrainerPage implements OnInit {
   }
 
   private async addTrainerAssignment(clientUid: string, trainerUid: string): Promise<void> {
-    const trainerSnap = await getDoc(doc(this.firestore, 'trainers', trainerUid));
-    if (!trainerSnap.exists()) {
+    const trainerProfile = await this.userService.getUserProfileDirectly(trainerUid, 'trainer');
+    if (!trainerProfile) {
       throw new Error('Trainer not found');
     }
 
     const usersRef = doc(this.firestore, 'users', clientUid);
-    const usersSnap = await getDoc(usersRef);
-    const usersData = usersSnap.exists()
-      ? (usersSnap.data() as Record<string, unknown>)
-      : {};
+    const userSummary = await this.userService.getUserSummaryDirectly(clientUid);
+    const usersData = userSummary ? (userSummary as unknown as Record<string, unknown>) : {};
 
     await Promise.all([
       setDoc(
@@ -315,6 +288,10 @@ export class ClientFindTrainerPage implements OnInit {
         { merge: true }
       ),
     ]);
+    this.profileRepository.applyUserSummaryPatch(clientUid, { trainerId: trainerUid });
+    this.profileRepository.applyProfilePatch(clientUid, 'client', { trainerId: trainerUid });
+    this.userService.syncCurrentUserSummaryPatch(clientUid, { trainerId: trainerUid });
+    this.userService.syncCurrentUserProfilePatch(clientUid, 'client', { trainerId: trainerUid });
 
     await this.ensureTrainerClientRecord(trainerUid, clientUid, usersData);
   }
@@ -343,6 +320,10 @@ export class ClientFindTrainerPage implements OnInit {
         { merge: true }
       ),
     ]);
+    this.profileRepository.applyUserSummaryPatch(clientUid, { trainerId: '' });
+    this.profileRepository.applyProfilePatch(clientUid, 'client', { trainerId: '' });
+    this.userService.syncCurrentUserSummaryPatch(clientUid, { trainerId: '' });
+    this.userService.syncCurrentUserProfilePatch(clientUid, 'client', { trainerId: '' });
   }
 
   private async ensureTrainerClientRecord(
@@ -353,18 +334,18 @@ export class ClientFindTrainerPage implements OnInit {
     const trainerClientRef = doc(this.firestore, `trainers/${trainerUid}/clients/${clientUid}`);
     const trainerClientSnap = await getDoc(trainerClientRef);
 
-    const [clientSnap, latestUsersSnap] = await Promise.all([
-      getDoc(doc(this.firestore, 'clients', clientUid)),
-      usersData ? Promise.resolve(null) : getDoc(doc(this.firestore, 'users', clientUid)),
+    const [clientProfile, latestUsersData] = await Promise.all([
+      this.userService.getUserProfileDirectly(clientUid, 'client'),
+      usersData ? Promise.resolve(null) : this.userService.getUserSummaryDirectly(clientUid),
     ]);
 
-    const clientData = clientSnap.exists()
-      ? (clientSnap.data() as Record<string, unknown>)
+    const clientData = clientProfile
+      ? (clientProfile as unknown as Record<string, unknown>)
       : {};
     const resolvedUsersData =
       usersData ??
-      (latestUsersSnap?.exists()
-        ? (latestUsersSnap.data() as Record<string, unknown>)
+      (latestUsersData
+        ? (latestUsersData as unknown as Record<string, unknown>)
         : {});
 
     const firstName =

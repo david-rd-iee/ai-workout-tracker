@@ -23,10 +23,8 @@ import {
 import {
   Firestore,
   arrayRemove,
-  collection,
   doc,
   getDoc,
-  getDocs,
   setDoc,
   serverTimestamp,
   updateDoc,
@@ -36,6 +34,7 @@ import { FormsModule } from '@angular/forms';
 import { addIcons } from 'ionicons';
 import { addOutline, arrowBackOutline, imageOutline, removeOutline } from 'ionicons/icons';
 import { AccountService } from '../../services/account/account.service';
+import { ProfileRepositoryService } from '../../services/account/profile-repository.service';
 import { FileUploadService } from '../../services/file-upload.service';
 import { ImagePickerService } from '../../services/image-picker.service';
 import { ChatsService } from '../../services/chats.service';
@@ -73,6 +72,7 @@ export class GroupSettingsPage implements OnInit {
   private navCtrl = inject(NavController);
   private firestore = inject(Firestore);
   private accountService = inject(AccountService);
+  private profileRepository = inject(ProfileRepositoryService);
   private storage = inject(Storage);
   private fileUploadService = inject(FileUploadService);
   private imagePickerService = inject(ImagePickerService);
@@ -393,6 +393,7 @@ export class GroupSettingsPage implements OnInit {
       await updateDoc(userRef, {
         groupID: arrayRemove(this.groupId),
       });
+      this.profileRepository.invalidateUser(member.uid);
 
       this.groupUserIds = this.groupUserIds.filter((id) => id !== member.uid);
       this.refreshMemberUsers();
@@ -412,14 +413,13 @@ export class GroupSettingsPage implements OnInit {
 
     this.loadingUsers = true;
     try {
-      const usersSnap = await getDocs(collection(this.firestore, 'users'));
-      this.allUsers = usersSnap.docs
-        .map((userDoc) => {
-          const data = userDoc.data() as any;
-          const usernameRaw = typeof data?.username === 'string' ? data.username.trim() : '';
+      const userSummaries = await this.profileRepository.listUserSummaries();
+      this.allUsers = userSummaries
+        .map((userSummary) => {
+          const usernameRaw = typeof userSummary.username === 'string' ? userSummary.username.trim() : '';
           if (!usernameRaw) return null;
           return {
-            uid: userDoc.id,
+            uid: userSummary.userId || '',
             username: usernameRaw,
           } satisfies GroupMember;
         })

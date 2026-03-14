@@ -62,6 +62,10 @@ export class GroupsPage implements OnInit, OnDestroy {
 
   private groupsSub?: Subscription;
   private authSub?: Subscription;
+  private allGroupsSub?: Subscription;
+  private trainingLeaderboardSub?: Subscription;
+  private trainingLeaderboardKey: string | null = null;
+  private trainingLoadVersion = 0;
 
   constructor() {
     addIcons({ arrowBackOutline, addOutline, closeOutline });
@@ -143,26 +147,12 @@ export class GroupsPage implements OnInit, OnDestroy {
   async openGroupSearch(): Promise<void> {
     this.searchModalOpen = true;
     this.searchQuery = '';
-
-    if (this.allGroups.length > 0 || this.allGroupsLoading) {
-      return;
-    }
-
-    this.allGroupsLoading = true;
-    this.allGroupsError = null;
-    try {
-      this.allGroups = await this.groupService.getAllGroupsOnce();
-    } catch (err) {
-      console.error('[GroupsPage] Failed to load all groups:', err);
-      this.allGroupsError = 'Could not load groups for search.';
-      this.allGroups = [];
-    } finally {
-      this.allGroupsLoading = false;
-    }
+    this.startAllGroupsSubscription();
   }
 
   closeGroupSearch(): void {
     this.searchModalOpen = false;
+    this.stopAllGroupsSubscription();
   }
 
   private async sendJoinRequest(group: Group, requesterUid: string, ownerUid: string): Promise<void> {
@@ -304,66 +294,69 @@ export class GroupsPage implements OnInit, OnDestroy {
   }
 
   private async loadTrainingGroup(user: AppUser | undefined): Promise<void> {
+    const loadVersion = ++this.trainingLoadVersion;
     this.trainingLoading = true;
-    this.trainingGroup = null;
-    this.trainingTitle = 'PT Trainees';
-    this.trainingEnabled = false;
-    this.trainingEntries = [];
-    this.trainingLeaderboardError = null;
-    this.trainingDistributionCurvePath = '';
-    this.trainingDistributionPoints = [];
-    this.trainingSelectedPointBin = null;
-    this.trainingSelectedPointUserIds.clear();
 
     try {
+      let trainingTitle = 'PT Trainees';
+      let trainingGroup: Group | null = null;
       const trainerUid = (this.currentUserId || '').trim();
       const isCurrentUserTrainer = !!trainerUid && (
         user?.isPT === true || await this.groupService.hasTrainerProfile(trainerUid)
       );
 
       if (isCurrentUserTrainer) {
-        if (!trainerUid) return;
+        if (!trainerUid) {
+          if (loadVersion === this.trainingLoadVersion) {
+            this.applyTrainingGroup(null, trainingTitle);
+          }
+          return;
+        }
 
         const trainerName = `${(user?.firstName || '').trim()} ${(user?.lastName || '').trim()}`.trim();
-        this.trainingTitle = trainerName ? `${trainerName}'s Trainees` : 'PT Trainees';
+        trainingTitle = trainerName ? `${trainerName}'s Trainees` : 'PT Trainees';
 
-        const trainerGroup = await this.groupService.ensureTrainerPtGroup(trainerUid);
-        if (!trainerGroup) return;
-
-        this.trainingGroup = trainerGroup;
-        this.trainingEnabled = true;
-        this.userGroupIds.add(trainerGroup.groupId);
-        await this.loadTrainingLeaderboard(trainerGroup.groupId);
+        trainingGroup = await this.groupService.ensureTrainerPtGroup(trainerUid) ?? null;
+        if (loadVersion === this.trainingLoadVersion) {
+          this.applyTrainingGroup(trainingGroup, trainingTitle);
+        }
         return;
       }
 
       const trainerId = (user?.trainerId || '').trim();
-      if (!trainerId) return;
+      if (!trainerId) {
+        if (loadVersion === this.trainingLoadVersion) {
+          this.applyTrainingGroup(null, trainingTitle);
+        }
+        return;
+      }
 
       const trainer = await this.userService.getUserSummaryDirectly(trainerId);
-      if (!trainer) return;
+      if (!trainer) {
+        if (loadVersion === this.trainingLoadVersion) {
+          this.applyTrainingGroup(null, trainingTitle);
+        }
+        return;
+      }
 
       const trainerName = `${(trainer.firstName || '').trim()} ${(trainer.lastName || '').trim()}`.trim();
-      this.trainingTitle = trainerName ? `${trainerName}'s Trainees` : 'PT Trainees';
+      trainingTitle = trainerName ? `${trainerName}'s Trainees` : 'PT Trainees';
 
-      const group = await this.groupService.getTrainerPtGroupByTrainerUid(trainerId);
-      if (!group) return;
-
-      this.trainingGroup = group;
-      this.trainingEnabled = true;
-      await this.loadTrainingLeaderboard(group.groupId);
+      trainingGroup = await this.groupService.getTrainerPtGroupByTrainerUid(trainerId) ?? null;
+      if (loadVersion === this.trainingLoadVersion) {
+        this.applyTrainingGroup(trainingGroup, trainingTitle);
+      }
     } catch (err) {
+      if (loadVersion !== this.trainingLoadVersion) {
+        return;
+      }
       console.warn('[GroupsPage] Failed to resolve training group', err);
-      this.trainingGroup = null;
-      this.trainingTitle = 'PT Trainees';
-      this.trainingEnabled = false;
-      this.trainingEntries = [];
-      this.trainingLeaderboardError = null;
-      this.trainingDistributionCurvePath = '';
-      this.trainingDistributionPoints = [];
-      this.trainingSelectedPointBin = null;
-      this.trainingSelectedPointUserIds.clear();
+      this.clearTrainingGroupState();
     } finally {
+      if (loadVersion !== this.trainingLoadVersion) {
+        return;
+      }
+
       this.trainingLoading = false;
       if (this.selectedTab === 'training' && !this.trainingEnabled) {
         this.selectedTab = 'friends';
@@ -371,7 +364,57 @@ export class GroupsPage implements OnInit, OnDestroy {
     }
   }
 
-  private async loadTrainingLeaderboard(groupId: string): Promise<void> {
+  private applyTrainingGroup(group: Group | null, title: string): void {
+    const previousGroupId = this.trainingGroup?.groupId ?? null;
+    const nextGroupId = group?.groupId ?? null;
+    const groupChanged = previousGroupId !== nextGroupId;
+
+    this.trainingGroup = group;
+    this.trainingTitle = title;
+    this.trainingEnabled = !!group;
+
+    if (!nextGroupId) {
+      this.clearTrainingLeaderboardSubscription();
+      this.resetTrainingLeaderboardState();
+      return;
+    }
+
+    this.userGroupIds.add(nextGroupId);
+
+    if (groupChanged) {
+      this.clearTrainingLeaderboardSubscription();
+      this.resetTrainingLeaderboardState();
+    }
+
+    this.subscribeToTrainingLeaderboard(nextGroupId);
+  }
+
+  private clearTrainingGroupState(): void {
+    this.trainingGroup = null;
+    this.trainingTitle = 'PT Trainees';
+    this.trainingEnabled = false;
+    this.clearTrainingLeaderboardSubscription();
+    this.resetTrainingLeaderboardState();
+  }
+
+  private resetTrainingLeaderboardState(): void {
+    this.trainingEntries = [];
+    this.trainingLeaderboardError = null;
+    this.trainingDistributionCurvePath = '';
+    this.trainingDistributionPoints = [];
+    this.trainingSelectedPointBin = null;
+    this.trainingSelectedPointUserIds.clear();
+  }
+
+  private subscribeToTrainingLeaderboard(groupId: string): void {
+    const normalizedGroupId = String(groupId ?? '').trim();
+    const nextKey = `${normalizedGroupId}:${this.trainingMetric}`;
+    if (!normalizedGroupId || (this.trainingLeaderboardSub && this.trainingLeaderboardKey === nextKey)) {
+      return;
+    }
+
+    this.clearTrainingLeaderboardSubscription();
+    this.trainingLeaderboardKey = nextKey;
     this.trainingLeaderboardLoading = true;
     this.trainingLeaderboardError = null;
     this.trainingEntries = [];
@@ -380,25 +423,64 @@ export class GroupsPage implements OnInit, OnDestroy {
     this.trainingSelectedPointBin = null;
     this.trainingSelectedPointUserIds.clear();
 
-    try {
-      this.trainingEntries = await this.leaderboardService.getGroupLeaderboard(groupId, this.trainingMetric);
-      this.buildTrainingDistributionChart();
-    } catch (err) {
-      console.warn('[GroupsPage] Failed to load training leaderboard', err);
-      this.trainingLeaderboardError = 'Could not load training leaderboard.';
-      this.trainingEntries = [];
-      this.trainingDistributionCurvePath = '';
-      this.trainingDistributionPoints = [];
-    } finally {
-      this.trainingLeaderboardLoading = false;
-    }
+    this.trainingLeaderboardSub = this.leaderboardService
+      .watchGroupLeaderboard(normalizedGroupId, this.trainingMetric)
+      .subscribe({
+        next: (entries) => {
+          this.trainingEntries = entries;
+          this.trainingLeaderboardError = null;
+          this.trainingLeaderboardLoading = false;
+          this.buildTrainingDistributionChart();
+        },
+        error: (err) => {
+          console.warn('[GroupsPage] Failed to load training leaderboard', err);
+          this.trainingLeaderboardError = 'Could not load training leaderboard.';
+          this.trainingEntries = [];
+          this.trainingDistributionCurvePath = '';
+          this.trainingDistributionPoints = [];
+          this.trainingLeaderboardLoading = false;
+        },
+      });
+  }
+
+  private clearTrainingLeaderboardSubscription(): void {
+    this.trainingLeaderboardSub?.unsubscribe();
+    this.trainingLeaderboardSub = undefined;
+    this.trainingLeaderboardKey = null;
   }
 
   onTrainingMetricChange(metric: Metric): void {
     this.trainingMetric = metric;
     if (this.trainingGroup?.groupId) {
-      void this.loadTrainingLeaderboard(this.trainingGroup.groupId);
+      this.subscribeToTrainingLeaderboard(this.trainingGroup.groupId);
     }
+  }
+
+  private startAllGroupsSubscription(): void {
+    if (this.allGroupsSub) {
+      return;
+    }
+
+    this.allGroupsLoading = true;
+    this.allGroupsError = null;
+    this.allGroupsSub = this.groupService.watchAllGroups().subscribe({
+      next: (groups) => {
+        this.allGroups = groups;
+        this.allGroupsLoading = false;
+        this.allGroupsError = null;
+      },
+      error: (err) => {
+        console.error('[GroupsPage] Failed to load all groups:', err);
+        this.allGroupsError = 'Could not load groups for search.';
+        this.allGroups = [];
+        this.allGroupsLoading = false;
+      },
+    });
+  }
+
+  private stopAllGroupsSubscription(): void {
+    this.allGroupsSub?.unsubscribe();
+    this.allGroupsSub = undefined;
   }
 
   onTrainingDistributionPointClick(point: DistributionPoint): void {
@@ -532,5 +614,7 @@ export class GroupsPage implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.groupsSub?.unsubscribe();
     this.authSub?.unsubscribe();
+    this.stopAllGroupsSubscription();
+    this.clearTrainingLeaderboardSubscription();
   }
 }

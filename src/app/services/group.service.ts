@@ -1,23 +1,24 @@
 // src/app/services/group.service.ts
 import { Injectable } from '@angular/core';
+import { Firestore } from '@angular/fire/firestore';
 import {
-  Firestore,
+  addDoc,
+  arrayUnion,
+  collection,
   doc,
-  docData,
   getDoc,
   getDocs,
-  collection,
-  addDoc,
+  serverTimestamp,
   setDoc,
   updateDoc,
-  arrayUnion,
-  serverTimestamp,
-} from '@angular/fire/firestore';
+} from 'firebase/firestore';
 
 import { Observable, of, from, combineLatest } from 'rxjs';
 import { map, switchMap } from 'rxjs/operators';
 import { Group } from '../models/groups.model';
 import { AppUser } from '../models/user.model';
+import { ProfileRepositoryService } from './account/profile-repository.service';
+import { watchDocumentData, watchQueryData } from './firestore-streams.util';
 
 @Injectable({
   providedIn: 'root',
@@ -25,16 +26,16 @@ import { AppUser } from '../models/user.model';
 export class GroupService {
   private readonly groupsCollectionName = 'groupID';
 
-  constructor(private firestore: Firestore) {}
+  constructor(
+    private firestore: Firestore,
+    private profileRepository: ProfileRepositoryService
+  ) {}
 
   /**
    * Get the AppUser doc for a given uid.
    */
   getUser(uid: string): Observable<AppUser | undefined> {
-    const userRef = doc(this.firestore, 'users', uid);
-    return docData(userRef).pipe(
-      map((data) => (data as AppUser) ?? undefined)
-    );
+    return this.profileRepository.watchUserSummary(uid);
   }
 
   /**
@@ -62,8 +63,8 @@ export class GroupService {
 
     const streams = groupIds.map((id) => {
       const ref = doc(this.firestore, this.groupsCollectionName, id);
-      return docData(ref, { idField: 'groupId' }).pipe(
-        map((data) => (data as Group | undefined) ?? undefined)
+      return watchDocumentData<Group>(ref, { idField: 'groupId' }).pipe(
+        map((data) => data ?? undefined)
       );
     });
 
@@ -83,6 +84,13 @@ export class GroupService {
       const data = docSnap.data() as Omit<Group, 'groupId'>;
       return { groupId: docSnap.id, ...data };
     });
+  }
+
+  watchAllGroups(): Observable<Group[]> {
+    const colRef = collection(this.firestore, this.groupsCollectionName);
+    return watchQueryData<Group>(colRef, { idField: 'groupId' }).pipe(
+      map((groups) => groups as Group[])
+    );
   }
 
   /**
@@ -120,6 +128,7 @@ export class GroupService {
     await updateDoc(userRef, {
       groupID: arrayUnion(groupId),
     });
+    this.profileRepository.invalidateUser(ownerUid);
 
     return groupId;
   }
@@ -133,13 +142,14 @@ export class GroupService {
       return undefined;
     }
 
-    const trainerSnap = await getDoc(doc(this.firestore, 'trainers', normalizedTrainerUid));
-    if (!trainerSnap.exists()) {
+    const trainerProfile = await this.profileRepository.getProfile(normalizedTrainerUid, 'trainer');
+    if (!trainerProfile) {
       return undefined;
     }
 
-    const trainerData = trainerSnap.data() as Record<string, unknown>;
-    const groupId = this.normalizeString(trainerData['trainerGroupID']);
+    const groupId = this.normalizeString(
+      (trainerProfile as unknown as Record<string, unknown>)['trainerGroupID']
+    );
     if (!groupId) {
       return undefined;
     }
@@ -153,18 +163,13 @@ export class GroupService {
       return false;
     }
 
-    const trainerSnap = await getDoc(doc(this.firestore, 'trainers', normalizedTrainerUid));
-    if (trainerSnap.exists()) {
+    const trainerProfile = await this.profileRepository.getProfile(normalizedTrainerUid, 'trainer');
+    if (trainerProfile) {
       return true;
     }
 
-    const userSnap = await getDoc(doc(this.firestore, 'users', normalizedTrainerUid));
-    if (!userSnap.exists()) {
-      return false;
-    }
-
-    const userData = userSnap.data() as Record<string, unknown>;
-    return userData['isPT'] === true;
+    const userSummary = await this.profileRepository.getUserSummary(normalizedTrainerUid);
+    return userSummary?.isPT === true;
   }
 
   /**
@@ -177,17 +182,16 @@ export class GroupService {
     }
 
     const trainerRef = doc(this.firestore, 'trainers', normalizedTrainerUid);
-    const userRef = doc(this.firestore, 'users', normalizedTrainerUid);
-    const [trainerSnap, userSnap] = await Promise.all([
-      getDoc(trainerRef),
-      getDoc(userRef),
+    const [trainerProfile, userSummary] = await Promise.all([
+      this.profileRepository.getProfile(normalizedTrainerUid, 'trainer'),
+      this.profileRepository.getUserSummary(normalizedTrainerUid),
     ]);
 
-    const trainerData = trainerSnap.exists()
-      ? (trainerSnap.data() as Record<string, unknown>)
+    const trainerData = trainerProfile
+      ? (trainerProfile as unknown as Record<string, unknown>)
       : {};
-    const userData = userSnap.exists()
-      ? (userSnap.data() as Record<string, unknown>)
+    const userData = userSummary
+      ? (userSummary as unknown as Record<string, unknown>)
       : {};
 
     const isPtUser = trainerData['isPT'] === true || userData['isPT'] === true;
@@ -203,7 +207,7 @@ export class GroupService {
       }
     }
 
-    const trainerIdentityData = trainerSnap.exists() ? trainerData : userData;
+    const trainerIdentityData = trainerProfile ? trainerData : userData;
 
     // Ensure trainer doc exists so trainerGroupID can be persisted there.
     await setDoc(
@@ -216,6 +220,12 @@ export class GroupService {
       },
       { merge: true }
     );
+    this.profileRepository.applyProfilePatch(normalizedTrainerUid, 'trainer', {
+      firstName: this.normalizeString(trainerIdentityData['firstName']),
+      lastName: this.normalizeString(trainerIdentityData['lastName']),
+      isPT: true,
+    });
+    this.profileRepository.applyUserSummaryPatch(normalizedTrainerUid, { isPT: true });
 
     const clientIds = await this.getTrainerClientUserIds(normalizedTrainerUid);
     const userIds = Array.from(new Set(clientIds));
@@ -240,6 +250,9 @@ export class GroupService {
       },
       { merge: true }
     );
+    this.profileRepository.applyProfilePatch(normalizedTrainerUid, 'trainer', {
+      trainerGroupID: groupId,
+    });
 
     return this.getGroupOnce(groupId);
   }

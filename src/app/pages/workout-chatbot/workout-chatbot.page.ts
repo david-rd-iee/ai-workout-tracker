@@ -87,7 +87,12 @@ export class WorkoutChatbotPage implements OnInit, OnDestroy {
 
     this.isIPhone = this.platform.is('iphone');
     this.initKeyboardBehavior();
-    this.estimatorIdsLoadPromise = this.loadEstimatorIds();
+    const cachedEstimatorIds = this.exerciseEstimatorsService.getCachedEstimatorIds();
+    if (cachedEstimatorIds.length > 0) {
+      this.exerciseEstimatorIds = cachedEstimatorIds;
+    } else {
+      this.estimatorIdsLoadPromise = this.loadEstimatorIds();
+    }
     this.refreshSummaryDisplayRows();
   }
 

@@ -58,11 +58,9 @@
       <ion-card-content>
         <div class="display-statues-carousel" *ngIf="displayStatues && displayStatues.length > 0; else noBadges">
           <swiper-container
+            #statueSwiper
             *ngIf="displayStatues.length > 0"
-            [slidesPerView]="1"
-            [centeredSlides]="true"
-            [spaceBetween]="20"
-            [pagination]="false"
+            init="false"
             class="statue-swiper"
             (swiperslidechange)="onSlideChange($event)"
           >

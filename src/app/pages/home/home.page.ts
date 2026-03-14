@@ -30,12 +30,13 @@ import {
 } from 'ionicons/icons';
 
 import { Auth } from '@angular/fire/auth';
-import { Firestore, doc, docData, getDoc, onSnapshot, collection, query, where, getDocs, Timestamp, limit, deleteDoc } from '@angular/fire/firestore';
+import { Firestore, collection, getDoc, onSnapshot, doc, query, where, getDocs, Timestamp, limit, deleteDoc } from '@angular/fire/firestore';
 import { authState } from 'rxfire/auth';
-import { switchMap, of } from 'rxjs';
+import { from, of, switchMap } from 'rxjs';
 import { Subscription } from 'rxjs';
 import { HeaderComponent } from 'src/app/components/header/header.component';
 import { UserService } from '../../services/account/user.service';
+import { ProfileRepositoryService } from '../../services/account/profile-repository.service';
 
 import type { AppUser } from '../../models/user.model';
 
@@ -100,13 +101,13 @@ export class HomePage implements OnInit, OnDestroy {
   private auth = inject(Auth);
   private firestore = inject(Firestore);
   private userService = inject(UserService);
+  private profileRepository = inject(ProfileRepositoryService);
 
   private userSub?: Subscription;
   private trainerClientsUnsubscribe: (() => void) | null = null;
-  private userProfileUnsubscribe: (() => void) | null = null;
+  private userSummaryUnsubscribe: (() => void) | null = null;
+  private currentSummaryUid: string | null = null;
   private activeUserDataKey: string | null = null;
-  private hydratedHeaderUid: string | null = null;
-  private headerUserFieldCache = new Map<string, Partial<AppUser>>();
   private isReconcilingTrainerClients = false;
 
   isLoadingUser = true;
@@ -161,54 +162,26 @@ export class HomePage implements OnInit, OnDestroy {
           return of(null);
         }
 
-        const trainerRef = doc(this.firestore, 'trainers', fbUser.uid);
-        return docData(trainerRef, { idField: 'userId' }).pipe(
-          switchMap((trainer) => {
-            if (trainer) {
-              return of({ ...trainer, isPT: true });
-            }
-            const clientRef = doc(this.firestore, 'clients', fbUser.uid);
-            return docData(clientRef, { idField: 'userId' }).pipe(
-              switchMap((client) => {
-                if (client) {
-                  return of({ ...client, isPT: false });
-                }
-                const userRef = doc(this.firestore, 'users', fbUser.uid);
-                return docData(userRef, { idField: 'userId' }).pipe(
-                  switchMap((appUser) => {
-                    if (appUser) {
-                      return of({ ...appUser, isPT: false });
-                    }
-                    return of(null);
-                  })
-                );
-              })
-            );
-          })
-        );
+        return from(this.profileRepository.getResolvedAppUser(fbUser.uid));
       })
     ).subscribe({
       next: (u) => {
-        const rawNextUser = (u as AppUser | null) ?? null;
-        const nextUser = this.applyHeaderUserFieldCache(rawNextUser);
+        const nextUser = (u as AppUser | null) ?? null;
         const nextUserKey = nextUser ? `${nextUser.userId}:${nextUser.isPT ? 'trainer' : 'client'}` : null;
         const roleChanged = nextUserKey !== this.activeUserDataKey;
 
         this.currentUser = nextUser;
         this.isLoadingUser = false;
 
-        if (this.currentUser?.userId && this.hydratedHeaderUid !== this.currentUser.userId) {
-          this.hydratedHeaderUid = this.currentUser.userId;
-          void this.hydrateHeaderProfileFields(this.currentUser.userId);
-        }
-
         if (!this.currentUser) {
           this.activeUserDataKey = null;
           this.stopTrainerClientsListener();
-          this.stopUserProfileListener();
+          this.stopCurrentUserSummaryListener();
           this.clearRoleData();
           return;
         }
+
+        this.startCurrentUserSummaryListener(this.currentUser.userId || '');
 
         if (!roleChanged) {
           return;
@@ -236,84 +209,45 @@ export class HomePage implements OnInit, OnDestroy {
     });
   }
 
-  private hydrateHeaderProfileFields(uid: string): void {
-    try {
-      // Clean up any existing listener
-      this.stopUserProfileListener();
+  private startCurrentUserSummaryListener(uid: string): void {
+    const normalizedUid = (uid || '').trim();
+    if (!normalizedUid) {
+      this.stopCurrentUserSummaryListener();
+      return;
+    }
 
-      const userRef = doc(this.firestore, 'users', uid);
-      
-      // Use real-time listener so profile picture updates are reflected immediately
-      this.userProfileUnsubscribe = onSnapshot(userRef, (userSnap) => {
-        if (!userSnap.exists()) return;
-        if (!this.currentUser || this.currentUser.userId !== uid) return;
+    if (this.userSummaryUnsubscribe && this.currentSummaryUid === normalizedUid) {
+      return;
+    }
 
-        const userData = userSnap.data() as any;
-        const usersProfilepic = typeof userData?.profilepic === 'string' ? userData.profilepic.trim() : '';
-        const usersUsername = typeof userData?.username === 'string' ? userData.username.trim() : '';
-        const usersFirstName = typeof userData?.firstName === 'string' ? userData.firstName.trim() : '';
-        const usersLastName = typeof userData?.lastName === 'string' ? userData.lastName.trim() : '';
+    this.stopCurrentUserSummaryListener();
+    this.currentSummaryUid = normalizedUid;
+    this.userSummaryUnsubscribe = this.profileRepository.observeUserSummary(
+      normalizedUid,
+      (userSummary) => {
+        if (!userSummary || !this.currentUser || this.currentUser.userId !== normalizedUid) {
+          return;
+        }
 
         this.currentUser = {
           ...this.currentUser,
-          profilepic: usersProfilepic || this.currentUser.profilepic,
-          username: usersUsername || this.currentUser.username,
-          firstName: usersFirstName || this.currentUser.firstName,
-          lastName: usersLastName || this.currentUser.lastName,
+          ...userSummary,
+          isPT: this.currentUser.isPT,
         };
-      });
-    } catch (error) {
-      console.error('Error hydrating header profile fields:', error);
-    }
+      }
+    );
   }
 
-  private shouldHydrateHeaderFields(user: AppUser): boolean {
-    const uid = (user.userId || '').trim();
-    if (!uid) {
-      return false;
-    }
-
-    const cached = this.headerUserFieldCache.get(uid);
-    if (!cached) {
-      return true;
-    }
-
-    const profilePic = (user.profilepic || '').trim();
-    const username = (user.username || '').trim();
-    const firstName = (user.firstName || '').trim();
-    const lastName = (user.lastName || '').trim();
-
-    return !profilePic || !username || !firstName || !lastName;
-  }
-
-  private applyHeaderUserFieldCache(user: AppUser | null): AppUser | null {
-    if (!user?.userId) {
-      return user;
-    }
-
-    const cached = this.headerUserFieldCache.get(user.userId);
-    if (!cached) {
-      return user;
-    }
-
-    return {
-      ...user,
-      profilepic: (user.profilepic || '').trim() || (cached.profilepic || ''),
-      username: (user.username || '').trim() || (cached.username || ''),
-      firstName: (user.firstName || '').trim() || (cached.firstName || ''),
-      lastName: (user.lastName || '').trim() || (cached.lastName || ''),
-    };
-  }
-
-  private stopUserProfileListener(): void {
-    this.userProfileUnsubscribe?.();
-    this.userProfileUnsubscribe = null;
+  private stopCurrentUserSummaryListener(): void {
+    this.userSummaryUnsubscribe?.();
+    this.userSummaryUnsubscribe = null;
+    this.currentSummaryUid = null;
   }
 
   ngOnDestroy(): void {
     this.userSub?.unsubscribe();
     this.stopTrainerClientsListener();
-    this.stopUserProfileListener();
+    this.stopCurrentUserSummaryListener();
   }
 
   private stopTrainerClientsListener(): void {
@@ -462,12 +396,14 @@ export class HomePage implements OnInit, OnDestroy {
           }
 
           try {
-            const clientProfileSnap = await getDoc(doc(this.firestore, 'clients', clientId));
-            if (!clientProfileSnap.exists()) {
+            const clientProfile = await this.userService.getUserProfileDirectly(clientId, 'client');
+            if (!clientProfile) {
               return { clientDocId, shouldRemove: true };
             }
 
-            const assignedTrainerId = String(clientProfileSnap.data()?.['trainerId'] || '').trim();
+            const assignedTrainerId = String(
+              (clientProfile as unknown as Record<string, unknown>)['trainerId'] || ''
+            ).trim();
             return { clientDocId, shouldRemove: assignedTrainerId !== trainerId };
           } catch (error) {
             console.warn(`[HomePage] Failed validating trainer-client link for ${clientId}:`, error);
@@ -596,12 +532,11 @@ export class HomePage implements OnInit, OnDestroy {
         this.customMessage = this.homeConfig.customMessage || '';
       }
 
-      const clientRef = doc(this.firestore, `clients/${clientId}`);
-      const clientSnap = await getDoc(clientRef);
-      
-      if (clientSnap.exists() && this.activeUserDataKey === roleKey) {
-        const clientData = clientSnap.data();
-        this.currentStreak = clientData['currentStreak'] || 0;
+      const clientProfile = await this.userService.getUserProfileDirectly(clientId, 'client');
+      if (clientProfile && this.activeUserDataKey === roleKey) {
+        this.currentStreak = Number(
+          (clientProfile as unknown as Record<string, unknown>)['currentStreak'] || 0
+        ) || 0;
       }
 
       await this.loadNextWorkout(clientId);

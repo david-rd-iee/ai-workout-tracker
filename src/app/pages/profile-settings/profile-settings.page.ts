@@ -26,6 +26,8 @@ import { FirebaseError } from 'firebase/app';
 import { AlertController } from '@ionic/angular';
 import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { AccountService } from '../../services/account/account.service';
+import { ProfileRepositoryService } from '../../services/account/profile-repository.service';
+import { UserService } from '../../services/account/user.service';
 
 @Component({
   selector: 'app-profile-settings',
@@ -56,6 +58,8 @@ export class ProfileSettingsPage implements OnInit {
   private router = inject(Router);
   private alertCtrl = inject(AlertController);
   private accountService = inject(AccountService);
+  private profileRepository = inject(ProfileRepositoryService);
+  private userService = inject(UserService);
 
   firstName = '';
   lastName = '';
@@ -183,6 +187,14 @@ export class ProfileSettingsPage implements OnInit {
         },
         { merge: true }
       );
+      const userSummaryPatch = {
+        userId: uid,
+        firstName,
+        lastName,
+        email: emailForUsersDoc,
+      };
+      this.profileRepository.applyUserSummaryPatch(uid, userSummaryPatch);
+      this.userService.syncCurrentUserSummaryPatch(uid, userSummaryPatch);
 
       if (shouldSaveStats) {
         const userStatsPayload: Record<string, unknown> = {
@@ -237,19 +249,17 @@ export class ProfileSettingsPage implements OnInit {
     }
 
     try {
-      const userRef = doc(this.firestore, 'users', uid);
       const userStatsRef = doc(this.firestore, 'userStats', uid);
       const [userSnap, userStatsSnap] = await Promise.all([
-        getDoc(userRef),
+        this.profileRepository.getUserSummary(uid),
         getDoc(userStatsRef),
       ]);
 
-      if (userSnap.exists()) {
-        const userData = userSnap.data();
-        this.isTrainer = userData?.['isPT'] === true;
-        this.firstName = typeof userData?.['firstName'] === 'string' ? userData['firstName'] : '';
-        this.lastName = typeof userData?.['lastName'] === 'string' ? userData['lastName'] : '';
-        this.email = typeof userData?.['email'] === 'string' ? userData['email'] : '';
+      if (userSnap) {
+        this.isTrainer = userSnap.isPT === true;
+        this.firstName = typeof userSnap.firstName === 'string' ? userSnap.firstName : '';
+        this.lastName = typeof userSnap.lastName === 'string' ? userSnap.lastName : '';
+        this.email = typeof userSnap.email === 'string' ? userSnap.email : '';
       }
 
       if (!this.email && this.auth.currentUser?.email) {

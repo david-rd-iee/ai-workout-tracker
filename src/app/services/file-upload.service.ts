@@ -20,7 +20,6 @@ export class FileUploadService {
     private auth: Auth
   ) {
     this.isCapacitor = this.platform.is('capacitor');
-    console.log('FileUploadService initialized, isCapacitor:', this.isCapacitor);
   }
 
   /**

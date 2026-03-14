@@ -16,7 +16,7 @@
     [actionAriaLabel]="'Open group settings'"
     (back)="goBack()"
     (actionClick)="openGroupSettings()"
-    (metricChange)="metric = $event; refresh()"
+    (metricChange)="onMetricChanged($event)"
     (distributionPointClick)="onDistributionPointClick($event)"
     (memberClick)="onMemberClick($event)"
   ></app-leaderboard-shell>

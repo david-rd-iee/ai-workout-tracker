@@ -13,6 +13,8 @@ import {
 import { Router } from '@angular/router';
 import { Auth, onAuthStateChanged } from '@angular/fire/auth';
 import { Firestore, doc, getDoc, setDoc, serverTimestamp } from '@angular/fire/firestore';
+import { ProfileRepositoryService } from '../../services/account/profile-repository.service';
+import { UserService } from '../../services/account/user.service';
 
 @Component({
   selector: 'app-complete-profile',
@@ -35,6 +37,8 @@ export class CompleteProfilePage implements OnInit {
   private router = inject(Router);
   private auth = inject(Auth);
   private firestore = inject(Firestore);
+  private profileRepository = inject(ProfileRepositoryService);
+  private userService = inject(UserService);
 
   firstName = '';
   lastName = '';
@@ -106,6 +110,15 @@ export class CompleteProfilePage implements OnInit {
         },
         { merge: true }
       );
+      const userSummaryPatch = {
+        userId: uid,
+        email: this.auth.currentUser?.email ?? '',
+        firstName,
+        lastName,
+        ...(username ? { username } : {}),
+      };
+      this.profileRepository.applyUserSummaryPatch(uid, userSummaryPatch);
+      this.userService.syncCurrentUserSummaryPatch(uid, userSummaryPatch);
 
       if (requiresExtendedProfile) {
         const userStatsRef = doc(this.firestore, 'userStats', uid);
@@ -141,17 +154,15 @@ export class CompleteProfilePage implements OnInit {
     }
 
     try {
-      const userRef = doc(this.firestore, 'users', uid);
-      const userSnap = await getDoc(userRef);
-      if (!userSnap.exists()) {
+      const userSummary = await this.profileRepository.getUserSummary(uid);
+      if (!userSummary) {
         return;
       }
 
-      const data = userSnap.data();
-      this.firstName = typeof data?.['firstName'] === 'string' ? data['firstName'] : '';
-      this.lastName = typeof data?.['lastName'] === 'string' ? data['lastName'] : '';
-      this.username = typeof data?.['username'] === 'string' ? data['username'] : '';
-      this.isTrainerNameOnly = data?.['isPT'] === true;
+      this.firstName = typeof userSummary.firstName === 'string' ? userSummary.firstName : '';
+      this.lastName = typeof userSummary.lastName === 'string' ? userSummary.lastName : '';
+      this.username = typeof userSummary.username === 'string' ? userSummary.username : '';
+      this.isTrainerNameOnly = userSummary.isPT === true;
 
       if (this.isTrainerNameOnly) {
         return;

@@ -82,10 +82,19 @@ export class HeaderComponent implements OnInit {
     return fromLoadedUser.length > 0 ? fromLoadedUser : null;
   }
 
+  private blurActiveElement(): void {
+    const activeElement = document.activeElement;
+    if (activeElement instanceof HTMLElement) {
+      activeElement.blur();
+    }
+  }
+
   goToProfile() {
     if (this.router.url.startsWith('/profile-user')) {
       return;
     }
+
+    this.blurActiveElement();
     this.navCtrl.navigateForward('/profile-user', {
       animated: true,
       animationDirection: 'forward',

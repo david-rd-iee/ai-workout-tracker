@@ -1,5 +1,6 @@
 import { Injectable, signal } from '@angular/core';
-import { Firestore, collection, doc, getDoc, setDoc, query, where, getDocs } from '@angular/fire/firestore';
+import { Firestore } from '@angular/fire/firestore';
+import { collection, doc, getDoc, getDocs, query, setDoc, where } from 'firebase/firestore';
 import { trainerProfile } from '../Interfaces/Profiles/Trainer';
 import { BehaviorSubject, Observable } from 'rxjs';
 
@@ -12,7 +13,9 @@ export class TrainerFinderService {
   //use this for saving the image and name when going to chats or other services after finding a trainer with trainer finder
   private selectedTrainer = signal<trainerProfile | null>(null);
 
-  constructor(private firestore: Firestore) {}
+  constructor(
+    private firestore: Firestore
+  ) {}
 
   // Update trainer's advanced profile information
   async updateTrainerDetails(userId: string, profileUpdates: Partial<trainerProfile>): Promise<void> {
@@ -110,8 +113,14 @@ export class TrainerFinderService {
   
   // Get detailed trainer profile
   async getTrainerDetails(trainerId: string): Promise<trainerProfile | null> {
-    const trainerRef = doc(this.firestore, `trainers/${trainerId}`);
-    const trainerDoc = await getDoc(trainerRef);
-    return trainerDoc.exists() ? (trainerDoc.data() as trainerProfile) : null;
+    const trainerSnap = await getDoc(doc(this.firestore, 'trainers', trainerId));
+    if (!trainerSnap.exists()) {
+      return null;
+    }
+
+    return {
+      id: trainerSnap.id,
+      ...(trainerSnap.data() as trainerProfile),
+    };
   }
 }

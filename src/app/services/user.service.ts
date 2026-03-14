@@ -1,7 +1,9 @@
 import { Injectable } from '@angular/core';
-import { Firestore, doc, docData, setDoc, serverTimestamp } from '@angular/fire/firestore';
+import { Firestore } from '@angular/fire/firestore';
+import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { Observable } from 'rxjs';
 import { AppUser } from '../models/user.model';
+import { watchDocumentData } from './firestore-streams.util';
 
 @Injectable({
   providedIn: 'root',
@@ -11,8 +13,9 @@ export class UserService {
 
   // Read a single user document as an observable
   getUser(userId: string): Observable<AppUser | undefined> {
-    const ref = doc(this.firestore, 'users', userId);
-    return docData(ref, { idField: 'userId' }) as unknown as Observable<AppUser | undefined>;
+    return watchDocumentData<AppUser>(doc(this.firestore, 'users', userId), {
+      idField: 'userId',
+    });
   }
 
   // Create or update a user document (e.g., from Firebase Auth user)

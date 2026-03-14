@@ -1,6 +1,8 @@
 import { Injectable } from '@angular/core';
 import {
   Firestore,
+} from '@angular/fire/firestore';
+import {
   arrayUnion,
   collection,
   doc,
@@ -8,7 +10,7 @@ import {
   getDocs,
   serverTimestamp,
   setDoc
-} from '@angular/fire/firestore';
+} from 'firebase/firestore';
 import { ExerciseEstimatorCoefficientMap, ExerciseEstimatorSeedDoc } from '../models/exercise-estimators.model';
 
 const DEFAULT_EXERCISE_ESTIMATORS: ExerciseEstimatorSeedDoc[] = [
@@ -225,8 +227,6 @@ export class ExerciseEstimatorsService {
   private initPromise: Promise<void> | null = null;
   private estimatorIdsCache: string[] | null = null;
   private estimatorIdsLoadPromise: Promise<string[]> | null = null;
-  private lastEstimatorIdsFetchAt = 0;
-  private static readonly ESTIMATOR_IDS_CACHE_TTL_MS = 5 * 60 * 1000;
   private static readonly ESTIMATOR_IDS_INDEX_COLLECTION = 'systemConfig';
   private static readonly ESTIMATOR_IDS_INDEX_DOC = 'exercise_estimators_index';
 
@@ -234,18 +234,16 @@ export class ExerciseEstimatorsService {
 
   ensureInitialized(): Promise<void> {
     if (!this.initPromise) {
-      this.initPromise = this.seedMissingEstimatorDocs();
+      this.initPromise = this.seedMissingEstimatorDocs()
+        .then(() => this.listEstimatorIds())
+        .then(() => undefined);
     }
 
     return this.initPromise;
   }
 
   async listEstimatorIds(forceRefresh = false): Promise<string[]> {
-    const cacheIsFresh =
-      this.estimatorIdsCache &&
-      Date.now() - this.lastEstimatorIdsFetchAt < ExerciseEstimatorsService.ESTIMATOR_IDS_CACHE_TTL_MS;
-
-    if (!forceRefresh && cacheIsFresh) {
+    if (!forceRefresh && this.estimatorIdsCache) {
       return [...(this.estimatorIdsCache ?? [])];
     }
 
@@ -257,11 +255,14 @@ export class ExerciseEstimatorsService {
     try {
       const ids = await this.estimatorIdsLoadPromise;
       this.estimatorIdsCache = ids;
-      this.lastEstimatorIdsFetchAt = Date.now();
       return [...ids];
     } finally {
       this.estimatorIdsLoadPromise = null;
     }
+  }
+
+  getCachedEstimatorIds(): string[] {
+    return [...(this.estimatorIdsCache ?? [])];
   }
 
   normalizeEstimatorId(rawId: string): string {
@@ -327,7 +328,6 @@ export class ExerciseEstimatorsService {
 
     await this.upsertEstimatorIdsIndex(seededIds);
     this.estimatorIdsCache = null;
-    this.lastEstimatorIdsFetchAt = 0;
   }
 
   private async loadEstimatorIdsFromIndexOrCollection(): Promise<string[]> {
@@ -397,19 +397,16 @@ export class ExerciseEstimatorsService {
 
     if (!this.estimatorIdsCache) {
       this.estimatorIdsCache = [normalizedId];
-      this.lastEstimatorIdsFetchAt = Date.now();
       return;
     }
 
     if (this.estimatorIdsCache.includes(normalizedId)) {
-      this.lastEstimatorIdsFetchAt = Date.now();
       return;
     }
 
     this.estimatorIdsCache = [...this.estimatorIdsCache, normalizedId].sort((a, b) =>
       a.localeCompare(b)
     );
-    this.lastEstimatorIdsFetchAt = Date.now();
   }
 
   private toCoefficientMap(coefficients: unknown): ExerciseEstimatorCoefficientMap | null {

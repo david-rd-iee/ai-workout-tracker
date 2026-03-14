@@ -78,7 +78,26 @@ export class UserService {
         },
         { merge: true }
       );
-      this.profileRepository.invalidateUser(userID);
+
+      const userSummaryPatch: Partial<AppUser> = {
+        userId: userID,
+        email: authEmail ?? '',
+        firstName,
+        lastName,
+        isPT: formData.accountType === 'trainer',
+      };
+      this.profileRepository.primeUserSummary(userID, userSummaryPatch);
+      this.profileRepository.primeProfile(userID, formData.accountType, {
+        ...profileData,
+        id: userID,
+        email: authEmail ?? '',
+      });
+      this.syncCurrentUserSummaryPatch(userID, userSummaryPatch);
+      this.syncCurrentUserProfilePatch(userID, formData.accountType, {
+        ...profileData,
+        id: userID,
+        email: authEmail ?? '',
+      });
       return true;
     } else {
       throw new Error('User ID not found');
@@ -132,6 +151,7 @@ export class UserService {
     }
 
     let hasRequiredStats = true;
+    const usersData = await this.getUserSummaryDirectly(userID);
     if (!isTrainerProfile) {
       const userStatsDoc = await getDoc(doc(this.firestore, 'userStats', userID));
       const userStatsData = userStatsDoc.exists() ? userStatsDoc.data() : null;
@@ -141,7 +161,6 @@ export class UserService {
 
     if (!userDoc.exists()) {
       // Fallback for app users that only have /users doc.
-      const usersData = await this.getUserSummaryDirectly(userID);
       if (!usersData) {
         this.userInfo.set(null);
         this.loadedProfileUid = null;
@@ -188,9 +207,16 @@ export class UserService {
         username,
       } as unknown as clientProfile;
 
-      this.userInfo.set(fallbackProfile);
+      const mergedFallbackProfile = this.mergeLoadedProfileWithUserSummary(
+        userID,
+        fallbackProfile,
+        'client',
+        usersData,
+        email
+      );
+      this.userInfo.set(mergedFallbackProfile);
       this.loadedProfileUid = userID;
-      await this.syncClientTrainerRecordOnLogin(userID, fallbackProfile as unknown as Record<string, unknown>);
+      await this.syncClientTrainerRecordOnLogin(userID, mergedFallbackProfile as unknown as Record<string, unknown>);
       return true;
     }
 
@@ -201,20 +227,18 @@ export class UserService {
       return false;
     }
 
-    const userData = userDoc.data() as trainerProfile | clientProfile;
-    userData.email = email;
+    const accountType: AccountType = isTrainerProfile ? 'trainer' : 'client';
+    const userData = this.mergeLoadedProfileWithUserSummary(
+      userID,
+      userDoc.data() as trainerProfile | clientProfile,
+      accountType,
+      usersData,
+      email
+    );
 
-    // If profilepic is missing, load from users collection as fallback.
-    if (!(userData as any).profilepic) {
-      try {
-        const usersData = await this.getUserSummaryDirectly(userID);
-        const fallbackImage = usersData?.profilepic;
-        if (fallbackImage) {
-          (userData as any).profilepic = fallbackImage;
-        }
-      } catch (error) {
-        console.error('[UserService] Error checking users collection for profile image:', error);
-      }
+    this.profileRepository.primeProfile(userID, accountType, userData as unknown as Record<string, unknown>);
+    if (usersData) {
+      this.profileRepository.primeUserSummary(userID, usersData);
     }
 
     this.userInfo.set(userData);
@@ -426,6 +450,105 @@ export class UserService {
     return null;
   }
 
+  private mergeLoadedProfileWithUserSummary(
+    userId: string,
+    profile: trainerProfile | clientProfile,
+    accountType: AccountType,
+    userSummary: AppUser | null,
+    fallbackEmail: string
+  ): trainerProfile | clientProfile {
+    const merged = {
+      ...(profile as unknown as Record<string, unknown>),
+      id: (profile as any)?.id || userId,
+      accountType,
+      email: (profile as any)?.email || fallbackEmail,
+    } as (trainerProfile | clientProfile) & Record<string, unknown>;
+
+    if (userSummary?.firstName) {
+      merged.firstName = userSummary.firstName;
+    }
+
+    if (userSummary?.lastName) {
+      merged.lastName = userSummary.lastName;
+    }
+
+    if (userSummary?.email) {
+      merged.email = userSummary.email;
+    }
+
+    if (typeof userSummary?.profilepic === 'string' && userSummary.profilepic.trim()) {
+      merged.profilepic = userSummary.profilepic;
+    }
+
+    if (Object.prototype.hasOwnProperty.call(userSummary ?? {}, 'username')) {
+      (merged as any).username = userSummary?.username ?? '';
+    }
+
+    if (Object.prototype.hasOwnProperty.call(userSummary ?? {}, 'trainerId')) {
+      (merged as any).trainerId = userSummary?.trainerId ?? '';
+    }
+
+    return merged as trainerProfile | clientProfile;
+  }
+
+  syncCurrentUserSummaryPatch(userId: string, patch: Partial<AppUser>): void {
+    const currentUser = this.userInfo();
+    if (!currentUser || this.loadedProfileUid !== userId) {
+      return;
+    }
+
+    const nextUser = {
+      ...(currentUser as unknown as Record<string, unknown>),
+    } as (trainerProfile | clientProfile) & Record<string, unknown>;
+
+    if (Object.prototype.hasOwnProperty.call(patch, 'firstName')) {
+      nextUser.firstName = patch.firstName ?? '';
+    }
+
+    if (Object.prototype.hasOwnProperty.call(patch, 'lastName')) {
+      nextUser.lastName = patch.lastName ?? '';
+    }
+
+    if (Object.prototype.hasOwnProperty.call(patch, 'email')) {
+      nextUser.email = patch.email ?? '';
+    }
+
+    if (Object.prototype.hasOwnProperty.call(patch, 'profilepic')) {
+      nextUser.profilepic = patch.profilepic ?? '';
+    }
+
+    if (Object.prototype.hasOwnProperty.call(patch, 'username')) {
+      nextUser['username'] = patch.username ?? '';
+    }
+
+    if (Object.prototype.hasOwnProperty.call(patch, 'trainerId')) {
+      nextUser['trainerId'] = patch.trainerId ?? '';
+    }
+
+    if (typeof patch.isPT === 'boolean') {
+      nextUser.accountType = patch.isPT ? 'trainer' : 'client';
+    }
+
+    this.userInfo.set(nextUser as trainerProfile | clientProfile);
+  }
+
+  syncCurrentUserProfilePatch(
+    userId: string,
+    accountType: AccountType,
+    patch: Partial<Record<string, unknown>>
+  ): void {
+    const currentUser = this.userInfo();
+    if (!currentUser || this.loadedProfileUid !== userId || currentUser.accountType !== accountType) {
+      return;
+    }
+
+    const nextUser = {
+      ...(currentUser as unknown as Record<string, unknown>),
+      ...patch,
+    } as unknown as trainerProfile | clientProfile;
+    this.userInfo.set(nextUser);
+  }
+
   getUserInfo(): Signal<trainerProfile | clientProfile | null> {
     return this.userInfo;
   }
@@ -438,7 +561,7 @@ export class UserService {
     const userSignal = signal<trainerProfile | clientProfile | null>(null);
     void this.profileRepository.getProfile(userId, accountType)
       .then((profile) => {
-        userSignal.set(profile);
+        userSignal.set(profile as trainerProfile | clientProfile | null);
       })
       .catch((error) => {
         console.error('Error fetching user:', error);
@@ -457,7 +580,39 @@ export class UserService {
 
       const docRef = doc(this.firestore, `${this.CLIENTS_COLLECTION}/${uid}`);
       await updateDoc(docRef, profileData);
-      this.profileRepository.invalidateUser(uid);
+
+      const userSummaryPatch: Partial<AppUser> = {};
+      if (Object.prototype.hasOwnProperty.call(profileData, 'firstName')) {
+        userSummaryPatch.firstName = profileData.firstName ?? '';
+      }
+      if (Object.prototype.hasOwnProperty.call(profileData, 'lastName')) {
+        userSummaryPatch.lastName = profileData.lastName ?? '';
+      }
+      if (Object.prototype.hasOwnProperty.call(profileData, 'email')) {
+        userSummaryPatch.email = profileData.email ?? '';
+      }
+      if (Object.prototype.hasOwnProperty.call(profileData, 'profilepic')) {
+        userSummaryPatch.profilepic = profileData.profilepic ?? '';
+      }
+      if (Object.prototype.hasOwnProperty.call(profileData, 'trainerId')) {
+        userSummaryPatch.trainerId = (profileData as Record<string, unknown>)['trainerId'] as string;
+      }
+
+      if (Object.keys(userSummaryPatch).length > 0) {
+        await setDoc(
+          doc(this.firestore, 'users', uid),
+          {
+            ...userSummaryPatch,
+            updatedAt: serverTimestamp(),
+          },
+          { merge: true }
+        );
+        this.profileRepository.applyUserSummaryPatch(uid, userSummaryPatch);
+        this.syncCurrentUserSummaryPatch(uid, userSummaryPatch);
+      }
+
+      this.profileRepository.applyProfilePatch(uid, 'client', profileData as unknown as Record<string, unknown>);
+      this.syncCurrentUserProfilePatch(uid, 'client', profileData as unknown as Record<string, unknown>);
     } catch (error) {
       console.error('Error updating client profile:', error);
       throw error;
@@ -465,7 +620,7 @@ export class UserService {
   }
 
   async getUserProfileDirectly(uid: string, accountType: 'trainer' | 'client'): Promise<trainerProfile | clientProfile | null> {
-    return this.profileRepository.getProfile(uid, accountType);
+    return this.profileRepository.getProfile(uid, accountType) as Promise<trainerProfile | clientProfile | null>;
   }
 
   async getUserSummaryDirectly(userId: string, forceRefresh = false): Promise<AppUser | null> {
@@ -477,7 +632,11 @@ export class UserService {
     preferredType?: AccountType,
     forceRefresh = false
   ): Promise<trainerProfile | clientProfile | null> {
-    return this.profileRepository.getResolvedProfile(uid, preferredType, forceRefresh);
+    return this.profileRepository.getResolvedProfile(
+      uid,
+      preferredType,
+      forceRefresh
+    ) as Promise<trainerProfile | clientProfile | null>;
   }
 
   async getResolvedAccountType(
@@ -546,6 +705,8 @@ export class UserService {
       
       // Update the unread message count
       await updateDoc(docRef, { unreadMessageCount: newCount });
+      this.profileRepository.applyProfilePatch(userId, accountType, { unreadMessageCount: newCount });
+      this.syncCurrentUserProfilePatch(userId, accountType, { unreadMessageCount: newCount });
       return newCount;
     } catch (error) {
       console.error('Error incrementing unread message count:', error);
@@ -565,6 +726,8 @@ export class UserService {
       
       // Reset the unread message count to 0
       await updateDoc(docRef, { unreadMessageCount: 0 });
+      this.profileRepository.applyProfilePatch(userId, accountType, { unreadMessageCount: 0 });
+      this.syncCurrentUserProfilePatch(userId, accountType, { unreadMessageCount: 0 });
     } catch (error) {
       console.error('Error resetting unread message count:', error);
     }

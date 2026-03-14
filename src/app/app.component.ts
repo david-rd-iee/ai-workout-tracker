@@ -18,6 +18,7 @@ export class AppComponent implements OnInit, OnDestroy {
   private authStateSub?: Subscription;
   private profileLoadInFlight: Promise<boolean> | null = null;
   private loadedProfileUid: string | null = null;
+  private estimatorInitPromise: Promise<void> | null = null;
 
   constructor(
     private accountService: AccountService,
@@ -43,12 +44,6 @@ export class AppComponent implements OnInit, OnDestroy {
 
   async ngOnInit() {
     try {
-      await this.exerciseEstimatorsService.ensureInitialized();
-    } catch (error) {
-      console.error('[AppComponent] Error initializing exercise estimators:', error);
-    }
-
-    try {
       await this.handleAuthState();
 
       this.authStateSub = this.accountService.authStateChanges$.subscribe(() => {
@@ -69,6 +64,8 @@ export class AppComponent implements OnInit, OnDestroy {
       this.loadedProfileUid = null;
       return;
     }
+
+    this.initializeExerciseEstimatorsAfterLogin();
 
     if (this.loadedProfileUid === uid) {
       return;
@@ -95,5 +92,18 @@ export class AppComponent implements OnInit, OnDestroy {
     } finally {
       this.profileLoadInFlight = null;
     }
+  }
+
+  private initializeExerciseEstimatorsAfterLogin(): void {
+    if (this.estimatorInitPromise) {
+      return;
+    }
+
+    this.estimatorInitPromise = this.exerciseEstimatorsService
+      .ensureInitialized()
+      .catch((error) => {
+        console.error('[AppComponent] Error initializing exercise estimators:', error);
+        this.estimatorInitPromise = null;
+      });
   }
 }

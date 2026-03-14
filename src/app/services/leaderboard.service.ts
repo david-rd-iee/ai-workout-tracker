@@ -1,21 +1,24 @@
 // src/app/services/leaderboard.service.ts
 import { Injectable } from '@angular/core';
+import { Firestore } from '@angular/fire/firestore';
 import {
-  Firestore,
+  QueryConstraint,
   collection,
-  query,
-  where,
-  getDocs,
   doc,
   getDoc,
-  setDoc,
-  orderBy,
+  getDocs,
   limit as fsLimit,
-} from '@angular/fire/firestore';
-import { collectionData } from '@angular/fire/firestore';
-import { Observable, map } from 'rxjs';
+  orderBy,
+  query,
+  setDoc,
+  where,
+} from 'firebase/firestore';
+import { Observable, combineLatest, from, map, of, switchMap } from 'rxjs';
 import { UserStats, Region } from '../models/user-stats.model';
 import { UserService } from './account/user.service';
+import { AppUser } from '../models/user.model';
+import { ProfileRepositoryService } from './account/profile-repository.service';
+import { watchDocumentData, watchQueryData } from './firestore-streams.util';
 
 // 🔹 Shared metric type used by BOTH leaderboard page and groups page
 export type Metric = 'total' | 'cardio' | 'strength';
@@ -60,7 +63,8 @@ export interface RegionalQuery {
 export class LeaderboardService {
   constructor(
     private firestore: Firestore,
-    private userService: UserService
+    private userService: UserService,
+    private profileRepository: ProfileRepositoryService
   ) {}
 
   // -----------------------------
@@ -233,29 +237,105 @@ export class LeaderboardService {
       candidates.map(async (entry) => {
         const user = await this.userService.getUserSummaryDirectly(entry.userId);
         if (!user) return;
-
-        const userPic = this.readProfilePic(user);
-        const userName = this.readNonEmptyString(user, 'username');
-        const userEmail = this.readNonEmptyString(user, 'email');
-        const statsName = this.readNonEmptyString(entry, 'displayName');
-
-        if (!entry.profilePicUrl && userPic) {
-          entry.profilePicUrl = userPic;
-        }
-
-        if (!entry.username && userName) {
-          entry.username = userName;
-        }
-
-        if ((!statsName || statsName === 'Anonymous') && (userName || userEmail)) {
-          entry.displayName = userName ?? userEmail ?? entry.displayName;
-        }
-
-        if (!entry.role && this.isTrainerRole({ isPT: user?.isPT, role: (user as any)?.role })) {
-          entry.role = 'TRAINER';
-        }
+        this.applyUserSummaryToEntry(entry, user);
       })
     );
+  }
+
+  private applyUserSummaryToEntry(
+    entry: LeaderboardEntry,
+    user: AppUser | null | undefined
+  ): LeaderboardEntry {
+    if (!user) {
+      return entry;
+    }
+
+    const userPic = this.readProfilePic(user);
+    const userName = this.readNonEmptyString(user, 'username');
+    const userEmail = this.readNonEmptyString(user, 'email');
+    const statsName = this.readNonEmptyString(entry, 'displayName');
+
+    if (!entry.profilePicUrl && userPic) {
+      entry.profilePicUrl = userPic;
+    }
+
+    if (!entry.username && userName) {
+      entry.username = userName;
+    }
+
+    if ((!statsName || statsName === 'Anonymous') && (userName || userEmail)) {
+      entry.displayName = userName ?? userEmail ?? entry.displayName;
+    }
+
+    if (!entry.role && this.isTrainerRole({ isPT: user?.isPT, role: (user as any)?.role })) {
+      entry.role = 'TRAINER';
+    }
+
+    return entry;
+  }
+
+  private buildEntryFromStats(userId: string, stats: any): LeaderboardEntry {
+    const scores = this.readScores(stats);
+    return {
+      userId,
+      displayName: stats?.displayName ?? stats?.username ?? 'Anonymous',
+      rank: 0,
+      ...scores,
+      level: stats?.level,
+      region: stats?.region,
+      username: stats?.username,
+      profilePicUrl: this.readProfilePic(stats),
+      role: stats?.role,
+    };
+  }
+
+  private normalizeUserIds(candidate: unknown): string[] {
+    if (!Array.isArray(candidate)) {
+      return [];
+    }
+
+    return Array.from(
+      new Set(
+        candidate
+          .map((value) => String(value ?? '').trim())
+          .filter((value) => value.length > 0)
+      )
+    );
+  }
+
+  private finalizeEntries(
+    entries: LeaderboardEntry[],
+    metric: Metric,
+    maxResults: number = entries.length
+  ): LeaderboardEntry[] {
+    const metricField = this.metricToField(metric);
+
+    const filteredEntries = entries
+      .filter((entry) => !this.isTrainerRole(entry))
+      .sort((a, b) => ((b as any)[metricField] ?? 0) - ((a as any)[metricField] ?? 0))
+      .slice(0, maxResults);
+
+    filteredEntries.forEach((entry, index) => {
+      entry.rank = index + 1;
+    });
+
+    return filteredEntries;
+  }
+
+  private buildRegionalFilterConstraints(regional: RegionalQuery): QueryConstraint[] {
+    const filterConstraints: QueryConstraint[] = [
+      where('region.countryCode', '==', regional.countryCode),
+    ];
+
+    if (regional.scope === 'state' || regional.scope === 'city') {
+      filterConstraints.push(where('region.stateCode', '==', regional.stateCode!));
+    }
+
+    if (regional.scope === 'city') {
+      filterConstraints.push(where('region.cityId', '==', regional.cityId!));
+    }
+
+    return filterConstraints;
   }
 
   private isTrainerRole(source: unknown): boolean {
@@ -280,30 +360,94 @@ export class LeaderboardService {
   getAllUserStats(): Observable<LeaderboardEntry[]> {
     const statsRef = collection(this.firestore, 'userStats');
 
-    return collectionData(statsRef, { idField: 'userId' }).pipe(
+    return watchQueryData<UserStats & { userId: string }>(statsRef, { idField: 'userId' }).pipe(
       map((docs) =>
-        (docs as (UserStats & { userId: string })[])
+        docs
           .filter((s: any) => !this.isTrainerRole(s))
           .map((s: any) => {
             void this.ensureScoreSchema(s.userId, s).catch((err) => {
               console.warn('[LeaderboardService] Failed to initialize score schema:', err);
             });
-            const scores = this.readScores(s);
-
-            return {
-              userId: s.userId,
-              displayName: s.displayName ?? 'Anonymous',
-              rank: 0,
-              ...scores,
-              level: s.level,
-              region: s.region,
-              username: s.username,
-              profilePicUrl: this.readProfilePic(s),
-              role: s.role,
-            };
+            return this.buildEntryFromStats(s.userId, s);
           })
       )
     );
+  }
+
+  watchGroupLeaderboard(groupId: string, metric: Metric = 'total'): Observable<LeaderboardEntry[]> {
+    const normalizedGroupId = String(groupId ?? '').trim();
+    if (!normalizedGroupId) {
+      return of([]);
+    }
+
+    const groupRef = doc(this.firestore, 'groupID', normalizedGroupId);
+    return watchDocumentData<{ userIDs?: string[] }>(groupRef).pipe(
+      switchMap((group: any) => {
+        const userIds = this.normalizeUserIds(group?.['userIDs']);
+        if (userIds.length === 0) {
+          return of([]);
+        }
+
+        const entryStreams = userIds.map((uid) =>
+          combineLatest([
+            watchDocumentData<UserStats>(doc(this.firestore, 'userStats', uid)),
+            this.profileRepository.watchUserSummary(uid),
+          ]).pipe(
+            map(([stats, user]) => {
+              if (!stats) {
+                return null;
+              }
+
+              const entry = this.buildEntryFromStats(uid, stats);
+              this.applyUserSummaryToEntry(entry, user);
+              return this.isTrainerRole({ isPT: user?.isPT, role: entry.role })
+                ? null
+                : entry;
+            })
+          )
+        );
+
+        return combineLatest(entryStreams).pipe(
+          map((entries) =>
+            this.finalizeEntries(
+              entries.filter((entry): entry is LeaderboardEntry => entry !== null),
+              metric
+            )
+          )
+        );
+      })
+    );
+  }
+
+  watchRegionalLeaderboard(
+    regional: RegionalQuery,
+    metric: Metric = 'total',
+    maxResults: number = 100
+  ): Observable<LeaderboardEntry[]> {
+    const statsRef = collection(this.firestore, 'userStats');
+    const regionalQuery = query(statsRef, ...this.buildRegionalFilterConstraints(regional));
+
+    return watchQueryData<UserStats & { userId: string }>(regionalQuery, { idField: 'userId' }).pipe(
+      switchMap((docs) =>
+        from(
+          this.hydrateRealtimeRegionalEntries(
+            docs,
+            metric,
+            maxResults
+          )
+        )
+      )
+    );
+  }
+
+  private async hydrateRealtimeRegionalEntries(
+    docs: (UserStats & { userId: string })[],
+    metric: Metric,
+    maxResults: number
+  ): Promise<LeaderboardEntry[]> {
+    const entries = docs.map((docEntry) => this.buildEntryFromStats(docEntry.userId, docEntry));
+    await this.hydrateEntriesFromUsers(entries);
+    return this.finalizeEntries(entries, metric, maxResults);
   }
 
   // -----------------------------
@@ -337,17 +481,7 @@ export class LeaderboardService {
     const orderField = this.metricToFirestoreField(metric);
 
     // Build filter constraints
-    const filterConstraints: any[] = [
-      where('region.countryCode', '==', regional.countryCode),
-    ];
-
-    if (regional.scope === 'state' || regional.scope === 'city') {
-      filterConstraints.push(where('region.stateCode', '==', regional.stateCode));
-    }
-
-    if (regional.scope === 'city') {
-      filterConstraints.push(where('region.cityId', '==', regional.cityId));
-    }
+    const filterConstraints = this.buildRegionalFilterConstraints(regional);
 
     let entries: LeaderboardEntry[] = [];
 
@@ -384,13 +518,7 @@ export class LeaderboardService {
     }
 
     await this.hydrateEntriesFromUsers(entries);
-
-    // Exclude trainers, then assign ranks.
-    entries = entries.filter((e) => !this.isTrainerRole(e));
-    const metricField = this.metricToField(metric);
-    entries.sort((a, b) => ((b as any)[metricField] ?? 0) - ((a as any)[metricField] ?? 0));
-    entries = entries.slice(0, maxResults);
-    entries.forEach((e, idx) => (e.rank = idx + 1));
+    entries = this.finalizeEntries(entries, metric, maxResults);
 
     console.log(
       '[LeaderboardService] regional entries:',
@@ -407,18 +535,7 @@ export class LeaderboardService {
 
   private async mapStatsDocToEntry(userId: string, stats: any): Promise<LeaderboardEntry> {
     await this.ensureScoreSchema(userId, stats);
-    const scores = this.readScores(stats);
-    return {
-      userId,
-      displayName: stats.displayName ?? stats.username ?? 'Anonymous',
-      rank: 0,
-      ...scores,
-      level: stats.level,
-      region: stats.region,
-      username: stats.username,
-      profilePicUrl: this.readProfilePic(stats),
-      role: stats.role,
-    };
+    return this.buildEntryFromStats(userId, stats);
   }
 
   private isMissingIndexError(err: any): boolean {
@@ -472,19 +589,13 @@ export class LeaderboardService {
 
         const stats = statsSnap.data() as any;
         await this.ensureScoreSchema(uid, stats);
-        const scores = this.readScores(stats);
 
         const entry: LeaderboardEntry = {
-          userId: uid,
+          ...this.buildEntryFromStats(uid, stats),
           displayName:
             stats.displayName || user?.username || user?.email || 'Unknown User',
-          rank: 0,
-          ...scores,
-          level: stats.level,
-          region: stats.region,
           username: stats.username ?? user?.username,
           profilePicUrl: this.readProfilePic(stats) ?? this.readProfilePic(user),
-          role: stats.role,
         };
 
         if (this.isTrainerRole({ isPT: user?.isPT ?? stats?.isPT, role: entry.role })) {
@@ -496,16 +607,7 @@ export class LeaderboardService {
     );
 
     // 3) sort by the requested metric
-    const metricField = this.metricToField(metric);
-
-    entries.sort((a, b) => {
-      const aVal = (a as any)[metricField] as number | undefined;
-      const bVal = (b as any)[metricField] as number | undefined;
-      return (bVal ?? 0) - (aVal ?? 0);
-    });
-
-    // 4) assign ranks
-    entries.forEach((e, idx) => (e.rank = idx + 1));
+    entries.splice(0, entries.length, ...this.finalizeEntries(entries, metric));
 
     console.log('[LeaderboardService] final sorted entries:', entries);
     return entries;
