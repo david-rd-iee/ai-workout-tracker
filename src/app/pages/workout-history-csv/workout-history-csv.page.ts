@@ -233,7 +233,7 @@ export class WorkoutHistoryCsvPage implements OnInit {
       exercise: this.readText(entry['exercise']) || 'Exercise',
       sets: this.toRoundedNonNegative(entry['sets']),
       reps: this.toRoundedNonNegative(entry['reps']),
-      weights: this.readText(entry['weights']) || 'body weight',
+      weights: this.readText(entry['weights']) || 'bodyweight',
       caloriesBurned: this.toRoundedNonNegative(entry['caloriesBurned']),
     }));
   }

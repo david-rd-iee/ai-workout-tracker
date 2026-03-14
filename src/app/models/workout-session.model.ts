@@ -27,15 +27,21 @@ export interface WorkoutTrainingRow {
   exercise_type: string; // snake_case estimator id
   sets: number;
   reps: number;
-  weights: RowWeight; // in kg or "body weight"
+  displayed_weights_metric?: string;
+  weights_kg?: number;
+  weights?: RowWeight; // legacy compatibility
 }
 
 export interface CardioTrainingRow {
   Training_Type: 'Cardio';
   estimated_calories: number;
   cardio_type: string; // e.g. running, biking
-  distance?: number; // meters
-  time?: number; // minutes
+  display_distance?: string;
+  distance_meters?: number;
+  display_time?: string;
+  time_minutes?: number;
+  distance?: number; // legacy compatibility
+  time?: number; // legacy compatibility
   [key: string]: unknown;
 }
 

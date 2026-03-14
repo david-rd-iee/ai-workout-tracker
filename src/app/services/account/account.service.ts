@@ -6,7 +6,7 @@ import { Platform } from '@ionic/angular';
 import { Subject } from 'rxjs';
 import { Router } from '@angular/router';
 import firebase from 'firebase/compat/app';
-import { Firestore, doc, getDoc, setDoc, serverTimestamp } from '@angular/fire/firestore';
+import { Firestore, deleteField, doc, getDoc, setDoc, serverTimestamp } from '@angular/fire/firestore';
 import { GroupService } from '../group.service';
 // Import for Capacitor plugins
 import { registerPlugin } from '@capacitor/core';
@@ -93,7 +93,10 @@ export class AccountService {
         strengthScore: {
           totalStrengthScore: 0,
         },
-        expected_strength_scores: {},
+        Expected_Effort: {
+          Cardio: {},
+          Strength: {},
+        },
         totalScore: 0,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
@@ -123,9 +126,29 @@ export class AccountService {
     const hasStrengthMap =
       typeof current?.strengthScore === 'object' &&
       current?.strengthScore !== null;
+    const expectedEffort = this.normalizeExpectedEffort(
+      current?.Expected_Effort,
+      current?.expected_strength_scores
+    );
+    const hasExpectedEffortMap =
+      typeof current?.Expected_Effort === 'object' &&
+      current?.Expected_Effort !== null &&
+      typeof current?.Expected_Effort?.Cardio === 'object' &&
+      current?.Expected_Effort?.Cardio !== null &&
+      typeof current?.Expected_Effort?.Strength === 'object' &&
+      current?.Expected_Effort?.Strength !== null;
+    const hasLegacyExpectedStrengthScores =
+      typeof current?.expected_strength_scores === 'object' &&
+      current?.expected_strength_scores !== null;
     const totalNeedsUpdate = Number(current?.totalScore) !== totalScore;
 
-    if (!hasCardioMap || !hasStrengthMap || totalNeedsUpdate) {
+    if (
+      !hasCardioMap ||
+      !hasStrengthMap ||
+      !hasExpectedEffortMap ||
+      hasLegacyExpectedStrengthScores ||
+      totalNeedsUpdate
+    ) {
       await setDoc(
         userStatsRef,
         {
@@ -137,12 +160,45 @@ export class AccountService {
             ...(hasStrengthMap ? current.strengthScore : current.workScore ?? {}),
             totalStrengthScore: strengthTotal,
           },
+          Expected_Effort: expectedEffort,
+          expected_strength_scores: deleteField(),
           totalScore,
           updatedAt: serverTimestamp(),
         },
         { merge: true }
       );
     }
+  }
+
+  private normalizeExpectedEffort(
+    value: unknown,
+    legacyStrengthScores?: unknown
+  ): { Cardio: Record<string, number>; Strength: Record<string, number> } {
+    const expectedEffort = value && typeof value === 'object'
+      ? value as Record<string, unknown>
+      : {};
+
+    return {
+      Cardio: this.toNumberMap(expectedEffort['Cardio']),
+      Strength: this.toNumberMap(expectedEffort['Strength'] ?? legacyStrengthScores),
+    };
+  }
+
+  private toNumberMap(value: unknown): Record<string, number> {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+      return {};
+    }
+
+    return Object.entries(value as Record<string, unknown>).reduce<Record<string, number>>(
+      (acc, [key, candidateValue]) => {
+        const parsed = Number(candidateValue);
+        if (Number.isFinite(parsed)) {
+          acc[key] = parsed;
+        }
+        return acc;
+      },
+      {}
+    );
   }
 
   private async initializeAuth() {

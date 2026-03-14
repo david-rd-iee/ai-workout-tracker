@@ -15,6 +15,15 @@ export interface StrengthScoreMap {
   totalStrengthScore: number;
 }
 
+export interface ExpectedEffortCategoryMap {
+  [key: string]: number;
+}
+
+export interface ExpectedEffortMap {
+  Cardio: ExpectedEffortCategoryMap;
+  Strength: ExpectedEffortCategoryMap;
+}
+
 export interface UserStats {
   userId: string;
 
@@ -26,7 +35,7 @@ export interface UserStats {
 
   cardioScore: CardioScoreMap;
   strengthScore: StrengthScoreMap;
-  expected_strength_scores?: Record<string, number>;
+  Expected_Effort?: ExpectedEffortMap;
   totalScore: number;
 
   level?: number;
