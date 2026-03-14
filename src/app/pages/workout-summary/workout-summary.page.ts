@@ -150,7 +150,8 @@ export class WorkoutSummaryPage implements OnInit {
         Training_Type: 'Cardio',
         estimated_calories: row.estimated_calories,
         cardio_type: row.exercise_type,
-        time: row.reps,
+        display_time: row.reps > 0 ? `${row.reps} min` : undefined,
+        time_minutes: row.reps,
       }));
   }
 
@@ -168,7 +169,8 @@ export class WorkoutSummaryPage implements OnInit {
         exercise_type: row.exercise_type,
         sets: row.sets,
         reps: row.reps,
-        weights: row.weights,
+        displayed_weights_metric: row.displayed_weights_metric,
+        weights_kg: row.weights_kg,
       }));
   }
 
@@ -186,26 +188,31 @@ export class WorkoutSummaryPage implements OnInit {
       .join(' ');
   }
 
-  formatWeight(value: unknown): string {
-    if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
-      return `${value} kg`;
+  formatWeight(row: WorkoutTrainingRow): string {
+    const displayMetric = String(row.displayed_weights_metric ?? '').trim();
+    if (displayMetric) {
+      return displayMetric.toLowerCase().includes('body') ? 'bodyweight' : displayMetric;
     }
 
-    const text = String(value ?? '').trim();
-    if (!text || text.toLowerCase().includes('body')) {
-      return 'body weight';
+    if (typeof row.weights_kg === 'number' && Number.isFinite(row.weights_kg) && row.weights_kg > 0) {
+      return `${Math.round(row.weights_kg * 100) / 100} kg`;
     }
 
-    return text;
+    return 'bodyweight';
   }
 
   formatCardioDistance(row: CardioTrainingRow): string {
-    const text = this.readText(row['distance_input'] ?? row['distanceText'] ?? row['distance_text']);
+    const text = this.readText(
+      row.display_distance ??
+      row['distance_input'] ??
+      row['distanceText'] ??
+      row['distance_text']
+    );
     if (text) {
       return text;
     }
 
-    const distance = Number(row.distance);
+    const distance = Number(row.distance_meters ?? row.distance);
     if (Number.isFinite(distance) && distance > 0) {
       return `${Math.round(distance)} m`;
     }
@@ -214,12 +221,17 @@ export class WorkoutSummaryPage implements OnInit {
   }
 
   formatCardioTime(row: CardioTrainingRow): string {
-    const text = this.readText(row['time_input'] ?? row['timeText'] ?? row['time_text']);
+    const text = this.readText(
+      row.display_time ??
+      row['time_input'] ??
+      row['timeText'] ??
+      row['time_text']
+    );
     if (text) {
       return text;
     }
 
-    const time = Number(row.time);
+    const time = Number(row.time_minutes ?? row.time);
     if (Number.isFinite(time) && time > 0) {
       return `${Math.round(time)} min`;
     }
@@ -230,7 +242,9 @@ export class WorkoutSummaryPage implements OnInit {
   formatOtherDetails(row: OtherTrainingRow): string {
     const sets = this.toRoundedNonNegative(row['sets']);
     const reps = this.toRoundedNonNegative(row['reps'] ?? row['time']);
-    const weights = this.formatWeight(row['weights'] ?? row['weight'] ?? row['load']);
+    const weights = this.readText(
+      row['displayed_weights_metric'] ?? row['weights'] ?? row['weight'] ?? row['load']
+    ) || 'bodyweight';
 
     if (sets > 0 || reps > 0) {
       return `${sets} x ${reps} @ ${weights}`;

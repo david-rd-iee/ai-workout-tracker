@@ -82,7 +82,7 @@ export class WorkoutChatbotPage implements OnInit, OnDestroy {
     this.savedWorkoutLoggedAt = null;
 
     this.addBotMessage(
-      'Hey! Ready to log your workout? Include exercise, sets/reps, weight (kg or body weight), and I will turn it into training rows.'
+      'Hey! Ready to log your workout? Include exercise, sets/reps, weight (kg or bodyweight), and I will turn it into training rows.'
     );
 
     this.isIPhone = this.platform.is('iphone');
@@ -277,7 +277,7 @@ export class WorkoutChatbotPage implements OnInit, OnDestroy {
       source['estimated_calories'] ?? source['calories'],
       0
     );
-    const fallbackRows = this.normalizeRows(source['trainingRows']);
+    const fallbackRows = this.normalizeRows(source['trainingRows'], undefined, latestUserMessage);
     const legacyCardioRows = this.extractLegacyCardioRowsFromTrainingRows(source['trainingRows']);
     const strengthRows = this.normalizeRows(
       this.hasOwnKey(source, 'strengthTrainingRow')
@@ -285,14 +285,15 @@ export class WorkoutChatbotPage implements OnInit, OnDestroy {
         : this.hasOwnKey(source, 'strengthTrainingRowss')
           ? source['strengthTrainingRowss']
         : fallbackRows.filter((row) => row.Training_Type === 'Strength'),
-      'Strength'
+      'Strength',
+      latestUserMessage
     );
     const cardioRows = this.normalizeCardioRows(
       this.hasOwnKey(source, 'cardioTrainingRow')
         ? source['cardioTrainingRow']
-        : legacyCardioRows
+        : legacyCardioRows,
+      latestUserMessage
     );
-    this.applyUserFacingCardioMetrics(cardioRows, latestUserMessage);
     const otherRows = this.normalizeOtherRows(
       this.hasOwnKey(source, 'otherTrainingRow')
         ? source['otherTrainingRow']
@@ -302,7 +303,8 @@ export class WorkoutChatbotPage implements OnInit, OnDestroy {
               activity: row.exercise_type,
               sets: row.sets,
               reps: row.reps,
-              weights: row.weights,
+              displayed_weights_metric: row.displayed_weights_metric,
+              weights_kg: row.weights_kg,
               estimated_calories: row.estimated_calories,
             }))
     );
@@ -344,7 +346,11 @@ export class WorkoutChatbotPage implements OnInit, OnDestroy {
     };
   }
 
-  private normalizeRows(rowsCandidate: unknown, forcedType?: TrainingType): WorkoutTrainingRow[] {
+  private normalizeRows(
+    rowsCandidate: unknown,
+    forcedType?: TrainingType,
+    latestUserMessage?: string
+  ): WorkoutTrainingRow[] {
     const rows = Array.isArray(rowsCandidate)
       ? rowsCandidate
       : rowsCandidate && typeof rowsCandidate === 'object'
@@ -352,7 +358,7 @@ export class WorkoutChatbotPage implements OnInit, OnDestroy {
         : [];
 
     return rows
-      .map((entry): WorkoutTrainingRow | null => {
+      .map((entry, index): WorkoutTrainingRow | null => {
         if (!entry || typeof entry !== 'object') {
           return null;
         }
@@ -370,9 +376,20 @@ export class WorkoutChatbotPage implements OnInit, OnDestroy {
         const exerciseType = this.exerciseEstimatorsService.normalizeEstimatorId(rawType) || 'unknown_exercise';
         const sets = this.toInteger(row['sets'], 1);
         const reps = this.toInteger(row['reps'], 1);
-        const weights = this.normalizeWeight(
-          row['weights'] ?? row['weight'] ?? row['weight_kg']
+        const rawWeight =
+          row['displayed_weights_metric'] ??
+          row['displayedWeight'] ??
+          row['weights'] ??
+          row['weight'] ??
+          row['weights_kg'] ??
+          row['weight_kg'];
+        const displayedWeightsMetric = this.resolveDisplayedWeightMetric(
+          row,
+          rawWeight,
+          latestUserMessage,
+          index
         );
+        const weightsKg = this.resolveWeightKgValue(row, rawWeight);
         const estimatedRowCalories = this.toNonNegativeNumber(
           row['estimated_calories'] ?? row['estimatedCalories'],
           0
@@ -384,15 +401,19 @@ export class WorkoutChatbotPage implements OnInit, OnDestroy {
           exercise_type: exerciseType,
           sets,
           reps,
-          weights,
+          displayed_weights_metric: displayedWeightsMetric,
+          weights_kg: weightsKg,
         };
       })
       .filter((row): row is WorkoutTrainingRow => !!row);
   }
 
-  private normalizeCardioRows(rowsCandidate: unknown): CardioTrainingRow[] {
+  private normalizeCardioRows(rowsCandidate: unknown, latestUserMessage?: string): CardioTrainingRow[] {
     const rows = this.toObjectArray(rowsCandidate);
-    return rows.map((row) => {
+    const latestDistanceText = this.extractDistanceMetricText(latestUserMessage);
+    const latestTimeText = this.extractTimeMetricText(latestUserMessage);
+
+    return rows.map((row, index) => {
       const cardioTypeRaw =
         row['cardio_type'] ??
         row['cardioType'] ??
@@ -401,11 +422,11 @@ export class WorkoutChatbotPage implements OnInit, OnDestroy {
         row['type'];
       const cardioTypeText = typeof cardioTypeRaw === 'string' ? cardioTypeRaw : '';
       const normalizedCardioType = this.exerciseEstimatorsService.normalizeEstimatorId(cardioTypeText) || 'cardio_activity';
-      const distance = this.parseDistanceMeters(
-        row['distance'] ?? row['distance_meters'] ?? row['meters']
+      const distanceMeters = this.parseDistanceMeters(
+        row['distance_meters'] ?? row['distance'] ?? row['meters']
       );
-      const time = this.parseTimeMinutes(
-        row['time'] ?? row['minutes'] ?? row['duration']
+      const timeMinutes = this.parseTimeMinutes(
+        row['time_minutes'] ?? row['time'] ?? row['minutes'] ?? row['duration']
       );
       const estimatedRowCalories = this.toNonNegativeNumber(
         row['estimated_calories'] ?? row['estimatedCalories'],
@@ -418,31 +439,33 @@ export class WorkoutChatbotPage implements OnInit, OnDestroy {
         estimated_calories: estimatedRowCalories,
         cardio_type: normalizedCardioType,
       };
-      const distanceInput = this.resolveDistanceInputText(row);
-      const timeInput = this.resolveTimeInputText(row);
+      const displayDistance = this.resolveDisplayDistanceText(row) ??
+        (index === 0 ? latestDistanceText : undefined);
+      const displayTime = this.resolveDisplayTimeText(row) ??
+        (index === 0 ? latestTimeText : undefined);
 
-      if (typeof distance === 'number') {
-        normalizedRow.distance = distance;
+      if (typeof distanceMeters === 'number') {
+        normalizedRow.distance_meters = distanceMeters;
       } else {
-        delete normalizedRow.distance;
+        delete normalizedRow.distance_meters;
       }
 
-      if (typeof time === 'number') {
-        normalizedRow.time = time;
+      if (typeof timeMinutes === 'number') {
+        normalizedRow.time_minutes = timeMinutes;
       } else {
-        delete normalizedRow.time;
+        delete normalizedRow.time_minutes;
       }
 
-      if (distanceInput) {
-        normalizedRow['distance_input'] = distanceInput;
+      if (displayDistance) {
+        normalizedRow.display_distance = displayDistance;
       } else {
-        delete normalizedRow['distance_input'];
+        delete normalizedRow.display_distance;
       }
 
-      if (timeInput) {
-        normalizedRow['time_input'] = timeInput;
+      if (displayTime) {
+        normalizedRow.display_time = displayTime;
       } else {
-        delete normalizedRow['time_input'];
+        delete normalizedRow.display_time;
       }
 
       return normalizedRow;
@@ -477,19 +500,22 @@ export class WorkoutChatbotPage implements OnInit, OnDestroy {
           row['exercise_type'] ??
           row['exersice_type'] ??
           row['type'],
-        distance_input:
+        display_distance:
+          row['display_distance'] ??
           row['distance_input'] ??
           row['distanceText'] ??
           row['distance_text'],
-        time_input:
+        display_time:
+          row['display_time'] ??
           row['time_input'] ??
           row['timeText'] ??
           row['time_text'],
-        distance:
-          row['distance'] ??
+        distance_meters:
           row['distance_meters'] ??
+          row['distance'] ??
           row['meters'],
-        time:
+        time_minutes:
+          row['time_minutes'] ??
           row['time'] ??
           row['minutes'] ??
           row['duration'] ??
@@ -503,14 +529,15 @@ export class WorkoutChatbotPage implements OnInit, OnDestroy {
   private cardioRowsToTrainingRows(rows: CardioTrainingRow[]): WorkoutTrainingRow[] {
     return rows.map((row) => {
       const exerciseType = this.exerciseEstimatorsService.normalizeEstimatorId(row.cardio_type) || 'cardio_activity';
-      const reps = this.toInteger(row.time ?? row.distance, 0);
+      const reps = this.toInteger(row.time_minutes ?? row.distance_meters, 0);
       return {
         Training_Type: 'Cardio',
         estimated_calories: this.toNonNegativeNumber(row.estimated_calories, 0),
         exercise_type: exerciseType,
         sets: 1,
         reps,
-        weights: 'body weight',
+        displayed_weights_metric: 'bodyweight',
+        weights_kg: 0,
       };
     });
   }
@@ -527,7 +554,12 @@ export class WorkoutChatbotPage implements OnInit, OnDestroy {
       const exerciseType = this.exerciseEstimatorsService.normalizeEstimatorId(sourceNameText) || 'other_activity';
       const sets = this.toInteger(row['sets'], 1);
       const reps = this.toInteger(row['reps'] ?? row['time'] ?? row['duration'] ?? 1, 1);
-      const weights = this.normalizeWeight(row['weights'] ?? row['weight'] ?? row['load']);
+      const rawWeight =
+        row['displayed_weights_metric'] ??
+        row['weights'] ??
+        row['weight'] ??
+        row['weights_kg'] ??
+        row['load'];
       const estimatedRowCalories = this.toNonNegativeNumber(row['estimated_calories'], 0);
       return {
         Training_Type: 'Other',
@@ -535,7 +567,8 @@ export class WorkoutChatbotPage implements OnInit, OnDestroy {
         exercise_type: exerciseType,
         sets,
         reps,
-        weights,
+        displayed_weights_metric: this.resolveDisplayedWeightMetric(row, rawWeight, undefined, 0),
+        weights_kg: this.resolveWeightKgValue(row, rawWeight),
       };
     });
   }
@@ -545,26 +578,6 @@ export class WorkoutChatbotPage implements OnInit, OnDestroy {
     if (text === 'strength') return 'Strength';
     if (text === 'cardio') return 'Cardio';
     return 'Other';
-  }
-
-  private normalizeWeight(value: unknown): RowWeight {
-    if (typeof value === 'string') {
-      const lowered = value.trim().toLowerCase();
-      if (lowered.includes('body')) {
-        return 'body weight';
-      }
-
-      const parsed = Number(lowered);
-      if (Number.isFinite(parsed) && parsed > 0) {
-        return parsed;
-      }
-    }
-
-    if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
-      return value;
-    }
-
-    return 'body weight';
   }
 
   private toNumber(value: unknown, fallback: number): number {
@@ -590,34 +603,135 @@ export class WorkoutChatbotPage implements OnInit, OnDestroy {
     return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
   }
 
-  private resolveDistanceInputText(row: Record<string, unknown>): string | undefined {
+  private resolveDisplayDistanceText(row: Record<string, unknown>): string | undefined {
     const explicit = this.readMetricText(
-      row['distance_input'] ?? row['distanceText'] ?? row['distance_text']
+      row['display_distance'] ??
+      row['distance_input'] ??
+      row['distanceText'] ??
+      row['distance_text']
     );
     if (explicit) {
       return explicit;
     }
 
     return (
-      this.extractDistanceMetricText(row['distance']) ??
       this.extractDistanceMetricText(row['distance_meters']) ??
+      this.extractDistanceMetricText(row['distance']) ??
       this.extractDistanceMetricText(row['meters'])
     );
   }
 
-  private resolveTimeInputText(row: Record<string, unknown>): string | undefined {
+  private resolveDisplayTimeText(row: Record<string, unknown>): string | undefined {
     const explicit = this.readMetricText(
-      row['time_input'] ?? row['timeText'] ?? row['time_text']
+      row['display_time'] ??
+      row['time_input'] ??
+      row['timeText'] ??
+      row['time_text']
     );
     if (explicit) {
       return explicit;
     }
 
     return (
+      this.extractTimeMetricText(row['time_minutes']) ??
       this.extractTimeMetricText(row['time']) ??
       this.extractTimeMetricText(row['minutes']) ??
       this.extractTimeMetricText(row['duration'])
     );
+  }
+
+  private resolveDisplayedWeightMetric(
+    row: Record<string, unknown>,
+    rawWeight: unknown,
+    latestUserMessage?: string,
+    rowIndex = 0
+  ): string {
+    const explicit = this.readMetricText(
+      row['displayed_weights_metric'] ?? row['displayWeight']
+    );
+    if (explicit) {
+      return explicit.toLowerCase().includes('body') ? 'bodyweight' : explicit;
+    }
+
+    const rawText = this.readMetricText(rawWeight);
+    if (rawText) {
+      if (rawText.toLowerCase().includes('body')) {
+        return 'bodyweight';
+      }
+      if (/[a-z]/i.test(rawText)) {
+        return rawText;
+      }
+    }
+
+    const messageWeight = rowIndex === 0
+      ? this.extractWeightMetricText(latestUserMessage)
+      : undefined;
+    if (messageWeight) {
+      return messageWeight.toLowerCase().includes('body') ? 'bodyweight' : messageWeight;
+    }
+
+    const parsedKg = this.resolveWeightKgValue(row, rawWeight);
+    if (parsedKg > 0) {
+      return `${Math.round(parsedKg * 100) / 100} kg`;
+    }
+
+    return 'bodyweight';
+  }
+
+  private extractWeightMetricText(value: unknown): string | undefined {
+    const text = this.readMetricText(value);
+    if (!text) {
+      return undefined;
+    }
+
+    if (text.toLowerCase().includes('body weight') || text.toLowerCase().includes('bodyweight')) {
+      return 'bodyweight';
+    }
+
+    const match = text.match(
+      /([0-9]*\.?[0-9]+)\s*(kg|kgs|kilogram|kilograms|lb|lbs|pound|pounds)\b/i
+    );
+    return match?.[0]?.trim();
+  }
+
+  private resolveWeightKgValue(row: Record<string, unknown>, rawWeight: unknown): number {
+    const explicitKg = this.toPositiveNumber(row['weights_kg']);
+    if (typeof explicitKg === 'number') {
+      return explicitKg;
+    }
+
+    return this.parseWeightKg(rawWeight) ?? 0;
+  }
+
+  private parseWeightKg(value: unknown): number | undefined {
+    if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
+      return value;
+    }
+
+    const text = String(value ?? '').trim().toLowerCase();
+    if (!text || text.includes('body')) {
+      return undefined;
+    }
+
+    const match = text.match(
+      /([0-9]*\.?[0-9]+)\s*(kg|kgs|kilogram|kilograms|lb|lbs|pound|pounds)?\b/
+    );
+    if (!match) {
+      const parsed = Number(text);
+      return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
+    }
+
+    const amount = Number(match[1] ?? 0);
+    const unit = String(match[2] ?? 'kg').toLowerCase();
+    if (!Number.isFinite(amount) || amount <= 0) {
+      return undefined;
+    }
+
+    if (unit === 'lb' || unit === 'lbs' || unit === 'pound' || unit === 'pounds') {
+      return amount * 0.45359237;
+    }
+
+    return amount;
   }
 
   private extractDistanceMetricText(value: unknown): string | undefined {
@@ -648,29 +762,6 @@ export class WorkoutChatbotPage implements OnInit, OnDestroy {
     return text ? text : undefined;
   }
 
-  private applyUserFacingCardioMetrics(
-    rows: CardioTrainingRow[],
-    latestUserMessage?: string
-  ): void {
-    if (!latestUserMessage || rows.length === 0) {
-      return;
-    }
-
-    const distanceText = this.extractDistanceMetricText(latestUserMessage);
-    const timeText = this.extractTimeMetricText(latestUserMessage);
-    if (!distanceText && !timeText) {
-      return;
-    }
-
-    const primaryRow = rows[0] as unknown as Record<string, unknown>;
-    if (distanceText && !this.resolveDistanceInputText(primaryRow)) {
-      primaryRow['distance_input'] = distanceText;
-    }
-    if (timeText && !this.resolveTimeInputText(primaryRow)) {
-      primaryRow['time_input'] = timeText;
-    }
-  }
-
   private refreshSummaryDisplayRows(): void {
     this.displayStrengthRows = this.normalizeRows(
       this.session.strengthTrainingRow ?? this.session.strengthTrainingRowss ?? [],
@@ -684,12 +775,12 @@ export class WorkoutChatbotPage implements OnInit, OnDestroy {
   }
 
   formatStrengthMetric(row: WorkoutTrainingRow): string {
-    const weightText = row.weights === 'body weight' ? 'body weight' : `${row.weights} kg`;
+    const weightText = row.displayed_weights_metric || 'bodyweight';
     return `${row.sets} x ${row.reps} @ ${weightText}`;
   }
 
   formatOtherMetric(row: WorkoutTrainingRow): string {
-    const weightText = row.weights === 'body weight' ? 'body weight' : `${row.weights} kg`;
+    const weightText = row.displayed_weights_metric || 'bodyweight';
     return `${row.sets} x ${row.reps} @ ${weightText}`;
   }
 
@@ -710,25 +801,25 @@ export class WorkoutChatbotPage implements OnInit, OnDestroy {
   }
 
   private getCardioDistanceText(row: CardioTrainingRow): string | undefined {
-    const fromInput = this.readMetricText(row['distance_input']);
+    const fromInput = this.readMetricText(row.display_distance);
     if (fromInput) {
       return fromInput;
     }
 
-    if (typeof row.distance === 'number' && Number.isFinite(row.distance)) {
-      return `${row.distance} m`;
+    if (typeof row.distance_meters === 'number' && Number.isFinite(row.distance_meters)) {
+      return `${row.distance_meters} m`;
     }
     return undefined;
   }
 
   private getCardioTimeText(row: CardioTrainingRow): string | undefined {
-    const fromInput = this.readMetricText(row['time_input']);
+    const fromInput = this.readMetricText(row.display_time);
     if (fromInput) {
       return fromInput;
     }
 
-    if (typeof row.time === 'number' && Number.isFinite(row.time)) {
-      return `${row.time} min`;
+    if (typeof row.time_minutes === 'number' && Number.isFinite(row.time_minutes)) {
+      return `${row.time_minutes} min`;
     }
     return undefined;
   }
@@ -857,20 +948,20 @@ export class WorkoutChatbotPage implements OnInit, OnDestroy {
 
   private calculateTotalVolume(rows: WorkoutTrainingRow[]): number {
     return rows.reduce((total, row) => {
-      if (typeof row.weights !== 'number') {
+      if (typeof row.weights_kg !== 'number' || !Number.isFinite(row.weights_kg) || row.weights_kg <= 0) {
         return total;
       }
-      return total + row.sets * row.reps * row.weights;
+      return total + row.sets * row.reps * row.weights_kg;
     }, 0);
   }
 
   private rowsToLegacyExercises(rows: WorkoutTrainingRow[]) {
     return rows.map((row) => {
-      const metricWeight = typeof row.weights === 'number' ? `${row.weights} kg` : row.weights;
+      const metricWeight = row.displayed_weights_metric || 'bodyweight';
       return {
         name: this.fromSnakeCase(row.exercise_type),
         metric: `${row.sets} x ${row.reps} @ ${metricWeight}`,
-        volume: typeof row.weights === 'number' ? row.sets * row.reps * row.weights : 0,
+        volume: typeof row.weights_kg === 'number' ? row.sets * row.reps * row.weights_kg : 0,
       };
     });
   }
@@ -940,7 +1031,8 @@ export class WorkoutChatbotPage implements OnInit, OnDestroy {
         exercise_type: row.exercise_type,
         sets: row.sets,
         reps: row.reps,
-        weights: row.weights,
+        displayed_weights_metric: row.displayed_weights_metric,
+        weights_kg: row.weights_kg,
       });
     });
 
@@ -951,8 +1043,10 @@ export class WorkoutChatbotPage implements OnInit, OnDestroy {
         Training_Type: row.Training_Type,
         estimated_calories: row.estimated_calories,
         cardio_type: row.cardio_type,
-        distance: typeof row.distance === 'number' ? row.distance : null,
-        time: typeof row.time === 'number' ? row.time : null,
+        display_distance: row.display_distance ?? null,
+        distance_meters: typeof row.distance_meters === 'number' ? row.distance_meters : null,
+        display_time: row.display_time ?? null,
+        time_minutes: typeof row.time_minutes === 'number' ? row.time_minutes : null,
       });
     });
 

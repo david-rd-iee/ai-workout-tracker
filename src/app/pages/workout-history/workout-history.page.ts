@@ -34,7 +34,13 @@ type WorkoutTrainingRow = {
   exercise_type: string;
   sets: number;
   reps: number;
-  weights: number | 'body weight';
+  displayed_weights_metric?: string;
+  weights_kg?: number;
+  weights?: number | 'body weight';
+  display_distance?: string;
+  distance_meters?: number;
+  display_time?: string;
+  time_minutes?: number;
 };
 
 type WorkoutExerciseRow = { name: string; metric: string; volume: number };
@@ -256,7 +262,7 @@ export class WorkoutHistoryPage implements OnInit {
           exercise: this.toDisplayExerciseName(row.exercise_type),
           sets: this.toRoundedNonNegative(row.sets),
           reps: this.toRoundedNonNegative(row.reps),
-          weights: this.formatWeight(row.weights),
+          weights: this.formatWeight(row),
           caloriesBurned,
         });
         return;
@@ -274,7 +280,7 @@ export class WorkoutHistoryPage implements OnInit {
 
       fallbackOther.push({
         exercise: this.toDisplayExerciseName(row.exercise_type),
-        details: `${this.toRoundedNonNegative(row.sets)} x ${this.toRoundedNonNegative(row.reps)} @ ${this.formatWeight(row.weights)}`,
+        details: `${this.toRoundedNonNegative(row.sets)} x ${this.toRoundedNonNegative(row.reps)} @ ${this.formatWeight(row)}`,
         caloriesBurned,
       });
     });
@@ -288,7 +294,7 @@ export class WorkoutHistoryPage implements OnInit {
           exercise: this.toDisplayExerciseName(String(row['exercise_type'] ?? row['exercise'] ?? 'strength_exercise')),
           sets: this.toRoundedNonNegative(row['sets']),
           reps: this.toRoundedNonNegative(row['reps']),
-          weights: this.formatWeight(row['weights']),
+          weights: this.formatWeight(row),
           caloriesBurned: this.toRoundedNonNegative(row['estimated_calories']),
         }))
       : fallbackStrength;
@@ -356,6 +362,7 @@ export class WorkoutHistoryPage implements OnInit {
 
   private resolveCardioDistanceText(row: Record<string, unknown>): string {
     const text = this.readText(
+      row['display_distance'] ??
       row['distance_input'] ??
       row['distanceText'] ??
       row['distance_text']
@@ -364,7 +371,7 @@ export class WorkoutHistoryPage implements OnInit {
       return text;
     }
 
-    const distance = Number(row['distance']);
+    const distance = Number(row['distance_meters'] ?? row['distance']);
     if (Number.isFinite(distance) && distance > 0) {
       return `${Math.round(distance * 100) / 100} m`;
     }
@@ -374,6 +381,7 @@ export class WorkoutHistoryPage implements OnInit {
 
   private resolveCardioTimeText(row: Record<string, unknown>): string {
     const text = this.readText(
+      row['display_time'] ??
       row['time_input'] ??
       row['timeText'] ??
       row['time_text']
@@ -382,7 +390,7 @@ export class WorkoutHistoryPage implements OnInit {
       return text;
     }
 
-    const minutes = Number(row['time']);
+    const minutes = Number(row['time_minutes'] ?? row['time']);
     if (Number.isFinite(minutes) && minutes > 0) {
       return `${Math.round(minutes * 100) / 100} min`;
     }
@@ -393,7 +401,7 @@ export class WorkoutHistoryPage implements OnInit {
   private resolveOtherDetails(row: Record<string, unknown>): string {
     const sets = this.toRoundedNonNegative(row['sets']);
     const reps = this.toRoundedNonNegative(row['reps'] ?? row['time']);
-    const weight = this.formatWeight(row['weights'] ?? row['weight'] ?? row['load']);
+    const weight = this.formatWeight(row);
 
     if (sets > 0 || reps > 0) {
       return `${sets} x ${reps} @ ${weight}`;
@@ -416,10 +424,10 @@ export class WorkoutHistoryPage implements OnInit {
     }
 
     const volumes = rows.map((row) => {
-      if (typeof row.weights !== 'number') {
+      if (typeof row.weights_kg !== 'number') {
         return 0;
       }
-      return Math.max(0, Number(row.weights)) *
+      return Math.max(0, Number(row.weights_kg)) *
         Math.max(0, Number(row.reps)) *
         Math.max(0, Number(row.sets));
     });
@@ -435,19 +443,34 @@ export class WorkoutHistoryPage implements OnInit {
     );
   }
 
-  private formatWeight(value: unknown): string {
-    if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
-      return `${value} kg`;
+  private formatWeight(row: Record<string, unknown>): string {
+    const displayWeight = this.readText(
+      row['displayed_weights_metric'] ?? row['displayWeight']
+    );
+    if (this.isBodyweightDisplayValue(displayWeight)) {
+      return 'bodyweight';
+    }
+    if (displayWeight) {
+      return displayWeight;
     }
 
-    const text = this.readText(value);
+    const weightKg = Number(row['weights_kg'] ?? row['weights'] ?? row['weight_kg']);
+    if (Number.isFinite(weightKg) && weightKg > 0) {
+      return `${Math.round(weightKg * 100) / 100} kg`;
+    }
+
+    const text = this.readText(row['weights'] ?? row['weight']);
     if (!text) {
-      return 'body weight';
+      return 'bodyweight';
     }
     if (text.toLowerCase().includes('body')) {
-      return 'body weight';
+      return 'bodyweight';
     }
     return text;
+  }
+
+  private isBodyweightDisplayValue(displayWeight: string): boolean {
+    return displayWeight.toLowerCase() === 'bodyweight' || displayWeight.toLowerCase() === 'body weight';
   }
 
   private toDisplayExerciseName(value: string): string {
@@ -460,14 +483,14 @@ export class WorkoutHistoryPage implements OnInit {
 
   private parseLegacyMetric(metric: string): { sets: number; reps: number; weights: string } {
     const text = String(metric ?? '').toLowerCase();
-    const bodyWeightMatch = text.includes('body weight');
+    const bodyWeightMatch = text.includes('body weight') || text.includes('bodyweight');
 
     const match = text.match(/(\d+)\s*x\s*(\d+)\s*@\s*([0-9.]+)\s*(kg|lb|lbs)?/i);
     if (!match) {
       return {
         sets: 0,
         reps: 0,
-        weights: bodyWeightMatch ? 'body weight' : '',
+        weights: bodyWeightMatch ? 'bodyweight' : '',
       };
     }
 

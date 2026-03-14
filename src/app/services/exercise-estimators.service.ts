@@ -11,7 +11,15 @@ import {
   serverTimestamp,
   setDoc
 } from 'firebase/firestore';
-import { ExerciseEstimatorCoefficientMap, ExerciseEstimatorSeedDoc } from '../models/exercise-estimators.model';
+import {
+  EXERCISE_ESTIMATOR_CARDIO_CATEGORY,
+  EXERCISE_ESTIMATOR_PARENT_DOC,
+  EXERCISE_ESTIMATOR_ROOT_COLLECTION,
+  EXERCISE_ESTIMATOR_STRENGTH_CATEGORY,
+  ExerciseEstimatorCategory,
+  ExerciseEstimatorCoefficientMap,
+  ExerciseEstimatorSeedDoc,
+} from '../models/exercise-estimators.model';
 
 const DEFAULT_EXERCISE_ESTIMATORS: ExerciseEstimatorSeedDoc[] = [
   {
@@ -220,6 +228,25 @@ const DEFAULT_EXERCISE_ESTIMATORS: ExerciseEstimatorSeedDoc[] = [
   },
 ];
 
+const DEFAULT_CARDIO_EXERCISE_ESTIMATORS: ExerciseEstimatorSeedDoc[] = [
+  {
+    id: 'generic_cardio',
+    model: 'PolynomialRegression',
+    coefficients: {
+      intercept: 18.072324633759717,
+      age_years: 0.3384859450661544,
+      sex: -0.294160293562407,
+      bmi: -0.17289875429604545,
+      'age_years^2': -0.004779364870684193,
+      'age_years sex': -0.0353077643419397,
+      'age_years bmi': -0.0016835078819595107,
+      'sex^2': -0.8824808806872105,
+      'sex bmi': -0.05768007347331879,
+      'bmi^2': 0.0005410292122140338,
+    },
+  },
+];
+
 @Injectable({
   providedIn: 'root',
 })
@@ -279,7 +306,7 @@ export class ExerciseEstimatorsService {
       throw new Error('Estimator ID cannot be empty');
     }
 
-    const estimatorRef = doc(this.firestore, 'exercise_estimators', estimatorId);
+    const estimatorRef = this.getEstimatorDocRef(EXERCISE_ESTIMATOR_STRENGTH_CATEGORY, estimatorId);
     const estimatorSnap = await getDoc(estimatorRef);
 
     if (!estimatorSnap.exists()) {
@@ -298,9 +325,27 @@ export class ExerciseEstimatorsService {
   }
 
   private async seedMissingEstimatorDocs(): Promise<void> {
+    const migratedStrengthIds = await this.migrateLegacyStrengthEstimators();
+    const seededStrengthIds = await this.seedEstimatorCategory(
+      EXERCISE_ESTIMATOR_STRENGTH_CATEGORY,
+      DEFAULT_EXERCISE_ESTIMATORS
+    );
+    await this.seedEstimatorCategory(
+      EXERCISE_ESTIMATOR_CARDIO_CATEGORY,
+      DEFAULT_CARDIO_EXERCISE_ESTIMATORS
+    );
+
+    await this.upsertEstimatorIdsIndex([...migratedStrengthIds, ...seededStrengthIds]);
+    this.estimatorIdsCache = null;
+  }
+
+  private async seedEstimatorCategory(
+    category: ExerciseEstimatorCategory,
+    estimators: ExerciseEstimatorSeedDoc[]
+  ): Promise<string[]> {
     const seededIds: string[] = [];
-    for (const estimator of DEFAULT_EXERCISE_ESTIMATORS) {
-      const estimatorRef = doc(this.firestore, 'exercise_estimators', estimator.id);
+    for (const estimator of estimators) {
+      const estimatorRef = this.getEstimatorDocRef(category, estimator.id);
       const estimatorSnap = await getDoc(estimatorRef);
       seededIds.push(estimator.id);
 
@@ -326,8 +371,52 @@ export class ExerciseEstimatorsService {
       }
     }
 
-    await this.upsertEstimatorIdsIndex(seededIds);
-    this.estimatorIdsCache = null;
+    return seededIds;
+  }
+
+  private async migrateLegacyStrengthEstimators(): Promise<string[]> {
+    const legacySnapshot = await getDocs(
+      collection(this.firestore, EXERCISE_ESTIMATOR_ROOT_COLLECTION)
+    );
+    const migratedIds: string[] = [];
+
+    for (const legacyEntry of legacySnapshot.docs) {
+      const estimatorId = this.normalizeEstimatorId(legacyEntry.id);
+      if (!estimatorId || estimatorId === EXERCISE_ESTIMATOR_PARENT_DOC) {
+        continue;
+      }
+
+      migratedIds.push(estimatorId);
+
+      const estimatorRef = this.getEstimatorDocRef(EXERCISE_ESTIMATOR_STRENGTH_CATEGORY, estimatorId);
+      const estimatorSnap = await getDoc(estimatorRef);
+      const existingData = legacyEntry.data();
+      const migratedCoefficients = this.toCoefficientMap(existingData?.['coefficients']);
+
+      if (!estimatorSnap.exists()) {
+        await setDoc(
+          estimatorRef,
+          {
+            ...existingData,
+            ...(migratedCoefficients ? { coefficients: migratedCoefficients } : {}),
+          },
+          { merge: true }
+        );
+        continue;
+      }
+
+      if (migratedCoefficients) {
+        await setDoc(
+          estimatorRef,
+          {
+            coefficients: migratedCoefficients,
+          },
+          { merge: true }
+        );
+      }
+    }
+
+    return migratedIds;
   }
 
   private async loadEstimatorIdsFromIndexOrCollection(): Promise<string[]> {
@@ -349,10 +438,27 @@ export class ExerciseEstimatorsService {
       console.warn('[ExerciseEstimatorsService] Failed to load estimator ID index:', error);
     }
 
-    const snapshot = await getDocs(collection(this.firestore, 'exercise_estimators'));
+    const snapshot = await getDocs(
+      collection(
+        this.firestore,
+        EXERCISE_ESTIMATOR_ROOT_COLLECTION,
+        EXERCISE_ESTIMATOR_PARENT_DOC,
+        EXERCISE_ESTIMATOR_STRENGTH_CATEGORY
+      )
+    );
     const ids = snapshot.docs.map((entry) => entry.id).sort((a, b) => a.localeCompare(b));
     await this.upsertEstimatorIdsIndex(ids);
     return ids;
+  }
+
+  private getEstimatorDocRef(category: ExerciseEstimatorCategory, estimatorId: string) {
+    return doc(
+      this.firestore,
+      EXERCISE_ESTIMATOR_ROOT_COLLECTION,
+      EXERCISE_ESTIMATOR_PARENT_DOC,
+      category,
+      estimatorId
+    );
   }
 
   private normalizeEstimatorIdArray(candidate: unknown): string[] {

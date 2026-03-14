@@ -25,6 +25,8 @@ export interface SaveCompletedWorkoutResult {
   scoreUpdate: UpdateScoreResult | null;
 }
 
+type StoredWorkoutTrainingRow = WorkoutTrainingRow;
+
 @Injectable({ providedIn: 'root' })
 export class WorkoutLogService {
   constructor(
@@ -53,28 +55,27 @@ export class WorkoutLogService {
     );
     const cardioTrainingRow = this.toObjectArray(session.cardioTrainingRow ?? []);
     const otherTrainingRow = this.toObjectArray(session.otherTrainingRow ?? []);
+    const userWeightKg = await this.resolveUserBodyweightKg(user.uid);
+    const normalizedTrainingRows = this.prepareTrainingRowsForCalculations(trainingRows, userWeightKg);
+    const persistedStrengthTrainingRow = this.prepareStrengthRowsForStorage(
+      strengthTrainingRow,
+      userWeightKg
+    );
+    const persistedCardioTrainingRow = this.prepareCardioRowsForStorage(cardioTrainingRow);
     const estimatedCalories = Number(
       session.estimated_calories ?? session.calories ?? 0
     );
     const trainerNotes = session.trainer_notes ?? session.notes ?? '';
-    const totalVolume = this.calculateTotalVolume(trainingRows);
+    const totalVolume = this.calculateTotalVolume(normalizedTrainingRows);
     const trainerUid = await this.resolveCurrentTrainerUid(user.uid);
 
     const workoutLogRef = await addDoc(workoutLogsRef, {
       createdAt: serverTimestamp(),
       calories: estimatedCalories,
-      estimatedCalories,
-      totalVolume,
       notes: trainerNotes,
-      trainerNotes,
-      isComplete: !!session.isComplete,
-      trainingRows,
-      strengthTrainingRow,
-      cardioTrainingRow,
+      strengthTrainingRow: persistedStrengthTrainingRow,
+      cardioTrainingRow: persistedCardioTrainingRow,
       otherTrainingRow,
-      exercises: this.rowsToLegacyExercises(trainingRows),
-      source: 'ai_logger',
-      version: 2,
     });
 
     let scoreUpdate: UpdateScoreResult | null = null;
@@ -151,7 +152,7 @@ export class WorkoutLogService {
         exercise: this.fromSnakeCase(row.exercise_type),
         sets: row.sets,
         reps: row.reps,
-        weights: row.weights,
+        weights: row.displayed_weights_metric ?? this.formatWeight(row),
       })),
       source: 'ai_logger',
     });
@@ -222,7 +223,7 @@ export class WorkoutLogService {
           this.fromSnakeCase(row.exercise_type),
           `Sets: ${row.sets}`,
           `Reps: ${row.reps}`,
-          `Weights: ${this.formatWeight(row.weights)}`,
+          `Weights: ${this.formatWeight(row)}`,
           `Calories Burned: ${this.toRoundedNonNegative(row.estimated_calories)}`,
           ''
         );
@@ -278,22 +279,168 @@ export class WorkoutLogService {
     return fromClientDoc;
   }
 
-  private calculateTotalVolume(rows: WorkoutTrainingRow[]): number {
+  private async resolveUserBodyweightKg(userId: string): Promise<number> {
+    const userStatsRef = doc(this.firestore, 'userStats', userId);
+    const userStatsSnap = await getDoc(userStatsRef);
+    if (!userStatsSnap.exists()) {
+      return 0;
+    }
+
+    const userStats = userStatsSnap.data() as Record<string, unknown>;
+    const candidate = Number(
+      userStats['weightKg'] ?? userStats['weight_kg'] ?? userStats['weight']
+    );
+    return Number.isFinite(candidate) && candidate > 0 ? candidate : 0;
+  }
+
+  private prepareTrainingRowsForCalculations(
+    rows: Array<Record<string, unknown>> | WorkoutTrainingRow[],
+    userWeightKg: number
+  ): StoredWorkoutTrainingRow[] {
+    return rows.map((row) => {
+      const record = row as Record<string, unknown>;
+      const trainingType = String(record['Training_Type'] ?? '').trim();
+      const normalizedWeightKg = trainingType === 'Strength'
+        ? this.resolveStrengthWeightKg(record, userWeightKg)
+        : 0;
+      return {
+        ...(record as unknown as WorkoutTrainingRow),
+        displayed_weights_metric: this.resolveDisplayedWeightMetric(record),
+        weights_kg: normalizedWeightKg,
+      };
+    });
+  }
+
+  private prepareStrengthRowsForStorage(
+    rows: Array<Record<string, unknown>>,
+    userWeightKg: number
+  ): Array<Record<string, unknown>> {
+    return rows.map((row) => ({
+      Training_Type: 'Strength',
+      estimated_calories: this.toRoundedNonNegative(row['estimated_calories']),
+      exercise_type: String(row['exercise_type'] ?? row['exercise'] ?? 'strength_exercise'),
+      sets: this.toRoundedNonNegative(row['sets']),
+      reps: this.toRoundedNonNegative(row['reps']),
+      displayed_weights_metric: this.resolveDisplayedWeightMetric(row),
+      weights_kg: this.resolveStrengthWeightKg(row, userWeightKg),
+    }));
+  }
+
+  private prepareCardioRowsForStorage(rows: Array<Record<string, unknown>>): Array<Record<string, unknown>> {
+    return rows.map((row) => {
+      const distanceMeters = Number(
+        row['distance_meters'] ?? row['distance'] ?? row['meters']
+      );
+      const timeMinutes = Number(
+        row['time_minutes'] ?? row['time'] ?? row['minutes'] ?? row['duration']
+      );
+
+      return {
+        Training_Type: 'Cardio',
+        estimated_calories: this.toRoundedNonNegative(row['estimated_calories']),
+        cardio_type: String(
+          row['cardio_type'] ?? row['exercise_type'] ?? row['type'] ?? 'cardio_activity'
+        ),
+        display_distance: this.readText(
+          row['display_distance'] ??
+          row['distance_input'] ??
+          row['distanceText'] ??
+          row['distance_text']
+        ),
+        distance_meters: Number.isFinite(distanceMeters) && distanceMeters > 0
+          ? distanceMeters
+          : undefined,
+        display_time: this.readText(
+          row['display_time'] ??
+          row['time_input'] ??
+          row['timeText'] ??
+          row['time_text']
+        ),
+        time_minutes: Number.isFinite(timeMinutes) && timeMinutes > 0
+          ? timeMinutes
+          : undefined,
+      };
+    });
+  }
+
+  private resolveDisplayedWeightMetric(row: Record<string, unknown>): string {
+    const explicit = this.readText(
+      row['displayed_weights_metric'] ?? row['displayWeight']
+    );
+    if (explicit) {
+      return explicit.toLowerCase().includes('body') ? 'bodyweight' : explicit;
+    }
+
+    const rawWeight = row['weights'] ?? row['weight'] ?? row['load'] ?? row['weights_kg'] ?? row['weight_kg'];
+    if (typeof rawWeight === 'string') {
+      const trimmed = rawWeight.trim();
+      if (!trimmed || trimmed.toLowerCase().includes('body')) {
+        return 'bodyweight';
+      }
+      return trimmed;
+    }
+
+    const parsedWeightKg = Number(rawWeight);
+    if (Number.isFinite(parsedWeightKg) && parsedWeightKg > 0) {
+      return `${Math.round(parsedWeightKg * 100) / 100} kg`;
+    }
+
+    return 'bodyweight';
+  }
+
+  private resolveStrengthWeightKg(row: Record<string, unknown>, userWeightKg: number): number {
+    const explicitWeightKg = Number(row['weights_kg']);
+    if (Number.isFinite(explicitWeightKg) && explicitWeightKg > 0) {
+      return explicitWeightKg;
+    }
+
+    const rawWeight = row['weights'] ?? row['weight'] ?? row['load'] ?? row['weight_kg'];
+    if (typeof rawWeight === 'number' && Number.isFinite(rawWeight) && rawWeight > 0) {
+      return rawWeight;
+    }
+
+    const text = String(rawWeight ?? '').trim().toLowerCase();
+    if (!text || text.includes('body')) {
+      return userWeightKg > 0 ? userWeightKg : 0;
+    }
+
+    const match = text.match(
+      /([0-9]*\.?[0-9]+)\s*(kg|kgs|kilogram|kilograms|lb|lbs|pound|pounds)?\b/
+    );
+    if (!match) {
+      const parsed = Number(text);
+      return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+    }
+
+    const amount = Number(match[1] ?? 0);
+    const unit = String(match[2] ?? 'kg').toLowerCase();
+    if (!Number.isFinite(amount) || amount <= 0) {
+      return 0;
+    }
+
+    if (unit === 'lb' || unit === 'lbs' || unit === 'pound' || unit === 'pounds') {
+      return amount * 0.45359237;
+    }
+
+    return amount;
+  }
+
+  private calculateTotalVolume(rows: StoredWorkoutTrainingRow[]): number {
     return rows.reduce((total, row) => {
-      if (typeof row.weights !== 'number') {
+      if (typeof row.weights_kg !== 'number' || !Number.isFinite(row.weights_kg) || row.weights_kg <= 0) {
         return total;
       }
-      return total + row.sets * row.reps * row.weights;
+      return total + row.sets * row.reps * row.weights_kg;
     }, 0);
   }
 
   private rowsToLegacyExercises(rows: WorkoutTrainingRow[]) {
     return rows.map((row) => {
-      const metricWeight = typeof row.weights === 'number' ? `${row.weights} kg` : row.weights;
+      const metricWeight = row.displayed_weights_metric || 'bodyweight';
       return {
         name: this.fromSnakeCase(row.exercise_type),
         metric: `${row.sets} x ${row.reps} @ ${metricWeight}`,
-        volume: typeof row.weights === 'number' ? row.sets * row.reps * row.weights : 0,
+        volume: typeof row.weights_kg === 'number' ? row.sets * row.reps * row.weights_kg : 0,
       };
     });
   }
@@ -331,7 +478,8 @@ export class WorkoutLogService {
         exercise_type: String(row['exercise_type'] ?? row['exercise'] ?? 'strength_exercise'),
         sets: this.toRoundedNonNegative(row['sets']),
         reps: this.toRoundedNonNegative(row['reps']),
-        weights: this.normalizeWeight(row['weights']),
+        displayed_weights_metric: this.resolveDisplayedWeightMetric(row),
+        weights_kg: this.resolveStrengthWeightKg(row, 0),
       }));
 
     if (structured.length > 0) {
@@ -346,8 +494,8 @@ export class WorkoutLogService {
     trainingRows: WorkoutTrainingRow[]
   ): CardioTrainingRow[] {
     const structured = this.toObjectArray(session.cardioTrainingRow ?? []).map((row) => {
-      const distance = Number(row['distance'] ?? row['distance_meters'] ?? row['meters']);
-      const time = Number(row['time'] ?? row['minutes'] ?? row['duration']);
+      const distance = Number(row['distance_meters'] ?? row['distance'] ?? row['meters']);
+      const time = Number(row['time_minutes'] ?? row['time'] ?? row['minutes'] ?? row['duration']);
 
       return {
         ...row,
@@ -356,8 +504,14 @@ export class WorkoutLogService {
         cardio_type: String(
           row['cardio_type'] ?? row['exercise_type'] ?? row['type'] ?? 'cardio_activity'
         ),
-        distance: Number.isFinite(distance) && distance > 0 ? distance : undefined,
-        time: Number.isFinite(time) && time > 0 ? time : undefined,
+        display_distance: this.readText(
+          row['display_distance'] ?? row['distance_input'] ?? row['distanceText'] ?? row['distance_text']
+        ),
+        distance_meters: Number.isFinite(distance) && distance > 0 ? distance : undefined,
+        display_time: this.readText(
+          row['display_time'] ?? row['time_input'] ?? row['timeText'] ?? row['time_text']
+        ),
+        time_minutes: Number.isFinite(time) && time > 0 ? time : undefined,
       };
     });
 
@@ -371,7 +525,8 @@ export class WorkoutLogService {
         Training_Type: 'Cardio',
         estimated_calories: row.estimated_calories,
         cardio_type: row.exercise_type,
-        time: row.reps,
+        display_time: row.reps > 0 ? `${row.reps} min` : '',
+        time_minutes: row.reps,
       }));
   }
 
@@ -397,46 +552,51 @@ export class WorkoutLogService {
         exercise_type: row.exercise_type,
         sets: row.sets,
         reps: row.reps,
-        weights: row.weights,
+        displayed_weights_metric: row.displayed_weights_metric,
+        weights_kg: row.weights_kg,
       }));
   }
 
-  private normalizeWeight(value: unknown): number | 'body weight' {
-    if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
-      return value;
+  private formatWeight(row: WorkoutTrainingRow | OtherTrainingRow | Record<string, unknown>): string {
+    const record = row as Record<string, unknown>;
+    const displayValue = this.readText(record['displayed_weights_metric'] ?? record['displayWeight']);
+    if (this.isBodyweightDisplayValue(displayValue)) {
+      return 'bodyweight';
+    }
+    if (displayValue) {
+      return displayValue;
     }
 
-    const text = String(value ?? '').trim().toLowerCase();
-    if (!text || text.includes('body')) {
-      return 'body weight';
+    const weightKg = Number(record['weights_kg'] ?? record['weights'] ?? record['weight_kg']);
+    if (Number.isFinite(weightKg) && weightKg > 0) {
+      return `${Math.round(weightKg * 100) / 100} kg`;
     }
 
-    const parsed = Number(text);
-    return Number.isFinite(parsed) && parsed > 0 ? parsed : 'body weight';
-  }
-
-  private formatWeight(value: unknown): string {
-    if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
-      return `${value} kg`;
-    }
-
-    const text = String(value ?? '').trim();
+    const text = String(record['weights'] ?? record['weight'] ?? '').trim();
     if (!text || text.toLowerCase().includes('body')) {
-      return 'body weight';
+      return 'bodyweight';
     }
 
     return text;
   }
 
+  private isBodyweightDisplayValue(value: unknown): boolean {
+    const text = String(value ?? '').trim().toLowerCase();
+    return text === 'bodyweight' || text === 'body weight';
+  }
+
   private formatCardioDistance(row: CardioTrainingRow): string {
     const text = this.readText(
-      row['distance_input'] ?? row['distanceText'] ?? row['distance_text']
+      row.display_distance ??
+      row['distance_input'] ??
+      row['distanceText'] ??
+      row['distance_text']
     );
     if (text) {
       return text;
     }
 
-    const distance = Number(row.distance);
+    const distance = Number(row.distance_meters ?? row.distance);
     if (Number.isFinite(distance) && distance > 0) {
       return `${Math.round(distance)} m`;
     }
@@ -446,13 +606,16 @@ export class WorkoutLogService {
 
   private formatCardioTime(row: CardioTrainingRow): string {
     const text = this.readText(
-      row['time_input'] ?? row['timeText'] ?? row['time_text']
+      row.display_time ??
+      row['time_input'] ??
+      row['timeText'] ??
+      row['time_text']
     );
     if (text) {
       return text;
     }
 
-    const time = Number(row.time);
+    const time = Number(row.time_minutes ?? row.time);
     if (Number.isFinite(time) && time > 0) {
       return `${Math.round(time)} min`;
     }
@@ -469,7 +632,7 @@ export class WorkoutLogService {
   private resolveOtherDetails(row: OtherTrainingRow): string {
     const sets = this.toRoundedNonNegative(row['sets']);
     const reps = this.toRoundedNonNegative(row['reps'] ?? row['time']);
-    const weights = this.formatWeight(row['weights'] ?? row['weight'] ?? row['load']);
+    const weights = this.formatWeight(row);
 
     if (sets > 0 || reps > 0) {
       return `${sets} x ${reps} @ ${weights}`;
