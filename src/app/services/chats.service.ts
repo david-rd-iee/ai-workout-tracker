@@ -138,8 +138,8 @@ export class ChatsService {
           }
           
           // Determine recipient's account type (always opposite of sender)
-          const senderProfile = await this.userService.getUserProfileDirectly(senderId, 'trainer');
-          const senderAccountType: 'trainer' | 'client' = senderProfile ? 'trainer' : 'client';
+          const senderAccountType =
+            await this.userService.getResolvedAccountType(senderId, 'trainer') ?? 'client';
           const recipientAccountType: 'trainer' | 'client' = senderAccountType === 'trainer' ? 'client' : 'trainer';
           
           // Increment unread message count and get the new count for badge
@@ -225,8 +225,8 @@ export class ChatsService {
         senderName = userProfile.firstName + ' ' + userProfile.lastName || 'Atlas';
       }
 
-      const senderProfile = await this.userService.getUserProfileDirectly(senderId, 'trainer');
-      const senderAccountType: 'trainer' | 'client' = senderProfile ? 'trainer' : 'client';
+      const senderAccountType =
+        await this.userService.getResolvedAccountType(senderId, 'trainer') ?? 'client';
       const recipientAccountType: 'trainer' | 'client' = senderAccountType === 'trainer' ? 'client' : 'trainer';
       const unreadCount = await this.userService.incrementUnreadMessageCount(targetUserId, recipientAccountType);
 
@@ -291,8 +291,8 @@ export class ChatsService {
     await set(ref(this.db, `chats/${chatId}/lastMessageTime`), timestamp);
 
     try {
-      const senderProfile = await this.userService.getUserProfileDirectly(requesterId, 'trainer');
-      const senderAccountType: 'trainer' | 'client' = senderProfile ? 'trainer' : 'client';
+      const senderAccountType =
+        await this.userService.getResolvedAccountType(requesterId, 'trainer') ?? 'client';
       const recipientAccountType: 'trainer' | 'client' = senderAccountType === 'trainer' ? 'client' : 'trainer';
       const unreadCount = await this.userService.incrementUnreadMessageCount(ownerUserId, recipientAccountType);
 
@@ -490,8 +490,8 @@ export class ChatsService {
   async resetUnreadMessageCount(userId: string): Promise<void> {
     try {
       // Determine the user's account type by checking trainer first
-      const trainerProfile = await this.userService.getUserProfileDirectly(userId, 'trainer');
-      const accountType: 'trainer' | 'client' = trainerProfile ? 'trainer' : 'client';
+      const accountType =
+        await this.userService.getResolvedAccountType(userId, 'trainer') ?? 'client';
       
       // Reset the unread message count in the user's profile
       await this.userService.resetUnreadMessageCount(userId, accountType);
@@ -507,8 +507,8 @@ export class ChatsService {
   async resetBadgeCount(userId: string): Promise<void> {
     try {
       // Determine the user's account type by checking trainer first
-      const trainerProfile = await this.userService.getUserProfileDirectly(userId, 'trainer');
-      const accountType: 'trainer' | 'client' = trainerProfile ? 'trainer' : 'client';
+      const accountType =
+        await this.userService.getResolvedAccountType(userId, 'trainer') ?? 'client';
       
       // Reset the unread message count in the user's profile
       await this.userService.resetUnreadMessageCount(userId, accountType);

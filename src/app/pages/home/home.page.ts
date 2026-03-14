@@ -35,6 +35,7 @@ import { authState } from 'rxfire/auth';
 import { switchMap, of } from 'rxjs';
 import { Subscription } from 'rxjs';
 import { HeaderComponent } from 'src/app/components/header/header.component';
+import { UserService } from '../../services/account/user.service';
 
 import type { AppUser } from '../../models/user.model';
 
@@ -98,6 +99,7 @@ export class HomePage implements OnInit, OnDestroy {
   private router = inject(Router);
   private auth = inject(Auth);
   private firestore = inject(Firestore);
+  private userService = inject(UserService);
 
   private userSub?: Subscription;
   private trainerClientsUnsubscribe: (() => void) | null = null;
@@ -387,24 +389,30 @@ export class HomePage implements OnInit, OnDestroy {
         const clientsWithProfilePics = await Promise.all(
           validClientsData.map(async (client: any) => {
             const clientId = String(client['clientId'] || client['userId'] || '').trim();
-            const firstName = String(client['firstName'] || '').trim();
-            const lastName = String(client['lastName'] || '').trim();
-            const fallbackName = String(client['clientName'] || '').trim();
-            const displayName = `${firstName} ${lastName}`.trim() || fallbackName || 'Unknown Client';
+            let firstName = String(client['firstName'] || '').trim();
+            let lastName = String(client['lastName'] || '').trim();
             const parsedTotalSessions = Number(client['totalSessions']);
-
             let profilepic = String(client['profilepic'] || '').trim();
-            if (!profilepic && clientId) {
+
+            if ((!firstName || !lastName || !profilepic) && clientId) {
               try {
-                const clientUserRef = doc(this.firestore, 'users', clientId);
-                const clientUserSnap = await getDoc(clientUserRef);
-                if (clientUserSnap.exists()) {
-                  profilepic = String(clientUserSnap.data()?.['profilepic'] || '').trim();
+                const clientUser = await this.userService.getUserSummaryDirectly(clientId);
+                if (!firstName) {
+                  firstName = String(clientUser?.firstName || '').trim();
+                }
+                if (!lastName) {
+                  lastName = String(clientUser?.lastName || '').trim();
+                }
+                if (!profilepic) {
+                  profilepic = String(clientUser?.profilepic || '').trim();
                 }
               } catch (error) {
                 console.warn(`Failed to fetch profile pic for client ${clientId}:`, error);
               }
             }
+
+            const fallbackName = String(client['clientName'] || '').trim();
+            const displayName = `${firstName} ${lastName}`.trim() || fallbackName || 'Unknown Client';
 
             return {
               id: clientId,

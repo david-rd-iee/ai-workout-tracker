@@ -153,14 +153,7 @@ export class ChatDetailPage implements OnInit, OnDestroy {
     }
     
     try {
-      // Try loading as trainer first
-      let profile = await this.userService.getUserProfileDirectly(this.otherUserId, 'trainer');
-      
-      if (!profile) {
-        // If not a trainer, try as client
-        profile = await this.userService.getUserProfileDirectly(this.otherUserId, 'client');
-      }
-      
+      const profile = await this.userService.getResolvedUserProfileDirectly(this.otherUserId, 'trainer');
       if (profile) {
         this.otherUserName = `${profile.firstName || ''} ${profile.lastName || ''}`.trim() || 'User';
       }

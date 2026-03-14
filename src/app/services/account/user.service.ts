@@ -3,10 +3,12 @@ import { AccountService } from './account.service';
 import { trainerProfile } from '../../Interfaces/Profiles/Trainer';
 import { clientProfile } from '../../Interfaces/Profiles/client';
 import { Firestore, setDoc, getDoc, doc, updateDoc, serverTimestamp } from '@angular/fire/firestore';
-import { Observable, of } from 'rxjs';
+import { Observable, from } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { FileUploadService } from '../file-upload.service';
 import { getFunctions, httpsCallable } from 'firebase/functions';
+import { AppUser } from '../../models/user.model';
+import { AccountType, ProfileRepositoryService } from './profile-repository.service';
 
 @Injectable({
   providedIn: 'root'
@@ -22,13 +24,15 @@ export class UserService {
   constructor(
     private accountService: AccountService,
     private firestore: Firestore,
-    private fileUploadService: FileUploadService
+    private fileUploadService: FileUploadService,
+    private profileRepository: ProfileRepositoryService
   ) {
     effect(() => {
       if (!this.accountService.isLoggedIn()()) {
         this.userInfo.set(null);
         this.loadedProfileUid = null;
         this.profileLoadPromise = null;
+        this.profileRepository.clear();
       }
     });
   }
@@ -74,6 +78,7 @@ export class UserService {
         },
         { merge: true }
       );
+      this.profileRepository.invalidateUser(userID);
       return true;
     } else {
       throw new Error('User ID not found');
@@ -136,14 +141,13 @@ export class UserService {
 
     if (!userDoc.exists()) {
       // Fallback for app users that only have /users doc.
-      const usersDoc = await getDoc(doc(this.firestore, 'users', userID));
-      if (!usersDoc.exists()) {
+      const usersData = await this.getUserSummaryDirectly(userID);
+      if (!usersData) {
         this.userInfo.set(null);
         this.loadedProfileUid = null;
         return false;
       }
 
-      const usersData = usersDoc.data() as any;
       const firstName = typeof usersData?.['firstName'] === 'string' ? usersData['firstName'].trim() : '';
       const lastName = typeof usersData?.['lastName'] === 'string' ? usersData['lastName'].trim() : '';
       const username = typeof usersData?.['username'] === 'string' ? usersData['username'].trim() : '';
@@ -178,8 +182,8 @@ export class UserService {
         experience: '',
         description: '',
         unreadMessageCount:
-          typeof usersData?.['unreadMessageCount'] === 'number'
-            ? usersData['unreadMessageCount']
+          typeof (usersData as any)?.['unreadMessageCount'] === 'number'
+            ? (usersData as any)['unreadMessageCount']
             : 0,
         username,
       } as unknown as clientProfile;
@@ -203,13 +207,10 @@ export class UserService {
     // If profilepic is missing, load from users collection as fallback.
     if (!(userData as any).profilepic) {
       try {
-        const usersDoc = await getDoc(doc(this.firestore, 'users', userID));
-        if (usersDoc.exists()) {
-          const usersData = usersDoc.data();
-          const fallbackImage = usersData?.['profilepic'];
-          if (fallbackImage) {
-            (userData as any).profilepic = fallbackImage;
-          }
+        const usersData = await this.getUserSummaryDirectly(userID);
+        const fallbackImage = usersData?.profilepic;
+        if (fallbackImage) {
+          (userData as any).profilepic = fallbackImage;
         }
       } catch (error) {
         console.error('[UserService] Error checking users collection for profile image:', error);
@@ -435,34 +436,9 @@ export class UserService {
 
   getUserById(userId: string, accountType: 'trainer' | 'client'): Signal<trainerProfile | clientProfile | null> {
     const userSignal = signal<trainerProfile | clientProfile | null>(null);
-    const collection = accountType === 'trainer' ? this.TRAINERS_COLLECTION : this.CLIENTS_COLLECTION;
-    const userRef = doc(this.firestore, `${collection}/${userId}`);
-
-    getDoc(userRef)
-      .then(async (docSnap) => {
-        if (docSnap.exists()) {
-          const userData = docSnap.data() as trainerProfile | clientProfile;
-          
-          // If profilepic is missing, try to load from users collection as fallback
-          if (!(userData as any).profilepic) {
-            try {
-              const usersDoc = await getDoc(doc(this.firestore, 'users', userId));
-              if (usersDoc.exists()) {
-                const usersData = usersDoc.data();
-                const fallbackImage = usersData?.['profilepic'];
-                if (fallbackImage) {
-                  (userData as any).profilepic = fallbackImage;
-                }
-              }
-            } catch (error) {
-              console.error(`[UserService] Error checking users collection:`, error);
-            }
-          }
-          
-          userSignal.set(userData);
-        } else {
-          userSignal.set(null);
-        }
+    void this.profileRepository.getProfile(userId, accountType)
+      .then((profile) => {
+        userSignal.set(profile);
       })
       .catch((error) => {
         console.error('Error fetching user:', error);
@@ -481,6 +457,7 @@ export class UserService {
 
       const docRef = doc(this.firestore, `${this.CLIENTS_COLLECTION}/${uid}`);
       await updateDoc(docRef, profileData);
+      this.profileRepository.invalidateUser(uid);
     } catch (error) {
       console.error('Error updating client profile:', error);
       throw error;
@@ -488,38 +465,27 @@ export class UserService {
   }
 
   async getUserProfileDirectly(uid: string, accountType: 'trainer' | 'client'): Promise<trainerProfile | clientProfile | null> {
-    try {
-      const collection = accountType === 'trainer' ? this.TRAINERS_COLLECTION : this.CLIENTS_COLLECTION;
-      const docRef = doc(this.firestore, `${collection}/${uid}`);
-      const docSnap = await getDoc(docRef);
-      
-      if (docSnap.exists()) {
-        const userData = docSnap.data() as (trainerProfile | clientProfile);
-        
-        // If profilepic is missing, try to load from users collection as fallback
-        if (!(userData as any).profilepic) {
-          try {
-            const usersDoc = await getDoc(doc(this.firestore, 'users', uid));
-            if (usersDoc.exists()) {
-              const usersData = usersDoc.data();
-              const fallbackImage = usersData?.['profilepic'];
-              if (fallbackImage) {
-                (userData as any).profilepic = fallbackImage;
-              }
-            }
-          } catch (error) {
-            console.error(`[UserService] Error checking users collection for profile image:`, error);
-          }
-        }
-        
-        return userData;
-      } else {
-        return null;
-      }
-    } catch (error) {
-      console.error(`Error getting ${accountType} profile:`, error);
-      return null;
-    }
+    return this.profileRepository.getProfile(uid, accountType);
+  }
+
+  async getUserSummaryDirectly(userId: string, forceRefresh = false): Promise<AppUser | null> {
+    return this.profileRepository.getUserSummary(userId, forceRefresh);
+  }
+
+  async getResolvedUserProfileDirectly(
+    uid: string,
+    preferredType?: AccountType,
+    forceRefresh = false
+  ): Promise<trainerProfile | clientProfile | null> {
+    return this.profileRepository.getResolvedProfile(uid, preferredType, forceRefresh);
+  }
+
+  async getResolvedAccountType(
+    uid: string,
+    preferredType?: AccountType,
+    forceRefresh = false
+  ): Promise<AccountType | null> {
+    return this.profileRepository.getResolvedAccountType(uid, preferredType, forceRefresh);
   }
 
   async uploadClientImage(uid: string, file: File): Promise<string> {
@@ -543,9 +509,7 @@ export class UserService {
 
 
   getUserFullName(userId: string, accountType: 'trainer' | 'client'): Observable<string> {
-    // Convert the Signal to an Observable using the of operator
-    const userProfileSignal = this.getUserById(userId, accountType);
-    return of(userProfileSignal()).pipe(
+    return from(this.getUserProfileDirectly(userId, accountType)).pipe(
       map(userProfile => {
         if (!userProfile) return '';
         if (accountType === 'trainer') {

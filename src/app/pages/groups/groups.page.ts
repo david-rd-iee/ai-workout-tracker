@@ -2,7 +2,7 @@ import { Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { AlertController, IonicModule, NavController, ToastController } from '@ionic/angular';
 import { FormsModule } from '@angular/forms';
-import { firstValueFrom, Subscription } from 'rxjs';
+import { Subscription } from 'rxjs';
 import { addIcons } from 'ionicons';
 import { arrowBackOutline, addOutline, closeOutline } from 'ionicons/icons';
 
@@ -12,6 +12,7 @@ import { AccountService } from '../../services/account/account.service';
 import { ChatsService } from '../../services/chats.service';
 import { AppUser } from '../../models/user.model';
 import { LeaderboardEntry, LeaderboardService, Metric } from '../../services/leaderboard.service';
+import { UserService } from '../../services/account/user.service';
 import {
   DistributionPoint,
   LeaderboardShellComponent,
@@ -30,6 +31,7 @@ export class GroupsPage implements OnInit, OnDestroy {
   private accountService = inject(AccountService);
   private chatsService = inject(ChatsService);
   private leaderboardService = inject(LeaderboardService);
+  private userService = inject(UserService);
   private alertCtrl = inject(AlertController);
   private toastCtrl = inject(ToastController);
 
@@ -165,8 +167,8 @@ export class GroupsPage implements OnInit, OnDestroy {
 
   private async sendJoinRequest(group: Group, requesterUid: string, ownerUid: string): Promise<void> {
     try {
-      const requester = await firstValueFrom(this.groupService.getUser(requesterUid));
-      const requesterName = this.resolveRequesterName(requester);
+      const requester = await this.userService.getUserSummaryDirectly(requesterUid);
+      const requesterName = this.resolveRequesterName(requester ?? undefined);
       const chatId = await this.chatsService.findOrCreateDirectChat(requesterUid, ownerUid);
 
       await this.chatsService.sendJoinRequest(
@@ -338,7 +340,7 @@ export class GroupsPage implements OnInit, OnDestroy {
       const trainerId = (user?.trainerId || '').trim();
       if (!trainerId) return;
 
-      const trainer = await firstValueFrom(this.groupService.getUser(trainerId));
+      const trainer = await this.userService.getUserSummaryDirectly(trainerId);
       if (!trainer) return;
 
       const trainerName = `${(trainer.firstName || '').trim()} ${(trainer.lastName || '').trim()}`.trim();

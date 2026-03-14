@@ -15,7 +15,7 @@ import {
 import { collectionData } from '@angular/fire/firestore';
 import { Observable, map } from 'rxjs';
 import { UserStats, Region } from '../models/user-stats.model';
-import { AppUser } from '../models/user.model';
+import { UserService } from './account/user.service';
 
 // 🔹 Shared metric type used by BOTH leaderboard page and groups page
 export type Metric = 'total' | 'cardio' | 'strength';
@@ -58,7 +58,10 @@ export interface RegionalQuery {
   providedIn: 'root',
 })
 export class LeaderboardService {
-  constructor(private firestore: Firestore) {}
+  constructor(
+    private firestore: Firestore,
+    private userService: UserService
+  ) {}
 
   // -----------------------------
   // Helpers
@@ -228,11 +231,9 @@ export class LeaderboardService {
 
     await Promise.all(
       candidates.map(async (entry) => {
-        const userRef = doc(this.firestore, 'users', entry.userId);
-        const userSnap = await getDoc(userRef);
-        if (!userSnap.exists()) return;
+        const user = await this.userService.getUserSummaryDirectly(entry.userId);
+        if (!user) return;
 
-        const user = userSnap.data() as AppUser;
         const userPic = this.readProfilePic(user);
         const userName = this.readNonEmptyString(user, 'username');
         const userEmail = this.readNonEmptyString(user, 'email');
@@ -455,10 +456,9 @@ export class LeaderboardService {
 
     await Promise.all(
       userIds.map(async (uid) => {
-        const userRef = doc(this.firestore, 'users', uid);
         const statsRef = doc(this.firestore, 'userStats', uid);
-        const [userSnap, statsSnap] = await Promise.all([
-          getDoc(userRef),
+        const [user, statsSnap] = await Promise.all([
+          this.userService.getUserSummaryDirectly(uid),
           getDoc(statsRef),
         ]);
 
@@ -472,9 +472,6 @@ export class LeaderboardService {
 
         const stats = statsSnap.data() as any;
         await this.ensureScoreSchema(uid, stats);
-        const user = userSnap.exists()
-          ? ({ ...userSnap.data(), userId: uid } as AppUser)
-          : undefined;
         const scores = this.readScores(stats);
 
         const entry: LeaderboardEntry = {

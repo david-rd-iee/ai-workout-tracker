@@ -28,6 +28,7 @@ import {
 } from '@angular/fire/firestore';
 import { Router } from '@angular/router';
 import { User } from 'firebase/auth';
+import { UserService } from '../../services/account/user.service';
 
 interface TrainerCard {
   uid: string;
@@ -60,6 +61,7 @@ export class ClientFindTrainerPage implements OnInit {
   private auth = inject(Auth);
   private firestore = inject(Firestore);
   private router = inject(Router);
+  private userService = inject(UserService);
 
   trainers: TrainerCard[] = [];
   selectedTrainerUid = '';
@@ -242,9 +244,9 @@ export class ClientFindTrainerPage implements OnInit {
     const usersFallbackByUid = new Map<string, Record<string, unknown>>();
     await Promise.all(
       needsUserFallback.map(async (uid) => {
-        const usersSnap = await getDoc(doc(this.firestore, 'users', uid));
-        if (usersSnap.exists()) {
-          usersFallbackByUid.set(uid, usersSnap.data() as Record<string, unknown>);
+        const userSummary = await this.userService.getUserSummaryDirectly(uid);
+        if (userSummary) {
+          usersFallbackByUid.set(uid, userSummary as unknown as Record<string, unknown>);
         }
       })
     );
