@@ -25,6 +25,7 @@ import { Message } from 'src/app/Interfaces/Chats';
 import { ref, onValue, get } from '@angular/fire/database';
 import { Database } from '@angular/fire/database';
 import { Firestore, doc, updateDoc, arrayUnion, serverTimestamp } from '@angular/fire/firestore';
+import { SessionRescheduleMessageComponent } from 'src/app/components/sessions/session-reschedule-message/session-reschedule-message.component';
 
 @Component({
   selector: 'app-chat-detail',
@@ -43,7 +44,8 @@ import { Firestore, doc, updateDoc, arrayUnion, serverTimestamp } from '@angular
     IonBackButton,
     IonIcon,
     IonFooter,
-    IonTextarea
+    IonTextarea,
+    SessionRescheduleMessageComponent
   ]
 })
 export class ChatDetailPage implements OnInit, OnDestroy {
@@ -332,5 +334,14 @@ export class ChatDetailPage implements OnInit, OnDestroy {
       position: 'bottom',
     });
     await toast.present();
+  }
+
+  isRescheduleMessage(message: Message): boolean {
+    return message.text?.startsWith('reschedule/') || false;
+  }
+
+  getRescheduleRequestId(message: Message): string {
+    if (!this.isRescheduleMessage(message)) return '';
+    return message.text.replace('reschedule/', '');
   }
 }

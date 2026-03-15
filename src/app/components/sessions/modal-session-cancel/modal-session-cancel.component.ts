@@ -1,7 +1,7 @@
 import { Component, Input, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { IonicModule, ModalController, ToastController, AlertController } from '@ionic/angular';
+import { ModalController, ToastController, AlertController } from '@ionic/angular/standalone';
 import { IonHeader, IonToolbar, IonTitle, IonButtons, IonButton, IonIcon, IonContent, 
          IonText, IonCard, IonCardContent, IonList, IonItem, IonLabel, IonTextarea, 
          IonRow, IonCol, IonSpinner, IonAvatar, IonDatetime, IonDatetimeButton, 
@@ -20,7 +20,6 @@ import { calendarOutline, timeOutline, personOutline, closeOutline, hourglassOut
   styleUrls: ['./modal-session-cancel.component.scss'],
   standalone: true,
   imports: [
-    IonicModule, 
     CommonModule, 
     FormsModule,
     IonHeader, 

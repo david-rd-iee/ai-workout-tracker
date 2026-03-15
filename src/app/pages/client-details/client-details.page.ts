@@ -1,7 +1,7 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
-import { IonContent, IonHeader, IonToolbar, IonButtons, IonBackButton, IonCard, IonCardContent, IonCardHeader, IonCardTitle, IonButton, IonIcon, IonSegment, IonSegmentButton, IonLabel, ModalController } from '@ionic/angular/standalone';
+import { IonContent, IonHeader, IonToolbar, IonButtons, IonBackButton, IonCard, IonCardContent, IonCardHeader, IonCardTitle, IonButton, IonIcon, IonSegment, IonSegmentButton, IonLabel, ModalController, ToastController } from '@ionic/angular/standalone';
 import { NavController } from '@ionic/angular';
 import { FormsModule } from '@angular/forms';
 import { addIcons } from 'ionicons';
@@ -9,6 +9,8 @@ import { calendar, personCircle, fitness, card, createOutline, trophy, chatbubbl
 import { WorkoutBuilderModalComponent } from 'src/app/components/modals/workout-builder-modal/workout-builder-modal.component';
 import { AppointmentSchedulerModalComponent } from 'src/app/components/modals/appointment-scheduler-modal/appointment-scheduler-modal.component';
 import { HomeCustomizationModalComponent } from 'src/app/components/modals/home-customization-modal/home-customization-modal.component';
+import { Auth } from '@angular/fire/auth';
+import { Firestore, doc, getDoc } from '@angular/fire/firestore';
 
 @Component({
   selector: 'app-client-details',
@@ -35,6 +37,13 @@ import { HomeCustomizationModalComponent } from 'src/app/components/modals/home-
   ],
 })
 export class ClientDetailsPage implements OnInit {
+  private router = inject(Router);
+  private navCtrl = inject(NavController);
+  private modalController = inject(ModalController);
+  private toastController = inject(ToastController);
+  private auth = inject(Auth);
+  private firestore = inject(Firestore);
+
   client: any = null;
   selectedTab: string = 'overview';
 
@@ -56,11 +65,7 @@ export class ClientDetailsPage implements OnInit {
   pastAppointments: any[] = [];
   payments: any[] = [];
 
-  constructor(
-    private router: Router,
-    private navCtrl: NavController,
-    private modalController: ModalController
-  ) {
+  constructor() {
     addIcons({ calendar, personCircle, fitness, card, createOutline, trophy, chatbubbles, barbell, heart, body, checkmarkCircle, flag, walk });
 
     // Get client data from navigation state
@@ -111,21 +116,60 @@ export class ClientDetailsPage implements OnInit {
   }
 
   async scheduleAppointment() {
-    const modal = await this.modalController.create({
-      component: AppointmentSchedulerModalComponent,
-      componentProps: {
-        clientId: this.client.id,
-        clientName: this.client.name
-      }
-    });
-
-    await modal.present();
-
-    const { data } = await modal.onWillDismiss();
-    if (data) {
-      console.log('Appointment scheduled:', data);
-      // TODO: Refresh appointments list or show success message
+    const trainerId = this.auth.currentUser?.uid;
+    if (!trainerId) {
+      console.error('No trainer logged in');
+      await this.showToast('Please log in to schedule appointments', 'warning');
+      return;
     }
+
+    try {
+      // Fetch trainer's profile to get their name and picture
+      const trainerDoc = await getDoc(doc(this.firestore, 'users', trainerId));
+      const trainerData = trainerDoc.exists() ? trainerDoc.data() : null;
+      
+      // Parse client name (assuming format "FirstName LastName")
+      const clientNameParts = (this.client.name || '').split(' ');
+      const clientFirstName = clientNameParts[0] || '';
+      const clientLastName = clientNameParts.slice(1).join(' ') || '';
+
+      const modal = await this.modalController.create({
+        component: AppointmentSchedulerModalComponent,
+        componentProps: {
+          clientId: this.client.id,
+          clientName: this.client.name,
+          trainerId: trainerId,
+          trainerFirstName: trainerData?.['firstName'] || '',
+          trainerLastName: trainerData?.['lastName'] || '',
+          trainerProfilePic: trainerData?.['profilepic'] || '',
+          clientFirstName: clientFirstName,
+          clientLastName: clientLastName,
+          clientProfilePic: this.client.profilepic || ''
+        }
+      });
+
+      await modal.present();
+
+      const { data } = await modal.onWillDismiss();
+      if (data?.success) {
+        console.log('Appointment scheduled successfully:', data);
+        await this.showToast('Appointment scheduled successfully!', 'success');
+        // TODO: Optionally refresh appointments list if displayed on this page
+      }
+    } catch (error) {
+      console.error('Error scheduling appointment:', error);
+      await this.showToast('Failed to open appointment scheduler', 'danger');
+    }
+  }
+
+  private async showToast(message: string, color: string = 'primary') {
+    const toast = await this.toastController.create({
+      message,
+      duration: 3000,
+      position: 'top',
+      color
+    });
+    await toast.present();
   }
 
   async createWorkout() {

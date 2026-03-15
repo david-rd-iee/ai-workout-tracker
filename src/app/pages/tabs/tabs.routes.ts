@@ -14,7 +14,17 @@ export const routes: Routes = [
       {
         path: 'calender',
         loadComponent: () =>
+          import('../calender/calendar.page').then(m => m.CalendarPage),
+      },
+      {
+        path: 'calender/client',
+        loadComponent: () =>
           import('../calender/client-calendar/client-calendar.page').then(m => m.ClientCalendarPage),
+      },
+      {
+        path: 'calender/trainer',
+        loadComponent: () =>
+          import('../calender/trainer-calendar/trainer-calendar.page').then(m => m.TrainerCalendarPage),
       },
       {
         path: 'chats',

@@ -13,6 +13,12 @@ export interface TrainerAvailability {
 export interface BookingRequest {
   trainerId: string;
   clientId: string;
+  trainerFirstName?: string;
+  trainerLastName?: string;
+  trainerProfilePic?: string;
+  clientFirstName?: string;
+  clientLastName?: string;
+  clientProfilePic?: string;
   date: string;
   time: string;
   endTime?: string;

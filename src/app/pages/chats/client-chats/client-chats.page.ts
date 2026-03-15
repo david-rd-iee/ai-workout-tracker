@@ -1,18 +1,13 @@
-import { Component, OnInit, ViewChild, ElementRef, inject } from '@angular/core';
-// import { DEFAULT_ASSETS } from '../../../../assets/exports/assets.constants';
-const DEFAULT_ASSETS = { PROFILE_PHOTO: '' };
+import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { IonAvatar, IonLabel, IonItem, IonList, IonNote } from '@ionic/angular/standalone';
-// import Swiper from 'swiper';
 import { Router } from '@angular/router';
-// import { TruncatePipe } from 'src/app/pipes/truncate.pipe';
 import { AccountService } from 'src/app/services/account/account.service';
 import { ChatsService } from 'src/app/services/chats.service';
 import { UserService } from 'src/app/services/account/user.service';
 import { Observable } from 'rxjs';
 import { Chat } from 'src/app/Interfaces/Chats';
-// import { MessageDateTimePipe } from 'src/app/pipes/message-date-time.pipe';
 
 @Component({
   selector: 'app-client-chat',
@@ -48,14 +43,13 @@ import { Chat } from 'src/app/Interfaces/Chats';
     IonAvatar,
     IonLabel,
     IonNote,
-    // MessageDateTimePipe,
-    IonItem, IonList, CommonModule, FormsModule]
+    IonItem,
+    IonList,
+    CommonModule,
+    FormsModule
+  ]
 })
 export class ClientChatsPage implements OnInit {
-  bearProfile = DEFAULT_ASSETS.PROFILE_PHOTO;
-  @ViewChild('swiper') swiperRef: ElementRef | undefined;
-  swiper?: any; // Swiper;
-  
   private router = inject(Router);
   private accountService = inject(AccountService);
   private chatsService = inject(ChatsService);
@@ -101,10 +95,6 @@ export class ClientChatsPage implements OnInit {
   private initializeChats(userId: string, userType: 'trainer' | 'client'): void {
     this.chatsService.initializeUserChats(userId, userType);
     this.chats$ = this.chatsService.chats$;
-  }
-
-  swiperReady() {
-    this.swiper = this.swiperRef?.nativeElement.swiper;
   }
 
   loadChat(chatId: string, participants: string[]) {

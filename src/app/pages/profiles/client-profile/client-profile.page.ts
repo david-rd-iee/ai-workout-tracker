@@ -5,9 +5,6 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink, ActivatedRoute } from '@angular/router';
 import {
   IonContent,
-  IonGrid,
-  IonRow,
-  IonCol,
   IonButton,
   IonList,
   IonItem,
@@ -16,8 +13,6 @@ import {
   LoadingController,
   ToastController,
   IonCard,
-  IonCardHeader,
-  IonCardTitle,
   IonCardContent,
   ModalController
 } from '@ionic/angular/standalone';
@@ -25,7 +20,6 @@ import { UserService } from '../../../services/account/user.service';
 import { clientProfile } from '../../../Interfaces/Profiles/client';
 import { AccountService } from 'src/app/services/account/account.service';
 import { ImageUploaderComponent } from 'src/app/components/image-uploader/image-uploader.component';
-import { HeaderComponent } from '../../../components/header/header.component';
 import { addIcons } from 'ionicons';
 import {
   settingsOutline,
@@ -62,21 +56,14 @@ import { UserBadgesDoc } from 'src/app/models/user-badges.model';
   imports: [
     CommonModule,
     FormsModule,
-    RouterLink,
-    HeaderComponent,
     IonContent,
     ImageUploaderComponent,
-    IonGrid,
-    IonRow,
-    IonCol,
     IonButton,
     IonList,
     IonItem,
     IonLabel,
     IonIcon,
     IonCard,
-    IonCardHeader,
-    IonCardTitle,
     IonCardContent,
     GreekStatueComponent,
   ]

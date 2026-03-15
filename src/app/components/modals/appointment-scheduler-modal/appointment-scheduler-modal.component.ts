@@ -1,4 +1,4 @@
-import { Component, OnInit, Input } from '@angular/core';
+import { Component, OnInit, Input, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { 
@@ -19,10 +19,12 @@ import {
   IonSelect,
   IonSelectOption,
   IonTextarea,
-  ModalController
+  ModalController,
+  ToastController
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
 import { close, calendar, time, fitness, calendarOutline, fitnessOutline, cashOutline, documentTextOutline, checkmarkCircle, personCircle, barbell, flash, walk, medal, rocket, nutrition, library } from 'ionicons/icons';
+import { SessionBookingService } from 'src/app/services/session-booking.service';
 
 interface AppointmentData {
   clientId: string;
@@ -65,6 +67,16 @@ interface AppointmentData {
 export class AppointmentSchedulerModalComponent implements OnInit {
   @Input() clientId!: string;
   @Input() clientName!: string;
+  @Input() trainerId!: string;
+  @Input() trainerFirstName?: string;
+  @Input() trainerLastName?: string;
+  @Input() trainerProfilePic?: string;
+  @Input() clientFirstName?: string;
+  @Input() clientLastName?: string;
+  @Input() clientProfilePic?: string;
+
+  private sessionBookingService = inject(SessionBookingService);
+  private toastController = inject(ToastController);
 
   appointment: AppointmentData = {
     clientId: '',
@@ -154,18 +166,61 @@ export class AppointmentSchedulerModalComponent implements OnInit {
   async scheduleAppointment() {
     if (!this.appointment.date || !this.appointment.time) {
       console.error('Date and time are required');
+      await this.showToast('Please select both date and time', 'warning');
       return;
     }
 
-    const appointmentData = {
-      ...this.appointment,
-      createdAt: new Date().toISOString(),
-      status: 'confirmed'
-    };
+    try {
+      // Format the date as YYYY-MM-DD
+      const dateObj = new Date(this.appointment.date);
+      const formattedDate = dateObj.toISOString().split('T')[0];
 
-    // TODO: Save to Firestore using BookingService
-    console.log('Scheduling appointment:', appointmentData);
+      // Format time to match the expected format (HH:MM AM/PM)
+      const formattedTime = this.formatTimeSlot(this.appointment.time);
 
-    this.modalController.dismiss(appointmentData);
+      // Create booking request
+      const bookingRequest = {
+        trainerId: this.trainerId,
+        clientId: this.appointment.clientId,
+        trainerFirstName: this.trainerFirstName,
+        trainerLastName: this.trainerLastName,
+        trainerProfilePic: this.trainerProfilePic,
+        clientFirstName: this.clientFirstName,
+        clientLastName: this.clientLastName,
+        clientProfilePic: this.clientProfilePic,
+        date: formattedDate,
+        time: formattedTime,
+        duration: this.appointment.duration,
+        price: this.appointment.price || 75,
+        status: 'confirmed' as const,
+        createdAt: new Date()
+      };
+
+      // Save to Firestore using SessionBookingService
+      const bookingId = await this.sessionBookingService.bookSession(bookingRequest);
+      console.log('Appointment scheduled successfully with ID:', bookingId);
+
+      await this.showToast('Appointment scheduled successfully!', 'success');
+      
+      // Dismiss modal with success
+      this.modalController.dismiss({
+        success: true,
+        bookingId: bookingId,
+        appointment: this.appointment
+      });
+    } catch (error) {
+      console.error('Error scheduling appointment:', error);
+      await this.showToast('Failed to schedule appointment. Please try again.', 'danger');
+    }
+  }
+
+  private async showToast(message: string, color: string = 'primary') {
+    const toast = await this.toastController.create({
+      message,
+      duration: 3000,
+      position: 'top',
+      color
+    });
+    await toast.present();
   }
 }

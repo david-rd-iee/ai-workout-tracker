@@ -34,7 +34,7 @@ import { NavController } from '@ionic/angular';
 import { Auth } from '@angular/fire/auth';
 import { Firestore } from '@angular/fire/firestore';
 import { Storage, ref, deleteObject } from '@angular/fire/storage';
-import { collection, doc, getDocs, query, serverTimestamp, setDoc, where } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, query, serverTimestamp, setDoc, where } from 'firebase/firestore';
 
 import { UserService } from '../../services/account/user.service';
 import { ProfileRepositoryService } from '../../services/account/profile-repository.service';
@@ -268,6 +268,15 @@ export class ProfileUserPage implements OnInit, OnDestroy {
 
       const roleLoadKey = `${uid}:${this.currentUser.accountType}`;
       if (this.pendingRoleLoadKey === roleLoadKey && this.loadedRoleLoadKey !== roleLoadKey) {
+        if (this.currentUser.accountType === 'trainer') {
+          // Load trainer stats and statues in parallel for faster rendering
+          await Promise.all([
+            this.loadTrainerStats(uid),
+            this.loadTrainerStatues(uid),
+          ]);
+        } else {
+          await this.loadGreekStatuesFromFirestore(uid);
+        }
         this.startUserBadgesRealtimeListener(uid, this.currentUser.accountType);
         this.loadedRoleLoadKey = roleLoadKey;
         this.pendingRoleLoadKey = null;
@@ -391,6 +400,79 @@ export class ProfileUserPage implements OnInit, OnDestroy {
       console.log('[ProfileUser] Calculated trainer stats from bookings:', this.trainerStats);
     } catch (error) {
       console.error('[ProfileUser] Error calculating trainer stats from bookings:', error);
+    }
+  }
+
+  private async loadTrainerStats(trainerId: string): Promise<void> {
+    try {
+      const badgeRef = doc(this.firestore, 'userBadges', trainerId);
+      const badgeSnap = await getDoc(badgeRef);
+
+      if (badgeSnap.exists()) {
+        const userBadges = {
+          userId: trainerId,
+          ...(badgeSnap.data() as Omit<UserBadgesDoc, 'userId'>),
+        };
+        this.latestUserBadges = userBadges;
+        this.applyTrainerBadges(trainerId, userBadges);
+        return;
+      }
+
+      this.latestUserBadges = null;
+      await this.ensureTrainerFallbackStats(trainerId);
+    } catch (error) {
+      console.error('[ProfileUser] Error loading trainer stats:', error);
+      await this.ensureTrainerFallbackStats(trainerId);
+    }
+  }
+
+  private async loadTrainerStatues(trainerId: string): Promise<void> {
+    try {
+      const badgeRef = doc(this.firestore, 'userBadges', trainerId);
+      const badgeSnap = await getDoc(badgeRef);
+
+      if (!badgeSnap.exists()) {
+        this.allStatues = [];
+        this.displayStatueIds = [];
+        this.updateDisplayStatues();
+        return;
+      }
+
+      const userBadges = {
+        userId: trainerId,
+        ...(badgeSnap.data() as Omit<UserBadgesDoc, 'userId'>),
+      };
+      this.latestUserBadges = userBadges;
+      this.applyTrainerBadges(trainerId, userBadges);
+    } catch (error) {
+      console.error('[ProfileUser] Error loading trainer statues:', error);
+      this.allStatues = [];
+      this.displayStatueIds = [];
+      this.updateDisplayStatues();
+    }
+  }
+
+  private async loadGreekStatuesFromFirestore(userId: string): Promise<void> {
+    try {
+      const badgeRef = doc(this.firestore, 'userBadges', userId);
+      const badgeSnap = await getDoc(badgeRef);
+
+      if (!badgeSnap.exists()) {
+        this.latestUserBadges = null;
+        this.applyClientStatuesFromBadges(null);
+        return;
+      }
+
+      const userBadges = {
+        userId,
+        ...(badgeSnap.data() as Omit<UserBadgesDoc, 'userId'>),
+      };
+      this.latestUserBadges = userBadges;
+      this.applyClientStatuesFromBadges(userBadges);
+    } catch (error) {
+      console.error('[ProfileUser] Error loading statues from Firestore:', error);
+      this.latestUserBadges = null;
+      this.applyClientStatuesFromBadges(null);
     }
   }
 

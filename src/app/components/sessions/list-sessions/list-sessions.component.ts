@@ -308,17 +308,10 @@ export class ListSessionsComponent implements OnInit, OnChanges {
     const isoDate = dateObj.toISOString();
     
     // Navigate to the appropriate calendar page based on user type
-    if (this.userType === 'trainer') {
-      // Navigate to trainer calendar with date parameter
-      this.router.navigate(['/app/tabs/calender/trainer'], { 
-        queryParams: { selectedDate: isoDate }
-      });
-    } else {
-      // Navigate to client calendar with date parameter
-      this.router.navigate(['/app/tabs/calender/client'], { 
-        queryParams: { selectedDate: isoDate }
-      });
-    }
+    const calendarPath = this.userType === 'trainer' ? '/tabs/calender/trainer' : '/tabs/calender/client';
+    this.router.navigate([calendarPath], { 
+      queryParams: { selectedDate: isoDate }
+    });
   }
 
   async openCancelModal(session: SessionData, event: Event) {

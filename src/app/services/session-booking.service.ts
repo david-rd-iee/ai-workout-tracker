@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { Firestore, collection, doc, getDoc, setDoc, updateDoc, arrayUnion, query, where, getDocs } from '@angular/fire/firestore';
 import { BookingRequest, TimeSlot } from '../Interfaces/Calendar';
 import { SessionRescheduleRequest } from '../Interfaces/SessionReschedule';
@@ -7,7 +7,9 @@ import { SessionRescheduleRequest } from '../Interfaces/SessionReschedule';
   providedIn: 'root'
 })
 export class SessionBookingService {
-  constructor(private firestore: Firestore) { }
+  private firestore = inject(Firestore);
+  
+  constructor() { }
 
   private parseBookingDate(booking: any): Date | null {
     const utc = booking?.['startTimeUTC'];
@@ -150,25 +152,33 @@ export class SessionBookingService {
       
       const bookedSession = {
         clientId: bookingData.clientId,
+        clientFirstName: bookingData.clientFirstName,
+        clientLastName: bookingData.clientLastName,
+        clientProfilePic: bookingData.clientProfilePic,
         date: bookingData.date,
+        time: bookingData.time, // Add time field
         startTime: bookingData.time,
         // Calculate end time based on duration
         endTime: bookingData.endTime || this.calculateEndTime(bookingData.time, bookingData.duration),
         bookingId: bookingId,
-        status: bookingData.status,
+        status: bookingData.status || 'confirmed', // Use defaulted status
         duration: bookingData.duration || 30 // Store duration in minutes
       };
+      
+      console.log('Adding booked session to trainer availability:', bookedSession);
       
       if (trainerAvailabilityDoc.exists()) {
         // Update existing document with new booked session
         await updateDoc(trainerAvailabilityRef, {
           bookedSessions: arrayUnion(bookedSession)
         });
+        console.log('Updated existing trainerAvailability document');
       } else {
         // Create new document with booked session
         await setDoc(trainerAvailabilityRef, {
           bookedSessions: [bookedSession]
         }, { merge: true });
+        console.log('Created new trainerAvailability document');
       }
 
       await this.syncTrainerClientRecord(bookingData.trainerId, bookingData.clientId);
@@ -354,9 +364,13 @@ export class SessionBookingService {
       const trainerAvailabilityRef = doc(this.firestore, `trainerAvailability/${trainerId}`);
       const trainerAvailabilityDoc = await getDoc(trainerAvailabilityRef);
       
-      if (trainerAvailabilityDoc.exists() && trainerAvailabilityDoc.data()['bookedSessions']) {
-        return trainerAvailabilityDoc.data()['bookedSessions'];
+      if (trainerAvailabilityDoc.exists()) {
+        const data = trainerAvailabilityDoc.data();
+        const bookedSessions = data['bookedSessions'] || [];
+        console.log(`Found ${bookedSessions.length} booked sessions in Firestore:`, bookedSessions);
+        return bookedSessions;
       } else {
+        console.log('No trainerAvailability document found for trainer:', trainerId);
         return [];
       }
     } catch (error) {
@@ -666,6 +680,17 @@ export class SessionBookingService {
     });
     
     try {
+      // First, fetch the full booking data to get all required fields
+      const bookingRef = doc(this.firestore, `bookings/${originalSession.id}`);
+      const bookingDoc = await getDoc(bookingRef);
+      
+      if (!bookingDoc.exists()) {
+        throw new Error(`Booking ${originalSession.id} not found`);
+      }
+      
+      const fullBookingData = bookingDoc.data() as BookingRequest;
+      console.log('Full booking data retrieved:', fullBookingData);
+      
       // 1. Immediately cancel the original session
       await this.cancelBookedSession(originalSession.trainerId, originalSession.id);
       console.log(`Original booking ${originalSession.id} cancelled immediately`);
@@ -691,17 +716,29 @@ export class SessionBookingService {
       
       // 3. Create a new booking with pending status for the new time
       const newBookingData: BookingRequest = {
-        trainerId: originalSession.trainerId,
-        clientId: originalSession.clientId,
+        trainerId: fullBookingData.trainerId,
+        clientId: fullBookingData.clientId,
         date: newDate,
         time: newTime,
         status: 'pending',
-        createdAt: new Date()
+        createdAt: new Date(),
+        // Copy trainer and client details from original session
+        trainerFirstName: fullBookingData.trainerFirstName,
+        trainerLastName: fullBookingData.trainerLastName,
+        trainerProfilePic: fullBookingData.trainerProfilePic,
+        clientFirstName: fullBookingData.clientFirstName,
+        clientLastName: fullBookingData.clientLastName,
+        clientProfilePic: fullBookingData.clientProfilePic
       };
       
       // Calculate end time and duration based on original session if available
-      if (originalSession.duration) {
-        newBookingData.duration = originalSession.duration;
+      if (fullBookingData.duration) {
+        newBookingData.duration = fullBookingData.duration;
+      }
+      
+      // Copy price if available
+      if (fullBookingData.price) {
+        newBookingData.price = fullBookingData.price;
       }
       
       // Book the new session with pending status

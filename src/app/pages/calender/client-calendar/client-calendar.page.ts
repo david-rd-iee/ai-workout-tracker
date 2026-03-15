@@ -161,6 +161,16 @@ export class ClientCalendarPage implements OnInit {
     });
     
     const freshBookings = bookings.map(booking => {
+      // Build the other party name from stored fields if available
+      let otherPartyName = undefined;
+      let otherPartyImage = undefined;
+      if (booking.trainerFirstName || booking.trainerLastName) {
+        const firstName = booking.trainerFirstName || '';
+        const lastName = booking.trainerLastName || '';
+        otherPartyName = `${firstName} ${lastName}`.trim();
+        otherPartyImage = booking.trainerProfilePic || '';
+      }
+      
       return {
         id: booking.id || booking.bookingId,
         trainerId: booking.trainerId,
@@ -170,6 +180,9 @@ export class ClientCalendarPage implements OnInit {
         endTime: booking.endTime,
         duration: booking.duration || 30,
         status: booking.status || 'confirmed',
+        otherPartyName: otherPartyName,
+        otherPartyImage: otherPartyImage,
+        isProfileLoading: !otherPartyName, // Only loading if we don't have the name
         _refresh: Math.random().toString(36).substring(2, 15)
       };
     });

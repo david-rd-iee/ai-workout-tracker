@@ -564,7 +564,7 @@ export class UserService {
         userSignal.set(profile as trainerProfile | clientProfile | null);
       })
       .catch((error) => {
-        console.error('Error fetching user:', error);
+        console.error(`[UserService] Error fetching user (${accountType}):`, error);
         userSignal.set(null);
       });
 

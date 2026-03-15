@@ -16,6 +16,7 @@ import {
   chatbubbleEllipsesSharp,
 } from 'ionicons/icons';
 import { filter } from 'rxjs/operators';
+import { UserService } from '../../services/account/user.service';
 
 @Component({
   selector: 'app-tabs',
@@ -34,7 +35,10 @@ import { filter } from 'rxjs/operators';
 export class TabsPage {
   showTabBar = true;
 
-  constructor(private router: Router) {
+  constructor(
+    private router: Router,
+    private userService: UserService
+  ) {
     addIcons({
       homeOutline,
       calendarOutline,
