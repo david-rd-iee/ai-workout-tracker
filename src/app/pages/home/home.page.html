@@ -96,7 +96,14 @@
             <ion-card-content>
               <div class="session-content">
                 <div class="session-icon">
-                  <ion-icon name="person-outline"></ion-icon>
+                  <img
+                    *ngIf="session.trainerProfilePic; else trainerIconFallback"
+                    [src]="session.trainerProfilePic"
+                    [alt]="session.trainerName"
+                  />
+                  <ng-template #trainerIconFallback>
+                    <ion-icon name="person-outline"></ion-icon>
+                  </ng-template>
                 </div>
                 <div class="session-info">
                   <h3>{{ session.trainerName }}</h3>
@@ -174,7 +181,13 @@
               </div>
               <div class="client-info">
                 <h3>{{ client.name }}</h3>
-                <p class="next-session">Next: {{ client.nextSession | date:'EEE, MMM d · h:mm a' }}</p>
+                <p class="next-session">
+                  @if (client.nextSession) {
+                    Next: {{ client.nextSession | date:'EEE, MMM d · h:mm a' }}
+                  } @else {
+                    No upcoming session
+                  }
+                </p>
                 <div class="client-stats">
                   <span class="stat">{{ client.totalSessions }} sessions</span>
                   <span class="stat-divider">·</span>

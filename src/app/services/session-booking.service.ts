@@ -101,9 +101,6 @@ export class SessionBookingService {
     const existingLastSession = typeof existingData?.['lastSession'] === 'string'
       ? existingData['lastSession']
       : null;
-    const existingNextSession = typeof existingData?.['nextSession'] === 'string'
-      ? existingData['nextSession']
-      : null;
 
     await setDoc(
       trainerClientRef,
@@ -117,7 +114,7 @@ export class SessionBookingService {
         joinedDate,
         totalSessions,
         lastSession: lastSessionMs !== null ? new Date(lastSessionMs).toISOString() : existingLastSession,
-        nextSession: nextSessionMs !== null ? new Date(nextSessionMs).toISOString() : existingNextSession,
+        nextSession: nextSessionMs !== null ? new Date(nextSessionMs).toISOString() : null,
       },
       { merge: true },
     );

@@ -37,6 +37,7 @@ import { Subscription } from 'rxjs';
 import { HeaderComponent } from 'src/app/components/header/header.component';
 import { UserService } from '../../services/account/user.service';
 import { ProfileRepositoryService } from '../../services/account/profile-repository.service';
+import { SessionBookingService } from '../../services/session-booking.service';
 
 import type { AppUser } from '../../models/user.model';
 
@@ -74,6 +75,7 @@ interface NextWorkout {
 interface UpcomingSession {
   id: string;
   trainerName: string;
+  trainerProfilePic?: string;
   date: Date;
   notes?: string;
   duration: number;
@@ -102,6 +104,7 @@ export class HomePage implements OnInit, OnDestroy {
   private firestore = inject(Firestore);
   private userService = inject(UserService);
   private profileRepository = inject(ProfileRepositoryService);
+  private sessionBookingService = inject(SessionBookingService);
 
   private userSub?: Subscription;
   private trainerClientsUnsubscribe: (() => void) | null = null;
@@ -278,7 +281,7 @@ export class HomePage implements OnInit, OnDestroy {
     this.currentMonthIndex = 0;
   }
 
-  private coerceDate(value: unknown, fallback: Date): Date {
+  private coerceDate(value: unknown, fallback?: Date): Date | null {
     if (value instanceof Date && !Number.isNaN(value.getTime())) {
       return value;
     }
@@ -297,7 +300,65 @@ export class HomePage implements OnInit, OnDestroy {
       }
     }
 
-    return fallback;
+    return fallback ?? null;
+  }
+
+  private parseSessionDateTime(session: Record<string, unknown>): Date | null {
+    const startTimeUTC = String(session['startTimeUTC'] || '').trim();
+    if (startTimeUTC) {
+      const utcDate = new Date(startTimeUTC);
+      if (!Number.isNaN(utcDate.getTime())) {
+        return utcDate;
+      }
+    }
+
+    const date = String(session['date'] || '').trim();
+    const time = String(session['time'] || session['startTime'] || '').trim();
+    if (!date) {
+      return null;
+    }
+
+    const combined = new Date(`${date} ${time}`.trim());
+    if (!Number.isNaN(combined.getTime())) {
+      return combined;
+    }
+
+    const dateOnly = new Date(date);
+    if (!Number.isNaN(dateOnly.getTime())) {
+      return dateOnly;
+    }
+
+    return null;
+  }
+
+  private async getTrainerNextSessionByClient(trainerId: string): Promise<Map<string, Date>> {
+    const nextSessionByClient = new Map<string, Date>();
+
+    try {
+      const bookedSessions = await this.sessionBookingService.getTrainerBookedSessions(trainerId);
+      const now = Date.now();
+
+      for (const session of bookedSessions) {
+        const clientId = String(session?.['clientId'] || '').trim();
+        if (!clientId || session?.['status'] === 'cancelled') {
+          continue;
+        }
+
+        const sessionDate = this.parseSessionDateTime(session as Record<string, unknown>);
+        if (!sessionDate || sessionDate.getTime() <= now) {
+          continue;
+        }
+
+        const existing = nextSessionByClient.get(clientId);
+        if (!existing || sessionDate.getTime() < existing.getTime()) {
+          nextSessionByClient.set(clientId, sessionDate);
+        }
+      }
+    } catch (error) {
+      console.error('[HomePage] Error deriving next sessions from trainer bookings:', error);
+    }
+
+    return nextSessionByClient;
   }
 
   async loadTrainerClients(trainerId: string) {
@@ -327,6 +388,7 @@ export class HomePage implements OnInit, OnDestroy {
         }));
 
         const validClientsData = await this.reconcileTrainerClients(trainerId, clientsData);
+        const nextSessionByClient = await this.getTrainerNextSessionByClient(trainerId);
         if (this.activeUserDataKey !== `${trainerId}:trainer`) {
           return;
         }
@@ -365,7 +427,7 @@ export class HomePage implements OnInit, OnDestroy {
               lastName,
               name: displayName,
               profilepic,
-              nextSession: this.coerceDate(client['nextSession'], new Date(Date.now() + 86400000)),
+              nextSession: nextSessionByClient.get(clientId) ?? this.coerceDate(client['nextSession']),
               totalSessions: Number.isFinite(parsedTotalSessions) ? parsedTotalSessions : 0,
               lastWorkout: this.coerceDate(client['lastSession'], new Date(Date.now() - 172800000)),
             };
@@ -618,50 +680,85 @@ export class HomePage implements OnInit, OnDestroy {
       
       this.upcomingSessions = [];
       const now = new Date();
-      
-      querySnapshot.forEach((doc) => {
-        const booking = doc.data();
-        
-        // Parse the date and time to create a proper Date object
-        let sessionDate = now;
-        try {
-          const dateStr = booking['date']; // YYYY-MM-DD
-          const timeStr = booking['time']; // HH:MM AM/PM
-          
-          if (dateStr && timeStr) {
-            // Parse date parts
-            const [year, month, day] = dateStr.split('-').map((n: string) => parseInt(n, 10));
-            
-            // Parse time
-            const timeMatch = timeStr.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
-            if (timeMatch) {
-              let hours = parseInt(timeMatch[1], 10);
-              const minutes = parseInt(timeMatch[2], 10);
-              const period = timeMatch[3].toUpperCase();
-              
-              // Convert to 24-hour format
-              if (period === 'PM' && hours < 12) hours += 12;
-              else if (period === 'AM' && hours === 12) hours = 0;
-              
-              sessionDate = new Date(year, month - 1, day, hours, minutes);
+
+      const trainerProfilePicCache = new Map<string, string>();
+      const upcomingSessions = await Promise.all(
+        querySnapshot.docs.map(async (bookingDoc) => {
+          const booking = bookingDoc.data();
+
+          // Parse the date and time to create a proper Date object
+          let sessionDate = now;
+          try {
+            const dateStr = booking['date']; // YYYY-MM-DD
+            const timeStr = booking['time']; // HH:MM AM/PM
+
+            if (dateStr && timeStr) {
+              // Parse date parts
+              const [year, month, day] = dateStr
+                .split('-')
+                .map((n: string) => parseInt(n, 10));
+
+              // Parse time
+              const timeMatch = timeStr.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+              if (timeMatch) {
+                let hours = parseInt(timeMatch[1], 10);
+                const minutes = parseInt(timeMatch[2], 10);
+                const period = timeMatch[3].toUpperCase();
+
+                // Convert to 24-hour format
+                if (period === 'PM' && hours < 12) hours += 12;
+                else if (period === 'AM' && hours === 12) hours = 0;
+
+                sessionDate = new Date(year, month - 1, day, hours, minutes);
+              }
+            }
+          } catch (error) {
+            console.error('Error parsing booking date/time:', error);
+          }
+
+          if (sessionDate <= now) {
+            return null;
+          }
+
+          const trainerId = String(booking['trainerId'] || '').trim();
+          let trainerProfilePic = String(
+            booking['trainerProfilePic'] || booking['trainerProfilepic'] || ''
+          ).trim();
+
+          if (!trainerProfilePic && trainerId) {
+            if (trainerProfilePicCache.has(trainerId)) {
+              trainerProfilePic = trainerProfilePicCache.get(trainerId) || '';
+            } else {
+              try {
+                const trainerSummary = await this.userService.getUserSummaryDirectly(trainerId);
+                trainerProfilePic = String(trainerSummary?.profilepic || '').trim();
+              } catch (error) {
+                console.warn('Error loading trainer profile pic for session:', error);
+              }
+              trainerProfilePicCache.set(trainerId, trainerProfilePic);
             }
           }
-        } catch (error) {
-          console.error('Error parsing booking date/time:', error);
-        }
-        
-        if (sessionDate > now) {
-          this.upcomingSessions.push({
-            id: doc.id,
-            trainerName: `${booking['trainerFirstName'] || ''} ${booking['trainerLastName'] || ''}`.trim() || 'Trainer',
+
+          return {
+            id: bookingDoc.id,
+            trainerName:
+              `${booking['trainerFirstName'] || ''} ${booking['trainerLastName'] || ''}`.trim() ||
+              'Trainer',
+            trainerProfilePic,
             date: sessionDate,
             notes: booking['notes'] || '',
-            duration: booking['duration'] || 60
-          });
-        }
-      });
-      
-      this.upcomingSessions.sort((a, b) => a.date.getTime() - b.date.getTime());
+            duration: booking['duration'] || 60,
+          } as UpcomingSession;
+        })
+      );
+
+      if (this.activeUserDataKey !== roleKey) {
+        return;
+      }
+
+      this.upcomingSessions = upcomingSessions
+        .filter((session): session is UpcomingSession => !!session)
+        .sort((a, b) => a.date.getTime() - b.date.getTime());
     } catch (error) {
       console.error('Error loading upcoming sessions:', error);
       this.upcomingSessions = [];
