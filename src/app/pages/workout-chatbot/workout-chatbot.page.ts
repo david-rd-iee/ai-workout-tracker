@@ -20,6 +20,7 @@ import {
   RowWeight,
 } from '../../models/workout-session.model';
 import { Router } from '@angular/router';
+import { UpdateScoreResult } from '../../services/update-score.service';
 import {
   WorkoutChatService,
   ChatHistoryMessage,
@@ -215,9 +216,7 @@ export class WorkoutChatbotPage implements OnInit, OnDestroy {
       this.hasSavedWorkout = true;
       this.savedWorkoutLoggedAt = loggedAt;
       if (saveResult.scoreUpdate) {
-        const addedTotalScore = this.roundToTwoDecimals(saveResult.scoreUpdate.addedTotalScore);
-        const currentTotalScore = this.roundToTwoDecimals(saveResult.scoreUpdate.currentTotalScore);
-        await this.showScoreUpdateAlert(addedTotalScore, currentTotalScore);
+        await this.showScoreUpdateAlert(saveResult.scoreUpdate);
       }
       return true;
     } catch (err) {
@@ -235,17 +234,51 @@ export class WorkoutChatbotPage implements OnInit, OnDestroy {
     return Math.round((Number(value) || 0) * 100) / 100;
   }
 
-  private async showScoreUpdateAlert(addedTotalScore: number, currentTotalScore: number): Promise<void> {
+  private async showScoreUpdateAlert(scoreUpdate: UpdateScoreResult): Promise<void> {
+    const message = this.buildScoreUpdateMessage(scoreUpdate);
     const alert = await this.alertController.create({
       mode: 'ios',
       header: 'Score Updated',
-      subHeader: `+${addedTotalScore} points`,
-      message: `Your total score is now ${currentTotalScore}.`,
+      cssClass: 'score-update-alert',
+      message,
       buttons: ['OK'],
       translucent: true,
     });
 
     await alert.present();
+  }
+
+  private buildScoreUpdateMessage(scoreUpdate: UpdateScoreResult): string {
+    const lines = scoreUpdate.exerciseScoreDeltas.map((entry) => (
+      `${this.formatSummaryExerciseName(entry.exerciseType)}: ${this.formatSignedScore(entry.addedScore)}`
+    ));
+
+    lines.push(`Total Added: ${this.formatSignedScore(scoreUpdate.addedTotalScore)}`);
+    lines.push('');
+    lines.push(`New Total: ${this.formatScoreValue(scoreUpdate.currentTotalScore)}`);
+
+    return lines.join('\n');
+  }
+
+  formatSummaryExerciseName(exerciseType: string): string {
+    return String(exerciseType ?? '')
+      .replace(/[_-]+/g, ' ')
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean)
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+  }
+
+  private formatSignedScore(value: number): string {
+    const rounded = this.roundToTwoDecimals(value);
+    const absoluteValue = this.formatScoreValue(Math.abs(rounded));
+
+    return `${rounded < 0 ? '-' : '+'} ${absoluteValue}`;
+  }
+
+  private formatScoreValue(value: number): string {
+    return String(this.roundToTwoDecimals(value));
   }
 
   private createEmptySession(): WorkoutSessionPerformance {
@@ -380,9 +413,7 @@ export class WorkoutChatbotPage implements OnInit, OnDestroy {
           row['displayed_weights_metric'] ??
           row['displayedWeight'] ??
           row['weights'] ??
-          row['weight'] ??
-          row['weights_kg'] ??
-          row['weight_kg'];
+          row['weight'];
         const displayedWeightsMetric = this.resolveDisplayedWeightMetric(
           row,
           rawWeight,
@@ -558,7 +589,6 @@ export class WorkoutChatbotPage implements OnInit, OnDestroy {
         row['displayed_weights_metric'] ??
         row['weights'] ??
         row['weight'] ??
-        row['weights_kg'] ??
         row['load'];
       const estimatedRowCalories = this.toNonNegativeNumber(row['estimated_calories'], 0);
       return {
@@ -604,39 +634,20 @@ export class WorkoutChatbotPage implements OnInit, OnDestroy {
   }
 
   private resolveDisplayDistanceText(row: Record<string, unknown>): string | undefined {
-    const explicit = this.readMetricText(
+    return this.readMetricText(
       row['display_distance'] ??
       row['distance_input'] ??
       row['distanceText'] ??
       row['distance_text']
     );
-    if (explicit) {
-      return explicit;
-    }
-
-    return (
-      this.extractDistanceMetricText(row['distance_meters']) ??
-      this.extractDistanceMetricText(row['distance']) ??
-      this.extractDistanceMetricText(row['meters'])
-    );
   }
 
   private resolveDisplayTimeText(row: Record<string, unknown>): string | undefined {
-    const explicit = this.readMetricText(
+    return this.readMetricText(
       row['display_time'] ??
       row['time_input'] ??
       row['timeText'] ??
       row['time_text']
-    );
-    if (explicit) {
-      return explicit;
-    }
-
-    return (
-      this.extractTimeMetricText(row['time_minutes']) ??
-      this.extractTimeMetricText(row['time']) ??
-      this.extractTimeMetricText(row['minutes']) ??
-      this.extractTimeMetricText(row['duration'])
     );
   }
 
@@ -668,11 +679,6 @@ export class WorkoutChatbotPage implements OnInit, OnDestroy {
       : undefined;
     if (messageWeight) {
       return messageWeight.toLowerCase().includes('body') ? 'bodyweight' : messageWeight;
-    }
-
-    const parsedKg = this.resolveWeightKgValue(row, rawWeight);
-    if (parsedKg > 0) {
-      return `${Math.round(parsedKg * 100) / 100} kg`;
     }
 
     return 'bodyweight';
@@ -801,27 +807,11 @@ export class WorkoutChatbotPage implements OnInit, OnDestroy {
   }
 
   private getCardioDistanceText(row: CardioTrainingRow): string | undefined {
-    const fromInput = this.readMetricText(row.display_distance);
-    if (fromInput) {
-      return fromInput;
-    }
-
-    if (typeof row.distance_meters === 'number' && Number.isFinite(row.distance_meters)) {
-      return `${row.distance_meters} m`;
-    }
-    return undefined;
+    return this.readMetricText(row.display_distance);
   }
 
   private getCardioTimeText(row: CardioTrainingRow): string | undefined {
-    const fromInput = this.readMetricText(row.display_time);
-    if (fromInput) {
-      return fromInput;
-    }
-
-    if (typeof row.time_minutes === 'number' && Number.isFinite(row.time_minutes)) {
-      return `${row.time_minutes} min`;
-    }
-    return undefined;
+    return this.readMetricText(row.display_time);
   }
 
   private parseDistanceMeters(value: unknown): number | undefined {

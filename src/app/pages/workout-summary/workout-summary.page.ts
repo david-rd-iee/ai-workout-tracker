@@ -194,10 +194,6 @@ export class WorkoutSummaryPage implements OnInit {
       return displayMetric.toLowerCase().includes('body') ? 'bodyweight' : displayMetric;
     }
 
-    if (typeof row.weights_kg === 'number' && Number.isFinite(row.weights_kg) && row.weights_kg > 0) {
-      return `${Math.round(row.weights_kg * 100) / 100} kg`;
-    }
-
     return 'bodyweight';
   }
 
@@ -212,11 +208,6 @@ export class WorkoutSummaryPage implements OnInit {
       return text;
     }
 
-    const distance = Number(row.distance_meters ?? row.distance);
-    if (Number.isFinite(distance) && distance > 0) {
-      return `${Math.round(distance)} m`;
-    }
-
     return 'N/A';
   }
 
@@ -229,11 +220,6 @@ export class WorkoutSummaryPage implements OnInit {
     );
     if (text) {
       return text;
-    }
-
-    const time = Number(row.time_minutes ?? row.time);
-    if (Number.isFinite(time) && time > 0) {
-      return `${Math.round(time)} min`;
     }
 
     return 'N/A';

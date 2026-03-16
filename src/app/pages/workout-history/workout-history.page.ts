@@ -361,16 +361,6 @@ export class WorkoutHistoryPage implements OnInit {
   }
 
   private resolveCardioDistanceText(row: Record<string, unknown>): string {
-    const text = this.readText(
-      row['display_distance'] ??
-      row['distance_input'] ??
-      row['distanceText'] ??
-      row['distance_text']
-    );
-    if (text) {
-      return text;
-    }
-
     const distance = Number(row['distance_meters'] ?? row['distance']);
     if (Number.isFinite(distance) && distance > 0) {
       return `${Math.round(distance * 100) / 100} m`;
@@ -380,16 +370,6 @@ export class WorkoutHistoryPage implements OnInit {
   }
 
   private resolveCardioTimeText(row: Record<string, unknown>): string {
-    const text = this.readText(
-      row['display_time'] ??
-      row['time_input'] ??
-      row['timeText'] ??
-      row['time_text']
-    );
-    if (text) {
-      return text;
-    }
-
     const minutes = Number(row['time_minutes'] ?? row['time']);
     if (Number.isFinite(minutes) && minutes > 0) {
       return `${Math.round(minutes * 100) / 100} min`;
@@ -444,19 +424,16 @@ export class WorkoutHistoryPage implements OnInit {
   }
 
   private formatWeight(row: Record<string, unknown>): string {
+    const weightKg = Number(row['weights_kg'] ?? row['weights'] ?? row['weight_kg']);
+    if (Number.isFinite(weightKg) && weightKg > 0) {
+      return `${Math.round(weightKg * 100) / 100} kg`;
+    }
+
     const displayWeight = this.readText(
       row['displayed_weights_metric'] ?? row['displayWeight']
     );
     if (this.isBodyweightDisplayValue(displayWeight)) {
       return 'bodyweight';
-    }
-    if (displayWeight) {
-      return displayWeight;
-    }
-
-    const weightKg = Number(row['weights_kg'] ?? row['weights'] ?? row['weight_kg']);
-    if (Number.isFinite(weightKg) && weightKg > 0) {
-      return `${Math.round(weightKg * 100) / 100} kg`;
     }
 
     const text = this.readText(row['weights'] ?? row['weight']);

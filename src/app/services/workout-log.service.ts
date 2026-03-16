@@ -68,6 +68,20 @@ export class WorkoutLogService {
     const trainerNotes = session.trainer_notes ?? session.notes ?? '';
     const totalVolume = this.calculateTotalVolume(normalizedTrainingRows);
     const trainerUid = await this.resolveCurrentTrainerUid(user.uid);
+    const submittedSession: WorkoutSessionPerformance = {
+      ...session,
+      trainingRows: normalizedTrainingRows,
+      strengthTrainingRow: persistedStrengthTrainingRow,
+      strengthTrainingRowss: persistedStrengthTrainingRow,
+      cardioTrainingRow: persistedCardioTrainingRow,
+      otherTrainingRow: otherTrainingRow as OtherTrainingRow[],
+      estimated_calories: estimatedCalories,
+      trainer_notes: trainerNotes,
+      notes: trainerNotes,
+      volume: totalVolume,
+      calories: estimatedCalories,
+      exercises: this.rowsToLegacyExercises(normalizedTrainingRows),
+    };
 
     const workoutLogRef = await addDoc(workoutLogsRef, {
       createdAt: serverTimestamp(),
@@ -82,7 +96,7 @@ export class WorkoutLogService {
     try {
       scoreUpdate = await this.updateScoreService.updateScoreAfterWorkout({
         userId: user.uid,
-        session,
+        session: submittedSession,
         workoutLogId: workoutLogRef.id,
       });
     } catch (error) {
@@ -94,8 +108,8 @@ export class WorkoutLogService {
         trainerUid,
         clientUid: user.uid,
         clientWorkoutLogId: workoutLogRef.id,
-        session,
-        trainingRows,
+        session: submittedSession,
+        trainingRows: normalizedTrainingRows,
         estimatedCalories,
         totalVolume,
         trainerNotes,
@@ -103,8 +117,8 @@ export class WorkoutLogService {
       await this.sendSummaryMessageToTrainer({
         trainerUid,
         clientUid: user.uid,
-        session,
-        trainingRows,
+        session: submittedSession,
+        trainingRows: normalizedTrainingRows,
         estimatedCalories,
         trainerNotes,
       });
@@ -152,7 +166,7 @@ export class WorkoutLogService {
         exercise: this.fromSnakeCase(row.exercise_type),
         sets: row.sets,
         reps: row.reps,
-        weights: row.displayed_weights_metric ?? this.formatWeight(row),
+        weights: this.formatWeight(row),
       })),
       source: 'ai_logger',
     });
@@ -280,6 +294,18 @@ export class WorkoutLogService {
   }
 
   private async resolveUserBodyweightKg(userId: string): Promise<number> {
+    const userRef = doc(this.firestore, 'users', userId);
+    const userSnap = await getDoc(userRef);
+    if (userSnap.exists()) {
+      const userData = userSnap.data() as Record<string, unknown>;
+      const candidate = Number(
+        userData['weightKg'] ?? userData['weight_kg'] ?? userData['weight']
+      );
+      if (Number.isFinite(candidate) && candidate > 0) {
+        return candidate;
+      }
+    }
+
     const userStatsRef = doc(this.firestore, 'userStats', userId);
     const userStatsSnap = await getDoc(userStatsRef);
     if (!userStatsSnap.exists()) {
@@ -314,7 +340,7 @@ export class WorkoutLogService {
   private prepareStrengthRowsForStorage(
     rows: Array<Record<string, unknown>>,
     userWeightKg: number
-  ): Array<Record<string, unknown>> {
+  ): WorkoutTrainingRow[] {
     return rows.map((row) => ({
       Training_Type: 'Strength',
       estimated_calories: this.toRoundedNonNegative(row['estimated_calories']),
@@ -326,7 +352,7 @@ export class WorkoutLogService {
     }));
   }
 
-  private prepareCardioRowsForStorage(rows: Array<Record<string, unknown>>): Array<Record<string, unknown>> {
+  private prepareCardioRowsForStorage(rows: Array<Record<string, unknown>>): CardioTrainingRow[] {
     return rows.map((row) => {
       const distanceMeters = Number(
         row['distance_meters'] ?? row['distance'] ?? row['meters']
@@ -394,7 +420,12 @@ export class WorkoutLogService {
       return explicitWeightKg;
     }
 
-    const rawWeight = row['weights'] ?? row['weight'] ?? row['load'] ?? row['weight_kg'];
+    const rawWeight =
+      row['displayed_weights_metric'] ??
+      row['weights'] ??
+      row['weight'] ??
+      row['load'] ??
+      row['weight_kg'];
     if (typeof rawWeight === 'number' && Number.isFinite(rawWeight) && rawWeight > 0) {
       return rawWeight;
     }
@@ -559,17 +590,17 @@ export class WorkoutLogService {
 
   private formatWeight(row: WorkoutTrainingRow | OtherTrainingRow | Record<string, unknown>): string {
     const record = row as Record<string, unknown>;
+    const weightKg = Number(record['weights_kg'] ?? record['weights'] ?? record['weight_kg']);
+    if (Number.isFinite(weightKg) && weightKg > 0) {
+      return `${Math.round(weightKg * 100) / 100} kg`;
+    }
+
     const displayValue = this.readText(record['displayed_weights_metric'] ?? record['displayWeight']);
     if (this.isBodyweightDisplayValue(displayValue)) {
       return 'bodyweight';
     }
     if (displayValue) {
       return displayValue;
-    }
-
-    const weightKg = Number(record['weights_kg'] ?? record['weights'] ?? record['weight_kg']);
-    if (Number.isFinite(weightKg) && weightKg > 0) {
-      return `${Math.round(weightKg * 100) / 100} kg`;
     }
 
     const text = String(record['weights'] ?? record['weight'] ?? '').trim();
@@ -586,6 +617,11 @@ export class WorkoutLogService {
   }
 
   private formatCardioDistance(row: CardioTrainingRow): string {
+    const distance = Number(row.distance_meters ?? row.distance);
+    if (Number.isFinite(distance) && distance > 0) {
+      return `${Math.round(distance)} m`;
+    }
+
     const text = this.readText(
       row.display_distance ??
       row['distance_input'] ??
@@ -596,15 +632,15 @@ export class WorkoutLogService {
       return text;
     }
 
-    const distance = Number(row.distance_meters ?? row.distance);
-    if (Number.isFinite(distance) && distance > 0) {
-      return `${Math.round(distance)} m`;
-    }
-
     return 'N/A';
   }
 
   private formatCardioTime(row: CardioTrainingRow): string {
+    const time = Number(row.time_minutes ?? row.time);
+    if (Number.isFinite(time) && time > 0) {
+      return `${Math.round(time)} min`;
+    }
+
     const text = this.readText(
       row.display_time ??
       row['time_input'] ??
@@ -613,11 +649,6 @@ export class WorkoutLogService {
     );
     if (text) {
       return text;
-    }
-
-    const time = Number(row.time_minutes ?? row.time);
-    if (Number.isFinite(time) && time > 0) {
-      return `${Math.round(time)} min`;
     }
 
     return 'N/A';

@@ -423,6 +423,12 @@ app-profile-create-trainer {
   }
 }
 
+.score-update-alert {
+  .alert-message {
+    white-space: pre-line;
+  }
+}
+
 @media (max-width: 768px) {
   app-profile-create-client .form-container,
   app-profile-create-trainer .form-container {
