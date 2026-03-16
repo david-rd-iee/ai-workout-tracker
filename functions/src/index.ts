@@ -69,6 +69,53 @@ function extractTimeMinutes(value: unknown): number | undefined {
   return Math.round(magnitude);
 }
 
+function extractWeightKg(value: unknown): number | undefined {
+  const direct = toPositiveNumber(value);
+  if (typeof direct === "number") {
+    return direct;
+  }
+
+  const text = String(value ?? "").trim().toLowerCase();
+  if (!text || text.includes("body")) {
+    return undefined;
+  }
+
+  const match = text.match(
+    /([0-9]*\.?[0-9]+)\s*(kg|kgs|kilogram|kilograms|lb|lbs|pound|pounds)?\b/
+  );
+  if (!match) {
+    return undefined;
+  }
+
+  const magnitude = Number(match[1]);
+  const unit = String(match[2] ?? "kg").toLowerCase();
+  if (!Number.isFinite(magnitude) || magnitude <= 0) {
+    return undefined;
+  }
+
+  if (unit === "lb" || unit === "lbs" || unit === "pound" || unit === "pounds") {
+    return Math.round(magnitude * 0.45359237 * 100) / 100;
+  }
+
+  return Math.round(magnitude * 100) / 100;
+}
+
+function extractWeightMetricText(value: unknown): string | undefined {
+  const text = String(value ?? "").trim();
+  if (!text) {
+    return undefined;
+  }
+
+  if (/body\s*weight/i.test(text) || /bodyweight/i.test(text)) {
+    return "bodyweight";
+  }
+
+  const match = text.match(
+    /([0-9]*\.?[0-9]+)\s*(kg|kgs|kilogram|kilograms|lb|lbs|pound|pounds)\b/i
+  );
+  return match?.[0]?.trim();
+}
+
 function extractDistanceAndTimeFromMessage(message: string): {distance?: number; time?: number} {
   const text = String(message ?? "").toLowerCase();
   const distanceMatch = text.match(/([0-9]*\.?[0-9]+)\s*(mi|mile|miles|km|kilometer|kilometers|m|meter|meters)\b/);
@@ -157,12 +204,35 @@ function normalizeSummaryRows(summary: unknown, latestMessage: string): unknown 
     summaryRecord["strengthTrainingRow"] ??
     summaryRecord["strengthTrainingRowss"] ??
     legacyStrengthRows;
-  const strengthRows = toObjectArray(strengthSource).map((row) => {
+  const latestWeightText = extractWeightMetricText(latestMessage);
+  const strengthRows = toObjectArray(strengthSource).map((row, index) => {
     const normalized = {...row};
+    const displayedWeightMetric =
+      extractWeightMetricText(
+        row["displayed_weights_metric"] ??
+        row["displayWeight"] ??
+        row["weights"] ??
+        row["weight"] ??
+        row["load"]
+      ) ??
+      (index === 0 ? latestWeightText : undefined) ??
+      "bodyweight";
+    const weightsKg =
+      extractWeightKg(row["weights_kg"]) ??
+      extractWeightKg(row["weight_kg"]) ??
+      extractWeightKg(row["weights"]) ??
+      extractWeightKg(row["weight"]) ??
+      extractWeightKg(row["load"]) ??
+      extractWeightKg(displayedWeightMetric) ??
+      0;
+
     normalized["Training_Type"] = "Strength";
     normalized["estimated_calories"] = toPositiveNumber(
       row["estimated_calories"] ?? row["estimatedCalories"]
     ) ?? 0;
+    normalized["displayed_weights_metric"] = displayedWeightMetric;
+    normalized["weights_kg"] = weightsKg;
+    normalized["weights"] = displayedWeightMetric;
     return normalized;
   });
 
@@ -175,19 +245,22 @@ function normalizeSummaryRows(summary: unknown, latestMessage: string): unknown 
         row["exercise_type"] ??
         row["exersice_type"] ??
         row["type"],
-      distance_input:
+      display_distance:
+        row["display_distance"] ??
         row["distance_input"] ??
         row["distanceText"] ??
         row["distance_text"],
-      time_input:
+      display_time:
+        row["display_time"] ??
         row["time_input"] ??
         row["timeText"] ??
         row["time_text"],
-      distance:
-        row["distance"] ??
+      distance_meters:
         row["distance_meters"] ??
+        row["distance"] ??
         row["meters"],
-      time:
+      time_minutes:
+        row["time_minutes"] ??
         row["time"] ??
         row["minutes"] ??
         row["duration"] ??
@@ -208,10 +281,10 @@ function normalizeSummaryRows(summary: unknown, latestMessage: string): unknown 
   ) {
     cardioRows.push({
       cardio_type: inferredCardioType,
-      distance_input: fromMessageText.distanceText,
-      time_input: fromMessageText.timeText,
-      distance: fromMessage.distance,
-      time: fromMessage.time,
+      display_distance: fromMessageText.distanceText ?? "",
+      display_time: fromMessageText.timeText ?? "",
+      distance_meters: fromMessage.distance ?? 0,
+      time_minutes: fromMessage.time ?? 0,
       estimated_calories: 0,
     });
   }
@@ -226,30 +299,33 @@ function normalizeSummaryRows(summary: unknown, latestMessage: string): unknown 
       ""
     ).trim();
     const rowDistanceInput = String(
+      row["display_distance"] ??
       row["distance_input"] ??
       row["distanceText"] ??
       row["distance_text"] ??
       ""
     ).trim();
     const rowTimeInput = String(
+      row["display_time"] ??
       row["time_input"] ??
       row["timeText"] ??
       row["time_text"] ??
       ""
     ).trim();
     const rowDistance =
-      extractDistanceMeters(row["distance"]) ??
       extractDistanceMeters(row["distance_meters"]) ??
+      extractDistanceMeters(row["distance"]) ??
       extractDistanceMeters(row["meters"]);
     const rowTime =
+      extractTimeMinutes(row["time_minutes"]) ??
       extractTimeMinutes(row["time"]) ??
       extractTimeMinutes(row["minutes"]) ??
       extractTimeMinutes(row["duration"]);
 
-    const distance = index === 0 && typeof fromMessage.distance === "number"
+    const distanceMeters = index === 0 && typeof fromMessage.distance === "number"
       ? fromMessage.distance
       : rowDistance;
-    const time = index === 0 && typeof fromMessage.time === "number"
+    const timeMinutes = index === 0 && typeof fromMessage.time === "number"
       ? fromMessage.time
       : rowTime;
 
@@ -258,20 +334,26 @@ function normalizeSummaryRows(summary: unknown, latestMessage: string): unknown 
     const distanceInput = rowDistanceInput || (index === 0 ? fromMessageText.distanceText : undefined);
     const timeInput = rowTimeInput || (index === 0 ? fromMessageText.timeText : undefined);
     if (distanceInput) {
+      row["display_distance"] = distanceInput;
       row["distance_input"] = distanceInput;
     } else {
+      delete row["display_distance"];
       delete row["distance_input"];
     }
     if (timeInput) {
+      row["display_time"] = timeInput;
       row["time_input"] = timeInput;
     } else {
+      delete row["display_time"];
       delete row["time_input"];
     }
     row["estimated_calories"] = toPositiveNumber(
       row["estimated_calories"] ?? row["estimatedCalories"]
     ) ?? 0;
-    row["distance"] = typeof distance === "number" ? distance : null;
-    row["time"] = typeof time === "number" ? time : null;
+    row["distance_meters"] = typeof distanceMeters === "number" ? distanceMeters : null;
+    row["time_minutes"] = typeof timeMinutes === "number" ? timeMinutes : null;
+    row["distance"] = typeof distanceMeters === "number" ? distanceMeters : null;
+    row["time"] = typeof timeMinutes === "number" ? timeMinutes : null;
     return row;
   });
 
@@ -322,10 +404,12 @@ function normalizeSummaryRows(summary: unknown, latestMessage: string): unknown 
         "cardio_activity",
       sets: 1,
       reps:
-        toPositiveNumber(row["time"]) ??
-        toPositiveNumber(row["distance"]) ??
+        toPositiveNumber(row["time_minutes"] ?? row["time"]) ??
+        toPositiveNumber(row["distance_meters"] ?? row["distance"]) ??
         0,
-      weights: "body weight",
+      displayed_weights_metric: "bodyweight",
+      weights_kg: 0,
+      weights: "bodyweight",
     })),
     ...otherRows.map((row) => ({
       Training_Type: "Other",
@@ -396,7 +480,8 @@ Required summary shape:
       "exercise_type": string,
       "sets": number,
       "reps": number,
-      "weights": number | "body weight"
+      "displayed_weights_metric": string,
+      "weights_kg": number
     }
   ],
   "cardioTrainingRow": [
@@ -404,8 +489,10 @@ Required summary shape:
       "Training_Type": "Cardio",
       "estimated_calories": number,
       "cardio_type": string,
-      "distance": number, // meters
-      "time": number // minutes
+      "display_distance": string,
+      "display_time": string,
+      "distance_meters": number,
+      "time_minutes": number
     }
   ],
   "otherTrainingRow": [
@@ -428,16 +515,18 @@ Rules:
   - exercise_type:
     - Prefer matching an existing ID from exerciseEstimatorIds when it semantically fits.
     - If none fits, create a new snake_case ID in style firstword_secondword.
-  - weights must be in kg when numeric.
-  - If no additional weight is used (pushups, pullups, bodyweight squats, etc.), set weights to "body weight".
+  - displayed_weights_metric must preserve the user's original quantity and unit string when external load is provided, for example "135 lb" or "60 kg".
+  - weights_kg must be the numeric kilogram conversion of displayed_weights_metric.
+  - If no additional weight is used (pushups, pullups, bodyweight squats, etc.), set displayed_weights_metric to exactly "bodyweight" and set weights_kg to 0.
   - Each row is one spreadsheet row:
     - If user says mixed set/rep patterns in one exercise (example: 2 sets of 5 reps, then 1 set of 10 reps),
       create separate rows with same exercise_type but different sets/reps.
 - cardioTrainingRow rows:
   - Training_Type must be "Cardio".
-  - Include cardio_type (running, biking, etc), distance in meters when available, and time in minutes when available.
-  - If time is given not in minutes, convert it to minutes from the given metric, then log it.
-  - If the distance is not given in meters, convert it to meters from the given metric and log it in minutes.
+  - Include cardio_type (running, biking, etc), display_distance, display_time, distance_meters, and time_minutes.
+  - display_distance and display_time must preserve the exact quantity + unit the user said, for example "5 miles", "2 hours", or "2 km".
+  - distance_meters and time_minutes must be the numeric conversions of those display values.
+  - If a user only gave one of distance or time, preserve the one they gave and leave the missing display field as "" and the missing numeric field as 0.
   - Each row is one spreadsheet row
 - otherTrainingRow rows:
   - Training_Type must be "Other".

@@ -131,14 +131,14 @@ export class WorkoutHistoryCsvPage implements OnInit {
   private buildTableModel(type: CsvTableType): { header: string[]; rows: string[][] } {
     if (type === 'Strength') {
       return {
-        header: ['Date', 'Exercise', 'Sets', 'Reps', 'Weights', 'Calories Burned'],
+        header: ['Date', 'Exercise', 'Sets', 'Reps', 'Weights (kg)', 'Calories Burned'],
         rows: this.buildRowsForType(type),
       };
     }
 
     if (type === 'Cardio') {
       return {
-        header: ['Date', 'Exercise', 'Distance', 'Time', 'Calories Burned'],
+        header: ['Date', 'Exercise', 'Distance (m)', 'Time (min)', 'Calories Burned'],
         rows: this.buildRowsForType(type),
       };
     }

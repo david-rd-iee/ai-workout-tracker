@@ -33,6 +33,11 @@ interface ExpectedEffortMap {
   Strength: Record<string, number>;
 }
 
+export interface ExerciseScoreDelta {
+  exerciseType: string;
+  addedScore: number;
+}
+
 export interface UpdateScoreResult {
   oldCardioScore: number;
   newCardioScore: number;
@@ -42,6 +47,7 @@ export interface UpdateScoreResult {
   addedStrengthScore: number;
   addedTotalScore: number;
   currentTotalScore: number;
+  exerciseScoreDeltas: ExerciseScoreDelta[];
 }
 
 @Injectable({
@@ -65,11 +71,21 @@ export class UpdateScoreService {
     const current = statsSnap.exists()
       ? (statsSnap.data() as Record<string, unknown>)
       : {};
+    const userRef = doc(this.firestore, 'users', userId);
+    const userSnap = await getDoc(userRef);
+    const userDocData = userSnap.exists()
+      ? (userSnap.data() as Record<string, unknown>)
+      : {};
 
     const userAge = this.toNonNegativeNumber(current['age']);
     const userBmi = this.toNonNegativeNumber(current['bmi']);
     const userWeightKg = this.toNonNegativeNumber(
-      current['weightKg'] ?? current['weight_kg'] ?? current['weight']
+      current['weightKg'] ??
+      current['weight_kg'] ??
+      current['weight'] ??
+      userDocData['weightKg'] ??
+      userDocData['weight_kg'] ??
+      userDocData['weight']
     );
     const userSexCode = this.toSexCode(current['sex']);
 
@@ -88,6 +104,7 @@ export class UpdateScoreService {
       current['totalScore'],
       oldCardioScore + oldStrengthScore
     ));
+    const exerciseScoreDeltaMap = new Map<string, number>();
 
     const cardioRows = this.getCardioRows(params.session);
     const strengthRows = this.getStrengthRows(params.session);
@@ -142,6 +159,7 @@ export class UpdateScoreService {
         ? (cardioPerformance.actualVo2Max / expected) * 100
         : 0;
       const roundedScore = this.toWholeNumber(score);
+      this.trackExerciseScoreDelta(exerciseScoreDeltaMap, exerciseType, roundedScore);
 
       if (roundedScore > 0) {
         const priorExerciseScore = this.toWholeNumber(
@@ -216,8 +234,15 @@ export class UpdateScoreService {
       }
 
       const reps = this.toNonNegativeNumber(row['reps']);
+      const explicitWeightKg = this.toNonNegativeNumber(row['weights_kg']);
+      const weightSource = explicitWeightKg > 0
+        ? explicitWeightKg
+        : row['displayed_weights_metric'] ??
+          row['weights'] ??
+          row['weight'] ??
+          row['weight_kg'];
       const weightKg = this.resolveWeightKg(
-        row['weights_kg'] ?? row['weights'] ?? row['weight'] ?? row['weight_kg'],
+        weightSource,
         userWeightKg
       );
       const e1rm = weightKg > 0 ? weightKg * (1 + reps / 30) : 0;
@@ -229,6 +254,7 @@ export class UpdateScoreService {
         ? (actual / expected) * 100
         : 0;
       const roundedScore = this.toWholeNumber(score);
+      this.trackExerciseScoreDelta(exerciseScoreDeltaMap, exerciseType, roundedScore);
 
       if (roundedScore > 0) {
         const priorExerciseScore = this.toWholeNumber(
@@ -301,7 +327,29 @@ export class UpdateScoreService {
       addedStrengthScore,
       addedTotalScore,
       currentTotalScore: nextTotalScore,
+      exerciseScoreDeltas: Array.from(exerciseScoreDeltaMap.entries()).map(
+        ([exerciseType, addedScore]) => ({
+          exerciseType,
+          addedScore: this.toWholeNumber(addedScore),
+        })
+      ),
     };
+  }
+
+  private trackExerciseScoreDelta(
+    scoreDeltaMap: Map<string, number>,
+    exerciseType: string,
+    roundedScore: number
+  ): void {
+    const normalizedExerciseType = this.normalizeEstimatorId(exerciseType);
+    if (!normalizedExerciseType) {
+      return;
+    }
+
+    const priorScore = this.toWholeNumber(
+      this.toNonNegativeNumber(scoreDeltaMap.get(normalizedExerciseType))
+    );
+    scoreDeltaMap.set(normalizedExerciseType, priorScore + this.toWholeNumber(roundedScore));
   }
 
   private getStrengthRows(session: WorkoutSessionPerformance): Array<Record<string, unknown>> {
