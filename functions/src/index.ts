@@ -2,6 +2,7 @@ import { HttpsError, onCall, onRequest } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import { defineSecret } from "firebase-functions/params";
 import OpenAI from "openai";
+export { retrainExerciseEstimatorOnWorkoutLogCreate } from "./exerciseEstimatorTraining";
 
 const openaiApiKey = defineSecret("OPENAI_API_KEY");
 
