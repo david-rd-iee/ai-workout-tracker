@@ -1,7 +1,12 @@
 export type ExerciseEstimatorModel =
+  'LinearRegression' |
+  'RidgeRegression' |
   'WeightedLeastSquares' |
+  'GeneralizedLeastSquares' |
   'ExponentialRegression' |
   'PolynomialRegression' |
+  'LogLinearRegression' |
+  'PowerLawRegression' |
   'NONE';
 
 export type ExerciseEstimatorCategory = 'Strength' | 'Cardio';

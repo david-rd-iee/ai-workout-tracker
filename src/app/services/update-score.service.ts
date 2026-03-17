@@ -414,9 +414,14 @@ export class UpdateScoreService {
     const raw = estimatorSnap.data() as Record<string, unknown>;
     const rawModel = String(raw['model'] ?? 'NONE');
     const model: ExerciseEstimatorModel = (
+      rawModel === 'LinearRegression' ||
+      rawModel === 'RidgeRegression' ||
       rawModel === 'WeightedLeastSquares' ||
+      rawModel === 'GeneralizedLeastSquares' ||
       rawModel === 'ExponentialRegression' ||
       rawModel === 'PolynomialRegression' ||
+      rawModel === 'LogLinearRegression' ||
+      rawModel === 'PowerLawRegression' ||
       rawModel === 'NONE'
     )
       ? rawModel
@@ -441,15 +446,14 @@ export class UpdateScoreService {
   ): number {
     const intercept = this.getCoefficient(estimator.coefficients, 'intercept');
 
-    if (estimator.model === 'WeightedLeastSquares') {
-      const sexCoefficient = this.getCoefficient(estimator.coefficients, ['sex_code', 'sex']);
-      const bmiCoefficient = this.getCoefficient(estimator.coefficients, ['bmi', 'BMI']);
-      const ageCoefficient = this.getCoefficient(estimator.coefficients, ['age', 'age_years']);
-
-      return intercept +
-        (sexCoefficient * params.sexCode) +
-        (bmiCoefficient * params.bmi) +
-        (ageCoefficient * params.age);
+    if (
+      estimator.model === 'LinearRegression' ||
+      estimator.model === 'RidgeRegression' ||
+      estimator.model === 'WeightedLeastSquares' ||
+      estimator.model === 'GeneralizedLeastSquares'
+    ) {
+      const expected = this.calculateLinearExpected(estimator.coefficients, params, intercept);
+      return Math.max(0, expected);
     }
 
     if (estimator.model === 'ExponentialRegression') {
@@ -462,7 +466,7 @@ export class UpdateScoreService {
         (bmiCoefficient * params.bmi) +
         (ageCoefficient * params.age);
 
-      return intercept + (scaleA * Math.exp(exponent));
+      return Math.max(0, intercept + (scaleA * Math.exp(exponent)));
     }
 
     if (estimator.model === 'PolynomialRegression') {
@@ -494,7 +498,7 @@ export class UpdateScoreService {
         'bmi_squared',
       ]);
 
-      return intercept +
+      return Math.max(0, intercept +
         (ageCoefficient * params.age) +
         (sexCoefficient * params.sexCode) +
         (bmiCoefficient * params.bmi) +
@@ -503,10 +507,85 @@ export class UpdateScoreService {
         (ageBmiCoefficient * params.age * params.bmi) +
         (sexSquaredCoefficient * Math.pow(params.sexCode, 2)) +
         (sexBmiCoefficient * params.sexCode * params.bmi) +
-        (bmiSquaredCoefficient * Math.pow(params.bmi, 2));
+        (bmiSquaredCoefficient * Math.pow(params.bmi, 2)));
+    }
+
+    if (estimator.model === 'LogLinearRegression') {
+      if (params.sexCode <= 0 || params.bmi <= 0 || params.age <= 0) {
+        return 0;
+      }
+
+      const logSexCoefficient = this.getCoefficient(estimator.coefficients, [
+        'log_sex_code',
+        'log_sex',
+      ]);
+      const logBmiCoefficient = this.getCoefficient(estimator.coefficients, [
+        'log_bmi',
+        'ln_bmi',
+      ]);
+      const logAgeCoefficient = this.getCoefficient(estimator.coefficients, [
+        'log_age',
+        'ln_age',
+      ]);
+
+      return Math.max(
+        0,
+        intercept +
+          (logSexCoefficient * Math.log(params.sexCode)) +
+          (logBmiCoefficient * Math.log(params.bmi)) +
+          (logAgeCoefficient * Math.log(params.age))
+      );
+    }
+
+    if (estimator.model === 'PowerLawRegression') {
+      if (params.sexCode <= 0 || params.bmi <= 0 || params.age <= 0) {
+        return 0;
+      }
+
+      const scaleA = this.getCoefficient(estimator.coefficients, 'scale_a');
+      const sexExponent = this.getCoefficient(estimator.coefficients, [
+        'sex_exponent',
+        'sex_power',
+      ]);
+      const bmiExponent = this.getCoefficient(estimator.coefficients, [
+        'bmi_exponent',
+        'bmi_power',
+      ]);
+      const ageExponent = this.getCoefficient(estimator.coefficients, [
+        'age_exponent',
+        'age_power',
+      ]);
+
+      return Math.max(
+        0,
+        intercept +
+          (scaleA *
+            Math.pow(params.sexCode, sexExponent) *
+            Math.pow(params.bmi, bmiExponent) *
+            Math.pow(params.age, ageExponent))
+      );
     }
 
     return 0;
+  }
+
+  private calculateLinearExpected(
+    coefficients: ExerciseEstimatorCoefficientMap,
+    params: {
+      sexCode: number;
+      bmi: number;
+      age: number;
+    },
+    intercept: number
+  ): number {
+    const sexCoefficient = this.getCoefficient(coefficients, ['sex_code', 'sex']);
+    const bmiCoefficient = this.getCoefficient(coefficients, ['bmi', 'BMI']);
+    const ageCoefficient = this.getCoefficient(coefficients, ['age', 'age_years']);
+
+    return intercept +
+      (sexCoefficient * params.sexCode) +
+      (bmiCoefficient * params.bmi) +
+      (ageCoefficient * params.age);
   }
 
   private getCoefficient(
@@ -649,7 +728,7 @@ export class UpdateScoreService {
   }
 
   private toSexCode(value: unknown): number {
-    if (typeof value === 'number' && Number.isFinite(value)) {
+    if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
       return value;
     }
 
@@ -658,11 +737,14 @@ export class UpdateScoreService {
       return 1;
     }
     if (text === 'female' || text === 'f') {
-      return 0;
+      return 2;
+    }
+    if (text === 'nonbinary' || text === 'non-binary' || text === 'nb' || text === 'other') {
+      return 1.5;
     }
 
     const parsed = Number(text);
-    if (Number.isFinite(parsed)) {
+    if (Number.isFinite(parsed) && parsed > 0) {
       return parsed;
     }
 

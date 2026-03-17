@@ -176,7 +176,7 @@ const DEFAULT_EXERCISE_ESTIMATORS: ExerciseEstimatorSeedDoc[] = [
     },
   },
   {
-    id: 'pull-ups',
+    id: 'pull_ups',
     model: 'WeightedLeastSquares',
     coefficients: {
       intercept: 45.45994867813691,
@@ -186,7 +186,7 @@ const DEFAULT_EXERCISE_ESTIMATORS: ExerciseEstimatorSeedDoc[] = [
     },
   },
   {
-    id: 'push-up',
+    id: 'push_up',
     model: 'WeightedLeastSquares',
     coefficients: {
       intercept: 60.30246351757239,
