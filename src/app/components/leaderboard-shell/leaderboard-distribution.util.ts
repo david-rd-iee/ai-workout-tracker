@@ -11,6 +11,10 @@ const UPPER_VISIBLE_PERCENTILE = 0.99;
 const MAX_GROUP_SCORE_SPAN = 15;
 const MIN_POINT_GAP_PERCENT = 5;
 const POINT_EDGE_PADDING_PERCENT = 2;
+const MEAN_CENTER_THRESHOLD = 10;
+const SMALL_SAMPLE_EDGE_PADDING_RATIO = 0.16;
+const SMALL_SAMPLE_CURVE_HEIGHT_PERCENT = 54;
+const SMALL_SAMPLE_DENSITY_POWER = 0.5;
 
 export type LeaderboardDistributionChart = {
   curvePath: string;
@@ -30,6 +34,11 @@ type PointGroup = {
   minScore: number;
   maxScore: number;
   anchorScore: number;
+};
+
+type DensityPoint = {
+  score: number;
+  weight: number;
 };
 
 export function buildLeaderboardDistributionChart(
@@ -55,27 +64,38 @@ export function buildLeaderboardDistributionChart(
   }
 
   const scores = scoredEntries.map((candidate) => candidate.score).sort((a, b) => a - b);
-  const lowerQuartile = quantile(scores, LOWER_VISIBLE_PERCENTILE);
+  const isSmallSample = scoredEntries.length <= MEAN_CENTER_THRESHOLD;
+  const lowerVisibleScore = isSmallSample ? scores[0] : quantile(scores, LOWER_VISIBLE_PERCENTILE);
   const median = quantile(scores, 0.5);
-  const upperQuartile = quantile(scores, UPPER_VISIBLE_PERCENTILE);
+  const upperVisibleScore = isSmallSample
+    ? scores[scores.length - 1]
+    : quantile(scores, UPPER_VISIBLE_PERCENTILE);
+  const mean = scores.reduce((sum, score) => sum + score, 0) / scores.length;
+  const centerScore = isSmallSample ? mean : median;
+  const smallSamplePadding = isSmallSample
+    ? Math.max(
+        (upperVisibleScore - lowerVisibleScore) * SMALL_SAMPLE_EDGE_PADDING_RATIO,
+        1
+      )
+    : 0;
 
   const radius = Math.max(
-    Math.abs(median - lowerQuartile),
-    Math.abs(upperQuartile - median),
-    Math.max(Math.abs(median) * 0.05, 1)
+    Math.abs(centerScore - lowerVisibleScore),
+    Math.abs(upperVisibleScore - centerScore),
+    Math.max(Math.abs(centerScore) * 0.05, 1)
   );
 
-  let minScore = median - radius;
-  let maxScore = median + radius;
+  let minScore = centerScore - (radius + smallSamplePadding);
+  let maxScore = centerScore + (radius + smallSamplePadding);
 
   if (!Number.isFinite(minScore) || !Number.isFinite(maxScore)) {
     return emptyLeaderboardDistributionChart();
   }
 
   if (maxScore - minScore < 1e-6) {
-    const fallbackRadius = Math.max(Math.abs(median) * 0.05, 1);
-    minScore = median - fallbackRadius;
-    maxScore = median + fallbackRadius;
+    const fallbackRadius = Math.max(Math.abs(centerScore) * 0.05, 1);
+    minScore = centerScore - fallbackRadius;
+    maxScore = centerScore + fallbackRadius;
   }
 
   const scoreSpan = Math.max(maxScore - minScore, 1e-6);
@@ -83,16 +103,17 @@ export function buildLeaderboardDistributionChart(
     ...candidate,
     clampedScore: clamp(candidate.score, minScore, maxScore),
   }));
-
-  const bandwidth = calculateBandwidth(clampedEntries, scoreSpan);
+  const pointGroups = buildPointGroups(clampedEntries);
+  const densityPoints = buildDensityPoints(clampedEntries, pointGroups);
+  const bandwidth = calculateBandwidth(clampedEntries, pointGroups, scoreSpan);
   const toXPct = (score: number): number =>
     CHART_LEFT_PERCENT +
     ((clamp(score, minScore, maxScore) - minScore) / scoreSpan) *
       (CHART_RIGHT_PERCENT - CHART_LEFT_PERCENT);
   const densityAt = (score: number): number =>
-    clampedEntries.reduce((sum, candidate) => {
-      const z = (score - candidate.clampedScore) / bandwidth;
-      return sum + Math.exp(-0.5 * z * z);
+    densityPoints.reduce((sum, point) => {
+      const z = (score - point.score) / bandwidth;
+      return sum + point.weight * Math.exp(-0.5 * z * z);
     }, 0);
 
   const densitySamples = Array.from({ length: CURVE_SAMPLE_COUNT + 1 }, (_, index) => {
@@ -104,8 +125,14 @@ export function buildLeaderboardDistributionChart(
   });
 
   const maxDensity = Math.max(...densitySamples.map((sample) => sample.density), 1);
-  const toYPct = (density: number): number =>
-    CHART_BOTTOM_PERCENT - (density / maxDensity) * CURVE_HEIGHT_PERCENT;
+  const curveHeightPercent = isSmallSample ? SMALL_SAMPLE_CURVE_HEIGHT_PERCENT : CURVE_HEIGHT_PERCENT;
+  const toYPct = (density: number): number => {
+    const normalizedDensity = clamp(density / maxDensity, 0, 1);
+    const shapedDensity = isSmallSample
+      ? Math.pow(normalizedDensity, SMALL_SAMPLE_DENSITY_POWER)
+      : normalizedDensity;
+    return CHART_BOTTOM_PERCENT - shapedDensity * curveHeightPercent;
+  };
 
   const samples: string[] = [
     `M ${CHART_LEFT_PERCENT.toFixed(2)} ${CHART_BOTTOM_PERCENT.toFixed(2)}`,
@@ -115,7 +142,6 @@ export function buildLeaderboardDistributionChart(
   }
   samples.push(`L ${CHART_RIGHT_PERCENT.toFixed(2)} ${CHART_BOTTOM_PERCENT.toFixed(2)}`);
 
-  const pointGroups = buildPointGroups(clampedEntries);
   const rawPointXPercents = pointGroups.map((group) => toXPct(group.anchorScore));
   const pointXPercents = spreadPointXPercents(
     rawPointXPercents,
@@ -134,8 +160,8 @@ export function buildLeaderboardDistributionChart(
   return {
     curvePath: samples.join(' '),
     points,
-    medianXPercent: toXPct(median),
-    medianLabel: String(Math.round(median)),
+    medianXPercent: toXPct(centerScore),
+    medianLabel: String(Math.round(centerScore)),
   };
 }
 
@@ -175,10 +201,15 @@ function clamp(value: number, min: number, max: number): number {
 
 function calculateBandwidth(
   entries: Array<{ clampedScore: number }>,
+  pointGroups: PointGroup[],
   scoreSpan: number
 ): number {
   if (entries.length <= 1) {
     return Math.max(scoreSpan / 6, 1e-3);
+  }
+
+  if (entries.length <= MEAN_CENTER_THRESHOLD) {
+    return calculateSmallSampleBandwidth(pointGroups, scoreSpan);
   }
 
   const mean =
@@ -190,6 +221,40 @@ function calculateBandwidth(
   const silverman = 1.06 * stdDev * Math.pow(entries.length, -0.2);
   const spacingDriven = scoreSpan / Math.max(Math.sqrt(entries.length) * 2, 4);
   return Math.max(silverman, spacingDriven, scoreSpan / CURVE_SAMPLE_COUNT, 1e-3);
+}
+
+function calculateSmallSampleBandwidth(pointGroups: PointGroup[], scoreSpan: number): number {
+  const widestGroupSpan = Math.max(...pointGroups.map((group) => group.maxScore - group.minScore), 0);
+  const baseBandwidth = Math.max(widestGroupSpan * 1.5, scoreSpan / 40, 3);
+  const groupGaps = pointGroups
+    .slice(1)
+    .map((group, index) => group.anchorScore - pointGroups[index].anchorScore)
+    .filter((gap) => gap > 0);
+
+  if (groupGaps.length === 0) {
+    return Math.max(baseBandwidth, scoreSpan / CURVE_SAMPLE_COUNT, 1e-3);
+  }
+
+  const nearestGap = Math.min(...groupGaps);
+  return Math.max(
+    Math.min(baseBandwidth, nearestGap * 0.32),
+    scoreSpan / CURVE_SAMPLE_COUNT,
+    1e-3
+  );
+}
+
+function buildDensityPoints(entries: ScoredEntry[], pointGroups: PointGroup[]): DensityPoint[] {
+  if (entries.length <= MEAN_CENTER_THRESHOLD) {
+    return pointGroups.map((group) => ({
+      score: group.anchorScore,
+      weight: group.entries.length,
+    }));
+  }
+
+  return entries.map((entry) => ({
+    score: entry.clampedScore,
+    weight: 1,
+  }));
 }
 
 function buildPointGroups(entries: ScoredEntry[]): PointGroup[] {
