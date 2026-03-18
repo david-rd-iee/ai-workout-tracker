@@ -102,6 +102,14 @@ export class WorkoutChatbotPage implements OnInit, OnDestroy {
     this.removeKeyboardListeners = [];
   }
 
+  get showLiveSummary(): boolean {
+    return (this.session.trainingRows.length > 0 || this.isLoading) && !this.hasSavedWorkout;
+  }
+
+  get showSummaryPanel(): boolean {
+    return this.showLiveSummary || this.hasSavedWorkout;
+  }
+
   // helpers:
   addBotMessage(text: string) {
     this.messages.push({ from: 'bot', text });
