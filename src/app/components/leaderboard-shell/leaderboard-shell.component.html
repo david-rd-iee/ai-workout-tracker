@@ -22,7 +22,12 @@
     <div class="stats-title">Stats</div>
     <div class="stats-graph">
       <div class="graph-region-label">{{ graphLabel }}</div>
-      <div class="graph-placeholder" #chartHost>
+      <div
+        class="graph-placeholder"
+        #chartHost
+        [style.--chart-horizontal-inset.px]="chartHorizontalInset"
+        [style.--chart-vertical-inset.px]="chartVerticalInset"
+      >
         <ng-container *ngIf="distributionChartResults.length > 0; else noChartData">
           <ngx-charts-area-chart
             class="distribution-ngx-chart"
@@ -45,6 +50,24 @@
             [yScaleMax]="chartYMax"
             [roundDomains]="false"
           ></ngx-charts-area-chart>
+
+          <div class="distribution-median-overlay" *ngIf="hasMedianMarker()" aria-hidden="true">
+            <div
+              class="distribution-median-line"
+              [style.left.%]="medianMarkerXPercent"
+            ></div>
+            <div
+              class="distribution-median-point"
+              [style.left.%]="medianMarkerXPercent"
+              [style.top.%]="medianMarkerTopPercent()"
+            ></div>
+            <div
+              class="distribution-median-label"
+              [style.left.%]="medianMarkerXPercent"
+            >
+              {{ medianMarkerLabel }}
+            </div>
+          </div>
 
           <div class="distribution-point-overlay">
             <button

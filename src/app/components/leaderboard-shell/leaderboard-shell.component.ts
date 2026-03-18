@@ -71,6 +71,9 @@ type DistributionChartSeries = {
 export class LeaderboardShellComponent implements OnChanges, AfterViewInit, OnDestroy {
   @ViewChild('chartHost') chartHost?: ElementRef<HTMLElement>;
 
+  readonly chartHorizontalInset = 20;
+  readonly chartVerticalInset = 10;
+
   @Input() showTopbar = true;
   @Input() title = 'Leaderboard';
   @Input() graphLabel = 'Stats';
@@ -84,6 +87,8 @@ export class LeaderboardShellComponent implements OnChanges, AfterViewInit, OnDe
   @Input() entries: LeaderboardEntry[] = [];
   @Input() distributionCurvePath = '';
   @Input() distributionPoints: DistributionPoint[] = [];
+  @Input() medianMarkerXPercent: number | null = null;
+  @Input() medianMarkerLabel = '';
   @Input() selectedPointBin: number | null = null;
   @Input() highlightedUserIds = new Set<string>();
   @Input() showActionButton = false;
@@ -99,11 +104,12 @@ export class LeaderboardShellComponent implements OnChanges, AfterViewInit, OnDe
 
   distributionChartResults: DistributionChartSeries[] = [];
   private distributionCurveSeries: DistributionChartDatum[] = [];
-  chartView: [number, number] = [320, 170];
-  readonly chartXMin = 4;
-  readonly chartXMax = 96;
+  chartView: [number, number] = [390, 284];
+  readonly chartXMin = 0;
+  readonly chartXMax = 100;
   readonly chartYMin = 0;
   readonly chartYMax = 100;
+  readonly chartBottomPercent = 92;
   readonly chartScaleType = ScaleType.Ordinal;
   readonly chartColorScheme: Color = {
     name: 'leaderboardDistribution',
@@ -187,11 +193,23 @@ export class LeaderboardShellComponent implements OnChanges, AfterViewInit, OnDe
   }
 
   dotTopPercent(point: DistributionPoint): number {
-    const interpolated = this.interpolateCurveValue(point.xPercent);
-    if (interpolated === null) {
-      return point.yPercent;
+    return this.curveTopPercent(point.xPercent, point.yPercent);
+  }
+
+  hasMedianMarker(): boolean {
+    return (
+      this.medianMarkerXPercent !== null &&
+      this.medianMarkerLabel.trim().length > 0 &&
+      this.distributionChartResults.length > 0
+    );
+  }
+
+  medianMarkerTopPercent(): number {
+    if (this.medianMarkerXPercent === null) {
+      return 100;
     }
-    return 100 - interpolated;
+
+    return this.chartBottomPercent;
   }
 
   avatarUrl(entry: LeaderboardEntry): string | null {
@@ -221,7 +239,7 @@ export class LeaderboardShellComponent implements OnChanges, AfterViewInit, OnDe
 
     return [
       {
-        name: 'Normal Distribution',
+        name: 'Score Distribution',
         series,
       },
     ];
@@ -286,14 +304,27 @@ export class LeaderboardShellComponent implements OnChanges, AfterViewInit, OnDe
     return last.value;
   }
 
+  private curveTopPercent(xPercent: number, fallbackYPercent?: number): number {
+    const interpolated = this.interpolateCurveValue(xPercent);
+    if (interpolated === null) {
+      return fallbackYPercent ?? 100;
+    }
+
+    return 100 - interpolated;
+  }
+
   private syncChartView(): void {
     const host = this.chartHost?.nativeElement;
     if (!host) {
       return;
     }
 
-    const width = Math.max(220, Math.floor(host.clientWidth));
-    this.chartView = [width, 170];
+    const width = Math.max(230, Math.floor(host.clientWidth));
+    const height = Math.max(200, Math.floor(host.clientHeight));
+    this.chartView = [
+      width + this.chartHorizontalInset * 2,
+      height + this.chartVerticalInset * 2,
+    ];
   }
 
   private queueChartResize(): void {

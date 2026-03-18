@@ -38,48 +38,56 @@
 }
 
 .stats-card {
-  margin: 10px 14px;
-  border-radius: 18px;
+  margin: 8px 10px;
+  border-radius: 20px;
   background: #2f7fce;
-  padding: 14px;
+  padding: 16px;
   box-shadow: 0 10px 18px rgba(0, 0, 0, 0.14);
 }
 
 .stats-title {
   color: #fff;
-  font-size: 34px;
+  font-size: 38px;
   font-weight: 900;
   text-align: center;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
 }
 
 .stats-graph {
   background: rgba(255, 255, 255, 0.92);
-  border-radius: 14px;
-  padding: 14px;
+  border-radius: 16px;
+  padding: 10px;
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08);
 }
 
 .graph-region-label {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 700;
   color: #184270;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
   text-align: center;
 }
 
 .graph-placeholder {
   position: relative;
-  height: 170px;
-  border-radius: 12px;
+  height: 264px;
+  border-radius: 14px;
   background: linear-gradient(to top, rgba(47, 127, 206, 0.25), rgba(47, 127, 206, 0.05));
   overflow: hidden;
 }
 
 .distribution-ngx-chart {
-  width: 100%;
-  height: 100%;
+  position: absolute;
+  top: calc(-1 * var(--chart-vertical-inset, 10px));
+  left: calc(-1 * var(--chart-horizontal-inset, 20px));
+  width: calc(
+    100% + var(--chart-horizontal-inset, 20px) + var(--chart-horizontal-inset, 20px)
+  );
+  height: calc(
+    100% + var(--chart-vertical-inset, 10px) + var(--chart-vertical-inset, 10px)
+  );
   display: block;
+  pointer-events: none;
 }
 
 :host ::ng-deep .distribution-ngx-chart .line {
@@ -94,23 +102,67 @@
   position: absolute;
   inset: 0;
   pointer-events: none;
+  z-index: 2;
+}
+
+.distribution-median-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.distribution-median-line {
+  position: absolute;
+  top: 10px;
+  bottom: 14px;
+  width: 0;
+  border-left: 1px dashed rgba(24, 66, 112, 0.42);
+  transform: translateX(-50%);
+}
+
+.distribution-median-point {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: #fff7ec;
+  border: 2px solid #da811a;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.75);
+}
+
+.distribution-median-label {
+  position: absolute;
+  bottom: 1px;
+  transform: translateX(-50%);
+  min-width: 32px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.96);
+  color: #184270;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.2;
+  text-align: center;
+  box-shadow: 0 4px 10px rgba(24, 66, 112, 0.14);
 }
 
 .distribution-point {
   position: absolute;
   transform: translate(-50%, -50%);
-  width: 24px;
-  height: 24px;
+  width: 16px;
+  height: 16px;
   border-radius: 999px;
   border: 1px solid #ffffff;
   background: #2f7fce;
   color: #ffffff;
-  font-size: 10px;
+  font-size: 8px;
   font-weight: 800;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 12px rgba(25, 68, 112, 0.45);
+  box-shadow: 0 3px 10px rgba(25, 68, 112, 0.45);
   cursor: pointer;
   pointer-events: auto;
   transition:
@@ -120,8 +172,8 @@
 }
 
 .distribution-point.point-single {
-  width: 14px;
-  height: 14px;
+  width: 8px;
+  height: 8px;
 }
 
 .distribution-point:hover {

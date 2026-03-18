@@ -20,6 +20,10 @@ import {
   LeaderboardScope,
   LeaderboardShellComponent,
 } from '../../../components/leaderboard-shell/leaderboard-shell.component';
+import {
+  buildLeaderboardDistributionChart,
+  emptyLeaderboardDistributionChart,
+} from '../../../components/leaderboard-shell/leaderboard-distribution.util';
 
 @Component({
   selector: 'app-regional-leaderboard',
@@ -53,6 +57,8 @@ export class RegionalLeaderboardPage implements OnInit, OnDestroy {
   entries: LeaderboardEntry[] = [];
   distributionCurvePath = '';
   distributionPoints: DistributionPoint[] = [];
+  distributionMedianXPercent: number | null = null;
+  distributionMedianLabel = '';
   selectedPointBin: number | null = null;
   selectedPointUserIds = new Set<string>();
   constructor() {}
@@ -67,8 +73,7 @@ export class RegionalLeaderboardPage implements OnInit, OnDestroy {
         this.leaderboardSub = undefined;
         this.entries = [];
         this.resetChartSelection();
-        this.distributionCurvePath = '';
-        this.distributionPoints = [];
+        this.clearDistributionChart();
         this.loading = false;
         this.errorMsg = 'Not signed in.';
         return;
@@ -127,8 +132,7 @@ export class RegionalLeaderboardPage implements OnInit, OnDestroy {
             'Failed to load regional leaderboard (check indexes + region fields).';
           this.entries = [];
           this.resetChartSelection();
-          this.distributionCurvePath = '';
-          this.distributionPoints = [];
+          this.clearDistributionChart();
           this.loading = false;
         },
       });
@@ -220,8 +224,7 @@ export class RegionalLeaderboardPage implements OnInit, OnDestroy {
     if (!this.userRegion?.countryCode) {
       this.entries = [];
       this.resetChartSelection();
-      this.distributionCurvePath = '';
-      this.distributionPoints = [];
+      this.clearDistributionChart();
       this.errorMsg = 'Your userStats.region is missing (countryCode).';
       return null;
     }
@@ -236,8 +239,7 @@ export class RegionalLeaderboardPage implements OnInit, OnDestroy {
     if (!this.userRegion.stateCode) {
       this.entries = [];
       this.resetChartSelection();
-      this.distributionCurvePath = '';
-      this.distributionPoints = [];
+      this.clearDistributionChart();
       this.errorMsg = 'Your userStats.region is missing (stateCode).';
       return null;
     }
@@ -253,8 +255,7 @@ export class RegionalLeaderboardPage implements OnInit, OnDestroy {
     if (!this.userRegion.cityId) {
       this.entries = [];
       this.resetChartSelection();
-      this.distributionCurvePath = '';
-      this.distributionPoints = [];
+      this.clearDistributionChart();
       this.errorMsg = 'Your userStats.region is missing (cityId).';
       return null;
     }
@@ -269,99 +270,18 @@ export class RegionalLeaderboardPage implements OnInit, OnDestroy {
 
   private buildDistributionChart(): void {
     this.resetChartSelection();
+    const chart = buildLeaderboardDistributionChart(this.entries, (entry) => this.scoreFor(entry));
+    this.distributionCurvePath = chart.curvePath;
+    this.distributionPoints = chart.points;
+    this.distributionMedianXPercent = chart.medianXPercent;
+    this.distributionMedianLabel = chart.medianLabel;
+  }
 
-    if (this.entries.length === 0) {
-      this.distributionCurvePath = '';
-      this.distributionPoints = [];
-      return;
-    }
-
-    const scores = this.entries.map((entry) => this.scoreFor(entry));
-    const mean = scores.reduce((sum, value) => sum + value, 0) / scores.length;
-    const variance =
-      scores.reduce((sum, value) => sum + (value - mean) ** 2, 0) / scores.length;
-
-    let stdDev = Math.sqrt(variance);
-    if (!Number.isFinite(stdDev) || stdDev < 1e-6) {
-      const fallback = Math.max(Math.abs(mean) * 0.1, 1);
-      stdDev = Number.isFinite(fallback) && fallback > 0 ? fallback : 1;
-    }
-
-    const dataMin = Math.min(...scores);
-    const dataMax = Math.max(...scores);
-    const minScore = Math.min(dataMin, mean - 3 * stdDev);
-    const maxScore = Math.max(dataMax, mean + 3 * stdDev);
-    const scoreSpan = Math.max(maxScore - minScore, 1);
-
-    const chartBottom = 92;
-    const curveHeight = 70;
-    const toXPct = (score: number): number =>
-      4 + ((score - minScore) / scoreSpan) * 92;
-    const normalPdf = (x: number): number => {
-      const z = (x - mean) / stdDev;
-      return Math.exp(-0.5 * z * z);
-    };
-    const toYPct = (score: number): number =>
-      chartBottom - normalPdf(score) * curveHeight;
-
-    const sampleCount = 80;
-    const samples: string[] = [];
-    for (let i = 0; i <= sampleCount; i += 1) {
-      const score = minScore + (scoreSpan * i) / sampleCount;
-      const x = toXPct(score).toFixed(2);
-      const y = toYPct(score).toFixed(2);
-      samples.push(`${i === 0 ? 'M' : 'L'} ${x} ${y}`);
-    }
-    this.distributionCurvePath = samples.join(' ');
-
-    if (this.entries.length === 1) {
-      const entry = this.entries[0];
-      const score = this.scoreFor(entry);
-      this.distributionPoints = [
-        {
-          binIndex: 0,
-          xPercent: toXPct(score),
-          yPercent: toYPct(score),
-          count: 1,
-          userIds: [entry.userId],
-          rangeLabel: `${Math.round(score)}-${Math.round(score)}`,
-        },
-      ];
-      return;
-    }
-
-    const binCount = Math.min(12, Math.max(6, Math.round(Math.sqrt(this.entries.length))));
-    const binWidth = scoreSpan / binCount;
-    const bins = Array.from({ length: binCount }, () => [] as LeaderboardEntry[]);
-
-    for (const entry of this.entries) {
-      const score = this.scoreFor(entry);
-      const normalized = (score - minScore) / scoreSpan;
-      const rawIndex = Math.floor(normalized * binCount);
-      const clampedIndex = Math.min(binCount - 1, Math.max(0, rawIndex));
-      bins[clampedIndex].push(entry);
-    }
-
-    this.distributionPoints = bins
-      .map((bucketEntries, binIndex) => {
-        if (bucketEntries.length === 0) {
-          return null;
-        }
-
-        const rangeStart = minScore + binWidth * binIndex;
-        const rangeEnd = rangeStart + binWidth;
-        const midpoint = rangeStart + binWidth / 2;
-        const userIds = bucketEntries.map((entry) => entry.userId);
-
-        return {
-          binIndex,
-          xPercent: toXPct(midpoint),
-          yPercent: toYPct(midpoint),
-          count: bucketEntries.length,
-          userIds,
-          rangeLabel: `${Math.round(rangeStart)}-${Math.round(rangeEnd)}`,
-        } satisfies DistributionPoint;
-      })
-      .filter((point): point is DistributionPoint => point !== null);
+  private clearDistributionChart(): void {
+    const chart = emptyLeaderboardDistributionChart();
+    this.distributionCurvePath = chart.curvePath;
+    this.distributionPoints = chart.points;
+    this.distributionMedianXPercent = chart.medianXPercent;
+    this.distributionMedianLabel = chart.medianLabel;
   }
 }

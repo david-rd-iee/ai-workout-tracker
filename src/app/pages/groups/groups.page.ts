@@ -17,6 +17,10 @@ import {
   DistributionPoint,
   LeaderboardShellComponent,
 } from '../../components/leaderboard-shell/leaderboard-shell.component';
+import {
+  buildLeaderboardDistributionChart,
+  emptyLeaderboardDistributionChart,
+} from '../../components/leaderboard-shell/leaderboard-distribution.util';
 
 @Component({
   selector: 'app-groups',
@@ -49,6 +53,8 @@ export class GroupsPage implements OnInit, OnDestroy {
   trainingEntries: LeaderboardEntry[] = [];
   trainingDistributionCurvePath = '';
   trainingDistributionPoints: DistributionPoint[] = [];
+  trainingDistributionMedianXPercent: number | null = null;
+  trainingDistributionMedianLabel = '';
   trainingSelectedPointBin: number | null = null;
   trainingSelectedPointUserIds = new Set<string>();
 
@@ -400,8 +406,7 @@ export class GroupsPage implements OnInit, OnDestroy {
   private resetTrainingLeaderboardState(): void {
     this.trainingEntries = [];
     this.trainingLeaderboardError = null;
-    this.trainingDistributionCurvePath = '';
-    this.trainingDistributionPoints = [];
+    this.clearTrainingDistributionChart();
     this.trainingSelectedPointBin = null;
     this.trainingSelectedPointUserIds.clear();
   }
@@ -418,8 +423,7 @@ export class GroupsPage implements OnInit, OnDestroy {
     this.trainingLeaderboardLoading = true;
     this.trainingLeaderboardError = null;
     this.trainingEntries = [];
-    this.trainingDistributionCurvePath = '';
-    this.trainingDistributionPoints = [];
+    this.clearTrainingDistributionChart();
     this.trainingSelectedPointBin = null;
     this.trainingSelectedPointUserIds.clear();
 
@@ -436,8 +440,7 @@ export class GroupsPage implements OnInit, OnDestroy {
           console.warn('[GroupsPage] Failed to load training leaderboard', err);
           this.trainingLeaderboardError = 'Could not load training leaderboard.';
           this.trainingEntries = [];
-          this.trainingDistributionCurvePath = '';
-          this.trainingDistributionPoints = [];
+          this.clearTrainingDistributionChart();
           this.trainingLeaderboardLoading = false;
         },
       });
@@ -517,98 +520,22 @@ export class GroupsPage implements OnInit, OnDestroy {
   private buildTrainingDistributionChart(): void {
     this.trainingSelectedPointBin = null;
     this.trainingSelectedPointUserIds.clear();
+    const chart = buildLeaderboardDistributionChart(
+      this.trainingEntries,
+      (entry) => this.trainingScoreFor(entry)
+    );
+    this.trainingDistributionCurvePath = chart.curvePath;
+    this.trainingDistributionPoints = chart.points;
+    this.trainingDistributionMedianXPercent = chart.medianXPercent;
+    this.trainingDistributionMedianLabel = chart.medianLabel;
+  }
 
-    if (this.trainingEntries.length === 0) {
-      this.trainingDistributionCurvePath = '';
-      this.trainingDistributionPoints = [];
-      return;
-    }
-
-    const scores = this.trainingEntries.map((entry) => this.trainingScoreFor(entry));
-    const mean = scores.reduce((sum, value) => sum + value, 0) / scores.length;
-    const variance =
-      scores.reduce((sum, value) => sum + (value - mean) ** 2, 0) / scores.length;
-
-    let stdDev = Math.sqrt(variance);
-    if (!Number.isFinite(stdDev) || stdDev < 1e-6) {
-      const fallback = Math.max(Math.abs(mean) * 0.1, 1);
-      stdDev = Number.isFinite(fallback) && fallback > 0 ? fallback : 1;
-    }
-
-    const dataMin = Math.min(...scores);
-    const dataMax = Math.max(...scores);
-    const minScore = Math.min(dataMin, mean - 3 * stdDev);
-    const maxScore = Math.max(dataMax, mean + 3 * stdDev);
-    const scoreSpan = Math.max(maxScore - minScore, 1);
-
-    const chartBottom = 92;
-    const curveHeight = 70;
-    const toXPct = (score: number): number => 4 + ((score - minScore) / scoreSpan) * 92;
-    const normalPdf = (x: number): number => {
-      const z = (x - mean) / stdDev;
-      return Math.exp(-0.5 * z * z);
-    };
-    const toYPct = (score: number): number => chartBottom - normalPdf(score) * curveHeight;
-
-    const sampleCount = 80;
-    const samples: string[] = [];
-    for (let i = 0; i <= sampleCount; i += 1) {
-      const score = minScore + (scoreSpan * i) / sampleCount;
-      const x = toXPct(score).toFixed(2);
-      const y = toYPct(score).toFixed(2);
-      samples.push(`${i === 0 ? 'M' : 'L'} ${x} ${y}`);
-    }
-    this.trainingDistributionCurvePath = samples.join(' ');
-
-    if (this.trainingEntries.length === 1) {
-      const entry = this.trainingEntries[0];
-      const score = this.trainingScoreFor(entry);
-      this.trainingDistributionPoints = [
-        {
-          binIndex: 0,
-          xPercent: toXPct(score),
-          yPercent: toYPct(score),
-          count: 1,
-          userIds: [entry.userId],
-          rangeLabel: `${Math.round(score)}-${Math.round(score)}`,
-        },
-      ];
-      return;
-    }
-
-    const binCount = Math.min(12, Math.max(6, Math.round(Math.sqrt(this.trainingEntries.length))));
-    const binWidth = scoreSpan / binCount;
-    const bins = Array.from({ length: binCount }, () => [] as LeaderboardEntry[]);
-
-    for (const entry of this.trainingEntries) {
-      const score = this.trainingScoreFor(entry);
-      const normalized = (score - minScore) / scoreSpan;
-      const rawIndex = Math.floor(normalized * binCount);
-      const clampedIndex = Math.min(binCount - 1, Math.max(0, rawIndex));
-      bins[clampedIndex].push(entry);
-    }
-
-    this.trainingDistributionPoints = bins
-      .map((bucketEntries, binIndex) => {
-        if (bucketEntries.length === 0) {
-          return null;
-        }
-
-        const rangeStart = minScore + binWidth * binIndex;
-        const rangeEnd = rangeStart + binWidth;
-        const midpoint = rangeStart + binWidth / 2;
-        const userIds = bucketEntries.map((entry) => entry.userId);
-
-        return {
-          binIndex,
-          xPercent: toXPct(midpoint),
-          yPercent: toYPct(midpoint),
-          count: bucketEntries.length,
-          userIds,
-          rangeLabel: `${Math.round(rangeStart)}-${Math.round(rangeEnd)}`,
-        } satisfies DistributionPoint;
-      })
-      .filter((point): point is DistributionPoint => point !== null);
+  private clearTrainingDistributionChart(): void {
+    const chart = emptyLeaderboardDistributionChart();
+    this.trainingDistributionCurvePath = chart.curvePath;
+    this.trainingDistributionPoints = chart.points;
+    this.trainingDistributionMedianXPercent = chart.medianXPercent;
+    this.trainingDistributionMedianLabel = chart.medianLabel;
   }
 
   ngOnDestroy(): void {
