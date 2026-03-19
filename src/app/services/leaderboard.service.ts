@@ -14,7 +14,11 @@ import {
   where,
 } from 'firebase/firestore';
 import { Observable, combineLatest, from, map, of, switchMap } from 'rxjs';
-import { UserStats, Region } from '../models/user-stats.model';
+import {
+  UserStats,
+  Region,
+  calculateUserLevelProgress,
+} from '../models/user-stats.model';
 import { UserService } from './account/user.service';
 import { AppUser } from '../models/user.model';
 import { ProfileRepositoryService } from './account/profile-repository.service';
@@ -136,8 +140,20 @@ export class LeaderboardService {
     const totalScoreRaw = Number(stats?.totalScore);
     const hasTotalScore = Number.isFinite(totalScoreRaw);
     const totalMatches = hasTotalScore && totalScoreRaw === totals.total;
+    const levelProgress = calculateUserLevelProgress(totals.total);
+    const hasLevel = Number(stats?.level) === levelProgress.level;
+    const hasPercentageOfLevel =
+      Number(stats?.percentage_of_level) === levelProgress.percentage_of_level;
 
-    return !hasCardioMap || !hasStrengthMap || !hasCardioMapTotal || !hasStrengthMapTotal || !totalMatches;
+    return (
+      !hasCardioMap ||
+      !hasStrengthMap ||
+      !hasCardioMapTotal ||
+      !hasStrengthMapTotal ||
+      !totalMatches ||
+      !hasLevel ||
+      !hasPercentageOfLevel
+    );
   }
 
   private async ensureScoreSchema(userId: string, stats: any): Promise<void> {
@@ -146,6 +162,7 @@ export class LeaderboardService {
     }
 
     const totals = this.extractScoreTotals(stats);
+    const levelProgress = calculateUserLevelProgress(totals.total);
     const currentCardioMap =
       typeof stats?.cardioScore === 'object' && stats?.cardioScore !== null
         ? stats.cardioScore
@@ -169,6 +186,7 @@ export class LeaderboardService {
           totalStrengthScore: totals.strengthTotal,
         },
         totalScore: totals.total,
+        ...levelProgress,
       },
       { merge: true }
     );
@@ -182,6 +200,8 @@ export class LeaderboardService {
       totalStrengthScore: totals.strengthTotal,
     };
     stats.totalScore = totals.total;
+    stats.level = levelProgress.level;
+    stats.percentage_of_level = levelProgress.percentage_of_level;
   }
 
   /**

@@ -39,7 +39,27 @@ export interface UserStats {
   totalScore: number;
 
   level?: number;
+  percentage_of_level?: number;
 
   region?: Region;
   displayName?: string; // optional but nice for UI
+}
+
+export interface UserLevelProgress {
+  level: number;
+  percentage_of_level: number;
+}
+
+export function calculateUserLevelProgress(totalScore: unknown): UserLevelProgress {
+  const normalizedTotalScore = Number(totalScore);
+  const safeTotalScore =
+    Number.isFinite(normalizedTotalScore) && normalizedTotalScore > 0
+      ? normalizedTotalScore
+      : 0;
+  const scaledLevelInHundredths = Math.round(0.2 * Math.sqrt(safeTotalScore) * 100);
+
+  return {
+    level: Math.floor(scaledLevelInHundredths / 100),
+    percentage_of_level: scaledLevelInHundredths % 100,
+  };
 }

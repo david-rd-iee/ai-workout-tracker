@@ -21,6 +21,7 @@ import {
   IonToolbar,
   IonCard,
   IonCardContent,
+  IonProgressBar,
   IonList,
   IonItem,
   IonLabel,
@@ -34,13 +35,14 @@ import { NavController } from '@ionic/angular';
 import { Auth } from '@angular/fire/auth';
 import { Firestore } from '@angular/fire/firestore';
 import { Storage, ref, deleteObject } from '@angular/fire/storage';
-import { collection, doc, getDoc, getDocs, query, serverTimestamp, setDoc, where } from 'firebase/firestore';
+import { collection, doc, getDocs, query, serverTimestamp, setDoc, where } from 'firebase/firestore';
 
 import { UserService } from '../../services/account/user.service';
 import { ProfileRepositoryService } from '../../services/account/profile-repository.service';
 import { FileUploadService } from '../../services/file-upload.service';
 import { ImagePickerService } from '../../services/image-picker.service';
 import { UserBadgesService } from '../../services/user-badges.service';
+import { UserStatsService } from '../../services/user-stats.service';
 import type { trainerProfile } from '../../Interfaces/Profiles/Trainer';
 import type { clientProfile } from '../../Interfaces/Profiles/client';
 import { addIcons } from 'ionicons';
@@ -66,6 +68,7 @@ import {
   calculateStatueLevel
 } from '../../interfaces/GreekStatue';
 import { UserBadgesDoc } from '../../models/user-badges.model';
+import { UserStats } from '../../models/user-stats.model';
 import { StatueSelectorComponent } from '../../components/statue-selector/statue-selector.component';
 import { GreekStatueComponent } from '../../components/greek-statue/greek-statue.component';
 import { HeaderComponent } from '../../components/header/header.component';
@@ -82,6 +85,7 @@ import { AccountService } from '../../services/account/account.service';
     IonContent,
     IonCard,
     IonCardContent,
+    IonProgressBar,
     IonList,
     IonItem,
     IonLabel,
@@ -107,9 +111,11 @@ export class ProfileUserPage implements OnInit, OnDestroy {
   private imagePickerService = inject(ImagePickerService);
   private accountService = inject(AccountService);
   private userBadgesService = inject(UserBadgesService);
+  private userStatsService = inject(UserStatsService);
 
   isLoading = true;
   currentUser: (trainerProfile | clientProfile) | null = null;
+  currentUserStats: UserStats | null = null;
   readonly defaultProfileImage = 'assets/user_icons/profilePhoto.svg';
 
   profilepicUrl: string = this.defaultProfileImage;
@@ -124,8 +130,6 @@ export class ProfileUserPage implements OnInit, OnDestroy {
   private loadedRoleLoadKey: string | null = null;
   private usersDocUnsubscribe: (() => void) | null = null;
   private usersDocListenerUid: string | null = null;
-  private userBadgesUnsubscribe: (() => void) | null = null;
-  private userBadgesListenerKey: string | null = null;
   private latestUserBadges: UserBadgesDoc | null = null;
   private trainerStatsFallbackPromise: Promise<void> | null = null;
   private trainerStatsFallbackUid: string | null = null;
@@ -149,6 +153,23 @@ export class ProfileUserPage implements OnInit, OnDestroy {
 
   get carvedStatuesCount(): number {
     return this.allStatues.filter(s => s.currentLevel).length;
+  }
+
+  get currentLevel(): number {
+    const rawLevel = Number(this.currentUserStats?.level ?? 0);
+    if (!Number.isFinite(rawLevel) || rawLevel < 0) {
+      return 0;
+    }
+    return Math.floor(rawLevel);
+  }
+
+  get currentLevelProgress(): number {
+    const rawPercentage = Number(this.currentUserStats?.percentage_of_level ?? 0);
+    if (!Number.isFinite(rawPercentage) || rawPercentage <= 0) {
+      return 0;
+    }
+
+    return Math.min(1, Math.max(0, rawPercentage * 0.01));
   }
 
   constructor() {
@@ -205,9 +226,38 @@ export class ProfileUserPage implements OnInit, OnDestroy {
         this.pendingRoleLoadKey = null;
         this.loadedRoleLoadKey = null;
         this.latestUserBadges = null;
-        this.stopUserBadgesRealtimeListener();
+        this.currentUserStats = null;
+        this.trainerStatsFallbackUid = null;
+        this.trainerStatsFallbackLoadedUid = null;
+        this.resetTrainerStats();
+        this.allStatues = [];
+        this.displayStatueIds = [];
+        this.updateDisplayStatues();
         this.isLoading = false;
       }
+    });
+
+    effect(() => {
+      const userInfo = this.userService.getUserInfo()();
+      const userBadges = this.userBadgesService.getCurrentUserBadges()();
+      const uid = this.auth.currentUser?.uid ?? null;
+
+      if (!userInfo || !uid) {
+        this.latestUserBadges = null;
+        return;
+      }
+
+      this.latestUserBadges = userBadges;
+      if (userInfo.accountType === 'trainer') {
+        this.applyTrainerBadges(uid, userBadges);
+        return;
+      }
+
+      this.applyClientStatuesFromBadges(userBadges);
+    });
+
+    effect(() => {
+      this.currentUserStats = this.userStatsService.getCurrentUserStats()();
     });
   }
 
@@ -220,10 +270,6 @@ export class ProfileUserPage implements OnInit, OnDestroy {
     const uid = this.auth.currentUser?.uid ?? null;
     if (uid) {
       this.startUsersDocRealtimeListener(uid);
-      const accountType = this.currentUser?.accountType;
-      if (accountType === 'trainer' || accountType === 'client') {
-        this.startUserBadgesRealtimeListener(uid, accountType);
-      }
     }
     void this.runDeferredLoads();
   }
@@ -231,14 +277,12 @@ export class ProfileUserPage implements OnInit, OnDestroy {
   ionViewDidLeave(): void {
     this.hasEnteredView = false;
     this.stopUsersDocRealtimeListener();
-    this.stopUserBadgesRealtimeListener();
   }
 
   ngOnDestroy(): void {
     this.hasEnteredView = false;
     this.roleLoadInFlight = false;
     this.stopUsersDocRealtimeListener();
-    this.stopUserBadgesRealtimeListener();
     if (this.pendingSwiperSyncFrame !== null) {
       cancelAnimationFrame(this.pendingSwiperSyncFrame);
       this.pendingSwiperSyncFrame = null;
@@ -268,16 +312,7 @@ export class ProfileUserPage implements OnInit, OnDestroy {
 
       const roleLoadKey = `${uid}:${this.currentUser.accountType}`;
       if (this.pendingRoleLoadKey === roleLoadKey && this.loadedRoleLoadKey !== roleLoadKey) {
-        if (this.currentUser.accountType === 'trainer') {
-          // Load trainer stats and statues in parallel for faster rendering
-          await Promise.all([
-            this.loadTrainerStats(uid),
-            this.loadTrainerStatues(uid),
-          ]);
-        } else {
-          await this.loadGreekStatuesFromFirestore(uid);
-        }
-        this.startUserBadgesRealtimeListener(uid, this.currentUser.accountType);
+        // userBadges are loaded once during login bootstrap and kept fresh centrally.
         this.loadedRoleLoadKey = roleLoadKey;
         this.pendingRoleLoadKey = null;
       }
@@ -372,6 +407,16 @@ export class ProfileUserPage implements OnInit, OnDestroy {
     this.currentSlideIndex = event.detail[0].activeIndex;
   }
 
+  private resetTrainerStats(): void {
+    this.trainerStats = {
+      totalClients: 0,
+      totalSessions: 0,
+      longestStandingClient: { name: '', durationDays: 0 },
+      topPerformingClient: { name: '', improvement: '' },
+      totalRevenue: 0
+    };
+  }
+
   private async calculateTrainerStatsFromBookings(trainerId: string): Promise<void> {
     try {
       // Get all bookings for this trainer
@@ -401,118 +446,6 @@ export class ProfileUserPage implements OnInit, OnDestroy {
     } catch (error) {
       console.error('[ProfileUser] Error calculating trainer stats from bookings:', error);
     }
-  }
-
-  private async loadTrainerStats(trainerId: string): Promise<void> {
-    try {
-      const badgeRef = doc(this.firestore, 'userBadges', trainerId);
-      const badgeSnap = await getDoc(badgeRef);
-
-      if (badgeSnap.exists()) {
-        const userBadges = {
-          userId: trainerId,
-          ...(badgeSnap.data() as Omit<UserBadgesDoc, 'userId'>),
-        };
-        this.latestUserBadges = userBadges;
-        this.applyTrainerBadges(trainerId, userBadges);
-        return;
-      }
-
-      this.latestUserBadges = null;
-      await this.ensureTrainerFallbackStats(trainerId);
-    } catch (error) {
-      console.error('[ProfileUser] Error loading trainer stats:', error);
-      await this.ensureTrainerFallbackStats(trainerId);
-    }
-  }
-
-  private async loadTrainerStatues(trainerId: string): Promise<void> {
-    try {
-      const badgeRef = doc(this.firestore, 'userBadges', trainerId);
-      const badgeSnap = await getDoc(badgeRef);
-
-      if (!badgeSnap.exists()) {
-        this.allStatues = [];
-        this.displayStatueIds = [];
-        this.updateDisplayStatues();
-        return;
-      }
-
-      const userBadges = {
-        userId: trainerId,
-        ...(badgeSnap.data() as Omit<UserBadgesDoc, 'userId'>),
-      };
-      this.latestUserBadges = userBadges;
-      this.applyTrainerBadges(trainerId, userBadges);
-    } catch (error) {
-      console.error('[ProfileUser] Error loading trainer statues:', error);
-      this.allStatues = [];
-      this.displayStatueIds = [];
-      this.updateDisplayStatues();
-    }
-  }
-
-  private async loadGreekStatuesFromFirestore(userId: string): Promise<void> {
-    try {
-      const badgeRef = doc(this.firestore, 'userBadges', userId);
-      const badgeSnap = await getDoc(badgeRef);
-
-      if (!badgeSnap.exists()) {
-        this.latestUserBadges = null;
-        this.applyClientStatuesFromBadges(null);
-        return;
-      }
-
-      const userBadges = {
-        userId,
-        ...(badgeSnap.data() as Omit<UserBadgesDoc, 'userId'>),
-      };
-      this.latestUserBadges = userBadges;
-      this.applyClientStatuesFromBadges(userBadges);
-    } catch (error) {
-      console.error('[ProfileUser] Error loading statues from Firestore:', error);
-      this.latestUserBadges = null;
-      this.applyClientStatuesFromBadges(null);
-    }
-  }
-
-  private startUserBadgesRealtimeListener(
-    uid: string,
-    accountType: 'trainer' | 'client'
-  ): void {
-    const normalizedUid = String(uid ?? '').trim();
-    if (!normalizedUid) {
-      return;
-    }
-
-    const listenerKey = `${normalizedUid}:${accountType}`;
-    if (this.userBadgesUnsubscribe && this.userBadgesListenerKey === listenerKey) {
-      return;
-    }
-
-    this.stopUserBadgesRealtimeListener();
-    this.userBadgesListenerKey = listenerKey;
-    this.userBadgesUnsubscribe = this.userBadgesService.observeUserBadges(
-      normalizedUid,
-      (userBadges) => {
-        this.latestUserBadges = userBadges;
-        if (accountType === 'trainer') {
-          this.applyTrainerBadges(normalizedUid, userBadges);
-          return;
-        }
-
-        this.applyClientStatuesFromBadges(userBadges);
-      }
-    );
-  }
-
-  private stopUserBadgesRealtimeListener(): void {
-    this.userBadgesUnsubscribe?.();
-    this.userBadgesUnsubscribe = null;
-    this.userBadgesListenerKey = null;
-    this.latestUserBadges = null;
-    this.trainerStatsFallbackUid = null;
-    this.trainerStatsFallbackLoadedUid = null;
   }
 
   private applyClientStatuesFromBadges(userBadges: UserBadgesDoc | null): void {

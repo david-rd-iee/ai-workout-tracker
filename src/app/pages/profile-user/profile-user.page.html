@@ -56,6 +56,14 @@
         </ion-item>
       </ion-list>
       <ion-card-content>
+        <div class="level-progress-shell" *ngIf="currentUser?.accountType !== 'trainer'">
+          <div class="level-progress-label">Level: {{ currentLevel }}</div>
+          <ion-progress-bar
+            class="level-progress-bar"
+            [value]="currentLevelProgress"
+            aria-label="Current level progress"
+          ></ion-progress-bar>
+        </div>
         <div class="display-statues-carousel" *ngIf="displayStatues && displayStatues.length > 0; else noBadges">
           <swiper-container
             #statueSwiper

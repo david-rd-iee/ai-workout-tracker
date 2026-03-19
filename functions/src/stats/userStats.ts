@@ -15,6 +15,23 @@ interface WorkoutSession {
   workScore?: number;
 }
 
+function calculateUserLevelProgress(totalScore: unknown): {
+  level: number;
+  percentage_of_level: number;
+} {
+  const normalizedTotalScore = Number(totalScore);
+  const safeTotalScore =
+    Number.isFinite(normalizedTotalScore) && normalizedTotalScore > 0
+      ? normalizedTotalScore
+      : 0;
+  const scaledLevelInHundredths = Math.round(0.2 * Math.sqrt(safeTotalScore) * 100);
+
+  return {
+    level: Math.floor(scaledLevelInHundredths / 100),
+    percentage_of_level: scaledLevelInHundredths % 100,
+  };
+}
+
 function calculateWorkScore(session: WorkoutSession): number {
   if (session.workScore) {
     return session.workScore; // Use pre-calculated score if available
@@ -84,6 +101,8 @@ export const onWorkoutSessionCreate = onDocumentCreated('workoutSessions/{sessio
       : typeof current?.workScore === 'object' && current?.workScore !== null
       ? current.workScore
       : {};
+  const totalScore = nextCardioTotal + nextStrengthTotal;
+  const levelProgress = calculateUserLevelProgress(totalScore);
 
   // Prepare updates
   const updates: Record<string, any> = {
@@ -95,7 +114,8 @@ export const onWorkoutSessionCreate = onDocumentCreated('workoutSessions/{sessio
       ...existingStrengthMap,
       totalStrengthScore: nextStrengthTotal,
     },
-    totalScore: nextCardioTotal + nextStrengthTotal,
+    totalScore,
+    ...levelProgress,
     lastUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
   };
 

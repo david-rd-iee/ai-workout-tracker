@@ -9,6 +9,8 @@ import { FileUploadService } from '../file-upload.service';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { AppUser } from '../../models/user.model';
 import { AccountType, ProfileRepositoryService } from './profile-repository.service';
+import { UserBadgesService } from '../user-badges.service';
+import { UserStatsService } from '../user-stats.service';
 
 @Injectable({
   providedIn: 'root'
@@ -25,7 +27,9 @@ export class UserService {
     private accountService: AccountService,
     private firestore: Firestore,
     private fileUploadService: FileUploadService,
-    private profileRepository: ProfileRepositoryService
+    private profileRepository: ProfileRepositoryService,
+    private userBadgesService: UserBadgesService,
+    private userStatsService: UserStatsService
   ) {
     effect(() => {
       if (!this.accountService.isLoggedIn()()) {
@@ -33,6 +37,8 @@ export class UserService {
         this.loadedProfileUid = null;
         this.profileLoadPromise = null;
         this.profileRepository.clear();
+        this.userBadgesService.clear();
+        this.userStatsService.clear();
       }
     });
   }
@@ -147,6 +153,8 @@ export class UserService {
       this.profileCompletionRoute = '/profile-creation/trainer';
       this.userInfo.set(null);
       this.loadedProfileUid = null;
+      this.userBadgesService.clear();
+      this.userStatsService.clear();
       return false;
     }
 
@@ -164,6 +172,8 @@ export class UserService {
       if (!usersData) {
         this.userInfo.set(null);
         this.loadedProfileUid = null;
+        this.userBadgesService.clear();
+        this.userStatsService.clear();
         return false;
       }
 
@@ -176,6 +186,8 @@ export class UserService {
         this.profileCompletionRoute = '/complete-profile';
         this.userInfo.set(null);
         this.loadedProfileUid = null;
+        this.userBadgesService.clear();
+        this.userStatsService.clear();
         return false;
       }
 
@@ -183,6 +195,8 @@ export class UserService {
         this.profileCompletionRoute = '/complete-profile';
         this.userInfo.set(null);
         this.loadedProfileUid = null;
+        this.userBadgesService.clear();
+        this.userStatsService.clear();
         return false;
       }
 
@@ -216,6 +230,10 @@ export class UserService {
       );
       this.userInfo.set(mergedFallbackProfile);
       this.loadedProfileUid = userID;
+      await Promise.all([
+        this.userBadgesService.initializeCurrentUserBadges(userID),
+        this.userStatsService.initializeCurrentUserStats(userID),
+      ]);
       await this.syncClientTrainerRecordOnLogin(userID, mergedFallbackProfile as unknown as Record<string, unknown>);
       return true;
     }
@@ -224,6 +242,8 @@ export class UserService {
       this.profileCompletionRoute = '/complete-profile';
       this.userInfo.set(null);
       this.loadedProfileUid = null;
+      this.userBadgesService.clear();
+      this.userStatsService.clear();
       return false;
     }
 
@@ -243,6 +263,10 @@ export class UserService {
 
     this.userInfo.set(userData);
     this.loadedProfileUid = userID;
+    await Promise.all([
+      this.userBadgesService.initializeCurrentUserBadges(userID),
+      this.userStatsService.initializeCurrentUserStats(userID),
+    ]);
 
     if (!isTrainerProfile) {
       await this.syncClientTrainerRecordOnLogin(userID, userData as unknown as Record<string, unknown>);

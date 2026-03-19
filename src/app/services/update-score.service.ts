@@ -20,6 +20,7 @@ import {
   ExerciseEstimatorCoefficientMap,
   ExerciseEstimatorModel,
 } from '../models/exercise-estimators.model';
+import { calculateUserLevelProgress } from '../models/user-stats.model';
 
 interface EstimatorDoc {
   exists: boolean;
@@ -295,6 +296,7 @@ export class UpdateScoreService {
     const addedStrengthScore = this.toWholeNumber(newStrengthScore - oldStrengthScore);
     const addedTotalScore = this.toWholeNumber(addedCardioScore + addedStrengthScore);
     const nextTotalScore = this.toWholeNumber(currentTotalScore + addedTotalScore);
+    const levelProgress = calculateUserLevelProgress(nextTotalScore);
 
     const nextCardioMap: Record<string, number> = {
       ...this.roundScoreMap(cardioScoreMap),
@@ -313,6 +315,7 @@ export class UpdateScoreService {
         Expected_Effort: expectedEffort,
         expected_strength_scores: deleteField(),
         totalScore: nextTotalScore,
+        ...levelProgress,
         updatedAt: serverTimestamp(),
       },
       { merge: true }

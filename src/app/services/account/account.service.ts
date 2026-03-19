@@ -8,6 +8,7 @@ import { Router } from '@angular/router';
 import firebase from 'firebase/compat/app';
 import { Firestore, deleteField, doc, getDoc, setDoc, serverTimestamp } from '@angular/fire/firestore';
 import { GroupService } from '../group.service';
+import { calculateUserLevelProgress } from '../../models/user-stats.model';
 // Import for Capacitor plugins
 import { registerPlugin } from '@capacitor/core';
 
@@ -80,6 +81,7 @@ export class AccountService {
     const userStatsRef = doc(this.firestore, 'userStats', uid);
     const userStatsSnap = await getDoc(userStatsRef);
     if (!userStatsSnap.exists()) {
+      const levelProgress = calculateUserLevelProgress(0);
       await setDoc(userStatsRef, {
         userId: uid,
         age: 0,
@@ -98,6 +100,7 @@ export class AccountService {
           Strength: {},
         },
         totalScore: 0,
+        ...levelProgress,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
@@ -121,6 +124,7 @@ export class AccountService {
       0
     ) || 0;
     const totalScore = cardioTotal + strengthTotal;
+    const levelProgress = calculateUserLevelProgress(totalScore);
 
     const hasCardioMap = typeof current?.cardioScore === 'object' && current?.cardioScore !== null;
     const hasStrengthMap =
@@ -141,13 +145,17 @@ export class AccountService {
       typeof current?.expected_strength_scores === 'object' &&
       current?.expected_strength_scores !== null;
     const totalNeedsUpdate = Number(current?.totalScore) !== totalScore;
+    const levelNeedsUpdate =
+      Number(current?.level) !== levelProgress.level ||
+      Number(current?.percentage_of_level) !== levelProgress.percentage_of_level;
 
     if (
       !hasCardioMap ||
       !hasStrengthMap ||
       !hasExpectedEffortMap ||
       hasLegacyExpectedStrengthScores ||
-      totalNeedsUpdate
+      totalNeedsUpdate ||
+      levelNeedsUpdate
     ) {
       await setDoc(
         userStatsRef,
@@ -163,6 +171,7 @@ export class AccountService {
           Expected_Effort: expectedEffort,
           expected_strength_scores: deleteField(),
           totalScore,
+          ...levelProgress,
           updatedAt: serverTimestamp(),
         },
         { merge: true }
