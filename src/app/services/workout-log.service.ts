@@ -386,6 +386,7 @@ export class WorkoutLogService {
     return {
       currentStreak: nextCurrentStreak,
       maxStreak: Math.max(currentStreakData.maxStreak, nextCurrentStreak),
+      totalNumberOfDaysTracked: currentStreakData.totalNumberOfDaysTracked + 1,
       lastLoggedDay: loggedDay,
     };
   }

@@ -34,6 +34,7 @@ export interface ExpectedEffortMap {
 export interface StreakData {
   currentStreak: number;
   maxStreak: number;
+  totalNumberOfDaysTracked: number;
   lastLoggedDay?: string;
 }
 
@@ -140,13 +141,19 @@ export function normalizeStreakData(
   const rawMaxStreak = toNonNegativeInteger(
     streakData['maxStreak'] ?? legacyMaxStreak
   );
+  const maxStreak = Math.max(rawMaxStreak, currentStreak);
+  const totalNumberOfDaysTracked = Math.max(
+    toNonNegativeInteger(streakData['totalNumberOfDaysTracked']),
+    maxStreak
+  );
   const lastLoggedDay = typeof streakData['lastLoggedDay'] === 'string'
     ? streakData['lastLoggedDay'].trim()
     : '';
 
   return {
     currentStreak,
-    maxStreak: Math.max(rawMaxStreak, currentStreak),
+    maxStreak,
+    totalNumberOfDaysTracked,
     ...(lastLoggedDay ? { lastLoggedDay } : {}),
   };
 }

@@ -171,6 +171,8 @@ export class AccountService {
       rawStreakData !== null &&
       Number(rawStreakData['currentStreak']) === streakData.currentStreak &&
       Number(rawStreakData['maxStreak']) === streakData.maxStreak &&
+      Number(rawStreakData['totalNumberOfDaysTracked']) ===
+        streakData.totalNumberOfDaysTracked &&
       String(rawStreakData['lastLoggedDay'] ?? '').trim() ===
         String(streakData.lastLoggedDay ?? '').trim();
     const rawEarlyMorningWorkoutsTracker =
