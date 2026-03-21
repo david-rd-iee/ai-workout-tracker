@@ -15,6 +15,13 @@ export interface StrengthScoreMap {
   totalStrengthScore: number;
 }
 
+export interface UserScore {
+  cardioScore: CardioScoreMap;
+  strengthScore: StrengthScoreMap;
+  totalScore: number;
+  maxAddedScoreWithinDay: number;
+}
+
 export interface ExpectedEffortCategoryMap {
   [key: string]: number;
 }
@@ -39,10 +46,8 @@ export interface UserStats {
   bmi: number;
   sex: number;
 
-  cardioScore: CardioScoreMap;
-  strengthScore: StrengthScoreMap;
+  userScore: UserScore;
   Expected_Effort?: ExpectedEffortMap;
-  totalScore: number;
 
   level?: number;
   percentage_of_level?: number;
@@ -57,6 +62,13 @@ export interface UserLevelProgress {
   percentage_of_level: number;
 }
 
+export interface AddedScoreDaily {
+  date: string;
+  cardioScoreAddedToday: number;
+  strengthScoreAddedToday: number;
+  totalScoreAddedToday: number;
+}
+
 export function calculateUserLevelProgress(totalScore: unknown): UserLevelProgress {
   const normalizedTotalScore = Number(totalScore);
   const safeTotalScore =
@@ -68,6 +80,36 @@ export function calculateUserLevelProgress(totalScore: unknown): UserLevelProgre
   return {
     level: Math.floor(scaledLevelInHundredths / 100),
     percentage_of_level: scaledLevelInHundredths % 100,
+  };
+}
+
+export function normalizeUserScore(
+  value: unknown,
+  legacyCardioScore?: unknown,
+  legacyStrengthScore?: unknown,
+  legacyTotalScore?: unknown,
+  legacyWorkScore?: unknown
+): UserScore {
+  const userScore = value && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {};
+  const cardioScore = normalizeCardioScoreMap(
+    userScore['cardioScore'],
+    legacyCardioScore
+  );
+  const strengthScore = normalizeStrengthScoreMap(
+    userScore['strengthScore'],
+    legacyStrengthScore ?? legacyWorkScore
+  );
+  const derivedTotalScore =
+    normalizeScoreMapTotal(cardioScore, 'totalCardioScore') +
+    normalizeScoreMapTotal(strengthScore, 'totalStrengthScore');
+
+  return {
+    cardioScore,
+    strengthScore,
+    totalScore: toWholeNumber(userScore['totalScore'] ?? legacyTotalScore, derivedTotalScore),
+    maxAddedScoreWithinDay: toWholeNumber(userScore['maxAddedScoreWithinDay']),
   };
 }
 
@@ -103,4 +145,66 @@ function toNonNegativeInteger(value: unknown): number {
   }
 
   return Math.floor(parsed);
+}
+
+function normalizeCardioScoreMap(
+  value: unknown,
+  legacyValue?: unknown
+): CardioScoreMap {
+  const normalized = normalizeScoreMap(value ?? legacyValue);
+  return {
+    ...normalized,
+    totalCardioScore: normalizeScoreMapTotal(normalized, 'totalCardioScore'),
+  };
+}
+
+function normalizeStrengthScoreMap(
+  value: unknown,
+  legacyValue?: unknown
+): StrengthScoreMap {
+  const normalized = normalizeScoreMap(value ?? legacyValue);
+  return {
+    ...normalized,
+    totalStrengthScore: normalizeScoreMapTotal(normalized, 'totalStrengthScore'),
+  };
+}
+
+function normalizeScoreMap(value: unknown): Record<string, number> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return {};
+  }
+
+  return Object.entries(value as Record<string, unknown>).reduce<Record<string, number>>(
+    (acc, [key, candidateValue]) => {
+      const parsed = Number(candidateValue);
+      if (Number.isFinite(parsed) && parsed >= 0) {
+        acc[key] = Math.round(parsed);
+      }
+      return acc;
+    },
+    {}
+  );
+}
+
+function normalizeScoreMapTotal(
+  value: Record<string, number>,
+  totalKey: string
+): number {
+  const explicitTotal = toWholeNumber(value[totalKey]);
+  if (explicitTotal > 0) {
+    return explicitTotal;
+  }
+
+  return Object.entries(value).reduce((sum, [key, score]) => (
+    key === totalKey ? sum : sum + toWholeNumber(score)
+  ), 0);
+}
+
+function toWholeNumber(value: unknown, fallback = 0): number {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    return Math.max(0, Math.round(fallback));
+  }
+
+  return Math.round(parsed);
 }

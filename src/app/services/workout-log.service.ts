@@ -22,9 +22,18 @@ import { normalizeStreakData, StreakData } from '../models/user-stats.model';
 import { ChatsService } from './chats.service';
 import { UpdateScoreResult, UpdateScoreService } from './update-score.service';
 
+export interface StreakUpdateResult {
+  kind: 'unchanged' | 'started' | 'extended' | 'restarted';
+  previousCurrentStreak: number;
+  currentStreak: number;
+  previousMaxStreak: number;
+  maxStreak: number;
+}
+
 export interface SaveCompletedWorkoutResult {
   workoutLogRef: DocumentReference<DocumentData>;
   scoreUpdate: UpdateScoreResult | null;
+  streakUpdate: StreakUpdateResult;
 }
 
 type StoredWorkoutTrainingRow = WorkoutTrainingRow;
@@ -86,7 +95,7 @@ export class WorkoutLogService {
     };
 
     const workoutLogRef = doc(workoutLogsRef);
-    await this.saveWorkoutLogAndUpdateStreak({
+    const streakUpdate = await this.saveWorkoutLogAndUpdateStreak({
       userId: user.uid,
       workoutLogRef,
       estimatedCalories,
@@ -132,6 +141,7 @@ export class WorkoutLogService {
     return {
       workoutLogRef,
       scoreUpdate,
+      streakUpdate,
     };
   }
 
@@ -307,11 +317,11 @@ export class WorkoutLogService {
     persistedCardioTrainingRow: CardioTrainingRow[];
     otherTrainingRow: Array<Record<string, unknown>>;
     loggedAt: Date;
-  }): Promise<void> {
+  }): Promise<StreakUpdateResult> {
     const loggedDay = this.toLocalDateKey(params.loggedAt);
     const userStatsRef = doc(this.firestore, 'userStats', params.userId);
 
-    await runTransaction(this.firestore, async (transaction) => {
+    return runTransaction(this.firestore, async (transaction) => {
       const userStatsSnap = await transaction.get(userStatsRef);
       const currentUserStats = userStatsSnap.exists()
         ? userStatsSnap.data() as Record<string, unknown>
@@ -340,6 +350,8 @@ export class WorkoutLogService {
         },
         { merge: true }
       );
+
+      return this.buildStreakUpdateResult(currentStreakData, nextStreakData);
     });
   }
 
@@ -357,6 +369,29 @@ export class WorkoutLogService {
       currentStreak: nextCurrentStreak,
       maxStreak: Math.max(currentStreakData.maxStreak, nextCurrentStreak),
       lastLoggedDay: loggedDay,
+    };
+  }
+
+  private buildStreakUpdateResult(
+    currentStreakData: StreakData,
+    nextStreakData: StreakData
+  ): StreakUpdateResult {
+    let kind: StreakUpdateResult['kind'] = 'started';
+
+    if (currentStreakData.lastLoggedDay === nextStreakData.lastLoggedDay) {
+      kind = 'unchanged';
+    } else if (nextStreakData.currentStreak === currentStreakData.currentStreak + 1) {
+      kind = 'extended';
+    } else if (currentStreakData.currentStreak > 0 && nextStreakData.currentStreak === 1) {
+      kind = 'restarted';
+    }
+
+    return {
+      kind,
+      previousCurrentStreak: currentStreakData.currentStreak,
+      currentStreak: nextStreakData.currentStreak,
+      previousMaxStreak: currentStreakData.maxStreak,
+      maxStreak: nextStreakData.maxStreak,
     };
   }
 

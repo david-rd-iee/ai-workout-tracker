@@ -1,5 +1,5 @@
 // imports
-import { WorkoutLogService } from '../../services/workout-log.service';
+import { StreakUpdateResult, WorkoutLogService } from '../../services/workout-log.service';
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -223,6 +223,9 @@ export class WorkoutChatbotPage implements OnInit, OnDestroy {
       const saveResult = await this.workoutLogService.saveCompletedWorkout(this.session);
       this.hasSavedWorkout = true;
       this.savedWorkoutLoggedAt = loggedAt;
+      if (saveResult.streakUpdate.kind !== 'unchanged') {
+        await this.showStreakUpdateAlert(saveResult.streakUpdate);
+      }
       if (saveResult.scoreUpdate) {
         await this.showScoreUpdateAlert(saveResult.scoreUpdate);
       }
@@ -256,6 +259,20 @@ export class WorkoutChatbotPage implements OnInit, OnDestroy {
     await alert.present();
   }
 
+  private async showStreakUpdateAlert(streakUpdate: StreakUpdateResult): Promise<void> {
+    const { header, message } = this.buildStreakUpdateAlertContent(streakUpdate);
+    const alert = await this.alertController.create({
+      mode: 'ios',
+      header,
+      cssClass: 'score-update-alert',
+      message,
+      buttons: ['OK'],
+      translucent: true,
+    });
+
+    await alert.present();
+  }
+
   private buildScoreUpdateMessage(scoreUpdate: UpdateScoreResult): string {
     const lines = scoreUpdate.exerciseScoreDeltas.map((entry) => (
       `${this.formatSummaryExerciseName(entry.exerciseType)}: ${this.formatSignedScore(entry.addedScore)}`
@@ -266,6 +283,44 @@ export class WorkoutChatbotPage implements OnInit, OnDestroy {
     lines.push(`New Total: ${this.formatScoreValue(scoreUpdate.currentTotalScore)}`);
 
     return lines.join('\n');
+  }
+
+  private buildStreakUpdateAlertContent(
+    streakUpdate: StreakUpdateResult
+  ): { header: string; message: string } {
+    const lines = [`Current Streak: ${this.formatStreakDays(streakUpdate.currentStreak)}`];
+
+    if (streakUpdate.maxStreak > 0) {
+      lines.push(`Max Streak: ${this.formatStreakDays(streakUpdate.maxStreak)}`);
+    }
+
+    if (streakUpdate.maxStreak > streakUpdate.previousMaxStreak) {
+      lines.push('', 'New max streak reached.');
+    }
+
+    if (streakUpdate.kind === 'restarted') {
+      return {
+        header: 'Streak Restarted',
+        message: ['You are back on track.', ...lines].join('\n'),
+      };
+    }
+
+    if (streakUpdate.kind === 'extended') {
+      return {
+        header: 'Streak Updated',
+        message: [`Nice work, your streak just grew.`, ...lines].join('\n'),
+      };
+    }
+
+    return {
+      header: 'Streak Started',
+      message: [`Your workout streak has started.`, ...lines].join('\n'),
+    };
+  }
+
+  private formatStreakDays(value: number): string {
+    const safeValue = Math.max(0, Math.floor(Number(value) || 0));
+    return `${safeValue} day${safeValue === 1 ? '' : 's'}`;
   }
 
   formatSummaryExerciseName(exerciseType: string): string {

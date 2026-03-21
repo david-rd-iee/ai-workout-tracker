@@ -4,6 +4,7 @@ import { Firestore } from '@angular/fire/firestore';
 import {
   QueryConstraint,
   collection,
+  deleteField,
   doc,
   getDoc,
   getDocs,
@@ -18,6 +19,7 @@ import {
   UserStats,
   Region,
   calculateUserLevelProgress,
+  normalizeUserScore,
 } from '../models/user-stats.model';
 import { UserService } from './account/user.service';
 import { AppUser } from '../models/user.model';
@@ -84,10 +86,10 @@ export class LeaderboardService {
 
   private metricToFirestoreField(metric: Metric): string {
     return metric === 'cardio'
-      ? 'cardioScore.totalCardioScore'
+      ? 'userScore.cardioScore.totalCardioScore'
       : metric === 'strength'
-      ? 'strengthScore.totalStrengthScore'
-      : 'totalScore';
+      ? 'userScore.strengthScore.totalStrengthScore'
+      : 'userScore.totalScore';
   }
 
   private toNumber(value: unknown): number {
@@ -100,8 +102,15 @@ export class LeaderboardService {
     strengthTotal: number;
     total: number;
   } {
+    const userScore = normalizeUserScore(
+      stats?.userScore,
+      stats?.cardioScore,
+      stats?.strengthScore,
+      stats?.totalScore,
+      stats?.workScore
+    );
     const cardioTotal = this.toNumber(
-      stats?.cardioScore?.totalCardioScore ??
+      userScore.cardioScore.totalCardioScore ??
       stats?.totalCardioScore ??
       stats?.cardioWorkScore ??
       stats?.cardio_work_score ??
@@ -110,8 +119,7 @@ export class LeaderboardService {
     );
 
     const strengthTotal = this.toNumber(
-      stats?.strengthScore?.totalStrengthScore ??
-      stats?.workScore?.totalStrengthScore ??
+      userScore.strengthScore.totalStrengthScore ??
       stats?.totalStrengthScore ??
       stats?.strengthWorkScore ??
       stats?.strength_work_score ??
@@ -122,35 +130,46 @@ export class LeaderboardService {
     return {
       cardioTotal,
       strengthTotal,
-      // totalScore is always derived from the two total map values
       total: cardioTotal + strengthTotal,
     };
   }
 
   private needsScoreSchemaInit(stats: any): boolean {
-    const hasCardioMap = typeof stats?.cardioScore === 'object' && stats?.cardioScore !== null;
-    const hasStrengthMap = typeof stats?.strengthScore === 'object' && stats?.strengthScore !== null;
+    const hasUserScoreMap =
+      typeof stats?.userScore === 'object' &&
+      stats?.userScore !== null &&
+      typeof stats?.userScore?.cardioScore === 'object' &&
+      stats?.userScore?.cardioScore !== null &&
+      typeof stats?.userScore?.strengthScore === 'object' &&
+      stats?.userScore?.strengthScore !== null;
 
-    const cardioMapTotal = Number(stats?.cardioScore?.totalCardioScore);
-    const strengthMapTotal = Number(stats?.strengthScore?.totalStrengthScore);
+    const cardioMapTotal = Number(stats?.userScore?.cardioScore?.totalCardioScore);
+    const strengthMapTotal = Number(stats?.userScore?.strengthScore?.totalStrengthScore);
     const hasCardioMapTotal = Number.isFinite(cardioMapTotal);
     const hasStrengthMapTotal = Number.isFinite(strengthMapTotal);
 
     const totals = this.extractScoreTotals(stats);
-    const totalScoreRaw = Number(stats?.totalScore);
+    const totalScoreRaw = Number(stats?.userScore?.totalScore);
     const hasTotalScore = Number.isFinite(totalScoreRaw);
     const totalMatches = hasTotalScore && totalScoreRaw === totals.total;
+    const hasMaxAddedScoreWithinDay = Number.isFinite(Number(stats?.userScore?.maxAddedScoreWithinDay));
     const levelProgress = calculateUserLevelProgress(totals.total);
     const hasLevel = Number(stats?.level) === levelProgress.level;
     const hasPercentageOfLevel =
       Number(stats?.percentage_of_level) === levelProgress.percentage_of_level;
+    const hasLegacyTopLevelScores =
+      Object.prototype.hasOwnProperty.call(stats ?? {}, 'cardioScore') ||
+      Object.prototype.hasOwnProperty.call(stats ?? {}, 'strengthScore') ||
+      Object.prototype.hasOwnProperty.call(stats ?? {}, 'totalScore') ||
+      Object.prototype.hasOwnProperty.call(stats ?? {}, 'workScore');
 
     return (
-      !hasCardioMap ||
-      !hasStrengthMap ||
+      !hasUserScoreMap ||
       !hasCardioMapTotal ||
       !hasStrengthMapTotal ||
+      !hasMaxAddedScoreWithinDay ||
       !totalMatches ||
+      hasLegacyTopLevelScores ||
       !hasLevel ||
       !hasPercentageOfLevel
     );
@@ -163,50 +182,45 @@ export class LeaderboardService {
 
     const totals = this.extractScoreTotals(stats);
     const levelProgress = calculateUserLevelProgress(totals.total);
-    const currentCardioMap =
-      typeof stats?.cardioScore === 'object' && stats?.cardioScore !== null
-        ? stats.cardioScore
-        : {};
-    const currentStrengthMap =
-      typeof stats?.strengthScore === 'object' && stats?.strengthScore !== null
-        ? stats.strengthScore
-        : typeof stats?.workScore === 'object' && stats?.workScore !== null
-        ? stats.workScore
-        : {};
+    const normalizedUserScore = normalizeUserScore(
+      stats?.userScore,
+      stats?.cardioScore,
+      stats?.strengthScore,
+      stats?.totalScore,
+      stats?.workScore
+    );
 
     await setDoc(
       doc(this.firestore, 'userStats', userId),
       {
-        cardioScore: {
-          ...currentCardioMap,
-          totalCardioScore: totals.cardioTotal,
+        userScore: {
+          ...normalizedUserScore,
+          totalScore: totals.total,
         },
-        strengthScore: {
-          ...currentStrengthMap,
-          totalStrengthScore: totals.strengthTotal,
-        },
-        totalScore: totals.total,
+        cardioScore: deleteField(),
+        strengthScore: deleteField(),
+        totalScore: deleteField(),
+        workScore: deleteField(),
         ...levelProgress,
       },
       { merge: true }
     );
 
-    stats.cardioScore = {
-      ...currentCardioMap,
-      totalCardioScore: totals.cardioTotal,
+    stats.userScore = {
+      ...normalizedUserScore,
+      totalScore: totals.total,
     };
-    stats.strengthScore = {
-      ...currentStrengthMap,
-      totalStrengthScore: totals.strengthTotal,
-    };
-    stats.totalScore = totals.total;
+    delete stats.cardioScore;
+    delete stats.strengthScore;
+    delete stats.totalScore;
+    delete stats.workScore;
     stats.level = levelProgress.level;
     stats.percentage_of_level = levelProgress.percentage_of_level;
   }
 
   /**
    * Backwards-compatible score reads:
-   * - New fields: cardioScore.totalCardioScore + strengthScore.totalStrengthScore + totalScore
+   * - New fields: userScore.cardioScore.totalCardioScore + userScore.strengthScore.totalStrengthScore + userScore.totalScore
    * - Old fields: total_work_score / cardio_work_score / strength_work_score
    */
   private readScores(stats: any): Pick<

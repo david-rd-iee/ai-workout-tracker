@@ -11,6 +11,7 @@ import { GroupService } from '../group.service';
 import {
   calculateUserLevelProgress,
   normalizeStreakData,
+  normalizeUserScore,
 } from '../../models/user-stats.model';
 // Import for Capacitor plugins
 import { registerPlugin } from '@capacitor/core';
@@ -92,17 +93,20 @@ export class AccountService {
         heightMeters: 0,
         weightKg: 0,
         bmi: 0,
-        cardioScore: {
-          totalCardioScore: 0,
-        },
-        strengthScore: {
-          totalStrengthScore: 0,
+        userScore: {
+          cardioScore: {
+            totalCardioScore: 0,
+          },
+          strengthScore: {
+            totalStrengthScore: 0,
+          },
+          totalScore: 0,
+          maxAddedScoreWithinDay: 0,
         },
         Expected_Effort: {
           Cardio: {},
           Strength: {},
         },
-        totalScore: 0,
         ...levelProgress,
         streakData: normalizeStreakData(undefined),
         createdAt: serverTimestamp(),
@@ -112,28 +116,29 @@ export class AccountService {
     }
 
     const current = userStatsSnap.data() as any;
-    const cardioTotal = Number(
-      current?.cardioScore?.totalCardioScore ??
-      current?.totalCardioScore ??
-      current?.cardioWorkScore ??
-      current?.cardio_work_score ??
-      0
-    ) || 0;
-    const strengthTotal = Number(
-      current?.strengthScore?.totalStrengthScore ??
-      current?.workScore?.totalStrengthScore ??
-      current?.totalStrengthScore ??
-      current?.strengthWorkScore ??
-      current?.strength_work_score ??
-      0
-    ) || 0;
+    const normalizedUserScore = normalizeUserScore(
+      current?.userScore,
+      current?.cardioScore,
+      current?.strengthScore,
+      current?.totalScore,
+      current?.workScore
+    );
+    const cardioTotal = normalizedUserScore.cardioScore.totalCardioScore;
+    const strengthTotal = normalizedUserScore.strengthScore.totalStrengthScore;
     const totalScore = cardioTotal + strengthTotal;
     const levelProgress = calculateUserLevelProgress(totalScore);
 
-    const hasCardioMap = typeof current?.cardioScore === 'object' && current?.cardioScore !== null;
-    const hasStrengthMap =
-      typeof current?.strengthScore === 'object' &&
-      current?.strengthScore !== null;
+    const hasUserScoreMap =
+      typeof current?.userScore === 'object' &&
+      current?.userScore !== null &&
+      typeof current?.userScore?.cardioScore === 'object' &&
+      current?.userScore?.cardioScore !== null &&
+      typeof current?.userScore?.strengthScore === 'object' &&
+      current?.userScore?.strengthScore !== null;
+    const hasCardioTotal =
+      Number(current?.userScore?.cardioScore?.totalCardioScore) === cardioTotal;
+    const hasStrengthTotal =
+      Number(current?.userScore?.strengthScore?.totalStrengthScore) === strengthTotal;
     const expectedEffort = this.normalizeExpectedEffort(
       current?.Expected_Effort,
       current?.expected_strength_scores
@@ -163,35 +168,45 @@ export class AccountService {
     const hasLegacyExpectedStrengthScores =
       typeof current?.expected_strength_scores === 'object' &&
       current?.expected_strength_scores !== null;
-    const totalNeedsUpdate = Number(current?.totalScore) !== totalScore;
+    const hasLegacyTopLevelScores =
+      Object.prototype.hasOwnProperty.call(current ?? {}, 'cardioScore') ||
+      Object.prototype.hasOwnProperty.call(current ?? {}, 'strengthScore') ||
+      Object.prototype.hasOwnProperty.call(current ?? {}, 'totalScore') ||
+      Object.prototype.hasOwnProperty.call(current ?? {}, 'workScore');
+    const totalNeedsUpdate = Number(current?.userScore?.totalScore) !== totalScore;
+    const maxAddedScoreNeedsUpdate =
+      Number(current?.userScore?.maxAddedScoreWithinDay) !==
+      normalizedUserScore.maxAddedScoreWithinDay;
     const levelNeedsUpdate =
       Number(current?.level) !== levelProgress.level ||
       Number(current?.percentage_of_level) !== levelProgress.percentage_of_level;
 
     if (
-      !hasCardioMap ||
-      !hasStrengthMap ||
+      !hasUserScoreMap ||
+      !hasCardioTotal ||
+      !hasStrengthTotal ||
       !hasExpectedEffortMap ||
       !hasStreakDataMap ||
+      hasLegacyTopLevelScores ||
       hasLegacyExpectedStrengthScores ||
       totalNeedsUpdate ||
+      maxAddedScoreNeedsUpdate ||
       levelNeedsUpdate
     ) {
       await setDoc(
         userStatsRef,
         {
-          cardioScore: {
-            ...(hasCardioMap ? current.cardioScore : {}),
-            totalCardioScore: cardioTotal,
-          },
-          strengthScore: {
-            ...(hasStrengthMap ? current.strengthScore : current.workScore ?? {}),
-            totalStrengthScore: strengthTotal,
+          userScore: {
+            ...normalizedUserScore,
+            totalScore,
           },
           Expected_Effort: expectedEffort,
           streakData,
+          cardioScore: deleteField(),
+          strengthScore: deleteField(),
+          totalScore: deleteField(),
+          workScore: deleteField(),
           expected_strength_scores: deleteField(),
-          totalScore,
           ...levelProgress,
           updatedAt: serverTimestamp(),
         },

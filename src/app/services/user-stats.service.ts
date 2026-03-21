@@ -7,6 +7,7 @@ import {
   UserStats,
   calculateUserLevelProgress,
   normalizeStreakData,
+  normalizeUserScore,
 } from '../models/user-stats.model';
 
 interface CacheEntry<T> {
@@ -108,17 +109,20 @@ export class UserStatsService {
       heightMeters: 0,
       weightKg: 0,
       bmi: 0,
-      cardioScore: {
-        totalCardioScore: Math.floor(totalWorkScore * 0.5),
-      },
-      strengthScore: {
-        totalStrengthScore: Math.floor(totalWorkScore * 0.5),
+      userScore: {
+        cardioScore: {
+          totalCardioScore: Math.floor(totalWorkScore * 0.5),
+        },
+        strengthScore: {
+          totalStrengthScore: Math.floor(totalWorkScore * 0.5),
+        },
+        totalScore: totalWorkScore,
+        maxAddedScoreWithinDay: 0,
       },
       Expected_Effort: {
         Cardio: {},
         Strength: {},
       },
-      totalScore: totalWorkScore,
       ...levelProgress,
       streakData: normalizeStreakData(undefined),
       region,
@@ -209,8 +213,13 @@ export class UserStatsService {
 
     return {
       ...userStats,
-      cardioScore: userStats.cardioScore ? { ...userStats.cardioScore } : userStats.cardioScore,
-      strengthScore: userStats.strengthScore ? { ...userStats.strengthScore } : userStats.strengthScore,
+      userScore: userStats.userScore
+        ? {
+            ...userStats.userScore,
+            cardioScore: { ...userStats.userScore.cardioScore },
+            strengthScore: { ...userStats.userScore.strengthScore },
+          }
+        : userStats.userScore,
       Expected_Effort: userStats.Expected_Effort
         ? {
             Cardio: { ...userStats.Expected_Effort.Cardio },
@@ -227,6 +236,13 @@ export class UserStatsService {
 
     return {
       ...userStats,
+      userScore: normalizeUserScore(
+        rawUserStats.userScore,
+        rawUserStats['cardioScore'],
+        rawUserStats['strengthScore'],
+        rawUserStats['totalScore'],
+        rawUserStats['workScore']
+      ),
       streakData: normalizeStreakData(
         rawUserStats.streakData,
         rawUserStats['currentStreak'],

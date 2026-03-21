@@ -6,6 +6,7 @@ import {
   deleteField,
   doc,
   getDoc,
+  runTransaction,
   serverTimestamp,
   setDoc,
 } from '@angular/fire/firestore';
@@ -20,7 +21,7 @@ import {
   ExerciseEstimatorCoefficientMap,
   ExerciseEstimatorModel,
 } from '../models/exercise-estimators.model';
-import { calculateUserLevelProgress } from '../models/user-stats.model';
+import { calculateUserLevelProgress, normalizeUserScore } from '../models/user-stats.model';
 
 interface EstimatorDoc {
   exists: boolean;
@@ -89,22 +90,16 @@ export class UpdateScoreService {
       userDocData['weight']
     );
     const userSexCode = this.toSexCode(current['sex']);
-
-    const cardioScoreMap = this.roundScoreMap(this.toNumberMap(current['cardioScore']));
-    const strengthScoreMap = this.roundScoreMap(this.toNumberMap(
-      current['strengthScore'] ?? current['workScore']
-    ));
     const expectedEffort = this.normalizeExpectedEffort(
       current['Expected_Effort'],
       current['expected_strength_scores']
     );
-
-    const oldCardioScore = this.resolveScoreTotal(cardioScoreMap, 'totalCardioScore');
-    const oldStrengthScore = this.resolveScoreTotal(strengthScoreMap, 'totalStrengthScore');
-    const currentTotalScore = this.toWholeNumber(this.toFiniteNumber(
-      current['totalScore'],
-      oldCardioScore + oldStrengthScore
-    ));
+    const expectedEffortUpdates: ExpectedEffortMap = {
+      Cardio: {},
+      Strength: {},
+    };
+    const cardioScoreDeltaMap: Record<string, number> = {};
+    const strengthScoreDeltaMap: Record<string, number> = {};
     const exerciseScoreDeltaMap = new Map<string, number>();
 
     const cardioRows = this.getCardioRows(params.session);
@@ -152,6 +147,7 @@ export class UpdateScoreService {
       }
 
       if (expected > 0) {
+        expectedEffortUpdates.Cardio[exerciseType] = expected;
         expectedEffort.Cardio[exerciseType] = expected;
       }
 
@@ -161,13 +157,7 @@ export class UpdateScoreService {
         : 0;
       const roundedScore = this.toWholeNumber(score);
       this.trackExerciseScoreDelta(exerciseScoreDeltaMap, exerciseType, roundedScore);
-
-      if (roundedScore > 0) {
-        const priorExerciseScore = this.toWholeNumber(
-          this.toNonNegativeNumber(cardioScoreMap[exerciseType])
-        );
-        cardioScoreMap[exerciseType] = priorExerciseScore + roundedScore;
-      }
+      this.addScoreDelta(cardioScoreDeltaMap, exerciseType, roundedScore);
 
       const cardioLogPayload = {
         age: userAge,
@@ -231,6 +221,7 @@ export class UpdateScoreService {
       }
 
       if (expected > 0) {
+        expectedEffortUpdates.Strength[exerciseType] = expected;
         expectedEffort.Strength[exerciseType] = expected;
       }
 
@@ -256,13 +247,7 @@ export class UpdateScoreService {
         : 0;
       const roundedScore = this.toWholeNumber(score);
       this.trackExerciseScoreDelta(exerciseScoreDeltaMap, exerciseType, roundedScore);
-
-      if (roundedScore > 0) {
-        const priorExerciseScore = this.toWholeNumber(
-          this.toNonNegativeNumber(strengthScoreMap[exerciseType])
-        );
-        strengthScoreMap[exerciseType] = priorExerciseScore + roundedScore;
-      }
+      this.addScoreDelta(strengthScoreDeltaMap, exerciseType, roundedScore);
 
       await this.logEstimatorWorkout(
         EXERCISE_ESTIMATOR_STRENGTH_CATEGORY,
@@ -288,48 +273,147 @@ export class UpdateScoreService {
       }
     }
 
-    const newCardioScore = this.toWholeNumber(this.sumScoreEntries(cardioScoreMap, 'totalCardioScore'));
-    const newStrengthScore = this.toWholeNumber(
-      this.sumScoreEntries(strengthScoreMap, 'totalStrengthScore')
+    const addedCardioScore = this.toWholeNumber(
+      this.sumScoreEntries(cardioScoreDeltaMap, 'totalCardioScore')
     );
-    const addedCardioScore = this.toWholeNumber(newCardioScore - oldCardioScore);
-    const addedStrengthScore = this.toWholeNumber(newStrengthScore - oldStrengthScore);
+    const addedStrengthScore = this.toWholeNumber(
+      this.sumScoreEntries(strengthScoreDeltaMap, 'totalStrengthScore')
+    );
     const addedTotalScore = this.toWholeNumber(addedCardioScore + addedStrengthScore);
-    const nextTotalScore = this.toWholeNumber(currentTotalScore + addedTotalScore);
-    const levelProgress = calculateUserLevelProgress(nextTotalScore);
-
-    const nextCardioMap: Record<string, number> = {
-      ...this.roundScoreMap(cardioScoreMap),
-      totalCardioScore: newCardioScore,
-    };
-    const nextStrengthMap: Record<string, number> = {
-      ...this.roundScoreMap(strengthScoreMap),
-      totalStrengthScore: newStrengthScore,
-    };
-
-    await setDoc(
-      statsRef,
-      {
-        cardioScore: nextCardioMap,
-        strengthScore: nextStrengthMap,
-        Expected_Effort: expectedEffort,
-        expected_strength_scores: deleteField(),
-        totalScore: nextTotalScore,
-        ...levelProgress,
-        updatedAt: serverTimestamp(),
-      },
-      { merge: true }
+    const currentDate = this.toLocalDateKey(new Date());
+    const addedScoreRef = doc(this.firestore, 'userStats', userId, 'addedScore', currentDate);
+    const fallbackUserScore = normalizeUserScore(
+      current['userScore'],
+      current['cardioScore'],
+      current['strengthScore'],
+      current['totalScore'],
+      current['workScore']
     );
-
-    return {
-      oldCardioScore,
-      newCardioScore,
+    let persistedResult: Omit<UpdateScoreResult, 'exerciseScoreDeltas'> = {
+      oldCardioScore: fallbackUserScore.cardioScore.totalCardioScore,
+      newCardioScore: fallbackUserScore.cardioScore.totalCardioScore,
       addedCardioScore,
-      oldStrengthScore,
-      newStrengthScore,
+      oldStrengthScore: fallbackUserScore.strengthScore.totalStrengthScore,
+      newStrengthScore: fallbackUserScore.strengthScore.totalStrengthScore,
       addedStrengthScore,
       addedTotalScore,
-      currentTotalScore: nextTotalScore,
+      currentTotalScore: fallbackUserScore.totalScore,
+    };
+
+    await runTransaction(this.firestore, async (transaction) => {
+      const [latestStatsSnap, addedScoreSnap] = await Promise.all([
+        transaction.get(statsRef),
+        transaction.get(addedScoreRef),
+      ]);
+      const latest = latestStatsSnap.exists()
+        ? (latestStatsSnap.data() as Record<string, unknown>)
+        : {};
+      const latestUserScore = normalizeUserScore(
+        latest['userScore'],
+        latest['cardioScore'],
+        latest['strengthScore'],
+        latest['totalScore'],
+        latest['workScore']
+      );
+      const latestExpectedEffort = this.normalizeExpectedEffort(
+        latest['Expected_Effort'],
+        latest['expected_strength_scores']
+      );
+      const nextExpectedEffort: ExpectedEffortMap = {
+        Cardio: {
+          ...latestExpectedEffort.Cardio,
+          ...expectedEffortUpdates.Cardio,
+        },
+        Strength: {
+          ...latestExpectedEffort.Strength,
+          ...expectedEffortUpdates.Strength,
+        },
+      };
+      const nextCardioMap = this.applyScoreDeltas(
+        latestUserScore.cardioScore,
+        cardioScoreDeltaMap,
+        'totalCardioScore'
+      );
+      const nextStrengthMap = this.applyScoreDeltas(
+        latestUserScore.strengthScore,
+        strengthScoreDeltaMap,
+        'totalStrengthScore'
+      );
+      const oldCardioScore = this.resolveScoreTotal(
+        latestUserScore.cardioScore,
+        'totalCardioScore'
+      );
+      const oldStrengthScore = this.resolveScoreTotal(
+        latestUserScore.strengthScore,
+        'totalStrengthScore'
+      );
+      const newCardioScore = this.resolveScoreTotal(nextCardioMap, 'totalCardioScore');
+      const newStrengthScore = this.resolveScoreTotal(nextStrengthMap, 'totalStrengthScore');
+      const nextTotalScore = this.toWholeNumber(newCardioScore + newStrengthScore);
+      const levelProgress = calculateUserLevelProgress(nextTotalScore);
+      const currentAddedScore = addedScoreSnap.exists()
+        ? (addedScoreSnap.data() as Record<string, unknown>)
+        : {};
+      const nextCardioScoreAddedToday = this.toWholeNumber(
+        this.toNonNegativeNumber(currentAddedScore['cardioScoreAddedToday']) + addedCardioScore
+      );
+      const nextStrengthScoreAddedToday = this.toWholeNumber(
+        this.toNonNegativeNumber(currentAddedScore['strengthScoreAddedToday']) + addedStrengthScore
+      );
+      const nextTotalScoreAddedToday = this.toWholeNumber(
+        nextCardioScoreAddedToday + nextStrengthScoreAddedToday
+      );
+      const nextMaxAddedScoreWithinDay = this.toWholeNumber(Math.max(
+        latestUserScore.maxAddedScoreWithinDay,
+        nextTotalScoreAddedToday
+      ));
+
+      transaction.set(
+        statsRef,
+        {
+          userScore: {
+            cardioScore: nextCardioMap,
+            strengthScore: nextStrengthMap,
+            totalScore: nextTotalScore,
+            maxAddedScoreWithinDay: nextMaxAddedScoreWithinDay,
+          },
+          Expected_Effort: nextExpectedEffort,
+          cardioScore: deleteField(),
+          strengthScore: deleteField(),
+          totalScore: deleteField(),
+          workScore: deleteField(),
+          expected_strength_scores: deleteField(),
+          ...levelProgress,
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+      transaction.set(
+        addedScoreRef,
+        {
+          date: currentDate,
+          cardioScoreAddedToday: nextCardioScoreAddedToday,
+          strengthScoreAddedToday: nextStrengthScoreAddedToday,
+          totalScoreAddedToday: nextTotalScoreAddedToday,
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+
+      persistedResult = {
+        oldCardioScore,
+        newCardioScore,
+        addedCardioScore,
+        oldStrengthScore,
+        newStrengthScore,
+        addedStrengthScore,
+        addedTotalScore,
+        currentTotalScore: nextTotalScore,
+      };
+    });
+
+    return {
+      ...persistedResult,
       exerciseScoreDeltas: Array.from(exerciseScoreDeltaMap.entries()).map(
         ([exerciseType, addedScore]) => ({
           exerciseType,
@@ -353,6 +437,47 @@ export class UpdateScoreService {
       this.toNonNegativeNumber(scoreDeltaMap.get(normalizedExerciseType))
     );
     scoreDeltaMap.set(normalizedExerciseType, priorScore + this.toWholeNumber(roundedScore));
+  }
+
+  private addScoreDelta(
+    scoreDeltaMap: Record<string, number>,
+    exerciseType: string,
+    roundedScore: number
+  ): void {
+    const normalizedExerciseType = this.normalizeEstimatorId(exerciseType);
+    if (!normalizedExerciseType || roundedScore <= 0) {
+      return;
+    }
+
+    const priorScore = this.toWholeNumber(
+      this.toNonNegativeNumber(scoreDeltaMap[normalizedExerciseType])
+    );
+    scoreDeltaMap[normalizedExerciseType] = priorScore + this.toWholeNumber(roundedScore);
+  }
+
+  private applyScoreDeltas(
+    currentScoreMap: Record<string, number>,
+    deltaMap: Record<string, number>,
+    totalKey: string
+  ): Record<string, number> {
+    const nextScoreMap = {
+      ...this.roundScoreMap(currentScoreMap),
+    };
+
+    Object.entries(deltaMap).forEach(([exerciseType, addedScore]) => {
+      const normalizedExerciseType = this.normalizeEstimatorId(exerciseType);
+      if (!normalizedExerciseType || normalizedExerciseType === totalKey) {
+        return;
+      }
+
+      const priorExerciseScore = this.toWholeNumber(
+        this.toNonNegativeNumber(nextScoreMap[normalizedExerciseType])
+      );
+      nextScoreMap[normalizedExerciseType] = priorExerciseScore + this.toWholeNumber(addedScore);
+    });
+
+    nextScoreMap[totalKey] = this.toWholeNumber(this.sumScoreEntries(nextScoreMap, totalKey));
+    return nextScoreMap;
   }
 
   private getStrengthRows(session: WorkoutSessionPerformance): Array<Record<string, unknown>> {
@@ -730,6 +855,13 @@ export class UpdateScoreService {
     return 0;
   }
 
+  private toLocalDateKey(value: Date): string {
+    const year = value.getFullYear();
+    const month = `${value.getMonth() + 1}`.padStart(2, '0');
+    const day = `${value.getDate()}`.padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
   private toSexCode(value: unknown): number {
     if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
       return value;
@@ -822,11 +954,6 @@ export class UpdateScoreService {
       category,
       estimatorId
     );
-  }
-
-  private toFiniteNumber(value: unknown, fallback: number): number {
-    const parsed = Number(value);
-    return Number.isFinite(parsed) ? parsed : fallback;
   }
 
   private toNonNegativeNumber(value: unknown): number {

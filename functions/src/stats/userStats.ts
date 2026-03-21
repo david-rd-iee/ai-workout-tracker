@@ -15,6 +15,13 @@ interface WorkoutSession {
   workScore?: number;
 }
 
+interface UserScore {
+  cardioScore: Record<string, number>;
+  strengthScore: Record<string, number>;
+  totalScore: number;
+  maxAddedScoreWithinDay: number;
+}
+
 function calculateUserLevelProgress(totalScore: unknown): {
   level: number;
   percentage_of_level: number;
@@ -57,68 +64,138 @@ function calculateWorkScore(session: WorkoutSession): number {
   return Math.round(score);
 }
 
+function normalizeUserScore(current: Record<string, any>): UserScore {
+  const userScore =
+    current?.userScore && typeof current.userScore === 'object'
+      ? current.userScore
+      : {};
+  const cardioScore = normalizeScoreMap(userScore.cardioScore ?? current?.cardioScore);
+  const strengthScore = normalizeScoreMap(
+    userScore.strengthScore ?? current?.strengthScore ?? current?.workScore
+  );
+  const derivedTotalScore =
+    resolveScoreTotal(cardioScore, 'totalCardioScore') +
+    resolveScoreTotal(strengthScore, 'totalStrengthScore');
+
+  return {
+    cardioScore: {
+      ...cardioScore,
+      totalCardioScore: resolveScoreTotal(cardioScore, 'totalCardioScore'),
+    },
+    strengthScore: {
+      ...strengthScore,
+      totalStrengthScore: resolveScoreTotal(strengthScore, 'totalStrengthScore'),
+    },
+    totalScore: toWholeNumber(userScore.totalScore ?? current?.totalScore, derivedTotalScore),
+    maxAddedScoreWithinDay: toWholeNumber(userScore.maxAddedScoreWithinDay),
+  };
+}
+
+function normalizeScoreMap(value: unknown): Record<string, number> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return {};
+  }
+
+  return Object.entries(value as Record<string, unknown>).reduce<Record<string, number>>(
+    (acc, [key, candidateValue]) => {
+      const parsed = Number(candidateValue);
+      if (Number.isFinite(parsed) && parsed >= 0) {
+        acc[key] = Math.round(parsed);
+      }
+      return acc;
+    },
+    {}
+  );
+}
+
+function resolveScoreTotal(scoreMap: Record<string, number>, totalKey: string): number {
+  const explicitTotal = toWholeNumber(scoreMap[totalKey]);
+  if (explicitTotal > 0) {
+    return explicitTotal;
+  }
+
+  return Object.entries(scoreMap).reduce((sum, [key, value]) => (
+    key === totalKey ? sum : sum + toWholeNumber(value)
+  ), 0);
+}
+
+function toWholeNumber(value: unknown, fallback = 0): number {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    return Math.max(0, Math.round(fallback));
+  }
+
+  return Math.round(parsed);
+}
+
+function toDateKey(value: Date): string {
+  const year = value.getFullYear();
+  const month = `${value.getMonth() + 1}`.padStart(2, '0');
+  const day = `${value.getDate()}`.padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 export const onWorkoutSessionCreate = onDocumentCreated('workoutSessions/{sessionId}', async (event) => {
   const session = event.data?.data() as WorkoutSession | undefined;
   if (!session || !session.userId) return;
 
   const userId = session.userId;
   const statsRef = admin.firestore().doc(`userStats/${userId}`);
-  const statsSnap = await statsRef.get();
-  const current = statsSnap.data() || {};
-  const currentCardioTotal = Number(
-    current?.cardioScore?.totalCardioScore ??
-    current?.cardioWorkScore ??
-    current?.cardio_work_score ??
-    0
-  ) || 0;
-  const currentStrengthTotal = Number(
-    current?.strengthScore?.totalStrengthScore ??
-    current?.workScore?.totalStrengthScore ??
-    current?.strengthWorkScore ??
-    current?.strength_work_score ??
-    0
-  ) || 0;
-  
-  // Calculate work score for this session
+  const currentDate = toDateKey(new Date());
+  const addedScoreRef = statsRef.collection('addedScore').doc(currentDate);
   const workScore = calculateWorkScore(session);
+  const addedCardioScore = session.workoutType === 'cardio' ? workScore : 0;
+  const addedStrengthScore = session.workoutType === 'strength' ? workScore : 0;
 
-  let nextCardioTotal = currentCardioTotal;
-  let nextStrengthTotal = currentStrengthTotal;
+  await admin.firestore().runTransaction(async (transaction) => {
+    const [statsSnap, addedScoreSnap] = await Promise.all([
+      transaction.get(statsRef),
+      transaction.get(addedScoreRef),
+    ]);
+    const current = (statsSnap.data() || {}) as Record<string, any>;
+    const currentUserScore = normalizeUserScore(current);
+    const nextCardioTotal = currentUserScore.cardioScore.totalCardioScore + addedCardioScore;
+    const nextStrengthTotal = currentUserScore.strengthScore.totalStrengthScore + addedStrengthScore;
+    const totalScore = nextCardioTotal + nextStrengthTotal;
+    const levelProgress = calculateUserLevelProgress(totalScore);
+    const currentAddedScore = (addedScoreSnap.data() || {}) as Record<string, any>;
+    const cardioScoreAddedToday =
+      toWholeNumber(currentAddedScore.cardioScoreAddedToday) + addedCardioScore;
+    const strengthScoreAddedToday =
+      toWholeNumber(currentAddedScore.strengthScoreAddedToday) + addedStrengthScore;
+    const totalScoreAddedToday = cardioScoreAddedToday + strengthScoreAddedToday;
+    const maxAddedScoreWithinDay = Math.max(
+      currentUserScore.maxAddedScoreWithinDay,
+      totalScoreAddedToday
+    );
 
-  if (session.workoutType === 'strength') {
-    nextStrengthTotal += workScore;
-  } else if (session.workoutType === 'cardio') {
-    nextCardioTotal += workScore;
-  }
+    transaction.set(statsRef, {
+      userScore: {
+        cardioScore: {
+          ...currentUserScore.cardioScore,
+          totalCardioScore: nextCardioTotal,
+        },
+        strengthScore: {
+          ...currentUserScore.strengthScore,
+          totalStrengthScore: nextStrengthTotal,
+        },
+        totalScore,
+        maxAddedScoreWithinDay,
+      },
+      cardioScore: admin.firestore.FieldValue.delete(),
+      strengthScore: admin.firestore.FieldValue.delete(),
+      totalScore: admin.firestore.FieldValue.delete(),
+      workScore: admin.firestore.FieldValue.delete(),
+      ...levelProgress,
+      lastUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    }, { merge: true });
 
-  const existingCardioMap =
-    typeof current?.cardioScore === 'object' && current?.cardioScore !== null
-      ? current.cardioScore
-      : {};
-  const existingStrengthMap =
-    typeof current?.strengthScore === 'object' && current?.strengthScore !== null
-      ? current.strengthScore
-      : typeof current?.workScore === 'object' && current?.workScore !== null
-      ? current.workScore
-      : {};
-  const totalScore = nextCardioTotal + nextStrengthTotal;
-  const levelProgress = calculateUserLevelProgress(totalScore);
-
-  // Prepare updates
-  const updates: Record<string, any> = {
-    cardioScore: {
-      ...existingCardioMap,
-      totalCardioScore: nextCardioTotal,
-    },
-    strengthScore: {
-      ...existingStrengthMap,
-      totalStrengthScore: nextStrengthTotal,
-    },
-    totalScore,
-    ...levelProgress,
-    lastUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
-  };
-
-  // Update the document
-  await statsRef.set(updates, { merge: true });
+    transaction.set(addedScoreRef, {
+      date: currentDate,
+      cardioScoreAddedToday,
+      strengthScoreAddedToday,
+      totalScoreAddedToday,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    }, { merge: true });
+  });
 });
