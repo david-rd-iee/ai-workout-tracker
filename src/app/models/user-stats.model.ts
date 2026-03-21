@@ -37,6 +37,11 @@ export interface StreakData {
   lastLoggedDay?: string;
 }
 
+export interface EarlyMorningWorkoutsTracker {
+  dateLastUpdated?: string;
+  earlyMorningWorkoutNumber: number;
+}
+
 export interface UserStats {
   userId: string;
 
@@ -52,6 +57,7 @@ export interface UserStats {
   level?: number;
   percentage_of_level?: number;
   streakData?: StreakData;
+  earlymorningWorkoutsTracker: EarlyMorningWorkoutsTracker;
 
   region?: Region;
   displayName?: string; // optional but nice for UI
@@ -138,6 +144,22 @@ export function normalizeStreakData(
   };
 }
 
+export function normalizeEarlyMorningWorkoutsTracker(
+  value: unknown
+): EarlyMorningWorkoutsTracker {
+  const tracker = value && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {};
+  const dateLastUpdated = normalizeDateKey(tracker['dateLastUpdated']);
+
+  return {
+    earlyMorningWorkoutNumber: toNonNegativeInteger(
+      tracker['earlyMorningWorkoutNumber']
+    ),
+    ...(dateLastUpdated ? { dateLastUpdated } : {}),
+  };
+}
+
 function toNonNegativeInteger(value: unknown): number {
   const parsed = Number(value);
   if (!Number.isFinite(parsed) || parsed < 0) {
@@ -207,4 +229,9 @@ function toWholeNumber(value: unknown, fallback = 0): number {
   }
 
   return Math.round(parsed);
+}
+
+function normalizeDateKey(value: unknown): string | undefined {
+  const trimmed = typeof value === 'string' ? value.trim() : '';
+  return /^\d{4}-\d{2}-\d{2}$/.test(trimmed) ? trimmed : undefined;
 }

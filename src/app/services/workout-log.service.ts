@@ -18,7 +18,12 @@ import {
   WorkoutSessionPerformance,
   WorkoutTrainingRow,
 } from '../models/workout-session.model';
-import { normalizeStreakData, StreakData } from '../models/user-stats.model';
+import {
+  EarlyMorningWorkoutsTracker,
+  normalizeEarlyMorningWorkoutsTracker,
+  normalizeStreakData,
+  StreakData,
+} from '../models/user-stats.model';
 import { ChatsService } from './chats.service';
 import { UpdateScoreResult, UpdateScoreService } from './update-score.service';
 
@@ -32,6 +37,7 @@ export interface StreakUpdateResult {
 
 export interface SaveCompletedWorkoutResult {
   workoutLogRef: DocumentReference<DocumentData>;
+  loggedAt: Date;
   scoreUpdate: UpdateScoreResult | null;
   streakUpdate: StreakUpdateResult;
 }
@@ -79,6 +85,7 @@ export class WorkoutLogService {
     const trainerNotes = session.trainer_notes ?? session.notes ?? '';
     const totalVolume = this.calculateTotalVolume(normalizedTrainingRows);
     const trainerUid = await this.resolveCurrentTrainerUid(user.uid);
+    const loggedAt = new Date();
     const submittedSession: WorkoutSessionPerformance = {
       ...session,
       trainingRows: normalizedTrainingRows,
@@ -103,7 +110,7 @@ export class WorkoutLogService {
       persistedStrengthTrainingRow,
       persistedCardioTrainingRow,
       otherTrainingRow,
-      loggedAt: new Date(),
+      loggedAt,
     });
 
     let scoreUpdate: UpdateScoreResult | null = null;
@@ -135,11 +142,13 @@ export class WorkoutLogService {
         trainingRows: normalizedTrainingRows,
         estimatedCalories,
         trainerNotes,
+        loggedAt,
       });
     }
 
     return {
       workoutLogRef,
+      loggedAt,
       scoreUpdate,
       streakUpdate,
     };
@@ -203,6 +212,7 @@ export class WorkoutLogService {
     trainingRows: WorkoutTrainingRow[];
     estimatedCalories: number;
     trainerNotes: string;
+    loggedAt: Date;
   }): Promise<void> {
     const chatId = await this.chatsService.findOrCreateDirectChat(
       params.clientUid,
@@ -213,7 +223,7 @@ export class WorkoutLogService {
       params.trainingRows,
       params.estimatedCalories,
       params.trainerNotes,
-      new Date()
+      params.loggedAt
     );
 
     await this.chatsService.sendMessage(chatId, params.clientUid, messageText);
@@ -332,6 +342,13 @@ export class WorkoutLogService {
         currentUserStats['maxStreak']
       );
       const nextStreakData = this.calculateNextStreakData(currentStreakData, loggedDay);
+      const currentEarlyMorningWorkoutsTracker = normalizeEarlyMorningWorkoutsTracker(
+        currentUserStats['earlymorningWorkoutsTracker']
+      );
+      const nextEarlyMorningWorkoutsTracker = this.calculateNextEarlyMorningWorkoutsTracker(
+        currentEarlyMorningWorkoutsTracker,
+        params.loggedAt
+      );
 
       transaction.set(params.workoutLogRef, {
         createdAt: serverTimestamp(),
@@ -346,6 +363,7 @@ export class WorkoutLogService {
         {
           userId: params.userId,
           streakData: nextStreakData,
+          earlymorningWorkoutsTracker: nextEarlyMorningWorkoutsTracker,
           updatedAt: serverTimestamp(),
         },
         { merge: true }
@@ -392,6 +410,29 @@ export class WorkoutLogService {
       currentStreak: nextStreakData.currentStreak,
       previousMaxStreak: currentStreakData.maxStreak,
       maxStreak: nextStreakData.maxStreak,
+    };
+  }
+
+  private calculateNextEarlyMorningWorkoutsTracker(
+    currentTracker: EarlyMorningWorkoutsTracker,
+    loggedAt: Date
+  ): EarlyMorningWorkoutsTracker {
+    if (!(loggedAt instanceof Date) || !Number.isFinite(loggedAt.getTime())) {
+      return { ...currentTracker };
+    }
+
+    if (loggedAt.getHours() >= 7) {
+      return { ...currentTracker };
+    }
+
+    const loggedDay = this.toLocalDateKey(loggedAt);
+    if (currentTracker.dateLastUpdated === loggedDay) {
+      return { ...currentTracker };
+    }
+
+    return {
+      dateLastUpdated: loggedDay,
+      earlyMorningWorkoutNumber: currentTracker.earlyMorningWorkoutNumber + 1,
     };
   }
 

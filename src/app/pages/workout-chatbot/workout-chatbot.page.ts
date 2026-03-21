@@ -219,10 +219,9 @@ export class WorkoutChatbotPage implements OnInit, OnDestroy {
 
     this.isSavingWorkout = true;
     try {
-      const loggedAt = new Date().toISOString();
       const saveResult = await this.workoutLogService.saveCompletedWorkout(this.session);
       this.hasSavedWorkout = true;
-      this.savedWorkoutLoggedAt = loggedAt;
+      this.savedWorkoutLoggedAt = saveResult.loggedAt.toISOString();
       if (saveResult.streakUpdate.kind !== 'unchanged') {
         await this.showStreakUpdateAlert(saveResult.streakUpdate);
       }

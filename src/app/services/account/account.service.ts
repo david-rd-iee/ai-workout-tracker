@@ -10,6 +10,7 @@ import { Firestore, deleteField, doc, getDoc, setDoc, serverTimestamp } from '@a
 import { GroupService } from '../group.service';
 import {
   calculateUserLevelProgress,
+  normalizeEarlyMorningWorkoutsTracker,
   normalizeStreakData,
   normalizeUserScore,
 } from '../../models/user-stats.model';
@@ -109,6 +110,7 @@ export class AccountService {
         },
         ...levelProgress,
         streakData: normalizeStreakData(undefined),
+        earlymorningWorkoutsTracker: normalizeEarlyMorningWorkoutsTracker(undefined),
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
@@ -148,6 +150,9 @@ export class AccountService {
       current?.currentStreak,
       current?.maxStreak
     );
+    const earlymorningWorkoutsTracker = normalizeEarlyMorningWorkoutsTracker(
+      current?.earlymorningWorkoutsTracker
+    );
     const hasExpectedEffortMap =
       typeof current?.Expected_Effort === 'object' &&
       current?.Expected_Effort !== null &&
@@ -165,6 +170,17 @@ export class AccountService {
       Number(rawStreakData['maxStreak']) === streakData.maxStreak &&
       String(rawStreakData['lastLoggedDay'] ?? '').trim() ===
         String(streakData.lastLoggedDay ?? '').trim();
+    const rawEarlyMorningWorkoutsTracker =
+      typeof current?.earlymorningWorkoutsTracker === 'object' &&
+      current?.earlymorningWorkoutsTracker !== null
+        ? current.earlymorningWorkoutsTracker as Record<string, unknown>
+        : null;
+    const hasEarlyMorningWorkoutsTrackerMap =
+      rawEarlyMorningWorkoutsTracker !== null &&
+      Number(rawEarlyMorningWorkoutsTracker['earlyMorningWorkoutNumber']) ===
+        earlymorningWorkoutsTracker.earlyMorningWorkoutNumber &&
+      String(rawEarlyMorningWorkoutsTracker['dateLastUpdated'] ?? '').trim() ===
+        String(earlymorningWorkoutsTracker.dateLastUpdated ?? '').trim();
     const hasLegacyExpectedStrengthScores =
       typeof current?.expected_strength_scores === 'object' &&
       current?.expected_strength_scores !== null;
@@ -187,6 +203,7 @@ export class AccountService {
       !hasStrengthTotal ||
       !hasExpectedEffortMap ||
       !hasStreakDataMap ||
+      !hasEarlyMorningWorkoutsTrackerMap ||
       hasLegacyTopLevelScores ||
       hasLegacyExpectedStrengthScores ||
       totalNeedsUpdate ||
@@ -202,6 +219,7 @@ export class AccountService {
           },
           Expected_Effort: expectedEffort,
           streakData,
+          earlymorningWorkoutsTracker,
           cardioScore: deleteField(),
           strengthScore: deleteField(),
           totalScore: deleteField(),

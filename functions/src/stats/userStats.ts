@@ -4,6 +4,9 @@ import { onDocumentCreated } from 'firebase-functions/v2/firestore';
 interface WorkoutSession {
   userId: string;
   workoutType: 'strength' | 'cardio';
+  loggedAt?: unknown;
+  timeZone?: string;
+  timezone?: string;
   exercises: Array<{
     sets?: number;
     reps?: number;
@@ -20,6 +23,11 @@ interface UserScore {
   strengthScore: Record<string, number>;
   totalScore: number;
   maxAddedScoreWithinDay: number;
+}
+
+interface EarlyMorningWorkoutsTracker {
+  dateLastUpdated?: string;
+  earlyMorningWorkoutNumber: number;
 }
 
 function calculateUserLevelProgress(totalScore: unknown): {
@@ -91,6 +99,20 @@ function normalizeUserScore(current: Record<string, any>): UserScore {
   };
 }
 
+function normalizeEarlyMorningWorkoutsTracker(
+  value: unknown
+): EarlyMorningWorkoutsTracker {
+  const tracker = value && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {};
+  const dateLastUpdated = normalizeDateKey(tracker.dateLastUpdated);
+
+  return {
+    earlyMorningWorkoutNumber: toWholeNumber(tracker.earlyMorningWorkoutNumber),
+    ...(dateLastUpdated ? { dateLastUpdated } : {}),
+  };
+}
+
 function normalizeScoreMap(value: unknown): Record<string, number> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     return {};
@@ -135,6 +157,96 @@ function toDateKey(value: Date): string {
   return `${year}-${month}-${day}`;
 }
 
+function normalizeDateKey(value: unknown): string | undefined {
+  const trimmed = typeof value === 'string' ? value.trim() : '';
+  return /^\d{4}-\d{2}-\d{2}$/.test(trimmed) ? trimmed : undefined;
+}
+
+function resolveSessionLoggedAt(value: unknown): Date | null {
+  if (value instanceof Date && Number.isFinite(value.getTime())) {
+    return value;
+  }
+
+  if (value && typeof value === 'object' && typeof (value as {toDate?: unknown}).toDate === 'function') {
+    const loggedAt = (value as {toDate: () => Date}).toDate();
+    return loggedAt instanceof Date && Number.isFinite(loggedAt.getTime())
+      ? loggedAt
+      : null;
+  }
+
+  if (typeof value === 'string' || typeof value === 'number') {
+    const loggedAt = new Date(value);
+    return Number.isFinite(loggedAt.getTime()) ? loggedAt : null;
+  }
+
+  return null;
+}
+
+function resolveSessionLocalDateContext(
+  session: WorkoutSession
+): { dateKey: string; hour: number } | null {
+  const loggedAt = resolveSessionLoggedAt(session.loggedAt);
+  const timeZone = typeof session.timeZone === 'string'
+    ? session.timeZone.trim()
+    : typeof session.timezone === 'string'
+      ? session.timezone.trim()
+      : '';
+
+  if (!loggedAt || !timeZone) {
+    return null;
+  }
+
+  try {
+    const parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      hourCycle: 'h23',
+    }).formatToParts(loggedAt);
+    const year = parts.find((part) => part.type === 'year')?.value ?? '';
+    const month = parts.find((part) => part.type === 'month')?.value ?? '';
+    const day = parts.find((part) => part.type === 'day')?.value ?? '';
+    const hour = Number(parts.find((part) => part.type === 'hour')?.value ?? NaN);
+    const dateKey = normalizeDateKey(`${year}-${month}-${day}`);
+
+    if (!dateKey || !Number.isFinite(hour)) {
+      return null;
+    }
+
+    return {
+      dateKey,
+      hour,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function calculateNextEarlyMorningWorkoutsTracker(
+  current: Record<string, any>,
+  session: WorkoutSession
+): EarlyMorningWorkoutsTracker {
+  const tracker = normalizeEarlyMorningWorkoutsTracker(
+    current.earlymorningWorkoutsTracker
+  );
+  const localDateContext = resolveSessionLocalDateContext(session);
+
+  if (!localDateContext || localDateContext.hour >= 7) {
+    return tracker;
+  }
+
+  if (tracker.dateLastUpdated === localDateContext.dateKey) {
+    return tracker;
+  }
+
+  return {
+    dateLastUpdated: localDateContext.dateKey,
+    earlyMorningWorkoutNumber: tracker.earlyMorningWorkoutNumber + 1,
+  };
+}
+
 export const onWorkoutSessionCreate = onDocumentCreated('workoutSessions/{sessionId}', async (event) => {
   const session = event.data?.data() as WorkoutSession | undefined;
   if (!session || !session.userId) return;
@@ -168,6 +280,10 @@ export const onWorkoutSessionCreate = onDocumentCreated('workoutSessions/{sessio
       currentUserScore.maxAddedScoreWithinDay,
       totalScoreAddedToday
     );
+    const earlymorningWorkoutsTracker = calculateNextEarlyMorningWorkoutsTracker(
+      current,
+      session
+    );
 
     transaction.set(statsRef, {
       userScore: {
@@ -186,6 +302,7 @@ export const onWorkoutSessionCreate = onDocumentCreated('workoutSessions/{sessio
       strengthScore: admin.firestore.FieldValue.delete(),
       totalScore: admin.firestore.FieldValue.delete(),
       workScore: admin.firestore.FieldValue.delete(),
+      earlymorningWorkoutsTracker,
       ...levelProgress,
       lastUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
     }, { merge: true });
