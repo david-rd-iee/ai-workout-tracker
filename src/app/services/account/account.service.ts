@@ -11,6 +11,7 @@ import { GroupService } from '../group.service';
 import {
   calculateUserLevelProgress,
   normalizeEarlyMorningWorkoutsTracker,
+  normalizeGroupRankings,
   normalizeStreakData,
   normalizeUserScore,
 } from '../../models/user-stats.model';
@@ -111,6 +112,7 @@ export class AccountService {
         ...levelProgress,
         streakData: normalizeStreakData(undefined),
         earlymorningWorkoutsTracker: normalizeEarlyMorningWorkoutsTracker(undefined),
+        groupRankings: normalizeGroupRankings(undefined),
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
@@ -153,6 +155,7 @@ export class AccountService {
     const earlymorningWorkoutsTracker = normalizeEarlyMorningWorkoutsTracker(
       current?.earlymorningWorkoutsTracker
     );
+    const groupRankings = normalizeGroupRankings(current?.groupRankings);
     const hasExpectedEffortMap =
       typeof current?.Expected_Effort === 'object' &&
       current?.Expected_Effort !== null &&
@@ -184,6 +187,18 @@ export class AccountService {
     const hasLegacyExpectedStrengthScores =
       typeof current?.expected_strength_scores === 'object' &&
       current?.expected_strength_scores !== null;
+    const rawGroupRankings =
+      typeof current?.groupRankings === 'object' &&
+      current?.groupRankings !== null &&
+      !Array.isArray(current?.groupRankings)
+        ? current.groupRankings as Record<string, unknown>
+        : null;
+    const hasGroupRankingsMap =
+      rawGroupRankings !== null &&
+      Object.keys(rawGroupRankings).length === Object.keys(groupRankings).length &&
+      Object.entries(groupRankings).every(
+        ([groupId, ranking]) => rawGroupRankings[groupId] === ranking
+      );
     const hasLegacyTopLevelScores =
       Object.prototype.hasOwnProperty.call(current ?? {}, 'cardioScore') ||
       Object.prototype.hasOwnProperty.call(current ?? {}, 'strengthScore') ||
@@ -204,6 +219,7 @@ export class AccountService {
       !hasExpectedEffortMap ||
       !hasStreakDataMap ||
       !hasEarlyMorningWorkoutsTrackerMap ||
+      !hasGroupRankingsMap ||
       hasLegacyTopLevelScores ||
       hasLegacyExpectedStrengthScores ||
       totalNeedsUpdate ||
@@ -220,6 +236,7 @@ export class AccountService {
           Expected_Effort: expectedEffort,
           streakData,
           earlymorningWorkoutsTracker,
+          groupRankings,
           cardioScore: deleteField(),
           strengthScore: deleteField(),
           totalScore: deleteField(),

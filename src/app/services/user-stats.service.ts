@@ -7,6 +7,7 @@ import {
   UserStats,
   calculateUserLevelProgress,
   normalizeEarlyMorningWorkoutsTracker,
+  normalizeGroupRankings,
   normalizeStreakData,
   normalizeUserScore,
 } from '../models/user-stats.model';
@@ -127,6 +128,7 @@ export class UserStatsService {
       ...levelProgress,
       streakData: normalizeStreakData(undefined),
       earlymorningWorkoutsTracker: normalizeEarlyMorningWorkoutsTracker(undefined),
+      groupRankings: normalizeGroupRankings(undefined),
       region,
     };
 
@@ -232,6 +234,9 @@ export class UserStatsService {
       earlymorningWorkoutsTracker: userStats.earlymorningWorkoutsTracker
         ? { ...userStats.earlymorningWorkoutsTracker }
         : normalizeEarlyMorningWorkoutsTracker(undefined),
+      groupRankings: userStats.groupRankings
+        ? { ...userStats.groupRankings }
+        : undefined,
       region: userStats.region ? { ...userStats.region } : undefined,
     };
   }
@@ -256,6 +261,7 @@ export class UserStatsService {
       earlymorningWorkoutsTracker: normalizeEarlyMorningWorkoutsTracker(
         rawUserStats.earlymorningWorkoutsTracker
       ),
+      groupRankings: normalizeGroupRankings(rawUserStats.groupRankings),
     };
   }
 }

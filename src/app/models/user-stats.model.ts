@@ -42,6 +42,12 @@ export interface EarlyMorningWorkoutsTracker {
   earlyMorningWorkoutNumber: number;
 }
 
+export interface GroupRankingsMap {
+  totalNumberOfMembers: number;
+  lastUpdated?: string;
+  [key: string]: number | string | undefined;
+}
+
 export interface UserStats {
   userId: string;
 
@@ -58,6 +64,7 @@ export interface UserStats {
   percentage_of_level?: number;
   streakData?: StreakData;
   earlymorningWorkoutsTracker: EarlyMorningWorkoutsTracker;
+  groupRankings?: GroupRankingsMap;
 
   region?: Region;
   displayName?: string; // optional but nice for UI
@@ -160,6 +167,45 @@ export function normalizeEarlyMorningWorkoutsTracker(
   };
 }
 
+export function normalizeGroupRankings(value: unknown): GroupRankingsMap {
+  const normalized: GroupRankingsMap = {
+    totalNumberOfMembers: 0,
+  };
+
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return normalized;
+  }
+
+  const rankings = value as Record<string, unknown>;
+  normalized.totalNumberOfMembers = toNonNegativeInteger(
+    rankings['totalNumberOfMembers']
+  );
+  const lastUpdated = normalizeTimestampString(rankings['lastUpdated']);
+  if (lastUpdated) {
+    normalized.lastUpdated = lastUpdated;
+  }
+
+  Object.entries(rankings).forEach(([groupId, candidateValue]) => {
+    const normalizedGroupId = groupId.trim();
+    if (
+      !normalizedGroupId ||
+      normalizedGroupId === 'totalNumberOfMembers' ||
+      normalizedGroupId === 'lastUpdated'
+    ) {
+      return;
+    }
+
+    const parsed = Number(candidateValue);
+    if (!Number.isFinite(parsed) || parsed < 0) {
+      return;
+    }
+
+    normalized[normalizedGroupId] = parsed;
+  });
+
+  return normalized;
+}
+
 function toNonNegativeInteger(value: unknown): number {
   const parsed = Number(value);
   if (!Number.isFinite(parsed) || parsed < 0) {
@@ -234,4 +280,28 @@ function toWholeNumber(value: unknown, fallback = 0): number {
 function normalizeDateKey(value: unknown): string | undefined {
   const trimmed = typeof value === 'string' ? value.trim() : '';
   return /^\d{4}-\d{2}-\d{2}$/.test(trimmed) ? trimmed : undefined;
+}
+
+function normalizeTimestampString(value: unknown): string | undefined {
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    return trimmed || undefined;
+  }
+
+  if (value instanceof Date && Number.isFinite(value.getTime())) {
+    return value.toISOString();
+  }
+
+  if (
+    value &&
+    typeof value === 'object' &&
+    typeof (value as { toDate?: unknown }).toDate === 'function'
+  ) {
+    const timestampDate = (value as { toDate: () => Date }).toDate();
+    if (timestampDate instanceof Date && Number.isFinite(timestampDate.getTime())) {
+      return timestampDate.toISOString();
+    }
+  }
+
+  return undefined;
 }

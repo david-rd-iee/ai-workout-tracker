@@ -10,6 +10,7 @@ import {
   serverTimestamp,
   setDoc,
 } from '@angular/fire/firestore';
+import type { Transaction } from 'firebase/firestore';
 import { WorkoutSessionPerformance } from '../models/workout-session.model';
 import {
   EXERCISE_ESTIMATOR_CARDIO_CATEGORY,
@@ -21,7 +22,11 @@ import {
   ExerciseEstimatorCoefficientMap,
   ExerciseEstimatorModel,
 } from '../models/exercise-estimators.model';
-import { calculateUserLevelProgress, normalizeUserScore } from '../models/user-stats.model';
+import {
+  GroupRankingsMap,
+  calculateUserLevelProgress,
+  normalizeUserScore,
+} from '../models/user-stats.model';
 
 interface EstimatorDoc {
   exists: boolean;
@@ -78,6 +83,7 @@ export class UpdateScoreService {
     const userDocData = userSnap.exists()
       ? (userSnap.data() as Record<string, unknown>)
       : {};
+    const userGroupIds = this.normalizeStringArray(userDocData['groupID']);
 
     const userAge = this.toNonNegativeNumber(current['age']);
     const userBmi = this.toNonNegativeNumber(current['bmi']);
@@ -351,6 +357,11 @@ export class UpdateScoreService {
       const newStrengthScore = this.resolveScoreTotal(nextStrengthMap, 'totalStrengthScore');
       const nextTotalScore = this.toWholeNumber(newCardioScore + newStrengthScore);
       const levelProgress = calculateUserLevelProgress(nextTotalScore);
+      const nextGroupRankings = await this.calculateGroupRankings(transaction, {
+        userId,
+        nextTotalScore,
+        userGroupIds,
+      });
       const currentAddedScore = addedScoreSnap.exists()
         ? (addedScoreSnap.data() as Record<string, unknown>)
         : {};
@@ -389,6 +400,16 @@ export class UpdateScoreService {
         { merge: true }
       );
       transaction.set(
+        statsRef,
+        {
+          groupRankings: {
+            ...nextGroupRankings,
+            lastUpdated: new Date().toISOString(),
+          },
+        },
+        { mergeFields: ['groupRankings'] }
+      );
+      transaction.set(
         addedScoreRef,
         {
           date: currentDate,
@@ -421,6 +442,105 @@ export class UpdateScoreService {
         })
       ),
     };
+  }
+
+  private async calculateGroupRankings(
+    transaction: Transaction,
+    params: {
+      userId: string;
+      nextTotalScore: number;
+      userGroupIds: string[];
+    }
+  ): Promise<GroupRankingsMap> {
+    const groupRankings: GroupRankingsMap = {
+      totalNumberOfMembers: 0,
+    };
+    const groupIds = this.normalizeStringArray(params.userGroupIds);
+    if (groupIds.length === 0) {
+      return groupRankings;
+    }
+
+    const groupSnaps = await Promise.all(
+      groupIds.map((groupId) => transaction.get(doc(this.firestore, 'groupID', groupId)))
+    );
+    const validGroups = new Map<string, string[]>();
+    const memberIdsToLoad = new Set<string>();
+
+    groupSnaps.forEach((groupSnap, index) => {
+      if (!groupSnap.exists()) {
+        return;
+      }
+
+      const groupId = groupIds[index];
+      const groupData = groupSnap.data() as Record<string, unknown>;
+      const memberIds = this.normalizeStringArray(groupData['userIDs']);
+      if (memberIds.length <= 1 || !memberIds.includes(params.userId)) {
+        return;
+      }
+
+      validGroups.set(groupId, memberIds);
+      memberIds.forEach((memberId) => {
+        if (memberId !== params.userId) {
+          memberIdsToLoad.add(memberId);
+        }
+      });
+    });
+
+    if (validGroups.size === 0) {
+      return groupRankings;
+    }
+
+    const otherMemberIds = Array.from(memberIdsToLoad);
+    const otherMemberStatSnaps = await Promise.all(
+      otherMemberIds.map((memberId) =>
+        transaction.get(doc(this.firestore, 'userStats', memberId))
+      )
+    );
+    const scoreByUserId = new Map<string, number>([[params.userId, params.nextTotalScore]]);
+
+    otherMemberStatSnaps.forEach((memberStatsSnap, index) => {
+      const memberId = otherMemberIds[index];
+      const memberStats = memberStatsSnap.exists()
+        ? (memberStatsSnap.data() as Record<string, unknown>)
+        : {};
+      const memberUserScore = normalizeUserScore(
+        memberStats['userScore'],
+        memberStats['cardioScore'],
+        memberStats['strengthScore'],
+        memberStats['totalScore'],
+        memberStats['workScore']
+      );
+      scoreByUserId.set(memberId, this.toWholeNumber(memberUserScore.totalScore));
+    });
+
+    Array.from(validGroups.entries()).forEach(([groupId, memberIds]) => {
+      const rankedMembers = memberIds
+        .map((memberId, originalIndex) => ({
+          memberId,
+          originalIndex,
+          totalScore: this.toWholeNumber(scoreByUserId.get(memberId) ?? 0),
+        }))
+        .sort((left, right) => {
+          if (right.totalScore !== left.totalScore) {
+            return right.totalScore - left.totalScore;
+          }
+          return left.originalIndex - right.originalIndex;
+        });
+      const userIndex = rankedMembers.findIndex(
+        (member) => member.memberId === params.userId
+      );
+
+      if (userIndex === -1 || rankedMembers.length <= 1) {
+        return;
+      }
+
+      const totalNumberOfMembers = rankedMembers.length;
+      const userRank = userIndex + 1;
+      groupRankings[groupId] = totalNumberOfMembers - userRank;
+      groupRankings.totalNumberOfMembers += totalNumberOfMembers;
+    });
+
+    return groupRankings;
   }
 
   private trackExerciseScoreDelta(
@@ -936,6 +1056,20 @@ export class UpdateScoreService {
     }
 
     return [];
+  }
+
+  private normalizeStringArray(value: unknown): string[] {
+    if (!Array.isArray(value)) {
+      return [];
+    }
+
+    return Array.from(
+      new Set(
+        value
+          .map((entry) => String(entry ?? '').trim())
+          .filter((entry) => entry.length > 0)
+      )
+    );
   }
 
   private normalizeEstimatorId(rawId: string): string {
