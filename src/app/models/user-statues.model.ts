@@ -2,7 +2,7 @@
 import { Timestamp } from '@angular/fire/firestore';
 
 /**
- * Stored in Firestore in: /userStatues/{userId}
+ * Stored in Firestore in: /userStats/{userId}/Badges/userBadges
  *
  * - `values`       = how far the user has progressed on carving each statue
  * - `percentiles`  = (optional) percentile ranking for each statue

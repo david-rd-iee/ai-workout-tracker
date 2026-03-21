@@ -14,6 +14,10 @@ interface CacheEntry<T> {
 })
 export class UserBadgesService {
   private static readonly CACHE_TTL_MS = 5 * 60 * 1000;
+  private static readonly LEGACY_USER_BADGES_COLLECTION = 'userBadges';
+  private static readonly USER_STATS_COLLECTION = 'userStats';
+  private static readonly USER_BADGES_SUBCOLLECTION = 'Badges';
+  private static readonly USER_BADGES_DOC_ID = 'userBadges';
 
   private userBadgesCache = new Map<string, CacheEntry<UserBadgesDoc | null>>();
   private userBadgesPromiseCache = new Map<string, Promise<UserBadgesDoc | null>>();
@@ -95,16 +99,26 @@ export class UserBadgesService {
       return () => undefined;
     }
 
-    const badgeRef = doc(this.firestore, 'userBadges', normalizedUserId);
+    const badgeRef = this.getUserBadgesDocRef(normalizedUserId);
     return onSnapshot(
       badgeRef,
-      (snapshot) => {
+      async (snapshot) => {
         if (!snapshot.exists()) {
-          this.setCachedUserBadges(normalizedUserId, null);
-          if (this.currentUserId === normalizedUserId) {
-            this.currentUserBadges.set(null);
+          const legacyUserBadges = await this.loadLegacyUserBadges(normalizedUserId);
+          if (!legacyUserBadges) {
+            this.setCachedUserBadges(normalizedUserId, null);
+            if (this.currentUserId === normalizedUserId) {
+              this.currentUserBadges.set(null);
+            }
+            observer(null);
+            return;
           }
-          observer(null);
+
+          this.setCachedUserBadges(normalizedUserId, legacyUserBadges);
+          if (this.currentUserId === normalizedUserId) {
+            this.currentUserBadges.set(this.cloneUserBadges(legacyUserBadges));
+          }
+          observer(this.cloneUserBadges(legacyUserBadges));
           return;
         }
 
@@ -150,14 +164,11 @@ export class UserBadgesService {
       )
     );
 
-    const badgeRef = doc(this.firestore, 'userBadges', normalizedUserId);
-    await setDoc(
-      badgeRef,
+    await this.saveUserBadgesDoc(
+      normalizedUserId,
       {
         displayStatueIds: sanitizedDisplayIds,
-        updatedAt: serverTimestamp(),
       },
-      { merge: true }
     );
 
     const cachedUserBadges =
@@ -197,9 +208,9 @@ export class UserBadgesService {
 
   private async loadUserBadges(userId: string): Promise<UserBadgesDoc | null> {
     try {
-      const badgeSnap = await getDoc(doc(this.firestore, 'userBadges', userId));
+      const badgeSnap = await getDoc(this.getUserBadgesDocRef(userId));
       if (!badgeSnap.exists()) {
-        return null;
+        return this.loadLegacyUserBadges(userId);
       }
 
       return {
@@ -217,6 +228,54 @@ export class UserBadgesService {
       fetchedAt: Date.now(),
       value: this.cloneUserBadges(userBadges),
     });
+  }
+
+  private async loadLegacyUserBadges(userId: string): Promise<UserBadgesDoc | null> {
+    const legacyBadgeSnap = await getDoc(this.getLegacyUserBadgesDocRef(userId));
+    if (!legacyBadgeSnap.exists()) {
+      return null;
+    }
+
+    const legacyUserBadges: UserBadgesDoc = {
+      userId,
+      ...(legacyBadgeSnap.data() as Omit<UserBadgesDoc, 'userId'>),
+    };
+
+    try {
+      await this.saveUserBadgesDoc(userId, legacyUserBadges);
+    } catch (error) {
+      console.warn('[UserBadgesService] Failed to migrate legacy userBadges:', error);
+    }
+    return legacyUserBadges;
+  }
+
+  private async saveUserBadgesDoc(
+    userId: string,
+    userBadges: Partial<Omit<UserBadgesDoc, 'userId'>> | UserBadgesDoc
+  ): Promise<void> {
+    const { userId: _ignoredUserId, ...payload } = userBadges as Partial<UserBadgesDoc>;
+    await setDoc(
+      this.getUserBadgesDocRef(userId),
+      {
+        ...payload,
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true }
+    );
+  }
+
+  private getLegacyUserBadgesDocRef(userId: string) {
+    return doc(this.firestore, UserBadgesService.LEGACY_USER_BADGES_COLLECTION, userId);
+  }
+
+  private getUserBadgesDocRef(userId: string) {
+    return doc(
+      this.firestore,
+      UserBadgesService.USER_STATS_COLLECTION,
+      userId,
+      UserBadgesService.USER_BADGES_SUBCOLLECTION,
+      UserBadgesService.USER_BADGES_DOC_ID
+    );
   }
 
   private isFresh<T>(entry: CacheEntry<T> | undefined): entry is CacheEntry<T> {

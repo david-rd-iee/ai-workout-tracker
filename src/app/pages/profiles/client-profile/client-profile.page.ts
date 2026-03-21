@@ -41,11 +41,11 @@ import {
 } from '../../../interfaces/GreekStatue';
 import { StatueSelectorComponent } from '../../../components/statue-selector/statue-selector.component';
 import { GreekStatueComponent } from '../../../components/greek-statue/greek-statue.component';
+import { UserBadgesService } from '../../../services/user-badges.service';
 
 // Firestore + AppUser import
-import { Firestore, doc, getDoc, setDoc } from '@angular/fire/firestore';
+import { Firestore, doc, getDoc } from '@angular/fire/firestore';
 import { AppUser } from 'src/app/models/user.model';
-import { UserBadgesDoc } from 'src/app/models/user-badges.model';
 
 @Component({
   selector: 'app-client-profile',
@@ -137,6 +137,7 @@ export class ClientProfilePage implements OnInit {
     private modalCtrl: ModalController,
     private route: ActivatedRoute,
     private firestore: Firestore,
+    private userBadgesService: UserBadgesService,
   ) {
     addIcons({
       settingsOutline,
@@ -234,21 +235,18 @@ export class ClientProfilePage implements OnInit {
     }
   }
 
-  // Load statue carving progress from /userBadges/{userId}
+  // Load statue carving progress from /userStats/{userId}/Badges/userBadges
   private async loadGreekStatuesFromFirestore(userId: string): Promise<void> {
     try {
-      const badgeRef = doc(this.firestore, 'userBadges', userId);
-      const badgeSnap = await getDoc(badgeRef);
-
-      if (!badgeSnap.exists()) {
-        console.warn('[ClientProfilePage] No userBadges doc found; using empty statue list.');
+      const data = await this.userBadgesService.getUserBadges(userId);
+      if (!data) {
+        console.warn('[ClientProfilePage] No user badges doc found; using empty statue list.');
         this.allStatues = [];
         this.displayStatueIds = [];
         this.displayStatues = [];
         return;
       }
 
-      const data = badgeSnap.data() as UserBadgesDoc;
       const values = data.values || {};
       const percentiles = data.percentiles || {};
       // Support both old and new field names
@@ -396,13 +394,7 @@ export class ClientProfilePage implements OnInit {
     await loading.present();
 
     try {
-      const badgeRef = doc(this.firestore, 'userBadges', uid);
-      await setDoc(
-        badgeRef,
-        { displayStatueIds: this.displayStatueIds },
-        { merge: true }
-      );
-
+      await this.userBadgesService.saveDisplayStatues(uid, this.displayStatueIds);
       this.showToast('Display statues updated successfully');
     } catch (error) {
       console.error('Error updating display statues:', error);

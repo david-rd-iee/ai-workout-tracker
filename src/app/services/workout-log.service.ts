@@ -8,6 +8,7 @@ import {
   setDoc,
   collection,
   addDoc,
+  runTransaction,
   serverTimestamp,
 } from '@angular/fire/firestore';
 import { Auth } from '@angular/fire/auth';
@@ -17,6 +18,7 @@ import {
   WorkoutSessionPerformance,
   WorkoutTrainingRow,
 } from '../models/workout-session.model';
+import { normalizeStreakData, StreakData } from '../models/user-stats.model';
 import { ChatsService } from './chats.service';
 import { UpdateScoreResult, UpdateScoreService } from './update-score.service';
 
@@ -83,13 +85,16 @@ export class WorkoutLogService {
       exercises: this.rowsToLegacyExercises(normalizedTrainingRows),
     };
 
-    const workoutLogRef = await addDoc(workoutLogsRef, {
-      createdAt: serverTimestamp(),
-      calories: estimatedCalories,
-      notes: trainerNotes,
-      strengthTrainingRow: persistedStrengthTrainingRow,
-      cardioTrainingRow: persistedCardioTrainingRow,
+    const workoutLogRef = doc(workoutLogsRef);
+    await this.saveWorkoutLogAndUpdateStreak({
+      userId: user.uid,
+      workoutLogRef,
+      estimatedCalories,
+      trainerNotes,
+      persistedStrengthTrainingRow,
+      persistedCardioTrainingRow,
       otherTrainingRow,
+      loggedAt: new Date(),
     });
 
     let scoreUpdate: UpdateScoreResult | null = null;
@@ -291,6 +296,110 @@ export class WorkoutLogService {
     const clientData = clientDocSnap.exists() ? clientDocSnap.data() as Record<string, unknown> : null;
     const fromClientDoc = String(clientData?.['trainerId'] ?? '').trim();
     return fromClientDoc;
+  }
+
+  private async saveWorkoutLogAndUpdateStreak(params: {
+    userId: string;
+    workoutLogRef: DocumentReference<DocumentData>;
+    estimatedCalories: number;
+    trainerNotes: string;
+    persistedStrengthTrainingRow: WorkoutTrainingRow[];
+    persistedCardioTrainingRow: CardioTrainingRow[];
+    otherTrainingRow: Array<Record<string, unknown>>;
+    loggedAt: Date;
+  }): Promise<void> {
+    const loggedDay = this.toLocalDateKey(params.loggedAt);
+    const userStatsRef = doc(this.firestore, 'userStats', params.userId);
+
+    await runTransaction(this.firestore, async (transaction) => {
+      const userStatsSnap = await transaction.get(userStatsRef);
+      const currentUserStats = userStatsSnap.exists()
+        ? userStatsSnap.data() as Record<string, unknown>
+        : {};
+      const currentStreakData = normalizeStreakData(
+        currentUserStats['streakData'],
+        currentUserStats['currentStreak'],
+        currentUserStats['maxStreak']
+      );
+      const nextStreakData = this.calculateNextStreakData(currentStreakData, loggedDay);
+
+      transaction.set(params.workoutLogRef, {
+        createdAt: serverTimestamp(),
+        calories: params.estimatedCalories,
+        notes: params.trainerNotes,
+        strengthTrainingRow: params.persistedStrengthTrainingRow,
+        cardioTrainingRow: params.persistedCardioTrainingRow,
+        otherTrainingRow: params.otherTrainingRow,
+      });
+      transaction.set(
+        userStatsRef,
+        {
+          userId: params.userId,
+          streakData: nextStreakData,
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+    });
+  }
+
+  private calculateNextStreakData(currentStreakData: StreakData, loggedDay: string): StreakData {
+    if (currentStreakData.lastLoggedDay === loggedDay) {
+      return { ...currentStreakData };
+    }
+
+    const dayGap = this.calculateDayGap(currentStreakData.lastLoggedDay, loggedDay);
+    const nextCurrentStreak = dayGap === 1
+      ? currentStreakData.currentStreak + 1
+      : 1;
+
+    return {
+      currentStreak: nextCurrentStreak,
+      maxStreak: Math.max(currentStreakData.maxStreak, nextCurrentStreak),
+      lastLoggedDay: loggedDay,
+    };
+  }
+
+  private calculateDayGap(previousLoggedDay: string | undefined, currentLoggedDay: string): number | null {
+    const previousDate = this.parseLocalDayKey(previousLoggedDay);
+    const currentDate = this.parseLocalDayKey(currentLoggedDay);
+    if (!previousDate || !currentDate) {
+      return null;
+    }
+
+    return Math.round((currentDate.getTime() - previousDate.getTime()) / 86400000);
+  }
+
+  private parseLocalDayKey(value: string | undefined): Date | null {
+    if (!value) {
+      return null;
+    }
+
+    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value.trim());
+    if (!match) {
+      return null;
+    }
+
+    const year = Number(match[1]);
+    const monthIndex = Number(match[2]) - 1;
+    const day = Number(match[3]);
+    const parsed = new Date(year, monthIndex, day);
+    if (
+      parsed.getFullYear() !== year ||
+      parsed.getMonth() !== monthIndex ||
+      parsed.getDate() !== day
+    ) {
+      return null;
+    }
+
+    return parsed;
+  }
+
+  private toLocalDateKey(date: Date): string {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
   }
 
   private async resolveUserBodyweightKg(userId: string): Promise<number> {

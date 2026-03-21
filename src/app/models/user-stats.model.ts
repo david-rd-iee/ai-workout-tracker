@@ -24,6 +24,12 @@ export interface ExpectedEffortMap {
   Strength: ExpectedEffortCategoryMap;
 }
 
+export interface StreakData {
+  currentStreak: number;
+  maxStreak: number;
+  lastLoggedDay?: string;
+}
+
 export interface UserStats {
   userId: string;
 
@@ -40,6 +46,7 @@ export interface UserStats {
 
   level?: number;
   percentage_of_level?: number;
+  streakData?: StreakData;
 
   region?: Region;
   displayName?: string; // optional but nice for UI
@@ -62,4 +69,38 @@ export function calculateUserLevelProgress(totalScore: unknown): UserLevelProgre
     level: Math.floor(scaledLevelInHundredths / 100),
     percentage_of_level: scaledLevelInHundredths % 100,
   };
+}
+
+export function normalizeStreakData(
+  value: unknown,
+  legacyCurrentStreak?: unknown,
+  legacyMaxStreak?: unknown
+): StreakData {
+  const streakData = value && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {};
+  const currentStreak = toNonNegativeInteger(
+    streakData['currentStreak'] ?? legacyCurrentStreak
+  );
+  const rawMaxStreak = toNonNegativeInteger(
+    streakData['maxStreak'] ?? legacyMaxStreak
+  );
+  const lastLoggedDay = typeof streakData['lastLoggedDay'] === 'string'
+    ? streakData['lastLoggedDay'].trim()
+    : '';
+
+  return {
+    currentStreak,
+    maxStreak: Math.max(rawMaxStreak, currentStreak),
+    ...(lastLoggedDay ? { lastLoggedDay } : {}),
+  };
+}
+
+function toNonNegativeInteger(value: unknown): number {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    return 0;
+  }
+
+  return Math.floor(parsed);
 }

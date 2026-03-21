@@ -1,6 +1,10 @@
 import * as admin from 'firebase-admin';
 import { onDocumentWritten } from 'firebase-functions/v2/firestore';
 
+function getUserBadgesRef(userId: string) {
+  return admin.firestore().doc(`userStats/${userId}/Badges/userBadges`);
+}
+
 /**
  * Updates trainer statistics when a booking is created or updated
  * Tracks: total sessions completed, total revenue, total clients
@@ -48,8 +52,8 @@ export const onBookingChange = onDocumentWritten('bookings/{bookingId}', async (
     
     const totalClients = uniqueClients.size;
     
-    // Update userBadges document
-    const userBadgesRef = admin.firestore().doc(`userBadges/${trainerId}`);
+    // Update nested badges document under the trainer's userStats doc
+    const userBadgesRef = getUserBadgesRef(trainerId);
     
     await userBadgesRef.set({
       values: {
@@ -82,7 +86,7 @@ export const onTrainerClientChange = onDocumentWritten('trainers/{trainerId}/cli
   console.log(`[TrainerStats] Updating client count for trainer ${trainerId}: ${totalClients} clients`);
   
   try {
-    const userBadgesRef = admin.firestore().doc(`userBadges/${trainerId}`);
+    const userBadgesRef = getUserBadgesRef(trainerId);
     
     await userBadgesRef.set({
       values: {

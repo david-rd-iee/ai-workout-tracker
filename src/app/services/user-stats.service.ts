@@ -2,7 +2,12 @@ import { Injectable, Signal, signal } from '@angular/core';
 import { Firestore, docData } from '@angular/fire/firestore';
 import { doc, getDoc, onSnapshot, setDoc, serverTimestamp } from 'firebase/firestore';
 import { Observable } from 'rxjs';
-import { Region, UserStats, calculateUserLevelProgress } from '../models/user-stats.model';
+import {
+  Region,
+  UserStats,
+  calculateUserLevelProgress,
+  normalizeStreakData,
+} from '../models/user-stats.model';
 
 interface CacheEntry<T> {
   fetchedAt: number;
@@ -115,6 +120,7 @@ export class UserStatsService {
       },
       totalScore: totalWorkScore,
       ...levelProgress,
+      streakData: normalizeStreakData(undefined),
       region,
     };
 
@@ -152,10 +158,10 @@ export class UserStatsService {
           return;
         }
 
-        const userStats = {
+        const userStats = this.normalizeUserStats({
           userId: normalizedUserId,
           ...(snapshot.data() as Omit<UserStats, 'userId'>),
-        };
+        });
 
         this.setCachedUserStats(normalizedUserId, userStats);
         if (this.currentUserId === normalizedUserId) {
@@ -175,10 +181,10 @@ export class UserStatsService {
         return null;
       }
 
-      return {
+      return this.normalizeUserStats({
         userId,
         ...(statsSnap.data() as Omit<UserStats, 'userId'>),
-      };
+      });
     } catch (error) {
       console.error('[UserStatsService] Failed to load userStats:', error);
       return null;
@@ -211,7 +217,21 @@ export class UserStatsService {
             Strength: { ...userStats.Expected_Effort.Strength },
           }
         : undefined,
+      streakData: userStats.streakData ? { ...userStats.streakData } : undefined,
       region: userStats.region ? { ...userStats.region } : undefined,
+    };
+  }
+
+  private normalizeUserStats(userStats: UserStats): UserStats {
+    const rawUserStats = userStats as UserStats & Record<string, unknown>;
+
+    return {
+      ...userStats,
+      streakData: normalizeStreakData(
+        rawUserStats.streakData,
+        rawUserStats['currentStreak'],
+        rawUserStats['maxStreak']
+      ),
     };
   }
 }

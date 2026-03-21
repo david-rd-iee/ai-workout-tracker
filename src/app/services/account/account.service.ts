@@ -8,7 +8,10 @@ import { Router } from '@angular/router';
 import firebase from 'firebase/compat/app';
 import { Firestore, deleteField, doc, getDoc, setDoc, serverTimestamp } from '@angular/fire/firestore';
 import { GroupService } from '../group.service';
-import { calculateUserLevelProgress } from '../../models/user-stats.model';
+import {
+  calculateUserLevelProgress,
+  normalizeStreakData,
+} from '../../models/user-stats.model';
 // Import for Capacitor plugins
 import { registerPlugin } from '@capacitor/core';
 
@@ -101,6 +104,7 @@ export class AccountService {
         },
         totalScore: 0,
         ...levelProgress,
+        streakData: normalizeStreakData(undefined),
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
@@ -134,6 +138,11 @@ export class AccountService {
       current?.Expected_Effort,
       current?.expected_strength_scores
     );
+    const streakData = normalizeStreakData(
+      current?.streakData,
+      current?.currentStreak,
+      current?.maxStreak
+    );
     const hasExpectedEffortMap =
       typeof current?.Expected_Effort === 'object' &&
       current?.Expected_Effort !== null &&
@@ -141,6 +150,16 @@ export class AccountService {
       current?.Expected_Effort?.Cardio !== null &&
       typeof current?.Expected_Effort?.Strength === 'object' &&
       current?.Expected_Effort?.Strength !== null;
+    const rawStreakData =
+      typeof current?.streakData === 'object' && current?.streakData !== null
+        ? current.streakData as Record<string, unknown>
+        : null;
+    const hasStreakDataMap =
+      rawStreakData !== null &&
+      Number(rawStreakData['currentStreak']) === streakData.currentStreak &&
+      Number(rawStreakData['maxStreak']) === streakData.maxStreak &&
+      String(rawStreakData['lastLoggedDay'] ?? '').trim() ===
+        String(streakData.lastLoggedDay ?? '').trim();
     const hasLegacyExpectedStrengthScores =
       typeof current?.expected_strength_scores === 'object' &&
       current?.expected_strength_scores !== null;
@@ -153,6 +172,7 @@ export class AccountService {
       !hasCardioMap ||
       !hasStrengthMap ||
       !hasExpectedEffortMap ||
+      !hasStreakDataMap ||
       hasLegacyExpectedStrengthScores ||
       totalNeedsUpdate ||
       levelNeedsUpdate
@@ -169,6 +189,7 @@ export class AccountService {
             totalStrengthScore: strengthTotal,
           },
           Expected_Effort: expectedEffort,
+          streakData,
           expected_strength_scores: deleteField(),
           totalScore,
           ...levelProgress,

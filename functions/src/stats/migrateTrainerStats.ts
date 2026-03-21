@@ -2,7 +2,7 @@ import * as admin from 'firebase-admin';
 import { onCall } from 'firebase-functions/v2/https';
 
 /**
- * One-time migration to populate trainer stats in userBadges
+ * One-time migration to populate trainer stats in /userStats/{userId}/Badges/userBadges
  * Call this function once to migrate existing trainer data
  */
 export const migrateTrainerStats = onCall(async (request) => {
@@ -57,8 +57,8 @@ export const migrateTrainerStats = onCall(async (request) => {
         // Use the higher count (in case the trainer clients subcollection has more accurate data)
         const finalClientCount = Math.max(totalClients, clientsFromCollection);
         
-        // Update userBadges
-        const userBadgesRef = db.doc(`userBadges/${trainerId}`);
+        // Update nested user badges doc
+        const userBadgesRef = db.doc(`userStats/${trainerId}/Badges/userBadges`);
         
         await userBadgesRef.set({
           values: {

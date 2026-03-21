@@ -35,6 +35,7 @@ import { authState } from 'rxfire/auth';
 import { from, of, switchMap } from 'rxjs';
 import { Subscription } from 'rxjs';
 import { HeaderComponent } from 'src/app/components/header/header.component';
+import { normalizeStreakData } from '../../models/user-stats.model';
 import { UserService } from '../../services/account/user.service';
 import { ProfileRepositoryService } from '../../services/account/profile-repository.service';
 import { SessionBookingService } from '../../services/session-booking.service';
@@ -109,7 +110,9 @@ export class HomePage implements OnInit, OnDestroy {
   private userSub?: Subscription;
   private trainerClientsUnsubscribe: (() => void) | null = null;
   private userSummaryUnsubscribe: (() => void) | null = null;
+  private clientUserStatsUnsubscribe: (() => void) | null = null;
   private currentSummaryUid: string | null = null;
+  private currentClientStatsUid: string | null = null;
   private activeUserDataKey: string | null = null;
   private isReconcilingTrainerClients = false;
 
@@ -181,6 +184,7 @@ export class HomePage implements OnInit, OnDestroy {
           this.activeUserDataKey = null;
           this.stopTrainerClientsListener();
           this.stopCurrentUserSummaryListener();
+          this.stopClientUserStatsListener();
           this.clearRoleData();
           return;
         }
@@ -199,6 +203,7 @@ export class HomePage implements OnInit, OnDestroy {
         }
 
         if (this.currentUser.isPT === true) {
+          this.stopClientUserStatsListener();
           void this.loadTrainerClients(userId);
         } else {
           this.stopTrainerClientsListener();
@@ -248,18 +253,66 @@ export class HomePage implements OnInit, OnDestroy {
     this.currentSummaryUid = null;
   }
 
+  private startClientUserStatsListener(clientId: string): void {
+    const normalizedClientId = String(clientId || '').trim();
+    if (!normalizedClientId) {
+      this.stopClientUserStatsListener();
+      return;
+    }
+
+    if (
+      this.clientUserStatsUnsubscribe &&
+      this.currentClientStatsUid === normalizedClientId
+    ) {
+      return;
+    }
+
+    this.stopClientUserStatsListener();
+    this.currentClientStatsUid = normalizedClientId;
+    const roleKey = `${normalizedClientId}:client`;
+    const userStatsRef = doc(this.firestore, 'userStats', normalizedClientId);
+    this.clientUserStatsUnsubscribe = onSnapshot(
+      userStatsRef,
+      (snapshot) => {
+        if (this.activeUserDataKey !== roleKey) {
+          return;
+        }
+
+        const userStatsData = snapshot.exists()
+          ? (snapshot.data() as Record<string, unknown>)
+          : null;
+        this.currentStreak = userStatsData
+          ? normalizeStreakData(
+              userStatsData['streakData'],
+              userStatsData['currentStreak'],
+              userStatsData['maxStreak']
+            ).currentStreak
+          : 0;
+      },
+      (error) => {
+        console.error('Error listening to client userStats:', error);
+      }
+    );
+  }
+
+  private stopClientUserStatsListener(): void {
+    this.clientUserStatsUnsubscribe?.();
+    this.clientUserStatsUnsubscribe = null;
+    this.currentClientStatsUid = null;
+  }
+
   ngOnDestroy(): void {
     this.userSub?.unsubscribe();
     this.stopTrainerClientsListener();
     this.stopCurrentUserSummaryListener();
+    this.stopClientUserStatsListener();
   }
 
   ionViewWillEnter(): void {
-    // Refresh bookings when returning to this tab (for clients)
     if (this.currentUser && !this.currentUser.isPT) {
       const clientId = this.currentUser.userId;
       if (clientId) {
-        void this.loadUpcomingSessions(clientId);
+        void this.loadClientData(clientId);
       }
     }
   }
@@ -270,6 +323,7 @@ export class HomePage implements OnInit, OnDestroy {
   }
 
   private clearRoleData(): void {
+    this.stopClientUserStatsListener();
     this.clients = [];
     this.monthlyRevenue = [];
     this.totalRevenue = 0;
@@ -597,19 +651,13 @@ export class HomePage implements OnInit, OnDestroy {
     const roleKey = `${clientId}:client`;
 
     try {
+      this.startClientUserStatsListener(clientId);
       const configRef = doc(this.firestore, `clientHomeConfigs/${clientId}`);
       const configSnap = await getDoc(configRef);
       
       if (configSnap.exists() && this.activeUserDataKey === roleKey) {
         this.homeConfig = configSnap.data() as HomePageConfig;
         this.customMessage = this.homeConfig.customMessage || '';
-      }
-
-      const clientProfile = await this.userService.getUserProfileDirectly(clientId, 'client');
-      if (clientProfile && this.activeUserDataKey === roleKey) {
-        this.currentStreak = Number(
-          (clientProfile as unknown as Record<string, unknown>)['currentStreak'] || 0
-        ) || 0;
       }
 
       await this.loadNextWorkout(clientId);

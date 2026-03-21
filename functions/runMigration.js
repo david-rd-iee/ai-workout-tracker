@@ -121,8 +121,8 @@ async function migrateTrainerStats() {
         // Use the higher count (in case the trainer clients subcollection has more accurate data)
         const finalClientCount = Math.max(totalClients, clientsFromCollection);
         
-        // Update userBadges
-        const userBadgesRef = db.doc(`userBadges/${trainerId}`);
+        // Update nested user badges doc
+        const userBadgesRef = db.doc(`userStats/${trainerId}/Badges/userBadges`);
         
         await userBadgesRef.set({
           values: {
