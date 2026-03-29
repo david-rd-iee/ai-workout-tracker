@@ -43,6 +43,7 @@ import { FileUploadService } from '../../services/file-upload.service';
 import { ImagePickerService } from '../../services/image-picker.service';
 import { UserBadgesService } from '../../services/user-badges.service';
 import { UserStatsService } from '../../services/user-stats.service';
+import { GreekStatuesService } from '../../services/greek-statues.service';
 import type { trainerProfile } from '../../Interfaces/Profiles/Trainer';
 import type { clientProfile } from '../../Interfaces/Profiles/client';
 import { addIcons } from 'ionicons';
@@ -64,10 +65,9 @@ import {
 } from 'ionicons/icons';
 import {
   GreekStatue,
-  GREEK_STATUES,
-  calculateStatueLevel
-} from '../../interfaces/GreekStatue';
-import { UserBadgesDoc } from '../../models/user-badges.model';
+  isCarvedStatueLevel,
+} from '../../models/greek-statue.model';
+import { UserBadgeStatsMap } from '../../models/user-badges.model';
 import { UserStats } from '../../models/user-stats.model';
 import { StatueSelectorComponent } from '../../components/statue-selector/statue-selector.component';
 import { GreekStatueComponent } from '../../components/greek-statue/greek-statue.component';
@@ -112,6 +112,7 @@ export class ProfileUserPage implements OnInit, OnDestroy {
   private accountService = inject(AccountService);
   private userBadgesService = inject(UserBadgesService);
   private userStatsService = inject(UserStatsService);
+  private greekStatuesService = inject(GreekStatuesService);
 
   isLoading = true;
   currentUser: (trainerProfile | clientProfile) | null = null;
@@ -130,7 +131,7 @@ export class ProfileUserPage implements OnInit, OnDestroy {
   private loadedRoleLoadKey: string | null = null;
   private usersDocUnsubscribe: (() => void) | null = null;
   private usersDocListenerUid: string | null = null;
-  private latestUserBadges: UserBadgesDoc | null = null;
+  private latestUserBadges: UserBadgeStatsMap | null = null;
   private trainerStatsFallbackPromise: Promise<void> | null = null;
   private trainerStatsFallbackUid: string | null = null;
   private trainerStatsFallbackLoadedUid: string | null = null;
@@ -152,7 +153,7 @@ export class ProfileUserPage implements OnInit, OnDestroy {
   };
 
   get carvedStatuesCount(): number {
-    return this.allStatues.filter(s => s.currentLevel).length;
+    return this.allStatues.filter((statue) => isCarvedStatueLevel(statue.currentLevel)).length;
   }
 
   get currentLevel(): number {
@@ -240,6 +241,7 @@ export class ProfileUserPage implements OnInit, OnDestroy {
     effect(() => {
       const userInfo = this.userService.getUserInfo()();
       const userBadges = this.userBadgesService.getCurrentUserBadges()();
+      const availableStatues = this.greekStatuesService.getCurrentGreekStatues()();
       const uid = this.auth.currentUser?.uid ?? null;
 
       if (!userInfo || !uid) {
@@ -249,11 +251,11 @@ export class ProfileUserPage implements OnInit, OnDestroy {
 
       this.latestUserBadges = userBadges;
       if (userInfo.accountType === 'trainer') {
-        this.applyTrainerBadges(uid, userBadges);
+        this.applyTrainerBadges(uid, userBadges, availableStatues);
         return;
       }
 
-      this.applyClientStatuesFromBadges(userBadges);
+      this.applyClientStatuesFromBadges(userBadges, availableStatues);
     });
 
     effect(() => {
@@ -448,86 +450,82 @@ export class ProfileUserPage implements OnInit, OnDestroy {
     }
   }
 
-  private applyClientStatuesFromBadges(userBadges: UserBadgesDoc | null): void {
-    if (!userBadges) {
-      this.allStatues = [];
-      this.displayStatueIds = [];
-      this.updateDisplayStatues();
-      return;
-    }
-
-    const values = userBadges.values || {};
-    const percentiles = userBadges.percentiles || {};
-    const savedDisplayStatueIds = userBadges.displayStatueIds || userBadges.displayBadgeIds || [];
+  private applyClientStatuesFromBadges(
+    userBadges: UserBadgeStatsMap | null,
+    availableStatues: GreekStatue[]
+  ): void {
     const trainerStatueIds = ['zeus-mentor', 'athena-wisdom', 'hermes-prosperity'];
+    const badgeMap = userBadges ?? {};
 
-    this.allStatues = GREEK_STATUES
+    this.allStatues = availableStatues
       .filter((statue) => !trainerStatueIds.includes(statue.id))
-      .map((statue) => {
-        const currentValue = values[statue.id] ?? 0;
-        const percentile = percentiles[statue.id];
-        const level = calculateStatueLevel(statue, currentValue || 0);
+      .map((statue) => this.buildStatueViewModel(statue, badgeMap[statue.id]));
 
-        return {
-          ...statue,
-          currentValue,
-          percentile,
-          currentLevel: level || undefined,
-        };
+    this.displayStatueIds = this.allStatues
+      .filter(
+        (statue) =>
+          badgeMap[statue.id]?.isDisplayed && isCarvedStatueLevel(statue.currentLevel)
+      )
+      .map((statue) => statue.id)
+      .filter((id) => {
+        const statue = this.allStatues.find((candidate) => candidate.id === id);
+        return isCarvedStatueLevel(statue?.currentLevel);
       });
-
-    this.displayStatueIds = savedDisplayStatueIds.filter((id) => {
-      const statue = this.allStatues.find((candidate) => candidate.id === id);
-      return !!statue?.currentLevel;
-    });
     this.updateDisplayStatues();
   }
 
-  private applyTrainerBadges(userId: string, userBadges: UserBadgesDoc | null): void {
-    const values = userBadges?.values || {};
+  private applyTrainerBadges(
+    userId: string,
+    userBadges: UserBadgeStatsMap | null,
+    availableStatues: GreekStatue[]
+  ): void {
+    const trainerBadges = userBadges ?? {};
     const hasStoredStats =
-      values['athena-wisdom'] !== undefined ||
-      values['zeus-mentor'] !== undefined ||
-      values['hermes-prosperity'] !== undefined;
+      trainerBadges['athena-wisdom']?.currentValue !== undefined ||
+      trainerBadges['zeus-mentor']?.currentValue !== undefined ||
+      trainerBadges['hermes-prosperity']?.currentValue !== undefined;
 
     if (hasStoredStats) {
-      this.trainerStats.totalSessions = values['athena-wisdom'] || 0;
-      this.trainerStats.totalClients = values['zeus-mentor'] || 0;
-      this.trainerStats.totalRevenue = values['hermes-prosperity'] || 0;
+      this.trainerStats.totalSessions = trainerBadges['athena-wisdom']?.currentValue || 0;
+      this.trainerStats.totalClients = trainerBadges['zeus-mentor']?.currentValue || 0;
+      this.trainerStats.totalRevenue = trainerBadges['hermes-prosperity']?.currentValue || 0;
       this.trainerStatsFallbackLoadedUid = userId;
     } else if (this.trainerStatsFallbackLoadedUid !== userId) {
       void this.ensureTrainerFallbackStats(userId);
     }
 
-    const displayStatueIds = userBadges?.displayStatueIds || userBadges?.displayBadgeIds || [];
-    const percentiles = userBadges?.percentiles || {};
     const trainerStatueIds = ['zeus-mentor', 'athena-wisdom', 'hermes-prosperity'];
-    const statueValues: Record<string, number> = {
-      'zeus-mentor': values['zeus-mentor'] || this.trainerStats.totalClients || 0,
-      'athena-wisdom': values['athena-wisdom'] || this.trainerStats.totalSessions || 0,
-      'hermes-prosperity': values['hermes-prosperity'] || this.trainerStats.totalRevenue || 0,
-    };
 
-    this.allStatues = GREEK_STATUES
+    this.allStatues = availableStatues
       .filter((statue) => trainerStatueIds.includes(statue.id))
-      .map((statue) => {
-        const currentValue = statueValues[statue.id] || 0;
-        const percentile = percentiles[statue.id];
-        const level = calculateStatueLevel(statue, currentValue || 0);
+      .map((statue) => this.buildStatueViewModel(statue, trainerBadges[statue.id]));
 
-        return {
-          ...statue,
-          currentValue,
-          percentile,
-          currentLevel: level || undefined,
-        };
+    this.displayStatueIds = this.allStatues
+      .filter(
+        (statue) =>
+          trainerBadges[statue.id]?.isDisplayed && isCarvedStatueLevel(statue.currentLevel)
+      )
+      .map((statue) => statue.id)
+      .filter((id) => {
+        const statue = this.allStatues.find((candidate) => candidate.id === id);
+        return isCarvedStatueLevel(statue?.currentLevel);
       });
-
-    this.displayStatueIds = displayStatueIds.filter((id) => {
-      const statue = this.allStatues.find((candidate) => candidate.id === id);
-      return !!statue?.currentLevel;
-    });
     this.updateDisplayStatues();
+  }
+
+  private buildStatueViewModel(
+    statue: GreekStatue,
+    statueDoc: UserBadgeStatsMap[string] | undefined
+  ): GreekStatue {
+    return {
+      ...statue,
+      metricValue: statueDoc?.metricValue ?? statueDoc?.currentValue ?? 0,
+      currentValue: statueDoc?.currentValue ?? statueDoc?.metricValue ?? 0,
+      percentile: statueDoc?.percentile,
+      currentLevel: (statueDoc?.currentLevel as GreekStatue['currentLevel'] | undefined) ?? 'None',
+      nextTierValue: statueDoc?.nextTierValue,
+      progressToNext: statueDoc?.progressToNext,
+    };
   }
 
   private async ensureTrainerFallbackStats(userId: string): Promise<void> {
@@ -552,7 +550,11 @@ export class ProfileUserPage implements OnInit, OnDestroy {
     await this.trainerStatsFallbackPromise;
     this.trainerStatsFallbackLoadedUid = normalizedUserId;
     if (this.currentUser?.accountType === 'trainer') {
-      this.applyTrainerBadges(normalizedUserId, this.latestUserBadges);
+      this.applyTrainerBadges(
+        normalizedUserId,
+        this.latestUserBadges,
+        this.greekStatuesService.getCurrentGreekStatues()()
+      );
     }
   }
 

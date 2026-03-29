@@ -1,32 +1,24 @@
 // src/app/models/user-badges.model.ts
 import { Timestamp } from '@angular/fire/firestore';
+import { BadgeLevel } from '../interfaces/Badge';
+import { StoredStatueLevel } from './greek-statue.model';
+
+export type UserBadgeLevel = BadgeLevel | StoredStatueLevel;
 
 /**
- * Stored in Firestore in: /userStats/{userId}/Badges/userBadges
- *
- * - `values`       = how far the user has progressed for each badge/statue
- * - `percentiles`  = (optional) percentile ranking for each badge/statue
- * - `displayBadgeIds` / `displayStatueIds` = which badges/statues to show on profile
+ * Stored in Firestore in: /userStats/{userId}/Badges/{badgeOrStatueId}
  */
-export interface UserBadgesDoc {
+export interface UserBadgeStatDoc {
+  id: string;
   userId: string;
-
-  // Badge/Statue progress: key = badge.id from ACHIEVEMENT_BADGES or statue.id from GREEK_STATUES
-  values: { [badgeId: string]: number };
-
-  // Optional percentile rankings per badge/statue
-  percentiles?: { [badgeId: string]: number };
-
-  // Which badges are currently pinned/displayed on the profile (legacy)
-  displayBadgeIds?: string[];
-
-  // Which statues are currently displayed/showcased on the profile (new)
-  displayStatueIds?: string[];
-
-  last_updated_at?: Timestamp;
+  isDisplayed: boolean;
+  metricValue?: number;
+  currentValue?: number;
+  currentLevel?: UserBadgeLevel;
+  percentile?: number;
+  nextTierValue?: number;
+  progressToNext?: number;
+  updatedAt?: Timestamp;
 }
 
-// New interface for statue-specific typing
-export interface UserStatuesDoc extends UserBadgesDoc {
-  displayStatueIds?: string[];
-}
+export type UserBadgeStatsMap = Record<string, UserBadgeStatDoc>;

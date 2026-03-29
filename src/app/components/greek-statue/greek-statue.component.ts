@@ -1,4 +1,4 @@
-import { Component, Input, OnInit } from '@angular/core';
+import { Component, Input, OnChanges, SimpleChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { IonIcon, IonBadge, IonProgressBar } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
@@ -9,7 +9,7 @@ import {
   STATUE_TIER_CONFIG,
   calculateCarvingProgress,
   getCarvingStageDescription,
-} from '../../interfaces/GreekStatue';
+} from '../../models/greek-statue.model';
 
 
 @Component({
@@ -24,7 +24,7 @@ import {
     IonProgressBar
   ]
 })
-export class GreekStatueComponent implements OnInit {
+export class GreekStatueComponent implements OnChanges {
   @Input() statue!: GreekStatue;
   @Input() showProgress: boolean = true;
   @Input() size: 'small' | 'medium' | 'large' = 'medium';
@@ -69,10 +69,13 @@ export class GreekStatueComponent implements OnInit {
     });
   }
 
-  ngOnInit() {
+  ngOnChanges(_changes: SimpleChanges) {
     if (this.statue.currentValue !== undefined) {
       this.progress = calculateCarvingProgress(this.statue, this.statue.currentValue);
+      return;
     }
+
+    this.progress = null;
   }
 
   get currentTierConfig() {

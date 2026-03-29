@@ -234,6 +234,8 @@ export class UserService {
         this.userBadgesService.initializeCurrentUserBadges(userID),
         this.userStatsService.initializeCurrentUserStats(userID),
       ]);
+      await this.userBadgesService.syncStatueBadges(userID);
+      await this.userBadgesService.getUserBadges(userID, true);
       await this.syncClientTrainerRecordOnLogin(userID, mergedFallbackProfile as unknown as Record<string, unknown>);
       return true;
     }
@@ -267,6 +269,8 @@ export class UserService {
       this.userBadgesService.initializeCurrentUserBadges(userID),
       this.userStatsService.initializeCurrentUserStats(userID),
     ]);
+    await this.userBadgesService.syncStatueBadges(userID);
+    await this.userBadgesService.getUserBadges(userID, true);
 
     if (!isTrainerProfile) {
       await this.syncClientTrainerRecordOnLogin(userID, userData as unknown as Record<string, unknown>);

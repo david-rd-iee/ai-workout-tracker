@@ -30,6 +30,7 @@ export interface GreekStatue {
   metric: string; // What we're measuring (e.g., 'totalWeight', 'workoutStreak', 'sessionCount')
   unit: string; // Unit of measurement (e.g., 'lbs', 'sessions', 'days')
   mythology: string; // Brief mythological description
+  levelingConstant?: number; // Used to derive tier thresholds with (tierNumber / levelingConstant)^2
   
   // Tier thresholds - representing carving stages
   tiers: {
@@ -48,6 +49,15 @@ export interface GreekStatue {
   nextTierValue?: number; // Value needed for next tier
   progressToNext?: number; // 0-100 percentage progress to next tier
 }
+
+export const DEFAULT_STATUE_STAGE_IMAGES: Record<StatueLevel, string> = {
+  rough: 'assets/statues/athena/athena-rough.png',
+  outlined: 'assets/statues/athena/athena-outlined.png',
+  detailed: 'assets/statues/athena/athena-detailed.png',
+  polished: 'assets/statues/athena/athena-polished.png',
+  gilded: 'assets/statues/athena/athena-gilded.png',
+  divine: 'assets/statues/athena/athena-divine.png',
+};
 
 export const STATUE_TIER_CONFIG: Record<StatueLevel, StatueTier> = {
   rough: {

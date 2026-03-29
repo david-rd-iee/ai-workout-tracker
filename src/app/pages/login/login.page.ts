@@ -13,8 +13,12 @@ import { Platform } from '@ionic/angular';
 import { FormsModule } from '@angular/forms';
 import { AccountService } from '../../services/account/account.service';
 import { UserService } from '../../services/account/user.service';
-import { Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { addIcons } from 'ionicons';
+import {
+  STATUES_DASHBORD_URL,
+  STATUES_DASHBOARD_ALIAS_URL,
+} from '../statues-dashbord/statues-dashbord.constants';
 
 @Component({
   selector: 'app-login',
@@ -41,12 +45,14 @@ export class LoginPage implements OnInit {
   isIOS = false;
   isSubmitting = false;
   errorMessage = '';
+  private redirectUrl = '/tabs';
 
   constructor(
     private accountService: AccountService,
     private userService: UserService,
     private platform: Platform,
-    private router: Router
+    private router: Router,
+    private route: ActivatedRoute
   ) {
     addIcons({
       'logo-apple':
@@ -56,6 +62,15 @@ export class LoginPage implements OnInit {
 
   ngOnInit() {
     this.isIOS = this.platform.is('ios');
+    const candidateRedirect = (this.route.snapshot.queryParamMap.get('redirectTo') || '').trim();
+    if (candidateRedirect.startsWith('/')) {
+      this.redirectUrl = candidateRedirect;
+    }
+
+    const authError = (this.route.snapshot.queryParamMap.get('authError') || '').trim();
+    if (authError) {
+      this.errorMessage = authError;
+    }
   }
 
   async onLoginSubmit() {
@@ -78,13 +93,21 @@ export class LoginPage implements OnInit {
         return;
       }
 
+      if (
+        this.redirectUrl.startsWith(STATUES_DASHBORD_URL) ||
+        this.redirectUrl.startsWith(STATUES_DASHBOARD_ALIAS_URL)
+      ) {
+        await this.router.navigateByUrl(this.redirectUrl, { replaceUrl: true });
+        return;
+      }
+
       const profileLoaded = await this.userService.loadUserProfile();
       if (!profileLoaded) {
         await this.router.navigateByUrl(this.userService.getProfileCompletionRoute(), { replaceUrl: true });
         return;
       }
 
-      await this.router.navigateByUrl('/tabs', { replaceUrl: true });
+      await this.router.navigateByUrl(this.redirectUrl, { replaceUrl: true });
     } catch (err) {
       console.error(err);
       this.errorMessage = 'An error occurred during login.';
@@ -104,13 +127,21 @@ export class LoginPage implements OnInit {
         return;
       }
 
+      if (
+        this.redirectUrl.startsWith(STATUES_DASHBORD_URL) ||
+        this.redirectUrl.startsWith(STATUES_DASHBOARD_ALIAS_URL)
+      ) {
+        await this.router.navigateByUrl(this.redirectUrl, { replaceUrl: true });
+        return;
+      }
+
       const profileLoaded = await this.userService.loadUserProfile();
       if (!profileLoaded) {
         await this.router.navigateByUrl(this.userService.getProfileCompletionRoute(), { replaceUrl: true });
         return;
       }
 
-      await this.router.navigateByUrl('/tabs', { replaceUrl: true });
+      await this.router.navigateByUrl(this.redirectUrl, { replaceUrl: true });
     } catch (err) {
       console.error(err);
       this.errorMessage = 'An error occurred during Apple login.';

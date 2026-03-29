@@ -1,5 +1,14 @@
 import { Routes } from '@angular/router';
-import { authChildGuard, authGuard, authMatchGuard } from './services/account/auth.guard';
+import {
+  authChildGuard,
+  authGuard,
+  authMatchGuard,
+  statuesDashbordGuard,
+} from './services/account/auth.guard';
+import {
+  STATUES_DASHBORD_ROUTE_PATH,
+  STATUES_DASHBOARD_ALIAS_ROUTE_PATH,
+} from './pages/statues-dashbord/statues-dashbord.constants';
 
 // Route paths constant for type-safe navigation
 export const ROUTE_PATHS = {
@@ -186,6 +195,19 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./pages/live-session/live-session.page').then((m) => m.LiveSessionPage),
     canActivate: [authGuard],
+  },
+  {
+    path: STATUES_DASHBORD_ROUTE_PATH,
+    loadComponent: () =>
+      import('./pages/statues-dashbord/statues-dashbord.page').then(
+        (m) => m.StatuesDashbordPage
+      ),
+    canActivate: [statuesDashbordGuard],
+  },
+  {
+    path: STATUES_DASHBOARD_ALIAS_ROUTE_PATH,
+    redirectTo: STATUES_DASHBORD_ROUTE_PATH,
+    pathMatch: 'full',
   },
   {
     path: '',

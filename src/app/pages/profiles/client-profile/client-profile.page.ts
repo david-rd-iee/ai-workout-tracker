@@ -36,12 +36,12 @@ import {
 } from 'ionicons/icons';
 import {
   GreekStatue,
-  GREEK_STATUES,
-  calculateStatueLevel
-} from '../../../interfaces/GreekStatue';
+  isCarvedStatueLevel,
+} from '../../../models/greek-statue.model';
 import { StatueSelectorComponent } from '../../../components/statue-selector/statue-selector.component';
 import { GreekStatueComponent } from '../../../components/greek-statue/greek-statue.component';
 import { UserBadgesService } from '../../../services/user-badges.service';
+import { GreekStatuesService } from '../../../services/greek-statues.service';
 
 // Firestore + AppUser import
 import { Firestore, doc, getDoc } from '@angular/fire/firestore';
@@ -106,7 +106,7 @@ export class ClientProfilePage implements OnInit {
   isOwnProfile: boolean = true;        // Whether viewing your own profile
 
   get carvedStatuesCount(): number {
-    return this.allStatues.filter(s => s.currentLevel).length;
+    return this.allStatues.filter((statue) => isCarvedStatueLevel(statue.currentLevel)).length;
   }
 
   viewStatDetails(statType: string): void {
@@ -138,6 +138,7 @@ export class ClientProfilePage implements OnInit {
     private route: ActivatedRoute,
     private firestore: Firestore,
     private userBadgesService: UserBadgesService,
+    private greekStatuesService: GreekStatuesService,
   ) {
     addIcons({
       settingsOutline,
@@ -201,10 +202,9 @@ export class ClientProfilePage implements OnInit {
           userId: data.userId || targetUserId,
         };
 
-        // Map AppUser.name into first/last name for the UI
-        const fullName = this.appUser.name || 'Client';
-        const [firstName, ...restName] = fullName.split(' ');
-        const lastName = restName.join(' ');
+        // Map AppUser first/last name into the UI.
+        const firstName = this.appUser.firstName || 'Client';
+        const lastName = this.appUser.lastName || '';
 
         this.clientInfo = {
           profilepic: DEFAULT_ASSETS.PROFILE_PHOTO,
@@ -235,47 +235,46 @@ export class ClientProfilePage implements OnInit {
     }
   }
 
-  // Load statue carving progress from /userStats/{userId}/Badges/userBadges
+  // Load statue progress from /userStats/{userId}/Badges/{statueId}
   private async loadGreekStatuesFromFirestore(userId: string): Promise<void> {
     try {
-      const data = await this.userBadgesService.getUserBadges(userId);
-      if (!data) {
-        console.warn('[ClientProfilePage] No user badges doc found; using empty statue list.');
-        this.allStatues = [];
-        this.displayStatueIds = [];
-        this.displayStatues = [];
-        return;
-      }
-
-      const values = data.values || {};
-      const percentiles = data.percentiles || {};
-      // Support both old and new field names
-      const displayStatueIds = data.displayStatueIds || data.displayBadgeIds || [];
+      const [data, greekStatues] = await Promise.all([
+        this.userBadgesService.getUserBadges(userId),
+        this.greekStatuesService.getGreekStatues(),
+      ]);
+      const badgeMap = data ?? {};
 
       // Filter out trainer-specific statues for clients
       const trainerStatueIds = ['zeus-mentor', 'athena-wisdom', 'hermes-prosperity'];
       
-      // Merge Firestore progress into GREEK_STATUES definition
-      this.allStatues = GREEK_STATUES
+      // Merge Firestore progress into the live GreekStatues collection
+      this.allStatues = greekStatues
         .filter(statue => !trainerStatueIds.includes(statue.id))
         .map(statue => {
-          const currentValue = values[statue.id] ?? 0;
-          const percentile = percentiles[statue.id];
-
-          const level = calculateStatueLevel(statue, currentValue || 0);
+          const statueDoc = badgeMap[statue.id];
           return {
             ...statue,
-            currentValue,
-            percentile,
-            currentLevel: level || undefined,
+            metricValue: statueDoc?.metricValue ?? statueDoc?.currentValue ?? 0,
+            currentValue: statueDoc?.currentValue ?? statueDoc?.metricValue ?? 0,
+            percentile: statueDoc?.percentile,
+            currentLevel:
+              (statueDoc?.currentLevel as GreekStatue['currentLevel'] | undefined) ?? 'None',
+            nextTierValue: statueDoc?.nextTierValue,
+            progressToNext: statueDoc?.progressToNext,
           };
         });
 
-      // Only show statues that are carved (have currentLevel)
-      this.displayStatueIds = displayStatueIds.filter(id => {
-        const statue = this.allStatues.find(s => s.id === id);
-        return statue && statue.currentLevel;
-      });
+      // Only show statues explicitly marked as displayed and already carved.
+      this.displayStatueIds = this.allStatues
+        .filter(
+          (statue) =>
+            badgeMap[statue.id]?.isDisplayed && isCarvedStatueLevel(statue.currentLevel)
+        )
+        .map(statue => statue.id)
+        .filter(id => {
+          const statue = this.allStatues.find(s => s.id === id);
+          return isCarvedStatueLevel(statue?.currentLevel);
+        });
 
       this.updateDisplayStatues();
       console.log('[ClientProfilePage] Loaded statues from Firestore:', this.allStatues);

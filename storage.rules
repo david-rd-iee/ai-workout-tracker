@@ -13,6 +13,10 @@ service firebase.storage {
       return isSignedIn() && request.auth.uid == userId;
     }
 
+    function isGreekStatueAdmin() {
+      return isSignedIn() && request.auth.token.email == 'dev-account@example.com';
+    }
+
     function isGroupOwner(groupId) {
       return isSignedIn()
         && firestore.exists(/databases/(default)/documents/groupID/$(groupId))
@@ -35,6 +39,12 @@ service firebase.storage {
     match /group-images/{groupId}/{allPaths=**} {
       allow read: if isSignedIn();
       allow write: if isGroupOwner(groupId);
+    }
+
+    // Greek statue admin uploads
+    match /GreekStatues/{allPaths=**} {
+      allow read: if isSignedIn();
+      allow write: if isGreekStatueAdmin();
     }
 
     // Default deny for everything else

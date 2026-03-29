@@ -41,6 +41,92 @@ if (fs.existsSync(serviceAccountPath)) {
 }
 
 const db = admin.firestore();
+const STATUE_LEVELS = ['rough', 'outlined', 'detailed', 'polished', 'gilded', 'divine'];
+const TRAINER_STATUE_TIERS = {
+  'zeus-mentor': {
+    rough: 5,
+    outlined: 15,
+    detailed: 30,
+    polished: 50,
+    gilded: 100,
+    divine: 200,
+  },
+  'athena-wisdom': {
+    rough: 50,
+    outlined: 200,
+    detailed: 500,
+    polished: 1000,
+    gilded: 2500,
+    divine: 5000,
+  },
+  'hermes-prosperity': {
+    rough: 1000,
+    outlined: 5000,
+    detailed: 15000,
+    polished: 50000,
+    gilded: 100000,
+    divine: 250000,
+  },
+};
+
+function calculateStatueProgress(statueId, currentValue) {
+  const tiers = TRAINER_STATUE_TIERS[statueId];
+  if (!tiers) {
+    return { progressToNext: 0 };
+  }
+
+  let currentLevel;
+  for (const level of [...STATUE_LEVELS].reverse()) {
+    if (currentValue >= tiers[level]) {
+      currentLevel = level;
+      break;
+    }
+  }
+
+  if (!currentLevel) {
+    return {
+      nextTierValue: tiers.rough,
+      progressToNext: Math.min(100, Math.max(0, (currentValue / tiers.rough) * 100)),
+    };
+  }
+
+  const currentIndex = STATUE_LEVELS.indexOf(currentLevel);
+  if (currentIndex === STATUE_LEVELS.length - 1) {
+    return {
+      currentLevel,
+      progressToNext: 100,
+    };
+  }
+
+  const nextLevel = STATUE_LEVELS[currentIndex + 1];
+  const nextTierValue = tiers[nextLevel];
+  const currentTierValue = tiers[currentLevel];
+  const progressToNext = ((currentValue - currentTierValue) / (nextTierValue - currentTierValue)) * 100;
+
+  return {
+    currentLevel,
+    nextTierValue,
+    progressToNext: Math.min(100, Math.max(0, progressToNext)),
+  };
+}
+
+async function saveTrainerBadgeDoc(userId, badgeId, currentValue, migratedAt) {
+  const badgeRef = db.doc(`userStats/${userId}/Badges/${badgeId}`);
+  const existingSnap = await badgeRef.get();
+  const existingData = existingSnap.exists ? existingSnap.data() || {} : {};
+  const normalizedValue = Number.isFinite(currentValue) ? currentValue : 0;
+  const progress = calculateStatueProgress(badgeId, normalizedValue);
+
+  await badgeRef.set({
+    isDisplayed: existingData.isDisplayed === true,
+    currentValue: normalizedValue,
+    ...(progress.currentLevel ? { currentLevel: progress.currentLevel } : {}),
+    ...(progress.nextTierValue !== undefined ? { nextTierValue: progress.nextTierValue } : {}),
+    progressToNext: progress.progressToNext,
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    migratedAt,
+  }, { merge: true });
+}
 
 async function migrateTrainerStats() {
   console.log('[Migration] Starting trainer stats migration...\n');
@@ -121,18 +207,13 @@ async function migrateTrainerStats() {
         // Use the higher count (in case the trainer clients subcollection has more accurate data)
         const finalClientCount = Math.max(totalClients, clientsFromCollection);
         
-        // Update nested user badges doc
-        const userBadgesRef = db.doc(`userStats/${trainerId}/Badges/userBadges`);
-        
-        await userBadgesRef.set({
-          values: {
-            'zeus-mentor': finalClientCount,
-            'athena-wisdom': totalSessions,
-            'hermes-prosperity': totalRevenue
-          },
-          lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
-          migratedAt: admin.firestore.FieldValue.serverTimestamp()
-        }, { merge: true });
+        const migratedAt = admin.firestore.FieldValue.serverTimestamp();
+
+        await Promise.all([
+          saveTrainerBadgeDoc(trainerId, 'zeus-mentor', finalClientCount, migratedAt),
+          saveTrainerBadgeDoc(trainerId, 'athena-wisdom', totalSessions, migratedAt),
+          saveTrainerBadgeDoc(trainerId, 'hermes-prosperity', totalRevenue, migratedAt),
+        ]);
         
         const result = {
           trainerId,

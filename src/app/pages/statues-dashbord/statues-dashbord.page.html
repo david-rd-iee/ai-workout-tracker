@@ -1,0 +1,222 @@
+<ion-content [fullscreen]="true" class="statues-dashbord-page">
+  <div class="page-shell">
+    <section class="hero-card">
+      <div class="hero-copy">
+        <p class="eyebrow">GreekStatues Admin</p>
+        <h1>Statue Collection Editor</h1>
+        <p>
+          This page is now only for adding and modifying documents in the
+          <strong>{{ collectionName }}</strong>
+          collection.
+        </p>
+        <div class="hero-pills">
+          <span>Authorized email: {{ authorizedEmail }}</span>
+          <span>Signed in as: {{ currentEmail }}</span>
+        </div>
+      </div>
+
+      <div class="hero-actions">
+        <ion-button fill="outline" color="dark" (click)="logout()">
+          Log Out
+        </ion-button>
+      </div>
+    </section>
+
+    <section class="status-card error" *ngIf="loadError">
+      {{ loadError }}
+    </section>
+
+    <section class="status-card" *ngIf="isLoading">
+      <ion-spinner name="crescent"></ion-spinner>
+      <span>Loading current GreekStatues docs...</span>
+    </section>
+
+    <section class="editor-section" *ngIf="isEditorOpen">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">{{ formMode === 'create' ? 'New Statue' : 'Edit Statue' }}</p>
+          <h2>{{ formMode === 'create' ? 'Create GreekStatue Doc' : 'Modify GreekStatue Doc' }}</h2>
+        </div>
+        <div class="editor-actions">
+          <ion-button fill="outline" color="medium" (click)="cancelEditing()" [disabled]="isSaving">
+            Cancel
+          </ion-button>
+          <ion-button color="dark" (click)="saveStatue()" [disabled]="isSaving">
+            {{ formMode === 'create' ? 'Save Statue' : 'Update Statue' }}
+          </ion-button>
+        </div>
+      </div>
+
+      <section class="status-card" *ngIf="isSaving">
+        <ion-spinner name="crescent"></ion-spinner>
+        <span>{{ savingStatus || 'Saving statue...' }}</span>
+      </section>
+
+      <div class="form-grid">
+        <div class="form-column">
+          <label class="field">
+            <span>God name</span>
+            <input type="text" [(ngModel)]="form.godName" />
+          </label>
+
+          <label class="field">
+            <span>Title</span>
+            <input type="text" [(ngModel)]="form.title" />
+          </label>
+
+          <label class="field">
+            <span>Icon</span>
+            <input type="text" [(ngModel)]="form.icon" />
+          </label>
+
+          <label class="field">
+            <span>Description</span>
+            <textarea rows="4" [(ngModel)]="form.description"></textarea>
+          </label>
+
+          <label class="field">
+            <span>Mythology</span>
+            <textarea rows="4" [(ngModel)]="form.mythology"></textarea>
+          </label>
+        </div>
+
+        <div class="form-column">
+          <label class="field">
+            <span>Category</span>
+            <ion-select interface="popover" [(ngModel)]="form.category">
+              <ion-select-option *ngFor="let category of categoryOptions" [value]="category">
+                {{ category }}
+              </ion-select-option>
+            </ion-select>
+          </label>
+
+          <label class="field">
+            <span>UserStats metric</span>
+            <ion-select interface="popover" [(ngModel)]="form.metric">
+              <ion-select-option *ngFor="let option of metricOptions" [value]="option.value">
+                {{ option.label }}
+              </ion-select-option>
+            </ion-select>
+          </label>
+
+          <div class="field">
+            <span>Leveling Constant</span>
+            <input type="number" step="any" min="0" [(ngModel)]="form.levelingConstant" />
+            <small class="field-note">
+              Tier values are stored automatically using <code>(tier_number / leveling_constant)^2</code>.
+            </small>
+          </div>
+
+          <div class="field">
+            <span>Custom icon upload</span>
+            <div class="image-upload-card">
+              <img
+                *ngIf="form.customIcon"
+                [src]="form.customIcon"
+                alt="Custom icon preview"
+              />
+              <div class="image-placeholder" *ngIf="!form.customIcon">
+                No custom icon uploaded yet
+              </div>
+              <input type="file" accept="image/*" (change)="onCustomIconSelected($event)" />
+            </div>
+          </div>
+
+          <div class="field">
+            <span>Computed Tier Thresholds</span>
+            <div class="tier-grid">
+              <div class="tier-field preview" *ngFor="let stage of stageLevels">
+                <span>{{ stage }}</span>
+                <strong>{{ getComputedTierValue(stage) | number }}</strong>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="stage-editor-section">
+        <div class="section-heading small">
+          <div>
+            <p class="eyebrow">Stage Images</p>
+            <h3>Upload custom images or keep the Athena defaults</h3>
+          </div>
+        </div>
+
+        <div class="stage-editor-grid">
+          <label class="stage-editor-card" *ngFor="let stage of stageLevels">
+            <span class="stage-label">{{ stage }}</span>
+            <img [src]="getStageImagePreview(stage)" [alt]="stage + ' preview'" />
+            <input type="file" accept="image/*" (change)="onStageImageSelected(stage, $event)" />
+          </label>
+        </div>
+      </div>
+    </section>
+
+    <section class="docs-section" *ngIf="!isLoading">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Current Docs</p>
+          <h2>{{ collectionName }} ({{ statues.length }})</h2>
+        </div>
+        <ion-button size="small" color="dark" (click)="startAddingStatue()">
+          Add Statue
+        </ion-button>
+      </div>
+
+      <div class="empty-state" *ngIf="statues.length === 0">
+        <h3>No docs yet</h3>
+        <p>The collection is empty right now. Click “Add Statue” to create the first document.</p>
+      </div>
+
+      <div class="docs-grid" *ngIf="statues.length > 0">
+        <article class="doc-card" *ngFor="let statue of statues; trackBy: trackByStatueId">
+          <div class="doc-card-header">
+            <div>
+              <p class="doc-id">{{ statue.id }}</p>
+              <h3>{{ statue.godName }}</h3>
+              <p class="doc-title">{{ statue.title }}</p>
+            </div>
+            <div class="doc-actions">
+              <ion-button size="small" fill="outline" color="dark" (click)="editStatue(statue)">
+                Edit
+              </ion-button>
+              <ion-button
+                size="small"
+                fill="outline"
+                color="danger"
+                [disabled]="deletingStatueId === statue.id"
+                (click)="confirmDeleteStatue(statue)"
+              >
+                {{ deletingStatueId === statue.id ? 'Deleting...' : 'Delete' }}
+              </ion-button>
+            </div>
+          </div>
+
+          <div class="doc-metadata">
+            <span>{{ statue.category }}</span>
+            <span>{{ statue.metric }}</span>
+            <span>{{ statue.icon }}</span>
+            <span>constant: {{ statue.levelingConstant }}</span>
+          </div>
+
+          <p class="doc-copy">{{ statue.description }}</p>
+          <p class="doc-copy mythology">{{ statue.mythology }}</p>
+
+          <div class="stage-preview-grid">
+            <div class="stage-preview" *ngFor="let stage of stageLevels">
+              <img [src]="statue.stageImages[stage]" [alt]="statue.godName + ' ' + stage" />
+              <span>{{ stage }}</span>
+            </div>
+          </div>
+
+          <div class="tier-grid compact">
+            <div class="tier-pill" *ngFor="let stage of stageLevels">
+              <span>{{ stage }}</span>
+              <strong>{{ statue.tiers[stage] }}</strong>
+            </div>
+          </div>
+        </article>
+      </div>
+    </section>
+  </div>
+</ion-content>

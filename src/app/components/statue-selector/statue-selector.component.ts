@@ -19,7 +19,7 @@ import {
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
 import { close, checkmark, checkmarkCircle } from 'ionicons/icons';
-import { GreekStatue, GREEK_STATUES } from '../../interfaces/GreekStatue';
+import { getStatueLevelNumber, GreekStatue } from '../../models/greek-statue.model';
 import { GreekStatueComponent } from '../greek-statue/greek-statue.component';
 
 @Component({
@@ -68,9 +68,6 @@ export class StatueSelectorComponent implements OnInit {
     let statues = this.selectedCategory === 'all' 
       ? [...this.carvedStatues]
       : this.carvedStatues.filter(s => s.category === this.selectedCategory);
-
-    // Sort statues
-    const tierOrder = { divine: 5, gilded: 4, polished: 3, detailed: 2, outlined: 1, rough: 0 };
     
     if (this.sortBy === 'carving') {
       // Sort by rarity (percentile) - lowest % first (most rare)
@@ -82,8 +79,8 @@ export class StatueSelectorComponent implements OnInit {
     } else if (this.sortBy === 'category') {
       // Sort by carving level - Divine to Rough
       statues.sort((a, b) => {
-        const tierA = tierOrder[a.currentLevel || 'rough'];
-        const tierB = tierOrder[b.currentLevel || 'rough'];
+        const tierA = getStatueLevelNumber(a.currentLevel);
+        const tierB = getStatueLevelNumber(b.currentLevel);
         return tierB - tierA;
       });
     }
