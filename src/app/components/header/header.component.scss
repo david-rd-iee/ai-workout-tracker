@@ -1,5 +1,9 @@
 // // Default header styles
 
+.title-container {
+  position: relative;
+}
+
 h2 {
   font-size: calc(1.5rem + 0.5vw); 
   font-weight: 600;
@@ -30,6 +34,19 @@ h2 {
   margin-right: 8px;
   border-radius: 50%;
   flex-shrink: 0;
+}
+
+.title-container.profile-button-top-right {
+  --min-height: 60px;
+  overflow: visible;
+
+  .profile-button-floating {
+    position: absolute;
+    top: 6px;
+    right: 8px;
+    margin-right: 0;
+    z-index: 3;
+  }
 }
 
 .profile-avatar {

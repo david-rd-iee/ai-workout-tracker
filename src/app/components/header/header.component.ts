@@ -20,6 +20,10 @@ export class HeaderComponent implements OnInit {
   @Input() transparent: boolean = true;
   @Input() backHref?: string; // Optional: if provided, navigate to this route instead of using history
   @Input() currentUser: AppUser | null = null;
+  @Input() showProfileButtonWithBack: boolean = false;
+  @Input() profileHref: string = '/profile-user';
+  @Input() profileNavigationDirection: 'forward' | 'back' = 'forward';
+  @Input() pinProfileButtonTopRight: boolean = false;
 
   private navCtrl = inject(NavController);
   private router = inject(Router);
@@ -90,12 +94,20 @@ export class HeaderComponent implements OnInit {
   }
 
   goToProfile() {
-    if (this.router.url.startsWith('/profile-user')) {
+    if (this.router.url.startsWith(this.profileHref)) {
       return;
     }
 
     this.blurActiveElement();
-    this.navCtrl.navigateForward('/profile-user', {
+    if (this.profileNavigationDirection === 'back') {
+      this.navCtrl.navigateBack(this.profileHref, {
+        animated: true,
+        animationDirection: 'back',
+      });
+      return;
+    }
+
+    this.navCtrl.navigateForward(this.profileHref, {
       animated: true,
       animationDirection: 'forward',
     });

@@ -1,5 +1,8 @@
   <ion-header>
-    <ion-toolbar  class="title-container">
+    <ion-toolbar
+      class="title-container"
+      [class.profile-button-top-right]="pinProfileButtonTopRight"
+    >
         <!-- Always keep a button space on the left, even if no back button -->
         <div class="button-space" *ngIf="!showBack"></div>
         <ion-button (click)="goBack()" *ngIf="showBack" fill="clear" class="header-button left-button">
@@ -9,8 +12,14 @@
         <ion-title><h2>{{title}}</h2></ion-title>
         
         <!-- Profile Avatar Button -->
-        <div class="button-space" *ngIf="showBack"></div>
-        <ion-button (click)="goToProfile()" *ngIf="!showBack" class="profile-button" fill="clear">
+        <div class="button-space" *ngIf="showBack && !showProfileButtonWithBack"></div>
+        <ion-button
+          (click)="goToProfile()"
+          *ngIf="!showBack || showProfileButtonWithBack"
+          class="profile-button"
+          [class.profile-button-floating]="pinProfileButtonTopRight"
+          fill="clear"
+        >
           <ion-avatar class="profile-avatar">
             <img
               *ngIf="profilepicUrl; else showFallback"

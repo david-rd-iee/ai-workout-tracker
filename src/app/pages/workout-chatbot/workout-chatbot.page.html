@@ -1,7 +1,11 @@
 <app-header
   [title]="'AI Coach'"
   [showBack]="true"
-  [backHref]="'/profile-user'"
+  [backHref]="'/logging-method-routes'"
+  [showProfileButtonWithBack]="true"
+  [profileHref]="'/profile-user'"
+  [profileNavigationDirection]="'back'"
+  [pinProfileButtonTopRight]="true"
 ></app-header>
 
 <ion-content [fullscreen]="true" class="chat-content">

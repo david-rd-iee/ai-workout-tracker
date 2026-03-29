@@ -114,6 +114,14 @@ export const routes: Routes = [
     canActivate: [authGuard],
   },
   {
+    path: 'logging-method-routes',
+    loadComponent: () =>
+      import('./pages/logging-method-routes/logging-method-routes.page').then(
+        (m) => m.LoggingMethodRoutesPage
+      ),
+    canActivate: [authGuard],
+  },
+  {
     path: 'workout-summary',
     loadComponent: () =>
       import('./pages/workout-summary/workout-summary.page').then(

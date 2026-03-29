@@ -25,13 +25,15 @@ export const appNavAnimation: AnimationBuilder = (_baseEl: any, opts: any): Anim
   const leavingIsGroups = containsSelector(leavingEl, 'app-groups');
   const enteringIsWorkoutChatbot = containsSelector(enteringEl, 'app-workout-chatbot');
   const leavingIsWorkoutChatbot = containsSelector(leavingEl, 'app-workout-chatbot');
+  const enteringIsLoggingMethodRoutes = containsSelector(enteringEl, 'app-logging-method-routes');
+  const leavingIsLoggingMethodRoutes = containsSelector(leavingEl, 'app-logging-method-routes');
   const enteringIsWorkoutHistory = containsSelector(enteringEl, 'app-workout-history');
   const leavingIsWorkoutHistory = containsSelector(leavingEl, 'app-workout-history');
   const enteringIsHome = containsSelector(enteringEl, 'app-home');
   const leavingIsWorkoutSummary = containsSelector(leavingEl, 'app-workout-summary');
   const isProfileHorizontalTransition =
-    (enteringIsProfile && (leavingIsGroups || leavingIsWorkoutChatbot)) ||
-    (leavingIsProfile && (enteringIsGroups || enteringIsWorkoutChatbot));
+    (enteringIsProfile && (leavingIsGroups || leavingIsWorkoutChatbot || leavingIsLoggingMethodRoutes)) ||
+    (leavingIsProfile && (enteringIsGroups || enteringIsWorkoutChatbot || enteringIsLoggingMethodRoutes));
   const isSummaryToHomeTransition =
     !isBack && leavingIsWorkoutSummary && enteringIsHome;
 

@@ -1,0 +1,31 @@
+ion-content.logging-method-routes-content {
+  --background: transparent;
+}
+
+.background-gradient {
+  position: fixed;
+  inset: 0;
+  background-image: url('/assets/backgrounds/BlurryGradientLight.svg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  z-index: -1;
+}
+
+.logging-method-routes-page {
+  min-height: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+}
+
+.logging-method-button {
+  --border-radius: 18px;
+  --box-shadow: 0 16px 32px rgba(var(--ion-color-primary-rgb), 0.22);
+  min-height: 56px;
+  font-weight: 700;
+  margin-top: 8px;
+}

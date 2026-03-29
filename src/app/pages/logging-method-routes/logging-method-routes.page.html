@@ -1,0 +1,20 @@
+<app-header
+  [title]="'Log Workout'"
+  [showBack]="true"
+  [backHref]="'/profile-user'"
+></app-header>
+
+<ion-content [fullscreen]="true" class="logging-method-routes-content">
+  <div class="background-gradient"></div>
+
+  <div class="logging-method-routes-page">
+    <ion-button
+      expand="block"
+      size="large"
+      class="logging-method-button"
+      (click)="goToWorkoutChatbot()"
+    >
+      Log with AI chatbot
+    </ion-button>
+  </div>
+</ion-content>

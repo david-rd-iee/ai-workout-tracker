@@ -378,7 +378,7 @@ export class ProfileUserPage implements OnInit, OnDestroy {
     });
   }
   goToLogWorkout(): void {
-    this.navCtrl.navigateForward('/workout-chatbot', {
+    this.navCtrl.navigateForward('/logging-method-routes', {
       animated: true,
       animationDirection: 'forward',
     });
