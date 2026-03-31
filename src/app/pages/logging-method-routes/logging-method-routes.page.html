@@ -8,13 +8,29 @@
   <div class="background-gradient"></div>
 
   <div class="logging-method-routes-page">
-    <ion-button
-      expand="block"
-      size="large"
-      class="logging-method-button"
-      (click)="goToWorkoutChatbot()"
-    >
-      Log with AI chatbot
-    </ion-button>
+    <section class="logging-method-section">
+      <h2 class="logging-method-title">Log ALL workouts</h2>
+
+      <ion-button
+        expand="block"
+        size="large"
+        class="logging-method-button"
+        (click)="goToWorkoutChatbot()"
+      >
+        Log with AI chatbot
+      </ion-button>
+    </section>
+
+    <section class="logging-method-section">
+      <h2 class="logging-method-title">Log Cardio Workouts</h2>
+
+      <ion-button
+        expand="block"
+        size="large"
+        class="logging-method-button"
+      >
+        Log with Treadmill
+      </ion-button>
+    </section>
   </div>
 </ion-content>
