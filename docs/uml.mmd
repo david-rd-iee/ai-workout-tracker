@@ -1,0 +1,240 @@
+classDiagram
+direction LR
+
+namespace Frontend_Pages {
+  class WorkoutChatbotPage
+  class WorkoutSummaryPage
+  class GroupsPage
+  class LeaderboardPage
+  class ChatDetailPage
+  class ClientFindTrainerPage
+  class TrainerCalendarPage
+  class ProfileSettingsPage
+}
+
+namespace Frontend_Services {
+  class WorkoutChatService
+  class WorkoutLogService
+  class WorkoutSessionFormatterService
+  class UpdateScoreService
+  class ExerciseEstimatorsService
+  class GroupService
+  class LeaderboardService
+  class ChatsService
+  class NotificationService
+  class UserBadgesService
+  class GreekStatuesService
+  class UserStatsService
+  class AccountService
+  class ProfileRepositoryService
+  class TrainerFinderService
+  class TrainerAvailabilityService
+  class BookingService
+  class SessionNotesService
+  class VideoAnalysisService
+  class AccountUserService
+  class LegacyUserService
+}
+
+namespace Domain_Models {
+  class WorkoutSessionPerformance {
+    +date: string
+    +trainingRows: WorkoutTrainingRow[]
+    +strengthTrainingRow: WorkoutTrainingRow[]
+    +cardioTrainingRow: CardioTrainingRow[]
+    +otherTrainingRow: OtherTrainingRow[]
+    +estimated_calories: number
+    +trainer_notes: string
+    +isComplete: boolean
+  }
+
+  class WorkoutTrainingRow {
+    +Training_Type: TrainingType
+    +exercise_type: string
+    +sets: number
+    +reps: number
+    +displayed_weights_metric: string
+    +weights_kg: number
+    +estimated_calories: number
+  }
+
+  class CardioTrainingRow {
+    +Training_Type: Cardio
+    +cardio_type: string
+    +display_distance: string
+    +display_time: string
+    +distance_meters: number
+    +time_minutes: number
+    +estimated_calories: number
+  }
+
+  class OtherTrainingRow {
+    +Training_Type: Other
+    +estimated_calories: number
+  }
+
+  class UserStats {
+    +userId: string
+    +userScore: UserScore
+    +Expected_Effort: ExpectedEffortMap
+    +streakData: StreakData
+    +groupRankings: GroupRankingsMap
+    +region: Region
+  }
+
+  class UserScore {
+    +cardioScore: CardioScoreMap
+    +strengthScore: StrengthScoreMap
+    +totalScore: number
+    +maxAddedScoreWithinDay: number
+  }
+
+  class AppUser {
+    +userId: string
+    +email: string
+    +firstName: string
+    +lastName: string
+    +groupID: string[]
+    +trainerId: string
+    +isPT: boolean
+  }
+
+  class Group {
+    +groupId: string
+    +name: string
+    +ownerUserId: string
+    +userIDs: string[]
+    +isPTGroup: boolean
+  }
+
+  class Chat {
+    +chatId: string
+    +participants: string[]
+    +lastMessage: string
+    +lastMessageTime: string
+    +messages: message map
+  }
+
+  class Message {
+    +senderId: string
+    +text: string
+    +timestamp: string
+    +read: boolean
+  }
+
+  class ExerciseEstimatorDoc {
+    +id: string
+    +model: ExerciseEstimatorModel
+    +coefficients: ExerciseEstimatorCoefficientMap
+  }
+
+  class GreekStatueDefinition {
+    +id: string
+    +title: string
+    +category: StatueCategory
+    +tiers: tier map
+  }
+
+  class UserBadgeStatDoc {
+    +currentLevel: UserBadgeLevel
+    +currentValue: number
+    +nextTierValue: number
+    +progressToNext: number
+    +isDisplayed: boolean
+  }
+}
+
+namespace Backend_Functions {
+  class WorkoutChatCallable
+  class TreadmillLoggerCallable
+  class MergeWorkoutNotesCallable
+  class RetrainExerciseEstimatorOnWorkoutLogCreate
+  class OnBookingChange
+  class OnTrainerClientChange
+  class OnWorkoutSessionCreate
+}
+
+namespace Infrastructure {
+  class Firestore
+  class RealtimeDatabase
+  class OpenAI
+}
+
+WorkoutSessionPerformance o-- WorkoutTrainingRow
+WorkoutSessionPerformance o-- CardioTrainingRow
+WorkoutSessionPerformance o-- OtherTrainingRow
+UserStats o-- UserScore
+Chat o-- Message
+
+WorkoutChatbotPage --> WorkoutChatService : sendMessage()
+WorkoutChatbotPage --> WorkoutLogService : saveCompletedWorkout()
+WorkoutChatbotPage --> ExerciseEstimatorsService : getCachedEstimatorIds()
+WorkoutChatbotPage --> WorkoutSessionFormatterService : normalize session state
+WorkoutSummaryPage --> WorkoutSessionPerformance
+
+GroupsPage --> GroupService
+LeaderboardPage --> LeaderboardService
+ChatDetailPage --> ChatsService
+ClientFindTrainerPage --> TrainerFinderService
+TrainerCalendarPage --> TrainerAvailabilityService
+TrainerCalendarPage --> BookingService
+ProfileSettingsPage --> AccountService
+ProfileSettingsPage --> AccountUserService
+
+AccountService --> GroupService
+AccountService --> Firestore
+AccountUserService --> AccountService
+AccountUserService --> ProfileRepositoryService
+AccountUserService --> UserBadgesService
+AccountUserService --> UserStatsService
+LegacyUserService --> Firestore
+ProfileRepositoryService --> Firestore
+ProfileRepositoryService --> AppUser
+
+GroupService --> ProfileRepositoryService
+GroupService --> Group
+LeaderboardService --> AccountUserService
+LeaderboardService --> ProfileRepositoryService
+LeaderboardService --> UserStats
+
+WorkoutLogService --> WorkoutSessionFormatterService
+WorkoutLogService --> UpdateScoreService
+WorkoutLogService --> WorkoutChatService
+WorkoutLogService --> ChatsService
+WorkoutLogService --> WorkoutSessionPerformance
+WorkoutLogService --> Firestore
+
+WorkoutSessionFormatterService --> ExerciseEstimatorsService
+UpdateScoreService --> ExerciseEstimatorDoc
+UpdateScoreService --> UserStats
+UpdateScoreService --> Firestore
+ExerciseEstimatorsService --> ExerciseEstimatorDoc
+ExerciseEstimatorsService --> Firestore
+
+ChatsService --> RealtimeDatabase
+ChatsService --> AccountUserService
+ChatsService --> NotificationService
+ChatsService --> Chat
+
+UserBadgesService --> GreekStatuesService
+UserBadgesService --> UserBadgeStatDoc
+UserBadgesService --> Firestore
+GreekStatuesService --> GreekStatueDefinition
+GreekStatuesService --> Firestore
+UserStatsService --> UserStats
+UserStatsService --> Firestore
+SessionNotesService --> Firestore
+VideoAnalysisService --> WorkoutSessionPerformance
+
+WorkoutChatService --> WorkoutChatCallable
+WorkoutChatService --> TreadmillLoggerCallable
+WorkoutChatService --> MergeWorkoutNotesCallable
+
+WorkoutChatCallable --> OpenAI
+TreadmillLoggerCallable --> OpenAI
+MergeWorkoutNotesCallable --> OpenAI
+
+RetrainExerciseEstimatorOnWorkoutLogCreate --> Firestore
+OnBookingChange --> Firestore
+OnTrainerClientChange --> Firestore
+OnWorkoutSessionCreate ..> Firestore : listens to legacy path

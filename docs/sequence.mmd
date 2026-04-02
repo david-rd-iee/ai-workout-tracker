@@ -1,0 +1,65 @@
+sequenceDiagram
+autonumber
+
+actor User
+participant Page as WorkoutChatbotPage
+participant ChatSvc as WorkoutChatService
+participant ChatFn as workoutChatCallable
+participant NotesFn as mergeWorkoutNotesCallable
+participant OpenAI
+participant EstSvc as ExerciseEstimatorsService
+participant LogSvc as WorkoutLogService
+participant Formatter as WorkoutSessionFormatterService
+participant ScoreSvc as UpdateScoreService
+participant FS as Firestore
+participant ChatDbSvc as ChatsService
+participant RTDB as Realtime Database
+participant RetrainFn as retrainExerciseEstimatorOnWorkoutLogCreate
+
+User->>Page: Enter workout message
+Page->>ChatSvc: sendMessage(message, session, history, estimatorIds)
+ChatSvc->>ChatFn: httpsCallable(payload)
+ChatFn->>OpenAI: Parse/update workout JSON
+OpenAI-->>ChatFn: assistantMessage + summary
+ChatFn-->>ChatSvc: ChatResponse
+ChatSvc-->>Page: botMessage + updatedSession
+Page->>EstSvc: ensure estimator docs for strength rows
+EstSvc->>FS: Read/create exercise estimator docs
+
+User->>Page: Submit workout
+Page->>LogSvc: saveCompletedWorkout(session)
+LogSvc->>Formatter: normalizeSession(session)
+Formatter-->>LogSvc: normalized session
+
+opt Existing same-day workout already exists
+  LogSvc->>ChatSvc: mergeWorkoutNotes(notes[])
+  ChatSvc->>NotesFn: httpsCallable(notes)
+  NotesFn->>OpenAI: Merge duplicated trainer notes
+  OpenAI-->>NotesFn: mergedNotes
+  NotesFn-->>ChatSvc: mergedNotes
+  ChatSvc-->>LogSvc: mergedNotes
+end
+
+LogSvc->>FS: Write users/{uid}/workoutLogs/{date}
+LogSvc->>FS: Transactionally update userStats streak + early-morning tracker
+LogSvc->>ScoreSvc: updateScoreAfterWorkout(userId, session, workoutLogId)
+ScoreSvc->>FS: Read userStats, users doc, estimator docs
+ScoreSvc->>FS: Write score totals, expected effort, rankings, estimator workout_logs
+
+par Trainer summary collection
+  LogSvc->>FS: Add users/{trainerUid}/workoutSummaries document
+and Chat summary message
+  LogSvc->>ChatDbSvc: findOrCreateDirectChat(trainerUid, clientUid)
+  ChatDbSvc->>RTDB: Read/create chat
+  LogSvc->>ChatDbSvc: sendMessage(chatId, clientUid, summaryText)
+  ChatDbSvc->>RTDB: Persist chat message + unread counters
+end
+
+FS-->>RetrainFn: Trigger when estimator workout_logs doc is created
+RetrainFn->>FS: Retrain and persist estimator coefficients/metrics
+
+Note over LogSvc,FS: Active frontend path persists to users/{uid}/workoutLogs/{date}
+Note over FS: onWorkoutSessionCreate watches workoutSessions/{sessionId}, which does not appear in the active frontend save flow
+
+LogSvc-->>Page: savedSession + streakUpdate + scoreUpdate
+Page-->>User: Success message + workout summary
