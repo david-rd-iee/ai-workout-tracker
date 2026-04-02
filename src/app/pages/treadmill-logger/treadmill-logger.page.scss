@@ -1,0 +1,133 @@
+ion-content.treadmill-logger-content {
+  --background: transparent;
+}
+
+.background-gradient {
+  position: fixed;
+  inset: 0;
+  background-image: url('/assets/backgrounds/BlurryGradientLight.svg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  z-index: -1;
+}
+
+.treadmill-logger-page {
+  min-height: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 24px 20px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.hero-card,
+.summary-card {
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.12);
+  backdrop-filter: blur(12px);
+}
+
+.hero-card h2,
+.summary-row h3 {
+  margin: 0 0 8px;
+  color: #122033;
+}
+
+.hero-card p,
+.summary-row p,
+.summary-total {
+  margin: 0;
+  color: #4b5563;
+}
+
+.preview-shell,
+.preview-placeholder {
+  margin: 18px 0;
+  border-radius: 20px;
+  overflow: hidden;
+  background: rgba(15, 23, 42, 0.06);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+}
+
+.preview-image {
+  display: block;
+  width: 100%;
+  max-height: 440px;
+  object-fit: cover;
+}
+
+.preview-placeholder {
+  min-height: 220px;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  text-align: center;
+}
+
+.button-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.machine-selector {
+  margin-top: 18px;
+}
+
+.selector-label {
+  margin-bottom: 10px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #0d5eaf;
+}
+
+.machine-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.primary-button {
+  --border-radius: 18px;
+  --box-shadow: 0 16px 32px rgba(var(--ion-color-primary-rgb), 0.22);
+  min-height: 56px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.status-text {
+  margin-top: 16px;
+  line-height: 1.5;
+}
+
+.eyebrow {
+  margin-bottom: 14px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #0d5eaf;
+}
+
+.summary-row {
+  padding: 16px 0;
+  border-top: 1px solid rgba(148, 163, 184, 0.2);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.summary-row:first-of-type {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.summary-total {
+  margin: 8px 0 18px;
+  font-size: 0.98rem;
+}

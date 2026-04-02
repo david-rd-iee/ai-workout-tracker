@@ -428,6 +428,37 @@ function normalizeSummaryRows(summary: unknown, latestMessage: string): unknown 
   return summaryRecord;
 }
 
+function buildEmptyTreadmillSummary(): Record<string, unknown> {
+  return {
+    date: new Date().toISOString().slice(0, 10),
+    cardioTrainingRow: [],
+    estimated_calories: 0,
+    trainer_notes: "",
+    isComplete: false,
+  };
+}
+
+function coerceImageDataUrl(value: unknown): string {
+  const text = String(value ?? "").trim();
+  if (!text) {
+    return "";
+  }
+
+  if (text.startsWith("data:image/")) {
+    return text;
+  }
+
+  return "";
+}
+
+function normalizeMachineType(value: unknown): string {
+  return String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+}
+
 async function handleWorkoutChatRequest(body: unknown): Promise<{botMessage: string; updatedSession: unknown}> {
   const apiKey = openaiApiKey.value()?.trim() ?? "";
   if (!apiKey) {
@@ -599,6 +630,202 @@ Respond ONLY as valid JSON:
   };
 }
 
+async function handleTreadmillLoggerRequest(body: unknown): Promise<{botMessage: string; updatedSession: unknown}> {
+  const apiKey = openaiApiKey.value()?.trim() ?? "";
+  if (!apiKey) {
+    logger.error("Missing OPENAI_API_KEY secret for treadmillLogger");
+    throw new HttpsError(
+      "internal",
+      "Internal server error in treadmillLogger.",
+      "OPENAI_API_KEY is not configured for this function."
+    );
+  }
+
+  const openai = new OpenAI({ apiKey });
+  const requestBody =
+    body && typeof body === "object" ? body as Record<string, unknown> : {};
+  const imageDataUrl = coerceImageDataUrl(requestBody["imageDataUrl"]);
+  const machineType = normalizeMachineType(requestBody["machineType"]);
+
+  if (!imageDataUrl) {
+    throw new HttpsError("invalid-argument", "Missing 'imageDataUrl' in request body");
+  }
+
+  const prompt = `
+You are a fitness logging assistant reading a cardio machine display photo.
+
+Your job:
+1. Extract the workout details from the image.
+2. Return a workout summary that matches this cardio JSON structure:
+{
+  "cardioTrainingRow": [
+    {
+      "Training_Type": "Cardio",
+      "estimated_calories": number,
+      "cardio_type": string,
+      "display_distance": string,
+      "display_time": string,
+      "distance_meters": number,
+      "time_minutes": number
+    }
+  ],
+  "estimated_calories": number,
+  "trainer_notes": string,
+  "isComplete": boolean
+}
+
+Rules:
+- The user selected machineType as "${machineType || "unknown"}".
+- Use that machineType as the primary cardio_type when it is provided and semantically fits the image.
+- cardio_type should use the same snake_case style used by the chatbot flow, such as "running", "biking", "rowing", "elliptical", "stairs", or "generic_cardio".
+- Preserve the exact visible distance text in display_distance, such as "3.25 mi" or "5 km".
+- Preserve the exact visible time text in display_time, such as "28:14", "45 min", or "1:05:32".
+- Convert distance into distance_meters.
+- Convert time into time_minutes.
+- estimated_calories must be a positive number when calories are visible or reasonably inferable from the screen. If calories are visible, use that value.
+- trainer_notes must be "".
+- isComplete should be true when a usable cardio row is extracted.
+- If the image is blurry, cropped, or unreadable, return an empty cardioTrainingRow array, estimated_calories 0, trainer_notes "", isComplete false, and ask for a clearer image.
+- Respond only with valid JSON in this exact envelope:
+{
+  "assistantMessage": "short user-facing message",
+  "summary": { ... }
+}
+`;
+
+  const completion = await openai.chat.completions.create({
+    model: "gpt-4.1-mini",
+    response_format: { type: "json_object" },
+    messages: [
+      {
+        role: "system",
+        content: "You extract treadmill workout data from treadmill display images and return JSON only.",
+      },
+      {
+        role: "user",
+        content: [
+          {
+            type: "text",
+            text: prompt,
+          },
+          {
+            type: "image_url",
+            image_url: {
+              url: imageDataUrl,
+              detail: "high",
+            },
+          },
+        ],
+      },
+    ],
+    max_tokens: 512,
+  });
+
+  const raw = completion.choices[0]?.message?.content ?? "{}";
+
+  let parsed: any;
+  try {
+    parsed = JSON.parse(raw);
+  } catch (error) {
+    logger.error("Failed to parse JSON from OpenAI treadmillLogger:", raw);
+    parsed = {};
+  }
+
+  const emptySummary = buildEmptyTreadmillSummary();
+  const assistantMessage =
+    parsed.assistantMessage ??
+    "I couldn't read the treadmill display clearly. Please retake the photo.";
+  const updatedSession = normalizeSummaryRows(
+    parsed.summary ?? emptySummary,
+    ""
+  );
+  logger.info("treadmillLogger parsed cardio JSON", {
+    machineType,
+    updatedSession,
+  });
+
+  return {
+    botMessage: assistantMessage,
+    updatedSession,
+  };
+}
+
+async function handleMergeWorkoutNotesRequest(body: unknown): Promise<{mergedNotes: string}> {
+  const requestBody =
+    body && typeof body === "object" ? body as Record<string, unknown> : {};
+  const notes = Array.isArray(requestBody["notes"])
+    ? requestBody["notes"]
+        .map((note) => String(note ?? "").trim())
+        .filter((note) => !!note)
+    : [];
+
+  if (notes.length === 0) {
+    return {mergedNotes: ""};
+  }
+
+  if (notes.length === 1) {
+    return {mergedNotes: notes[0]};
+  }
+
+  const apiKey = openaiApiKey.value()?.trim() ?? "";
+  if (!apiKey) {
+    logger.error("Missing OPENAI_API_KEY secret for mergeWorkoutNotes");
+    throw new HttpsError(
+      "internal",
+      "Internal server error in mergeWorkoutNotes.",
+      "OPENAI_API_KEY is not configured for this function."
+    );
+  }
+
+  const openai = new OpenAI({ apiKey });
+  const prompt = `
+You merge same-day workout trainer notes into one natural note.
+
+Rules:
+- Preserve the meaning of every note.
+- Remove duplicates and obvious repetition.
+- Keep the final note concise and natural.
+- Do not invent new details.
+- Return valid JSON only:
+{
+  "mergedNotes": string
+}
+`;
+
+  const completion = await openai.chat.completions.create({
+    model: "gpt-4.1-mini",
+    response_format: {type: "json_object"},
+    messages: [
+      {
+        role: "system",
+        content: "You merge workout notes into one concise natural note and return JSON only.",
+      },
+      {
+        role: "user",
+        content: JSON.stringify({
+          instructions: prompt,
+          notes,
+        }),
+      },
+    ],
+    max_tokens: 200,
+  });
+
+  const raw = completion.choices[0]?.message?.content ?? "{}";
+  let parsed: any;
+  try {
+    parsed = JSON.parse(raw);
+  } catch (error) {
+    logger.error("Failed to parse JSON from mergeWorkoutNotes:", raw);
+    parsed = {};
+  }
+
+  const mergedNotes = String(parsed.mergedNotes ?? "").trim();
+  return {
+    mergedNotes: mergedNotes || notes.join(" ").replace(/\s+/g, " ").trim(),
+  };
+}
+
 // ------------------------------
 //  Cloud Function: workoutChat (HTTP fallback)
 // ------------------------------
@@ -657,6 +884,124 @@ export const workoutChatCallable = onCall({secrets: [openaiApiKey]}, async (requ
     throw new HttpsError(
       "internal",
       "Internal server error in workoutChat.",
+      error?.message ?? String(error)
+    );
+  }
+});
+
+// ------------------------------
+//  Cloud Function: treadmillLogger (HTTP fallback)
+// ------------------------------
+export const treadmillLogger = onRequest({secrets: [openaiApiKey]}, async (req, res) => {
+  logger.info("treadmillLogger called", { method: req.method });
+
+  res.set("Access-Control-Allow-Origin", "*");
+  res.set("Access-Control-Allow-Headers", "Content-Type");
+  res.set("Access-Control-Allow-Methods", "POST, OPTIONS");
+
+  if (req.method === "OPTIONS") {
+    res.status(204).send("");
+    return;
+  }
+
+  if (req.method !== "POST") {
+    res.status(405).send("Method Not Allowed");
+    return;
+  }
+
+  try {
+    const response = await handleTreadmillLoggerRequest(req.body);
+    res.status(200).json(response);
+  } catch (error: any) {
+    logger.error("Error in treadmillLogger:", error);
+    const details = error instanceof HttpsError
+      ? error.details ?? error.message
+      : error?.message ?? String(error);
+    const statusCode = error instanceof HttpsError && error.code === "invalid-argument"
+      ? 400
+      : 500;
+
+    res.status(statusCode).json({
+      error: "Internal server error in treadmillLogger.",
+      details,
+    });
+  }
+});
+
+// ------------------------------
+//  Cloud Function: treadmillLoggerCallable
+// ------------------------------
+export const treadmillLoggerCallable = onCall({secrets: [openaiApiKey]}, async (request) => {
+  logger.info("treadmillLoggerCallable called");
+
+  try {
+    return await handleTreadmillLoggerRequest(request.data);
+  } catch (error: any) {
+    logger.error("Error in treadmillLoggerCallable:", error);
+
+    if (error instanceof HttpsError) {
+      throw error;
+    }
+
+    throw new HttpsError(
+      "internal",
+      "Internal server error in treadmillLogger.",
+      error?.message ?? String(error)
+    );
+  }
+});
+
+export const mergeWorkoutNotes = onRequest({secrets: [openaiApiKey]}, async (req, res) => {
+  logger.info("mergeWorkoutNotes called", { method: req.method });
+
+  res.set("Access-Control-Allow-Origin", "*");
+  res.set("Access-Control-Allow-Headers", "Content-Type");
+  res.set("Access-Control-Allow-Methods", "POST, OPTIONS");
+
+  if (req.method === "OPTIONS") {
+    res.status(204).send("");
+    return;
+  }
+
+  if (req.method !== "POST") {
+    res.status(405).send("Method Not Allowed");
+    return;
+  }
+
+  try {
+    const response = await handleMergeWorkoutNotesRequest(req.body);
+    res.status(200).json(response);
+  } catch (error: any) {
+    logger.error("Error in mergeWorkoutNotes:", error);
+    const details = error instanceof HttpsError
+      ? error.details ?? error.message
+      : error?.message ?? String(error);
+    const statusCode = error instanceof HttpsError && error.code === "invalid-argument"
+      ? 400
+      : 500;
+
+    res.status(statusCode).json({
+      error: "Internal server error in mergeWorkoutNotes.",
+      details,
+    });
+  }
+});
+
+export const mergeWorkoutNotesCallable = onCall({secrets: [openaiApiKey]}, async (request) => {
+  logger.info("mergeWorkoutNotesCallable called");
+
+  try {
+    return await handleMergeWorkoutNotesRequest(request.data);
+  } catch (error: any) {
+    logger.error("Error in mergeWorkoutNotesCallable:", error);
+
+    if (error instanceof HttpsError) {
+      throw error;
+    }
+
+    throw new HttpsError(
+      "internal",
+      "Internal server error in mergeWorkoutNotes.",
       error?.message ?? String(error)
     );
   }

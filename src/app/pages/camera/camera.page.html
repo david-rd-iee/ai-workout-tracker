@@ -3,31 +3,169 @@
     <ion-buttons slot="start">
       <ion-back-button defaultHref="/profile-user"></ion-back-button>
     </ion-buttons>
-    <ion-title>Analyze workouts</ion-title>
+    <ion-title>Analyze workout</ion-title>
   </ion-toolbar>
 </ion-header>
 
 <ion-content [fullscreen]="true" class="camera-content">
   <div class="camera-page">
-    <div class="preview-wrap">
+    <div class="preview-wrap" [class.preview-wrap--recorded]="hasRecordedVideo">
       <video #cameraVideo class="camera-preview" autoplay playsinline muted></video>
-      <canvas #skeletonCanvas class="skeleton-overlay"></canvas>
+
+      <div class="preview-pill preview-pill--recording" *ngIf="isRecording">
+        REC {{ recordingTimeLabel }}
+      </div>
+
+      <div class="preview-pill" *ngIf="hasRecordedVideo && !isRecording">
+        Recorded clip
+      </div>
+
+      <div class="preview-overlay" *ngIf="isLoading || isAnalyzing || isUploading">
+        <ion-spinner name="crescent"></ion-spinner>
+        <span>
+          {{
+            isUploading
+              ? (uploadMessage || 'Uploading analysis...')
+              : isAnalyzing
+                ? (analysisMessage || 'Analyzing movement...')
+                : 'Starting camera...'
+          }}
+        </span>
+      </div>
     </div>
 
-    <ion-text color="medium" *ngIf="isLoading">
-      <p>Starting camera...</p>
-    </ion-text>
+    <div class="status-copy">
+      <p *ngIf="!hasRecordedVideo && !isRecording">
+        This page stays simple while you record. Pose landmarks and form metrics are calculated after the clip ends.
+      </p>
 
-    <ion-text color="danger" *ngIf="!isLoading && errorMessage">
-      <p>{{ errorMessage }}</p>
-    </ion-text>
+      <p *ngIf="hasRecordedVideo && !isAnalyzing">
+        Review the clip, then send it to the assigned trainer when you are ready.
+      </p>
 
-    <ion-text color="danger" *ngIf="!hasCameraSupport">
-      <p>Your device/browser does not support camera access.</p>
-    </ion-text>
+      <p class="error-text" *ngIf="!hasCameraSupport">
+        Your device or browser does not support camera access.
+      </p>
 
-    <ion-button expand="block" *ngIf="hasCameraSupport" (click)="retryCamera()">
-      Retry camera
-    </ion-button>
+      <p class="error-text" *ngIf="!hasRecordingSupport">
+        Your device or browser does not support video recording.
+      </p>
+
+      <p class="error-text" *ngIf="errorMessage">
+        {{ errorMessage }}
+      </p>
+
+      <p *ngIf="hasRecordedVideo && !assignedTrainerId && !isUploading">
+        "Send to Trainer?" only appears when this user has a trainer assigned.
+      </p>
+    </div>
+
+    <div class="control-stack">
+      <ion-button
+        expand="block"
+        color="danger"
+        *ngIf="!hasRecordedVideo && !isRecording"
+        [disabled]="recordButtonDisabled"
+        (click)="startRecording()">
+        Start recording
+      </ion-button>
+
+      <ion-button
+        expand="block"
+        color="danger"
+        *ngIf="isRecording"
+        (click)="stopRecording()">
+        Stop recording
+      </ion-button>
+
+      <ion-button
+        expand="block"
+        fill="outline"
+        *ngIf="hasRecordedVideo && !isRecording"
+        [disabled]="isAnalyzing || isUploading"
+        (click)="retakeRecording()">
+        Record again
+      </ion-button>
+
+      <ion-button
+        expand="block"
+        *ngIf="canShowSendButton"
+        [disabled]="isUploading || !!savedRecord"
+        (click)="sendToTrainer()">
+        {{ savedRecord ? 'Sent to Trainer' : 'Send to Trainer?' }}
+      </ion-button>
+
+      <ion-button
+        expand="block"
+        fill="clear"
+        *ngIf="!hasRecordedVideo && !isRecording && hasCameraSupport"
+        [disabled]="isLoading"
+        (click)="retryCamera()">
+        Retry camera
+      </ion-button>
+    </div>
+
+    <div class="analysis-grid" *ngIf="analysisResult as analysis">
+      <div class="analysis-card">
+        <span class="analysis-label">Movement</span>
+        <strong>{{ dominantMovementLabel(analysis) }}</strong>
+        <p>{{ analysis.framesAnalyzed }} analyzed frames</p>
+      </div>
+
+      <div class="analysis-card">
+        <span class="analysis-label">Rep count</span>
+        <strong>{{ analysis.repCount.total }}</strong>
+        <p>
+          {{
+            analysis.repCount.applicable
+              ? ((analysis.repCount.confidence | titlecase) + ' confidence')
+              : 'No full rep cycle detected'
+          }}
+        </p>
+      </div>
+
+      <div class="analysis-card">
+        <span class="analysis-label">Tempo</span>
+        <strong>{{ formatMilliseconds(analysis.tempo.averageRepDurationMs) }}</strong>
+        <p>
+          Down {{ formatMilliseconds(analysis.tempo.averageEccentricMs) }}
+          / Up {{ formatMilliseconds(analysis.tempo.averageConcentricMs) }}
+        </p>
+      </div>
+
+      <div class="analysis-card">
+        <span class="analysis-label">Range of motion</span>
+        <strong>{{ formatMetric(analysis.rangeOfMotion.dominant.range, 1, ' deg') }}</strong>
+        <p>{{ analysis.rangeOfMotion.dominant.label || 'No dominant ROM signal yet' }}</p>
+      </div>
+
+      <div class="analysis-card">
+        <span class="analysis-label">Symmetry</span>
+        <strong>{{ formatMetric(analysis.symmetry.overallScore, 0, '%') }}</strong>
+        <p>Knee diff {{ formatMetric(analysis.symmetry.knees.averageDifference, 1, ' deg') }}</p>
+      </div>
+
+      <div class="analysis-card">
+        <span class="analysis-label">Trunk + back</span>
+        <strong>{{ formatMetric(analysis.posture.trunkLean.maximum, 1, ' deg') }}</strong>
+        <p>Back angle avg {{ formatMetric(analysis.posture.backAngle.average, 1, ' deg') }}</p>
+      </div>
+
+      <div class="analysis-card">
+        <span class="analysis-label">Knee tracking</span>
+        <strong>{{ formatMetric(analysis.posture.kneeValgus.minimumRatio, 2, 'x') }}</strong>
+        <p>{{ formatMetric(analysis.posture.kneeValgus.flaggedFramePercentage, 0, '%') }} flagged frames</p>
+      </div>
+
+      <div class="analysis-card">
+        <span class="analysis-label">Elbow flare</span>
+        <strong>
+          {{ formatMetric(analysis.posture.elbowFlare.leftAverage, 1, ' deg') }}
+          /
+          {{ formatMetric(analysis.posture.elbowFlare.rightAverage, 1, ' deg') }}
+        </strong>
+        <p>Left / right average flare</p>
+      </div>
+    </div>
   </div>
 </ion-content>

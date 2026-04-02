@@ -28,8 +28,18 @@
         expand="block"
         size="large"
         class="logging-method-button"
+        (click)="goToTreadmillLogger()"
       >
         Log with Treadmill
+      </ion-button>
+
+      <ion-button
+        expand="block"
+        size="large"
+        class="logging-method-button logging-method-button-spaced"
+        (click)="goToMapTrackingLogger()"
+      >
+        Log with Map Tracking
       </ion-button>
     </section>
   </div>

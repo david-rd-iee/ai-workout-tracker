@@ -178,6 +178,27 @@ export const routes: Routes = [
     canActivate: [authGuard],
   },
   {
+    path: 'treadmill-logger',
+    loadComponent: () =>
+      import('./pages/treadmill-logger/treadmill-logger.page').then(
+        (m) => m.TreadmillLoggerPage
+      ),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'trwadmill-logger',
+    redirectTo: 'treadmill-logger',
+    pathMatch: 'full',
+  },
+  {
+    path: 'map-tracking-logger',
+    loadComponent: () =>
+      import('./pages/map-tracking-logger/map-tracking-logger.page').then(
+        (m) => m.MapTrackingLoggerPage
+      ),
+    canActivate: [authGuard],
+  },
+  {
     path: 'workout-history',
     loadComponent: () =>
       import('./pages/workout-history/workout-history.page').then(

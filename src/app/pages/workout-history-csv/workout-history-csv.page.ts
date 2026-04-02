@@ -44,6 +44,7 @@ type WorkoutHistoryDateGroup = {
   cardio: CardioHistoryEntry[];
   other: OtherHistoryEntry[];
   totalCaloriesBurned: number;
+  trainerNotes: string;
 };
 
 type CsvTableType = 'Strength' | 'Cardio' | 'Other';
@@ -131,20 +132,20 @@ export class WorkoutHistoryCsvPage implements OnInit {
   private buildTableModel(type: CsvTableType): { header: string[]; rows: string[][] } {
     if (type === 'Strength') {
       return {
-        header: ['Date', 'Exercise', 'Sets', 'Reps', 'Weights (kg)', 'Calories Burned'],
+        header: ['Date', 'Exercise', 'Sets', 'Reps', 'Weights (kg)', 'Calories Burned', 'Trainer Notes'],
         rows: this.buildRowsForType(type),
       };
     }
 
     if (type === 'Cardio') {
       return {
-        header: ['Date', 'Exercise', 'Distance (m)', 'Time (min)', 'Calories Burned'],
+        header: ['Date', 'Exercise', 'Distance', 'Time', 'Calories Burned', 'Trainer Notes'],
         rows: this.buildRowsForType(type),
       };
     }
 
     return {
-      header: ['Date', 'Exercise', 'Details', 'Calories Burned'],
+      header: ['Date', 'Exercise', 'Details', 'Calories Burned', 'Trainer Notes'],
       rows: this.buildRowsForType(type),
     };
   }
@@ -162,6 +163,7 @@ export class WorkoutHistoryCsvPage implements OnInit {
             String(entry.reps),
             entry.weights,
             String(entry.caloriesBurned),
+            group.trainerNotes,
           ]);
         });
         return;
@@ -175,6 +177,7 @@ export class WorkoutHistoryCsvPage implements OnInit {
             entry.distance,
             entry.time,
             String(entry.caloriesBurned),
+            group.trainerNotes,
           ]);
         });
         return;
@@ -186,6 +189,7 @@ export class WorkoutHistoryCsvPage implements OnInit {
           entry.exercise,
           entry.details,
           String(entry.caloriesBurned),
+          group.trainerNotes,
         ]);
       });
     });
@@ -224,6 +228,7 @@ export class WorkoutHistoryCsvPage implements OnInit {
           cardio: this.normalizeCardioEntries(record['cardio']),
           other: this.normalizeOtherEntries(record['other']),
           totalCaloriesBurned: this.toRoundedNonNegative(record['totalCaloriesBurned']),
+          trainerNotes: this.readText(record['trainerNotes']),
         };
       });
   }

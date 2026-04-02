@@ -20,4 +20,18 @@ export class LoggingMethodRoutesPage {
       animationDirection: 'forward',
     });
   }
+
+  goToTreadmillLogger(): void {
+    this.navCtrl.navigateForward('/treadmill-logger', {
+      animated: true,
+      animationDirection: 'forward',
+    });
+  }
+
+  goToMapTrackingLogger(): void {
+    this.navCtrl.navigateForward('/map-tracking-logger', {
+      animated: true,
+      animationDirection: 'forward',
+    });
+  }
 }

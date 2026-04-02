@@ -23,6 +23,12 @@ service firebase.storage {
         && firestore.get(/databases/(default)/documents/groupID/$(groupId)).data.ownerUserId == request.auth.uid;
     }
 
+    function isAssignedTrainerPair(clientId, trainerId) {
+      return isSignedIn()
+        && firestore.exists(/databases/(default)/documents/users/$(clientId))
+        && firestore.get(/databases/(default)/documents/users/$(clientId)).data.trainerId == trainerId;
+    }
+
     // Profile pictures uploaded from profile page
     match /profile-pictures/{userId}/{allPaths=**} {
       allow read: if isSignedIn();
@@ -45,6 +51,19 @@ service firebase.storage {
     match /GreekStatues/{allPaths=**} {
       allow read: if isSignedIn();
       allow write: if isGreekStatueAdmin();
+    }
+
+    // Recorded workout analysis videos + JSON artifacts
+    match /trainers/{trainerId}/clients/{clientId}/videoAnalysis/{allPaths=**} {
+      allow read: if isSignedIn() && (
+        request.auth.uid == trainerId ||
+        request.auth.uid == clientId
+      );
+
+      allow write: if isSignedIn() && (
+        request.auth.uid == trainerId ||
+        (request.auth.uid == clientId && isAssignedTrainerPair(clientId, trainerId))
+      );
     }
 
     // Default deny for everything else

@@ -1,41 +1,19 @@
-import { AfterViewInit, Component, ElementRef, OnDestroy, ViewChild } from '@angular/core';
+import { AfterViewInit, Component, ElementRef, OnDestroy, ViewChild, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FilesetResolver, PoseLandmarker } from '@mediapipe/tasks-vision';
 import {
   IonBackButton,
   IonButton,
   IonButtons,
   IonContent,
   IonHeader,
-  IonText,
+  IonSpinner,
   IonTitle,
   IonToolbar,
+  ToastController,
 } from '@ionic/angular/standalone';
-
-type PoseLandmark = { x: number; y: number; z?: number; visibility?: number };
-type PoseResult = { landmarks?: PoseLandmark[][] };
-type PoseLandmarkerInstance = {
-  detectForVideo(video: HTMLVideoElement, timestamp: number): PoseResult;
-  close?: () => void;
-};
-type PoseLandmarkerCtor = {
-  createFromOptions(
-    resolver: unknown,
-    options: {
-      baseOptions: { modelAssetPath: string; delegate?: 'GPU' | 'CPU' };
-      runningMode: 'VIDEO';
-      numPoses: number;
-      minPoseDetectionConfidence?: number;
-      minPosePresenceConfidence?: number;
-      minTrackingConfidence?: number;
-    }
-  ): Promise<PoseLandmarkerInstance>;
-};
-type FilesetResolverApi = typeof FilesetResolver;
-type VisionBundle = {
-  PoseLandmarker: PoseLandmarkerCtor;
-  FilesetResolver: FilesetResolverApi;
-};
+import { VideoAnalysisResult, SavedVideoAnalysisRecord } from '../../models/video-analysis.model';
+import { VideoAnalysisService } from '../../services/video-analysis.service';
+import { UserService } from '../../services/account/user.service';
 
 @Component({
   selector: 'app-camera',
@@ -50,55 +28,92 @@ type VisionBundle = {
     IonButtons,
     IonBackButton,
     IonButton,
-    IonText,
+    IonSpinner,
     CommonModule,
   ],
 })
 export class CameraPage implements AfterViewInit, OnDestroy {
   @ViewChild('cameraVideo', { static: false }) cameraVideo?: ElementRef<HTMLVideoElement>;
-  @ViewChild('skeletonCanvas', { static: false }) skeletonCanvas?: ElementRef<HTMLCanvasElement>;
 
-  isLoading = false;
-  errorMessage = '';
+  private readonly videoAnalysisService = inject(VideoAnalysisService);
+  private readonly userService = inject(UserService);
+  private readonly toastCtrl = inject(ToastController);
+
   hasCameraSupport = typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia;
-  private mediaStream: MediaStream | null = null;
-  private poseLandmarker: PoseLandmarkerInstance | null = null;
-  private rafId: number | null = null;
-  private lastVideoTime = -1;
-  private modelLoading = false;
-  private readonly mediapipeVersion = '0.10.21';
+  hasRecordingSupport = typeof MediaRecorder !== 'undefined';
+  isLoading = false;
+  isRecording = false;
+  isAnalyzing = false;
+  isUploading = false;
+  errorMessage = '';
+  analysisMessage = '';
+  uploadMessage = '';
+  assignedTrainerId = '';
+  recordingDurationMs = 0;
+  readonly maxRecordingDurationMs = 60_000;
 
-  private readonly poseConnections: Array<[number, number]> = [
-    [0, 1], [1, 2], [2, 3], [3, 7],
-    [0, 4], [4, 5], [5, 6], [6, 8],
-    [9, 10],
-    [11, 12],
-    [11, 13], [13, 15],
-    [12, 14], [14, 16],
-    [15, 17], [15, 19], [15, 21],
-    [16, 18], [16, 20], [16, 22],
-    [11, 23], [12, 24], [23, 24],
-    [23, 25], [25, 27], [27, 29], [29, 31],
-    [24, 26], [26, 28], [28, 30], [30, 32],
-    [27, 31], [28, 32],
-  ];
+  recordedVideoBlob: Blob | null = null;
+  recordedVideoUrl: string | null = null;
+  recordedAtMs: number | null = null;
+  analysisResult: VideoAnalysisResult | null = null;
+  savedRecord: SavedVideoAnalysisRecord | null = null;
+
+  private mediaStream: MediaStream | null = null;
+  private mediaRecorder: MediaRecorder | null = null;
+  private recordedChunks: BlobPart[] = [];
+  private recordingTimerId: number | null = null;
+  private ignoreNextRecorderStop = false;
+  private destroyed = false;
 
   async ngAfterViewInit(): Promise<void> {
+    await this.loadTrainerContext();
     await this.startCamera();
   }
 
   async ionViewDidEnter(): Promise<void> {
-    if (!this.mediaStream) {
+    await this.loadTrainerContext();
+    if (!this.recordedVideoUrl && !this.mediaStream && !this.isRecording) {
       await this.startCamera();
     }
   }
 
   ionViewWillLeave(): void {
+    this.cancelActiveRecording();
     this.stopCamera();
   }
 
   ngOnDestroy(): void {
+    this.destroyed = true;
+    this.cancelActiveRecording();
     this.stopCamera();
+    this.revokeRecordedVideoUrl();
+  }
+
+  get hasRecordedVideo(): boolean {
+    return !!this.recordedVideoUrl && !!this.recordedVideoBlob;
+  }
+
+  get canShowSendButton(): boolean {
+    return (
+      !!this.assignedTrainerId &&
+      !!this.recordedVideoBlob &&
+      !!this.analysisResult &&
+      !this.isAnalyzing
+    );
+  }
+
+  get recordButtonDisabled(): boolean {
+    return (
+      !this.hasCameraSupport ||
+      !this.hasRecordingSupport ||
+      this.isLoading ||
+      this.isAnalyzing ||
+      this.isUploading
+    );
+  }
+
+  get recordingTimeLabel(): string {
+    return this.formatDuration(this.recordingDurationMs);
   }
 
   async retryCamera(): Promise<void> {
@@ -106,8 +121,176 @@ export class CameraPage implements AfterViewInit, OnDestroy {
     await this.startCamera();
   }
 
+  async startRecording(): Promise<void> {
+    if (this.recordButtonDisabled || this.isRecording) {
+      return;
+    }
+
+    if (!this.mediaStream) {
+      await this.startCamera();
+    }
+
+    if (!this.mediaStream) {
+      return;
+    }
+
+    this.clearRecordedSession();
+    this.errorMessage = '';
+    const preferredMimeType = this.resolveRecordingMimeType();
+
+    try {
+      this.recordedChunks = [];
+      this.mediaRecorder = preferredMimeType
+        ? new MediaRecorder(this.mediaStream, {
+            mimeType: preferredMimeType,
+            videoBitsPerSecond: 3_000_000,
+          })
+        : new MediaRecorder(this.mediaStream, {
+            videoBitsPerSecond: 3_000_000,
+          });
+
+      const recorder = this.mediaRecorder;
+      recorder.ondataavailable = (event: BlobEvent) => {
+        if (event.data.size > 0) {
+          this.recordedChunks.push(event.data);
+        }
+      };
+      recorder.onerror = () => {
+        this.errorMessage = 'Recording failed. Please try again.';
+        this.stopRecordingTimer();
+        this.isRecording = false;
+      };
+      recorder.onstop = () => {
+        const chunks = [...this.recordedChunks];
+        this.recordedChunks = [];
+        this.stopRecordingTimer();
+        this.isRecording = false;
+
+        const shouldIgnore = this.ignoreNextRecorderStop || this.destroyed;
+        this.ignoreNextRecorderStop = false;
+        if (this.mediaRecorder === recorder) {
+          this.mediaRecorder = null;
+        }
+
+        if (shouldIgnore) {
+          return;
+        }
+
+        const mimeType = recorder.mimeType || preferredMimeType || 'video/webm';
+        void this.finishRecording(chunks, mimeType);
+      };
+
+      recorder.start(250);
+      this.isRecording = true;
+      this.recordingDurationMs = 0;
+      this.startRecordingTimer();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Recording could not start.';
+      this.errorMessage = message;
+    }
+  }
+
+  async stopRecording(): Promise<void> {
+    if (!this.mediaRecorder || this.mediaRecorder.state === 'inactive') {
+      return;
+    }
+
+    try {
+      this.mediaRecorder.stop();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Recording could not stop cleanly.';
+      this.errorMessage = message;
+      this.stopRecordingTimer();
+      this.isRecording = false;
+    }
+  }
+
+  async retakeRecording(): Promise<void> {
+    if (this.isRecording || this.isAnalyzing || this.isUploading) {
+      return;
+    }
+
+    this.clearRecordedSession();
+    await this.startCamera();
+  }
+
+  async sendToTrainer(): Promise<void> {
+    if (!this.canShowSendButton || this.isUploading || this.savedRecord) {
+      return;
+    }
+
+    const currentUser = this.userService.getCurrentUser()();
+    const clientId = String(currentUser?.uid || '').trim();
+    if (!clientId || !this.recordedVideoBlob || !this.analysisResult || !this.recordedAtMs) {
+      this.errorMessage = 'This recording is missing the data needed to upload it.';
+      return;
+    }
+
+    this.isUploading = true;
+    this.uploadMessage = 'Preparing upload...';
+    this.errorMessage = '';
+
+    try {
+      this.savedRecord = await this.videoAnalysisService.saveAnalysisToTrainer({
+        clientId,
+        trainerId: this.assignedTrainerId,
+        recordedAtMs: this.recordedAtMs,
+        recordedVideo: this.recordedVideoBlob,
+        analysis: this.analysisResult,
+        onProgress: (message) => {
+          this.uploadMessage = message;
+        },
+      });
+      this.uploadMessage = 'Analysis sent to trainer.';
+      await this.showToast('Analysis sent to trainer.');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Upload failed.';
+      this.errorMessage = message;
+      this.uploadMessage = '';
+      await this.showToast(message);
+    } finally {
+      this.isUploading = false;
+    }
+  }
+
+  dominantMovementLabel(analysis: VideoAnalysisResult): string {
+    return analysis.dominantMovement?.label ?? 'No dominant movement detected';
+  }
+
+  formatMetric(value: number | null, digits = 1, suffix = ''): string {
+    if (value === null || !Number.isFinite(value)) {
+      return 'N/A';
+    }
+
+    return `${value.toFixed(digits)}${suffix}`;
+  }
+
+  formatMilliseconds(value: number | null): string {
+    if (value === null || !Number.isFinite(value)) {
+      return 'N/A';
+    }
+
+    if (value >= 1000) {
+      return `${(value / 1000).toFixed(2)}s`;
+    }
+
+    return `${Math.round(value)}ms`;
+  }
+
+  formatDuration(durationMs: number): string {
+    const totalSeconds = Math.max(0, Math.floor(durationMs / 1000));
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  }
+
   private async startCamera(): Promise<void> {
-    if (!this.hasCameraSupport || this.isLoading || this.mediaStream || !this.cameraVideo) {
+    if (
+      !this.hasCameraSupport ||
+      this.isLoading ||
+      this.mediaStream ||
+      !this.cameraVideo
+    ) {
       return;
     }
 
@@ -116,18 +299,20 @@ export class CameraPage implements AfterViewInit, OnDestroy {
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: 'environment' } },
+        video: {
+          facingMode: { ideal: 'environment' },
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+          frameRate: { ideal: 30, max: 30 },
+        },
         audio: false,
       });
 
       this.mediaStream = stream;
-      const videoElement = this.cameraVideo.nativeElement;
-      videoElement.srcObject = stream;
-      await videoElement.play();
-      await this.initPoseLandmarker();
-      this.startPoseLoop();
+      await this.attachLivePreview(stream);
+      void this.videoAnalysisService.warmPoseModel().catch(() => undefined);
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unable to access camera.';
+      const message = error instanceof Error ? error.message : 'Unable to access the camera.';
       this.errorMessage = `Camera access failed: ${message}`;
       this.stopCamera();
     } finally {
@@ -136,177 +321,189 @@ export class CameraPage implements AfterViewInit, OnDestroy {
   }
 
   private stopCamera(): void {
-    this.stopPoseLoop();
-    this.clearSkeleton();
-
-    const videoElement = this.cameraVideo?.nativeElement;
-    if (videoElement) {
-      videoElement.pause();
-      videoElement.srcObject = null;
+    const video = this.cameraVideo?.nativeElement;
+    if (video && this.mediaStream) {
+      video.pause();
+      video.srcObject = null;
+      if (!this.recordedVideoUrl) {
+        video.removeAttribute('src');
+      }
     }
 
     if (this.mediaStream) {
       this.mediaStream.getTracks().forEach((track) => track.stop());
       this.mediaStream = null;
     }
-
-    this.poseLandmarker?.close?.();
-    this.poseLandmarker = null;
-    this.lastVideoTime = -1;
   }
 
-  private async initPoseLandmarker(): Promise<void> {
-    if (this.poseLandmarker || this.modelLoading) {
+  private async attachLivePreview(stream: MediaStream): Promise<void> {
+    const video = this.cameraVideo?.nativeElement;
+    if (!video) {
       return;
     }
 
-    this.modelLoading = true;
+    video.controls = false;
+    video.muted = true;
+    video.src = '';
+    video.srcObject = stream;
+    await video.play();
+  }
+
+  private async attachRecordedPreview(videoUrl: string): Promise<void> {
+    const video = this.cameraVideo?.nativeElement;
+    if (!video) {
+      return;
+    }
+
+    video.pause();
+    video.srcObject = null;
+    video.controls = true;
+    video.muted = true;
+    video.src = videoUrl;
+    video.load();
+    await video.play().catch(() => undefined);
+  }
+
+  private async finishRecording(chunks: BlobPart[], mimeType: string): Promise<void> {
+    if (chunks.length === 0) {
+      this.errorMessage = 'No video was captured. Please try again.';
+      return;
+    }
+
+    const recordedVideo = new Blob(chunks, { type: mimeType });
+    this.recordedVideoBlob = recordedVideo;
+    this.recordedAtMs = Date.now();
+    this.stopCamera();
+    this.revokeRecordedVideoUrl();
+    this.recordedVideoUrl = URL.createObjectURL(recordedVideo);
+    await this.attachRecordedPreview(this.recordedVideoUrl);
+    await this.analyzeRecording(recordedVideo);
+  }
+
+  private async analyzeRecording(recordedVideo: Blob): Promise<void> {
+    this.isAnalyzing = true;
+    this.analysisMessage = 'Analyzing movement...';
+    this.errorMessage = '';
+
     try {
-      const vision = await this.loadVisionBundle();
-      const visionResolver = await vision.FilesetResolver.forVisionTasks(
-        `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${this.mediapipeVersion}/wasm`
-      );
-      this.poseLandmarker = await vision.PoseLandmarker.createFromOptions(visionResolver, {
-        baseOptions: {
-          modelAssetPath:
-            'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task',
-          delegate: 'GPU',
-        },
-        runningMode: 'VIDEO',
-        numPoses: 1,
-        minPoseDetectionConfidence: 0.5,
-        minPosePresenceConfidence: 0.5,
-        minTrackingConfidence: 0.5,
+      this.analysisResult = await this.videoAnalysisService.analyzeVideo(recordedVideo, (message) => {
+        this.analysisMessage = message;
       });
+      this.analysisMessage = 'Analysis ready.';
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Pose model failed to initialize.';
-      this.errorMessage = `Pose detection unavailable: ${message}`;
+      const message = error instanceof Error ? error.message : 'Pose analysis failed.';
+      this.analysisResult = null;
+      this.analysisMessage = '';
+      this.errorMessage = message;
+      await this.showToast(message);
     } finally {
-      this.modelLoading = false;
+      this.isAnalyzing = false;
     }
   }
 
-  private async loadVisionBundle(): Promise<VisionBundle> {
-    return {
-      FilesetResolver,
-      PoseLandmarker,
-    };
-  }
-
-  private startPoseLoop(): void {
-    if (!this.poseLandmarker || !this.cameraVideo) {
+  private async loadTrainerContext(): Promise<void> {
+    const currentUser = this.userService.getCurrentUser()();
+    const uid = String(currentUser?.uid || '').trim();
+    if (!uid) {
+      this.assignedTrainerId = '';
       return;
     }
-    this.stopPoseLoop();
-    const processFrame = () => {
-      this.detectAndDrawPose();
-      this.rafId = requestAnimationFrame(processFrame);
-    };
-    this.rafId = requestAnimationFrame(processFrame);
-  }
 
-  private stopPoseLoop(): void {
-    if (this.rafId !== null) {
-      cancelAnimationFrame(this.rafId);
-      this.rafId = null;
+    try {
+      const userSummary = await this.userService.getUserSummaryDirectly(uid);
+      this.assignedTrainerId = String(userSummary?.trainerId || '').trim();
+    } catch {
+      this.assignedTrainerId = '';
     }
   }
 
-  private detectAndDrawPose(): void {
-    if (!this.poseLandmarker || !this.cameraVideo || !this.skeletonCanvas) {
-      return;
+  private resolveRecordingMimeType(): string {
+    if (typeof MediaRecorder === 'undefined') {
+      return '';
     }
 
-    const video = this.cameraVideo.nativeElement;
-    if (video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) {
-      this.clearSkeleton();
-      return;
-    }
+    const candidates = [
+      'video/mp4;codecs=avc1',
+      'video/mp4',
+      'video/webm;codecs=vp9',
+      'video/webm;codecs=vp8',
+      'video/webm',
+    ];
 
-    if (video.currentTime === this.lastVideoTime) {
-      return;
-    }
-    this.lastVideoTime = video.currentTime;
-    this.resizeCanvasToVideo();
-
-    const result = this.poseLandmarker.detectForVideo(video, performance.now());
-    const landmarks = result.landmarks?.[0] ?? [];
-    if (landmarks.length === 0) {
-      this.clearSkeleton();
-      return;
-    }
-
-    this.drawSkeleton(landmarks);
-  }
-
-  private resizeCanvasToVideo(): void {
-    if (!this.cameraVideo || !this.skeletonCanvas) {
-      return;
-    }
-    const video = this.cameraVideo.nativeElement;
-    const canvas = this.skeletonCanvas.nativeElement;
-    const width = video.videoWidth || video.clientWidth;
-    const height = video.videoHeight || video.clientHeight;
-    if (width > 0 && height > 0 && (canvas.width !== width || canvas.height !== height)) {
-      canvas.width = width;
-      canvas.height = height;
-    }
-  }
-
-  private drawSkeleton(landmarks: PoseLandmark[]): void {
-    if (!this.skeletonCanvas) {
-      return;
-    }
-    const canvas = this.skeletonCanvas.nativeElement;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) {
-      return;
-    }
-
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.lineWidth = 3;
-    ctx.strokeStyle = '#20c997';
-    ctx.fillStyle = '#20c997';
-
-    for (const [start, end] of this.poseConnections) {
-      const a = landmarks[start];
-      const b = landmarks[end];
-      if (!this.isVisibleLandmark(a) || !this.isVisibleLandmark(b)) {
-        continue;
+    for (const candidate of candidates) {
+      if (typeof MediaRecorder.isTypeSupported === 'function' && MediaRecorder.isTypeSupported(candidate)) {
+        return candidate;
       }
-      ctx.beginPath();
-      ctx.moveTo(a.x * canvas.width, a.y * canvas.height);
-      ctx.lineTo(b.x * canvas.width, b.y * canvas.height);
-      ctx.stroke();
     }
 
-    for (const point of landmarks) {
-      if (!this.isVisibleLandmark(point)) {
-        continue;
+    return '';
+  }
+
+  private clearRecordedSession(): void {
+    this.recordedVideoBlob = null;
+    this.recordedAtMs = null;
+    this.analysisResult = null;
+    this.savedRecord = null;
+    this.analysisMessage = '';
+    this.uploadMessage = '';
+    this.errorMessage = '';
+    this.revokeRecordedVideoUrl();
+  }
+
+  private revokeRecordedVideoUrl(): void {
+    if (this.recordedVideoUrl?.startsWith('blob:')) {
+      URL.revokeObjectURL(this.recordedVideoUrl);
+    }
+    this.recordedVideoUrl = null;
+  }
+
+  private startRecordingTimer(): void {
+    this.stopRecordingTimer();
+    const startedAt = Date.now();
+    this.recordingTimerId = window.setInterval(() => {
+      this.recordingDurationMs = Date.now() - startedAt;
+      if (this.recordingDurationMs >= this.maxRecordingDurationMs) {
+        void this.stopRecording();
       }
-      ctx.beginPath();
-      ctx.arc(point.x * canvas.width, point.y * canvas.height, 4, 0, Math.PI * 2);
-      ctx.fill();
+    }, 200);
+  }
+
+  private stopRecordingTimer(): void {
+    if (this.recordingTimerId !== null) {
+      clearInterval(this.recordingTimerId);
+      this.recordingTimerId = null;
     }
   }
 
-  private isVisibleLandmark(point: PoseLandmark | undefined): point is PoseLandmark {
-    if (!point) {
-      return false;
+  private cancelActiveRecording(): void {
+    this.stopRecordingTimer();
+    this.isRecording = false;
+    this.recordedChunks = [];
+
+    if (!this.mediaRecorder || this.mediaRecorder.state === 'inactive') {
+      this.mediaRecorder = null;
+      return;
     }
-    const visibility = point.visibility ?? 1;
-    return visibility > 0.4;
+
+    this.ignoreNextRecorderStop = true;
+    try {
+      this.mediaRecorder.ondataavailable = null;
+      this.mediaRecorder.onerror = null;
+      this.mediaRecorder.onstop = null;
+      this.mediaRecorder.stop();
+    } catch {
+      // Ignore cleanup failures while tearing down the page.
+    } finally {
+      this.mediaRecorder = null;
+    }
   }
 
-  private clearSkeleton(): void {
-    if (!this.skeletonCanvas) {
-      return;
-    }
-    const canvas = this.skeletonCanvas.nativeElement;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) {
-      return;
-    }
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  private async showToast(message: string): Promise<void> {
+    const toast = await this.toastCtrl.create({
+      message,
+      duration: 2200,
+      position: 'bottom',
+    });
+    await toast.present();
   }
 }

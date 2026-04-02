@@ -32,16 +32,38 @@ export interface WorkoutTrainingRow {
   weights?: RowWeight; // legacy compatibility
 }
 
+export interface CardioRoutePoint {
+  lat: number;
+  lng: number;
+  recorded_at: string;
+  accuracy_meters?: number;
+}
+
+export interface CardioRouteBounds {
+  north: number;
+  south: number;
+  east: number;
+  west: number;
+}
+
 export interface CardioTrainingRow {
   Training_Type: 'Cardio';
   estimated_calories: number;
   cardio_type: string; // e.g. running, biking
+  exercise_type?: string; // compatibility alias used in some persisted logs
   display_distance?: string;
   distance_meters?: number;
   display_time?: string;
   time_minutes?: number;
   distance?: number; // legacy compatibility
   time?: number; // legacy compatibility
+  activity_source?: string;
+  started_at?: string;
+  ended_at?: string;
+  average_pace_minutes_per_km?: number;
+  average_pace_minutes_per_mile?: number;
+  route_points?: CardioRoutePoint[];
+  route_bounds?: CardioRouteBounds;
   [key: string]: unknown;
 }
 

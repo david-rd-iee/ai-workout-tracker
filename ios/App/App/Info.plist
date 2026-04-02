@@ -49,5 +49,7 @@
 	<string>Atlas reads workout data to generate post-workout summaries.</string>
 	<key>NSHealthUpdateUsageDescription</key>
 	<string>Atlas may save workout summaries to Apple Health.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Atlas uses your location while the map tracker is open to record outdoor runs.</string>
 </dict>
 </plist>

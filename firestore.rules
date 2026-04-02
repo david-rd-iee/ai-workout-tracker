@@ -20,6 +20,12 @@ service cloud.firestore {
     function isClient() {
       return isSignedIn() && exists(/databases/$(database)/documents/clients/$(request.auth.uid));
     }
+
+    function isClientAssignedToTrainer(clientId, trainerId) {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/users/$(clientId)) &&
+        get(/databases/$(database)/documents/users/$(clientId)).data.trainerId == trainerId;
+    }
     
     function isAgreementParticipant(agreementData) {
       return isSignedIn() && (request.auth.uid == agreementData.trainerId || request.auth.uid == agreementData.clientId);
@@ -55,6 +61,23 @@ service cloud.firestore {
 
         allow delete: if isOwner(clientId) &&
           get(/databases/$(database)/documents/users/$(clientId)).data.trainerId == userId;
+
+        match /videoAnalysis/{analysisId} {
+          allow read: if isOwner(userId) || isOwner(clientId);
+
+          allow create, update: if
+            isOwner(userId) ||
+            (
+              isOwner(clientId) &&
+              isClientAssignedToTrainer(clientId, userId) &&
+              request.resource.data.clientId == request.auth.uid &&
+              request.resource.data.trainerId == userId
+            );
+
+          allow delete: if
+            isOwner(userId) ||
+            (isOwner(clientId) && isClientAssignedToTrainer(clientId, userId));
+        }
       }
     }
     

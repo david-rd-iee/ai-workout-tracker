@@ -1,6 +1,6 @@
 // imports
 import { StreakUpdateResult, WorkoutLogService } from '../../services/workout-log.service';
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { IonInput, IonButton, IonIcon, IonContent, AlertController } from '@ionic/angular/standalone';
@@ -27,6 +27,7 @@ import {
   ChatResponse,
 } from '../../services/workout-chat.service';
 import { ExerciseEstimatorsService } from '../../services/exercise-estimators.service';
+import { WorkoutSessionFormatterService } from '../../services/workout-session-formatter.service';
 
 // who is sending the message
 type ChatSender = 'bot' | 'user';
@@ -61,6 +62,7 @@ export class WorkoutChatbotPage implements OnInit, OnDestroy {
   private estimatorIdsLoadPromise: Promise<void> | null = null;
   private isIPhone = false;
   private removeKeyboardListeners: Array<() => void> = [];
+  private readonly workoutSessionFormatter = inject(WorkoutSessionFormatterService);
 
   // structured session/summary object the AI can update
   session: WorkoutSessionPerformance = this.createEmptySession();
@@ -217,9 +219,26 @@ export class WorkoutChatbotPage implements OnInit, OnDestroy {
   private async persistCurrentWorkout(): Promise<boolean> {
     if (this.isSavingWorkout) return false;
 
+    const trainerNotes = await this.promptForTrainerNotes(
+      this.session.trainer_notes ?? this.session.notes ?? ''
+    );
+    if (trainerNotes === null) {
+      return false;
+    }
+
+    const sessionToSave = this.workoutSessionFormatter.applyTrainerNotes(
+      this.session,
+      trainerNotes,
+      true
+    );
+    this.session = sessionToSave;
+    this.refreshSummaryDisplayRows();
+
     this.isSavingWorkout = true;
     try {
-      const saveResult = await this.workoutLogService.saveCompletedWorkout(this.session);
+      const saveResult = await this.workoutLogService.saveCompletedWorkout(sessionToSave);
+      this.session = saveResult.savedSession;
+      this.refreshSummaryDisplayRows();
       this.hasSavedWorkout = true;
       this.savedWorkoutLoggedAt = saveResult.loggedAt.toISOString();
       if (saveResult.streakUpdate.kind !== 'unchanged') {
@@ -366,79 +385,44 @@ export class WorkoutChatbotPage implements OnInit, OnDestroy {
     candidate: Partial<WorkoutSessionPerformance> | null | undefined,
     latestUserMessage?: string
   ): WorkoutSessionPerformance {
-    const session = candidate ?? {};
-    const source = session as Record<string, unknown>;
-    const estimatedCalories = this.toNumber(
-      source['estimated_calories'] ?? source['calories'],
-      0
-    );
-    const fallbackRows = this.normalizeRows(source['trainingRows'], undefined, latestUserMessage);
-    const legacyCardioRows = this.extractLegacyCardioRowsFromTrainingRows(source['trainingRows']);
-    const strengthRows = this.normalizeRows(
-      this.hasOwnKey(source, 'strengthTrainingRow')
-        ? source['strengthTrainingRow']
-        : this.hasOwnKey(source, 'strengthTrainingRowss')
-          ? source['strengthTrainingRowss']
-        : fallbackRows.filter((row) => row.Training_Type === 'Strength'),
-      'Strength',
-      latestUserMessage
-    );
-    const cardioRows = this.normalizeCardioRows(
-      this.hasOwnKey(source, 'cardioTrainingRow')
-        ? source['cardioTrainingRow']
-        : legacyCardioRows,
-      latestUserMessage
-    );
-    const otherRows = this.normalizeOtherRows(
-      this.hasOwnKey(source, 'otherTrainingRow')
-        ? source['otherTrainingRow']
-        : fallbackRows
-            .filter((row) => row.Training_Type === 'Other')
-            .map((row) => ({
-              activity: row.exercise_type,
-              sets: row.sets,
-              reps: row.reps,
-              displayed_weights_metric: row.displayed_weights_metric,
-              weights_kg: row.weights_kg,
-              estimated_calories: row.estimated_calories,
-            }))
-    );
-    this.ensureEstimatedCaloriesAcrossRows(
-      strengthRows,
-      cardioRows,
-      otherRows,
-      estimatedCalories
-    );
-    const rows = [
-      ...strengthRows,
-      ...this.cardioRowsToTrainingRows(cardioRows),
-      ...this.otherRowsToTrainingRows(otherRows),
-    ];
-    const trainingType = this.resolveSessionTrainingType(source, strengthRows, cardioRows, otherRows, rows);
-    const trainerNotesRaw = (session as any).trainer_notes ?? (session as any).notes ?? '';
-    const trainerNotes = typeof trainerNotesRaw === 'string' ? trainerNotesRaw : String(trainerNotesRaw ?? '');
-    const dateRaw = (session as any).date;
-    const date = typeof dateRaw === 'string' && dateRaw.trim()
-      ? dateRaw
-      : new Date().toISOString().slice(0, 10);
+    return this.workoutSessionFormatter.normalizeSession(candidate, {
+      latestUserMessage,
+      defaultDate: new Date().toISOString().slice(0, 10),
+    });
+  }
 
-    return {
-      date,
-      trainingRows: rows,
-      Training_Type: trainingType,
-      strengthTrainingRow: strengthRows,
-      strengthTrainingRowss: strengthRows,
-      cardioTrainingRow: cardioRows,
-      otherTrainingRow: otherRows,
-      estimated_calories: estimatedCalories,
-      trainer_notes: trainerNotes,
-      isComplete: !!(session as any).isComplete,
-      sessionType: (session as any).sessionType ?? '',
-      notes: trainerNotes,
-      volume: this.calculateTotalVolume(rows),
-      calories: estimatedCalories,
-      exercises: this.rowsToLegacyExercises(rows),
-    };
+  private async promptForTrainerNotes(initialValue: string): Promise<string | null> {
+    return new Promise(async (resolve) => {
+      const alert = await this.alertController.create({
+        mode: 'ios',
+        header: 'Trainer Notes',
+        message: 'Add any notes for your trainer before this workout is saved.',
+        inputs: [
+          {
+            name: 'trainerNotes',
+            type: 'textarea',
+            value: initialValue,
+            placeholder: 'How did the workout feel? Anything your trainer should know?',
+          },
+        ],
+        buttons: [
+          {
+            text: 'Cancel',
+            role: 'cancel',
+            handler: () => resolve(null),
+          },
+          {
+            text: 'Continue',
+            handler: (data) => {
+              resolve(String(data?.trainerNotes ?? '').trim());
+            },
+          },
+        ],
+        translucent: true,
+      });
+
+      await alert.present();
+    });
   }
 
   private normalizeRows(

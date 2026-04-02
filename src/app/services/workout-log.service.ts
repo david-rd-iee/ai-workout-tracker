@@ -13,6 +13,8 @@ import {
 } from '@angular/fire/firestore';
 import { Auth } from '@angular/fire/auth';
 import {
+  CardioRouteBounds,
+  CardioRoutePoint,
   CardioTrainingRow,
   OtherTrainingRow,
   WorkoutSessionPerformance,
@@ -26,6 +28,8 @@ import {
 } from '../models/user-stats.model';
 import { ChatsService } from './chats.service';
 import { UpdateScoreResult, UpdateScoreService } from './update-score.service';
+import { WorkoutChatService } from './workout-chat.service';
+import { WorkoutSessionFormatterService } from './workout-session-formatter.service';
 
 export interface StreakUpdateResult {
   kind: 'unchanged' | 'started' | 'extended' | 'restarted';
@@ -38,6 +42,7 @@ export interface StreakUpdateResult {
 export interface SaveCompletedWorkoutResult {
   workoutLogRef: DocumentReference<DocumentData>;
   loggedAt: Date;
+  savedSession: WorkoutSessionPerformance;
   scoreUpdate: UpdateScoreResult | null;
   streakUpdate: StreakUpdateResult;
 }
@@ -50,7 +55,9 @@ export class WorkoutLogService {
     private firestore: Firestore,
     private auth: Auth,
     private chatsService: ChatsService,
-    private updateScoreService: UpdateScoreService
+    private updateScoreService: UpdateScoreService,
+    private workoutChatService: WorkoutChatService,
+    private workoutSessionFormatter: WorkoutSessionFormatterService
   ) {}
 
   async saveCompletedWorkout(session: WorkoutSessionPerformance): Promise<SaveCompletedWorkoutResult> {
@@ -65,13 +72,54 @@ export class WorkoutLogService {
       this.firestore,
       `users/${user.uid}/workoutLogs`
     );
-
-    const trainingRows = Array.isArray(session.trainingRows) ? session.trainingRows : [];
-    const strengthTrainingRow = this.toObjectArray(
-      session.strengthTrainingRow ?? session.strengthTrainingRowss ?? []
+    const loggedAt = new Date();
+    const defaultDate = this.readText(session.date) || this.toLocalDateKey(loggedAt);
+    const normalizedIncomingSession = this.workoutSessionFormatter.applyTrainerNotes(
+      this.workoutSessionFormatter.normalizeSession(session, {
+        defaultDate,
+        defaultTrainerNotes: this.readText(session.trainer_notes ?? session.notes),
+      }),
+      this.readText(session.trainer_notes ?? session.notes),
+      true
     );
-    const cardioTrainingRow = this.toObjectArray(session.cardioTrainingRow ?? []);
-    const otherTrainingRow = this.toObjectArray(session.otherTrainingRow ?? []);
+    const workoutLogRef = doc(workoutLogsRef, normalizedIncomingSession.date);
+    const existingWorkoutLogSnap = await getDoc(workoutLogRef);
+    const existingSession = existingWorkoutLogSnap.exists()
+      ? this.workoutSessionFormatter.normalizeSession(
+          existingWorkoutLogSnap.data() as Record<string, unknown>,
+          { defaultDate: normalizedIncomingSession.date }
+        )
+      : null;
+    const mergedTrainerNotes = await this.resolveCombinedTrainerNotes(
+      existingSession?.trainer_notes ?? '',
+      normalizedIncomingSession.trainer_notes ?? ''
+    );
+    const submittedSession = existingSession
+      ? this.workoutSessionFormatter.mergeSessions(
+          [existingSession, normalizedIncomingSession],
+          {
+            date: normalizedIncomingSession.date,
+            trainerNotes: mergedTrainerNotes,
+            isComplete: true,
+            sessionType: this.readText(
+              normalizedIncomingSession.sessionType || existingSession.sessionType
+            ),
+          }
+        )
+      : this.workoutSessionFormatter.applyTrainerNotes(
+          normalizedIncomingSession,
+          mergedTrainerNotes,
+          true
+        );
+
+    const trainingRows = Array.isArray(submittedSession.trainingRows)
+      ? submittedSession.trainingRows
+      : [];
+    const strengthTrainingRow = this.toObjectArray(
+      submittedSession.strengthTrainingRow ?? submittedSession.strengthTrainingRowss ?? []
+    );
+    const cardioTrainingRow = this.toObjectArray(submittedSession.cardioTrainingRow ?? []);
+    const otherTrainingRow = this.toObjectArray(submittedSession.otherTrainingRow ?? []);
     const userWeightKg = await this.resolveUserBodyweightKg(user.uid);
     const normalizedTrainingRows = this.prepareTrainingRowsForCalculations(trainingRows, userWeightKg);
     const persistedStrengthTrainingRow = this.prepareStrengthRowsForStorage(
@@ -79,37 +127,32 @@ export class WorkoutLogService {
       userWeightKg
     );
     const persistedCardioTrainingRow = this.prepareCardioRowsForStorage(cardioTrainingRow);
+    const persistedOtherTrainingRow = this.prepareOtherRowsForStorage(otherTrainingRow);
     const estimatedCalories = Number(
-      session.estimated_calories ?? session.calories ?? 0
+      submittedSession.estimated_calories ?? submittedSession.calories ?? 0
     );
-    const trainerNotes = session.trainer_notes ?? session.notes ?? '';
+    const trainerNotes = submittedSession.trainer_notes ?? submittedSession.notes ?? '';
     const totalVolume = this.calculateTotalVolume(normalizedTrainingRows);
     const trainerUid = await this.resolveCurrentTrainerUid(user.uid);
-    const loggedAt = new Date();
-    const submittedSession: WorkoutSessionPerformance = {
-      ...session,
+    const persistedSession: WorkoutSessionPerformance = {
+      ...submittedSession,
       trainingRows: normalizedTrainingRows,
       strengthTrainingRow: persistedStrengthTrainingRow,
       strengthTrainingRowss: persistedStrengthTrainingRow,
       cardioTrainingRow: persistedCardioTrainingRow,
-      otherTrainingRow: otherTrainingRow as OtherTrainingRow[],
+      otherTrainingRow: persistedOtherTrainingRow,
       estimated_calories: estimatedCalories,
       trainer_notes: trainerNotes,
       notes: trainerNotes,
       volume: totalVolume,
       calories: estimatedCalories,
       exercises: this.rowsToLegacyExercises(normalizedTrainingRows),
+      isComplete: true,
     };
-
-    const workoutLogRef = doc(workoutLogsRef);
     const streakUpdate = await this.saveWorkoutLogAndUpdateStreak({
       userId: user.uid,
       workoutLogRef,
-      estimatedCalories,
-      trainerNotes,
-      persistedStrengthTrainingRow,
-      persistedCardioTrainingRow,
-      otherTrainingRow,
+      sessionToStore: persistedSession,
       loggedAt,
     });
 
@@ -117,7 +160,7 @@ export class WorkoutLogService {
     try {
       scoreUpdate = await this.updateScoreService.updateScoreAfterWorkout({
         userId: user.uid,
-        session: submittedSession,
+        session: normalizedIncomingSession,
         workoutLogId: workoutLogRef.id,
       });
     } catch (error) {
@@ -129,7 +172,7 @@ export class WorkoutLogService {
         trainerUid,
         clientUid: user.uid,
         clientWorkoutLogId: workoutLogRef.id,
-        session: submittedSession,
+        session: persistedSession,
         trainingRows: normalizedTrainingRows,
         estimatedCalories,
         totalVolume,
@@ -138,7 +181,7 @@ export class WorkoutLogService {
       await this.sendSummaryMessageToTrainer({
         trainerUid,
         clientUid: user.uid,
-        session: submittedSession,
+        session: persistedSession,
         trainingRows: normalizedTrainingRows,
         estimatedCalories,
         trainerNotes,
@@ -149,6 +192,7 @@ export class WorkoutLogService {
     return {
       workoutLogRef,
       loggedAt,
+      savedSession: persistedSession,
       scoreUpdate,
       streakUpdate,
     };
@@ -321,18 +365,17 @@ export class WorkoutLogService {
   private async saveWorkoutLogAndUpdateStreak(params: {
     userId: string;
     workoutLogRef: DocumentReference<DocumentData>;
-    estimatedCalories: number;
-    trainerNotes: string;
-    persistedStrengthTrainingRow: WorkoutTrainingRow[];
-    persistedCardioTrainingRow: CardioTrainingRow[];
-    otherTrainingRow: Array<Record<string, unknown>>;
+    sessionToStore: WorkoutSessionPerformance;
     loggedAt: Date;
   }): Promise<StreakUpdateResult> {
-    const loggedDay = this.toLocalDateKey(params.loggedAt);
+    const loggedDay = this.readText(params.sessionToStore.date) || this.toLocalDateKey(params.loggedAt);
     const userStatsRef = doc(this.firestore, 'userStats', params.userId);
 
     return runTransaction(this.firestore, async (transaction) => {
-      const userStatsSnap = await transaction.get(userStatsRef);
+      const [userStatsSnap, workoutLogSnap] = await Promise.all([
+        transaction.get(userStatsRef),
+        transaction.get(params.workoutLogRef),
+      ]);
       const currentUserStats = userStatsSnap.exists()
         ? userStatsSnap.data() as Record<string, unknown>
         : {};
@@ -349,15 +392,16 @@ export class WorkoutLogService {
         currentEarlyMorningWorkoutsTracker,
         params.loggedAt
       );
-
-      transaction.set(params.workoutLogRef, {
-        createdAt: serverTimestamp(),
-        calories: params.estimatedCalories,
-        notes: params.trainerNotes,
-        strengthTrainingRow: params.persistedStrengthTrainingRow,
-        cardioTrainingRow: params.persistedCardioTrainingRow,
-        otherTrainingRow: params.otherTrainingRow,
-      });
+      const payload = this.buildPersistedWorkoutLogPayload(params.sessionToStore);
+      transaction.set(
+        params.workoutLogRef,
+        {
+          ...payload,
+          ...(workoutLogSnap.exists() ? {} : { createdAt: serverTimestamp() }),
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
       transaction.set(
         userStatsRef,
         {
@@ -479,6 +523,74 @@ export class WorkoutLogService {
     return `${year}-${month}-${day}`;
   }
 
+  private buildPersistedWorkoutLogPayload(
+    session: WorkoutSessionPerformance
+  ): Record<string, unknown> {
+    const trainerNotes = this.readText(session.trainer_notes ?? session.notes);
+    const estimatedCalories = this.toRoundedNonNegative(
+      session.estimated_calories ?? session.calories
+    );
+    const totalVolume = this.toRoundedNonNegative(session.volume);
+    const strengthTrainingRow = this.toObjectArray(
+      session.strengthTrainingRow ?? session.strengthTrainingRowss ?? []
+    );
+
+    return this.stripUndefinedDeep({
+      date: this.readText(session.date) || this.toLocalDateKey(new Date()),
+      trainingRows: Array.isArray(session.trainingRows) ? session.trainingRows : [],
+      strengthTrainingRow,
+      strengthTrainingRowss: strengthTrainingRow,
+      cardioTrainingRow: this.toObjectArray(session.cardioTrainingRow ?? []),
+      otherTrainingRow: this.toObjectArray(session.otherTrainingRow ?? []),
+      estimatedCalories,
+      estimated_calories: estimatedCalories,
+      calories: estimatedCalories,
+      totalVolume,
+      volume: totalVolume,
+      trainerNotes,
+      trainer_notes: trainerNotes,
+      notes: trainerNotes,
+      isComplete: !!session.isComplete,
+      sessionType: this.readText(session.sessionType),
+      exercises: Array.isArray(session.exercises) ? session.exercises : [],
+    }) as Record<string, unknown>;
+  }
+
+  private async resolveCombinedTrainerNotes(
+    existingTrainerNotes: string,
+    incomingTrainerNotes: string
+  ): Promise<string> {
+    const uniqueNotes = Array.from(
+      new Set(
+        [existingTrainerNotes, incomingTrainerNotes]
+          .map((note) => this.readText(note))
+          .filter(Boolean)
+      )
+    );
+
+    if (uniqueNotes.length === 0) {
+      return '';
+    }
+
+    if (uniqueNotes.length === 1) {
+      return uniqueNotes[0];
+    }
+
+    try {
+      const response = await this.workoutChatService.mergeWorkoutNotes({
+        notes: uniqueNotes,
+      });
+      const merged = this.readText(response.mergedNotes);
+      if (merged) {
+        return merged;
+      }
+    } catch (error) {
+      console.error('[WorkoutLogService] Failed to merge trainer notes with AI:', error);
+    }
+
+    return uniqueNotes.join(' ').replace(/\s+/g, ' ').trim();
+  }
+
   private async resolveUserBodyweightKg(userId: string): Promise<number> {
     const userRef = doc(this.firestore, 'users', userId);
     const userSnap = await getDoc(userRef);
@@ -553,6 +665,9 @@ export class WorkoutLogService {
         cardio_type: String(
           row['cardio_type'] ?? row['exercise_type'] ?? row['type'] ?? 'cardio_activity'
         ),
+        exercise_type: String(
+          row['exercise_type'] ?? row['cardio_type'] ?? row['type'] ?? 'cardio_activity'
+        ),
         display_distance: this.readText(
           row['display_distance'] ??
           row['distance_input'] ??
@@ -571,8 +686,27 @@ export class WorkoutLogService {
         time_minutes: Number.isFinite(timeMinutes) && timeMinutes > 0
           ? timeMinutes
           : undefined,
+        activity_source: this.readText(row['activity_source'] ?? row['activitySource']),
+        started_at: this.readText(row['started_at'] ?? row['startedAt']),
+        ended_at: this.readText(row['ended_at'] ?? row['endedAt']),
+        average_pace_minutes_per_km: this.toOptionalPositiveNumber(
+          row['average_pace_minutes_per_km'] ?? row['averagePaceMinutesPerKm']
+        ),
+        average_pace_minutes_per_mile: this.toOptionalPositiveNumber(
+          row['average_pace_minutes_per_mile'] ?? row['averagePaceMinutesPerMile']
+        ),
+        route_points: this.normalizeRoutePoints(row['route_points'] ?? row['routePoints']),
+        route_bounds: this.normalizeRouteBounds(row['route_bounds'] ?? row['routeBounds']),
       };
     });
+  }
+
+  private prepareOtherRowsForStorage(rows: Array<Record<string, unknown>>): OtherTrainingRow[] {
+    return rows.map((row) => ({
+      ...row,
+      Training_Type: 'Other',
+      estimated_calories: this.toRoundedNonNegative(row['estimated_calories']),
+    })) as OtherTrainingRow[];
   }
 
   private resolveDisplayedWeightMetric(row: Record<string, unknown>): string {
@@ -721,6 +855,9 @@ export class WorkoutLogService {
         cardio_type: String(
           row['cardio_type'] ?? row['exercise_type'] ?? row['type'] ?? 'cardio_activity'
         ),
+        exercise_type: String(
+          row['exercise_type'] ?? row['cardio_type'] ?? row['type'] ?? 'cardio_activity'
+        ),
         display_distance: this.readText(
           row['display_distance'] ?? row['distance_input'] ?? row['distanceText'] ?? row['distance_text']
         ),
@@ -729,6 +866,17 @@ export class WorkoutLogService {
           row['display_time'] ?? row['time_input'] ?? row['timeText'] ?? row['time_text']
         ),
         time_minutes: Number.isFinite(time) && time > 0 ? time : undefined,
+        activity_source: this.readText(row['activity_source'] ?? row['activitySource']),
+        started_at: this.readText(row['started_at'] ?? row['startedAt']),
+        ended_at: this.readText(row['ended_at'] ?? row['endedAt']),
+        average_pace_minutes_per_km: this.toOptionalPositiveNumber(
+          row['average_pace_minutes_per_km'] ?? row['averagePaceMinutesPerKm']
+        ),
+        average_pace_minutes_per_mile: this.toOptionalPositiveNumber(
+          row['average_pace_minutes_per_mile'] ?? row['averagePaceMinutesPerMile']
+        ),
+        route_points: this.normalizeRoutePoints(row['route_points'] ?? row['routePoints']),
+        route_bounds: this.normalizeRouteBounds(row['route_bounds'] ?? row['routeBounds']),
       };
     });
 
@@ -742,6 +890,7 @@ export class WorkoutLogService {
         Training_Type: 'Cardio',
         estimated_calories: row.estimated_calories,
         cardio_type: row.exercise_type,
+        exercise_type: row.exercise_type,
         display_time: row.reps > 0 ? `${row.reps} min` : '',
         time_minutes: row.reps,
       }));
@@ -838,6 +987,87 @@ export class WorkoutLogService {
     }
 
     return 'N/A';
+  }
+
+  private normalizeRoutePoints(value: unknown): CardioRoutePoint[] | undefined {
+    const points = this.toObjectArray(value)
+      .map((point): CardioRoutePoint | null => {
+        const lat = Number(point['lat']);
+        const lng = Number(point['lng']);
+        const recordedAt = this.readText(point['recorded_at'] ?? point['recordedAt']);
+        const accuracyMeters = Number(point['accuracy_meters'] ?? point['accuracyMeters']);
+
+        if (!Number.isFinite(lat) || !Number.isFinite(lng) || !recordedAt) {
+          return null;
+        }
+
+        return {
+          lat,
+          lng,
+          recorded_at: recordedAt,
+          accuracy_meters: Number.isFinite(accuracyMeters) && accuracyMeters >= 0
+            ? accuracyMeters
+            : undefined,
+        };
+      })
+      .filter((point): point is CardioRoutePoint => !!point);
+
+    return points.length > 0 ? points : undefined;
+  }
+
+  private normalizeRouteBounds(value: unknown): CardioRouteBounds | undefined {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+      return undefined;
+    }
+
+    const bounds = value as Record<string, unknown>;
+    const north = Number(bounds['north']);
+    const south = Number(bounds['south']);
+    const east = Number(bounds['east']);
+    const west = Number(bounds['west']);
+
+    if (
+      !Number.isFinite(north) ||
+      !Number.isFinite(south) ||
+      !Number.isFinite(east) ||
+      !Number.isFinite(west)
+    ) {
+      return undefined;
+    }
+
+    return { north, south, east, west };
+  }
+
+  private toOptionalPositiveNumber(value: unknown): number | undefined {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
+  }
+
+  private stripUndefinedDeep(value: unknown): unknown {
+    if (value === undefined) {
+      return undefined;
+    }
+
+    if (Array.isArray(value)) {
+      return value
+        .map((entry) => this.stripUndefinedDeep(entry))
+        .filter((entry) => entry !== undefined);
+    }
+
+    if (value && typeof value === 'object') {
+      return Object.entries(value as Record<string, unknown>).reduce<Record<string, unknown>>(
+        (sanitized, [key, entry]) => {
+          const cleanedEntry = this.stripUndefinedDeep(entry);
+          if (cleanedEntry !== undefined) {
+            sanitized[key] = cleanedEntry;
+          }
+          return sanitized;
+        },
+        {}
+      );
+    }
+
+    return value;
   }
 
   private resolveOtherTitle(row: OtherTrainingRow): string {

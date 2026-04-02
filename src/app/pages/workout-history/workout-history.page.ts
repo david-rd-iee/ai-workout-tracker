@@ -47,11 +47,14 @@ type WorkoutExerciseRow = { name: string; metric: string; volume: number };
 
 type WorkoutLogDoc = {
   createdAt?: any;
+  updatedAt?: any;
   date?: string;
   calories?: number;
   estimatedCalories?: number;
+  estimated_calories?: number;
   totalVolume?: number;
   notes?: string;
+  trainer_notes?: string;
   trainerNotes?: string;
   isComplete?: boolean;
   trainingRows?: WorkoutTrainingRow[];
@@ -88,6 +91,7 @@ type WorkoutHistoryDateGroup = {
   cardio: CardioHistoryEntry[];
   other: OtherHistoryEntry[];
   totalCaloriesBurned: number;
+  trainerNotes: string;
 };
 
 @Component({
@@ -159,6 +163,10 @@ type WorkoutHistoryDateGroup = {
             <p style="margin-top: 10px;">
               <strong>Total Calories Burned:</strong> {{ day.totalCaloriesBurned }}
             </p>
+
+            <p *ngIf="day.trainerNotes" style="margin-top: 8px;">
+              <strong>Trainer Notes:</strong> {{ day.trainerNotes }}
+            </p>
           </ion-label>
         </ion-item>
       </ion-list>
@@ -217,7 +225,9 @@ export class WorkoutHistoryPage implements OnInit {
       const snap = await getDocs(q);
 
       this.workouts = snap.docs.map((d) => d.data() as WorkoutLogDoc);
-      this.historyGroups = this.workouts.map((workout) => this.toHistoryGroup(workout));
+      this.historyGroups = this.mergeHistoryGroupsByDate(
+        this.workouts.map((workout) => this.toHistoryGroup(workout))
+      );
     } catch (e) {
       console.error('Failed to load workout logs:', e);
       this.workouts = [];
@@ -244,7 +254,7 @@ export class WorkoutHistoryPage implements OnInit {
   private toHistoryGroup(workout: WorkoutLogDoc): WorkoutHistoryDateGroup { //takes workout and formats to what the UI uses
     const date = this.resolveWorkoutDate(workout);
     const totalCalories = this.toRoundedNonNegative(
-      workout.estimatedCalories ?? workout.calories
+      workout.estimatedCalories ?? workout.estimated_calories ?? workout.calories
     );
 
     const trainingRows = Array.isArray(workout.trainingRows) ? workout.trainingRows : [];
@@ -357,10 +367,66 @@ export class WorkoutHistoryPage implements OnInit {
       cardio,
       other,
       totalCaloriesBurned: displayTotalCalories,
+      trainerNotes: this.resolveWorkoutTrainerNotes(workout),
     };
   }
 
+  private mergeHistoryGroupsByDate(groups: WorkoutHistoryDateGroup[]): WorkoutHistoryDateGroup[] {
+    const grouped = new Map<string, WorkoutHistoryDateGroup>();
+
+    groups.forEach((group) => {
+      const existing = grouped.get(group.date);
+      if (!existing) {
+        grouped.set(group.date, {
+          ...group,
+          strength: [...group.strength],
+          cardio: [...group.cardio],
+          other: [...group.other],
+        });
+        return;
+      }
+
+      existing.strength.push(...group.strength);
+      existing.cardio.push(...group.cardio);
+      existing.other.push(...group.other);
+      existing.totalCaloriesBurned += group.totalCaloriesBurned;
+      existing.trainerNotes = this.combineTrainerNotes(
+        existing.trainerNotes,
+        group.trainerNotes
+      );
+    });
+
+    return Array.from(grouped.values()).sort((left, right) =>
+      right.date.localeCompare(left.date)
+    );
+  }
+
+  private resolveWorkoutTrainerNotes(workout: WorkoutLogDoc): string {
+    return this.readText(
+      workout.trainer_notes ??
+      workout.trainerNotes ??
+      workout.notes
+    );
+  }
+
+  private combineTrainerNotes(left: string, right: string): string {
+    const uniqueNotes = Array.from(
+      new Set([left, right].map((value) => this.readText(value)).filter(Boolean))
+    );
+    return uniqueNotes.join(' ');
+  }
+
   private resolveCardioDistanceText(row: Record<string, unknown>): string {
+    const displayText = this.readText(
+      row['display_distance'] ??
+      row['distance_input'] ??
+      row['distanceText'] ??
+      row['distance_text']
+    );
+    if (displayText) {
+      return displayText;
+    }
+
     const distance = Number(row['distance_meters'] ?? row['distance']);
     if (Number.isFinite(distance) && distance > 0) {
       return `${Math.round(distance * 100) / 100} m`;
@@ -370,6 +436,16 @@ export class WorkoutHistoryPage implements OnInit {
   }
 
   private resolveCardioTimeText(row: Record<string, unknown>): string {
+    const displayText = this.readText(
+      row['display_time'] ??
+      row['time_input'] ??
+      row['timeText'] ??
+      row['time_text']
+    );
+    if (displayText) {
+      return displayText;
+    }
+
     const minutes = Number(row['time_minutes'] ?? row['time']);
     if (Number.isFinite(minutes) && minutes > 0) {
       return `${Math.round(minutes * 100) / 100} min`;

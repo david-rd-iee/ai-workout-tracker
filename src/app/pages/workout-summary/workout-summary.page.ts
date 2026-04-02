@@ -46,6 +46,7 @@ import {
 })
 export class WorkoutSummaryPage implements OnInit {
   loggedAt: Date | null = null;
+  backHref = '/workout-chatbot';
   summary: WorkoutSessionPerformance = {
     date: new Date().toISOString().slice(0, 10),
     trainingRows: [],
@@ -68,8 +69,12 @@ export class WorkoutSummaryPage implements OnInit {
     const nav = this.router.getCurrentNavigation();
     const incoming = nav?.extras.state?.['summary'];
     const incomingLoggedAt = nav?.extras.state?.['loggedAt'];
+    const incomingBackHref = nav?.extras.state?.['backHref'];
     if (incoming) {
       this.summary = this.normalizeSummary(incoming as Partial<WorkoutSessionPerformance>);
+    }
+    if (typeof incomingBackHref === 'string' && incomingBackHref.trim()) {
+      this.backHref = incomingBackHref;
     }
     this.loggedAt = this.toLoggedAtDate(incomingLoggedAt, this.summary.date);
   }
@@ -77,7 +82,7 @@ export class WorkoutSummaryPage implements OnInit {
   ngOnInit() {}
 
   goBackToChat() {
-    this.navCtrl.navigateBack('/workout-chatbot', {
+    this.navCtrl.navigateBack(this.backHref, {
       animated: true,
       animationDirection: 'back',
     });
