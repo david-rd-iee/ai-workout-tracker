@@ -5,7 +5,6 @@ actor User
 participant Page as WorkoutChatbotPage
 participant ChatSvc as WorkoutChatService
 participant ChatFn as workoutChatCallable
-participant NotesFn as mergeWorkoutNotesCallable
 participant OpenAI
 participant EstSvc as ExerciseEstimatorsService
 participant LogSvc as WorkoutLogService
@@ -31,18 +30,10 @@ Page->>LogSvc: saveCompletedWorkout(session)
 LogSvc->>Formatter: normalizeSession(session)
 Formatter-->>LogSvc: normalized session
 
-opt Existing same-day workout already exists
-  LogSvc->>ChatSvc: mergeWorkoutNotes(notes[])
-  ChatSvc->>NotesFn: httpsCallable(notes)
-  NotesFn->>OpenAI: Merge duplicated trainer notes
-  OpenAI-->>NotesFn: mergedNotes
-  NotesFn-->>ChatSvc: mergedNotes
-  ChatSvc-->>LogSvc: mergedNotes
-end
-
-LogSvc->>FS: Write users/{uid}/workoutLogs/{date}
+LogSvc->>FS: Write users/{uid}/workoutEvents/{eventId}
+LogSvc->>FS: Refresh users/{uid}/workoutLogs/{date} derived day projection
 LogSvc->>FS: Transactionally update userStats streak + early-morning tracker
-LogSvc->>ScoreSvc: updateScoreAfterWorkout(userId, session, workoutLogId)
+LogSvc->>ScoreSvc: updateScoreAfterWorkout(userId, event, workoutEventId)
 ScoreSvc->>FS: Read userStats, users doc, estimator docs
 ScoreSvc->>FS: Write score totals, expected effort, rankings, estimator workout_logs
 
@@ -58,8 +49,7 @@ end
 FS-->>RetrainFn: Trigger when estimator workout_logs doc is created
 RetrainFn->>FS: Retrain and persist estimator coefficients/metrics
 
-Note over LogSvc,FS: Active frontend path persists to users/{uid}/workoutLogs/{date}
-Note over FS: onWorkoutSessionCreate watches workoutSessions/{sessionId}, which does not appear in the active frontend save flow
+Note over LogSvc,FS: Canonical frontend path persists to users/{uid}/workoutEvents/{eventId}; workoutLogs/{date} is a temporary legacy projection
 
 LogSvc-->>Page: savedSession + streakUpdate + scoreUpdate
 Page-->>User: Success message + workout summary

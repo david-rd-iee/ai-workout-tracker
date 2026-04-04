@@ -513,22 +513,7 @@ export class MapTrackingLoggerPage implements OnDestroy {
   }
 
   private createEmptySession(): WorkoutSessionPerformance {
-    return {
-      date: new Date().toISOString().slice(0, 10),
-      trainingRows: [],
-      strengthTrainingRow: [],
-      strengthTrainingRowss: [],
-      cardioTrainingRow: [],
-      otherTrainingRow: [],
-      estimated_calories: 0,
-      trainer_notes: '',
-      isComplete: false,
-      sessionType: '',
-      notes: '',
-      volume: 0,
-      calories: 0,
-      exercises: [],
-    };
+    return this.workoutSessionFormatter.createEmptySession();
   }
 
   private async promptForTrainerNotes(initialValue: string): Promise<string | null> {

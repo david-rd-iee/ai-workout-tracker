@@ -12,9 +12,12 @@ This codebase has dozens of pages and components. A literal single-canvas diagra
 
 Important architectural note discovered during generation:
 
-- The active frontend workout save flow writes to `users/{uid}/workoutLogs/{date}`.
-- The backend trigger `onWorkoutSessionCreate` still listens on `workoutSessions/{sessionId}`.
-- That means the trigger appears to be a legacy/disconnected path unless another writer exists outside this repo.
+- The active frontend workout save flow writes canonical workout events to `users/{uid}/workoutEvents/{eventId}`.
+- The app also regenerates `users/{uid}/workoutLogs/{date}` as a derived per-day history projection from those canonical events.
+- The workout history page now reads canonical `users/{uid}/workoutEvents/{eventId}` records directly.
+- The legacy `workoutSessions/{sessionId}` trigger has been retired so non-authoritative paths are no longer watched.
+- The authoritative workout domain contract now lives in `shared/models/workout-event.model.ts`.
+- See `docs/workout-event-model.md` for the canonical workout shape and legacy adapter mapping.
 
 ## UML Class Diagram
 
@@ -220,7 +223,6 @@ LeaderboardService --> UserStats
 
 WorkoutLogService --> WorkoutSessionFormatterService
 WorkoutLogService --> UpdateScoreService
-WorkoutLogService --> WorkoutChatService
 WorkoutLogService --> ChatsService
 WorkoutLogService --> WorkoutSessionPerformance
 WorkoutLogService --> Firestore
@@ -273,7 +275,6 @@ actor User
 participant Page as WorkoutChatbotPage
 participant ChatSvc as WorkoutChatService
 participant ChatFn as workoutChatCallable
-participant NotesFn as mergeWorkoutNotesCallable
 participant OpenAI
 participant EstSvc as ExerciseEstimatorsService
 participant LogSvc as WorkoutLogService
@@ -299,18 +300,10 @@ Page->>LogSvc: saveCompletedWorkout(session)
 LogSvc->>Formatter: normalizeSession(session)
 Formatter-->>LogSvc: normalized session
 
-opt Existing same-day workout already exists
-  LogSvc->>ChatSvc: mergeWorkoutNotes(notes[])
-  ChatSvc->>NotesFn: httpsCallable(notes)
-  NotesFn->>OpenAI: Merge duplicated trainer notes
-  OpenAI-->>NotesFn: mergedNotes
-  NotesFn-->>ChatSvc: mergedNotes
-  ChatSvc-->>LogSvc: mergedNotes
-end
-
-LogSvc->>FS: Write users/{uid}/workoutLogs/{date}
+LogSvc->>FS: Write users/{uid}/workoutEvents/{eventId}
+LogSvc->>FS: Refresh users/{uid}/workoutLogs/{date} derived day projection
 LogSvc->>FS: Transactionally update userStats streak + early-morning tracker
-LogSvc->>ScoreSvc: updateScoreAfterWorkout(userId, session, workoutLogId)
+LogSvc->>ScoreSvc: updateScoreAfterWorkout(userId, event, workoutEventId)
 ScoreSvc->>FS: Read userStats, users doc, estimator docs
 ScoreSvc->>FS: Write score totals, expected effort, rankings, estimator workout_logs
 
@@ -326,8 +319,7 @@ end
 FS-->>RetrainFn: Trigger when estimator workout_logs doc is created
 RetrainFn->>FS: Retrain and persist estimator coefficients/metrics
 
-Note over LogSvc,FS: Active frontend path persists to users/{uid}/workoutLogs/{date}
-Note over FS: onWorkoutSessionCreate watches workoutSessions/{sessionId}, which does not appear in the active frontend save flow
+Note over LogSvc,FS: Canonical frontend path persists to users/{uid}/workoutEvents/{eventId}; workoutLogs/{date} is a temporary legacy projection
 
 LogSvc-->>Page: savedSession + streakUpdate + scoreUpdate
 Page-->>User: Success message + workout summary
@@ -476,10 +468,9 @@ The lists below map exported objects back to their source areas. This is the ful
 
 ### Backend functions and triggers
 
-- `functions/src/index.ts`: `workoutChat`, `workoutChatCallable`, `treadmillLogger`, `treadmillLoggerCallable`, `mergeWorkoutNotes`, `mergeWorkoutNotesCallable`
+- `functions/src/index.ts`: `workoutChat`, `workoutChatCallable`, `treadmillLogger`, `treadmillLoggerCallable`
 - `functions/src/exerciseEstimatorTraining.ts`: `retrainExerciseEstimatorOnWorkoutLogCreate`
 - `functions/src/stats/trainerStats.ts`: `onBookingChange`, `onTrainerClientChange`
-- `functions/src/stats/userStats.ts`: `onWorkoutSessionCreate`
 - `functions/src/stats/migrateTrainerStats.ts`: `migrateTrainerStats`
 
 ## What is intentionally not visualized

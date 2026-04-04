@@ -27,6 +27,10 @@ import {
 } from '@angular/fire/firestore';
 
 import { onAuthStateChanged } from 'firebase/auth';
+import {
+  workoutEventRecordToWorkoutEvent,
+  workoutEventToWorkoutSessionPerformance,
+} from '../../adapters/workout-event.adapters';
 
 type WorkoutTrainingRow = {
   Training_Type: 'Strength' | 'Cardio' | 'Other';
@@ -220,16 +224,30 @@ export class WorkoutHistoryPage implements OnInit {
         return;
       }
 
-      const logsRef = collection(this.firestore, `users/${targetUserId}/workoutLogs`);
-      const q = query(logsRef, orderBy('createdAt', 'desc'), limit(20));
-      const snap = await getDocs(q);
+      const workoutEventsRef = collection(this.firestore, `users/${targetUserId}/workoutEvents`);
+      const eventSnap = await getDocs(
+        query(workoutEventsRef, orderBy('createdAt', 'desc'), limit(20))
+      );
 
-      this.workouts = snap.docs.map((d) => d.data() as WorkoutLogDoc);
+      this.workouts = eventSnap.docs
+        .map((docSnap) => {
+          const raw = docSnap.data() as Record<string, unknown>;
+          const event = workoutEventRecordToWorkoutEvent(raw);
+          const session = workoutEventToWorkoutSessionPerformance(event);
+          return {
+            ...session,
+            createdAt: raw['createdAt'],
+            updatedAt: raw['updatedAt'],
+          } as WorkoutLogDoc;
+        })
+        .sort((left, right) => (
+          this.toTimestampMillis(right.createdAt) - this.toTimestampMillis(left.createdAt)
+        ));
       this.historyGroups = this.mergeHistoryGroupsByDate(
         this.workouts.map((workout) => this.toHistoryGroup(workout))
       );
     } catch (e) {
-      console.error('Failed to load workout logs:', e);
+      console.error('Failed to load workout events:', e);
       this.workouts = [];
       this.historyGroups = [];
     } finally {
@@ -577,6 +595,19 @@ export class WorkoutHistoryPage implements OnInit {
       return dt.toISOString().slice(0, 10);
     } catch {
       return new Date().toISOString().slice(0, 10);
+    }
+  }
+
+  private toTimestampMillis(value: any): number {
+    try {
+      const dateValue = value?.toDate?.() ?? value;
+      if (dateValue instanceof Date && !Number.isNaN(dateValue.getTime())) {
+        return dateValue.getTime();
+      }
+      const parsed = new Date(dateValue);
+      return Number.isNaN(parsed.getTime()) ? 0 : parsed.getTime();
+    } catch {
+      return 0;
     }
   }
 

@@ -3,15 +3,24 @@ import {
   Firestore,
   DocumentData,
   DocumentReference,
+  getDocs,
   doc,
   getDoc,
   setDoc,
   collection,
   addDoc,
+  query,
   runTransaction,
   serverTimestamp,
+  where,
 } from '@angular/fire/firestore';
 import { Auth } from '@angular/fire/auth';
+import {
+  workoutEventRecordToWorkoutEvent,
+  workoutEventToWorkoutEventRecord,
+  workoutEventToWorkoutSessionPerformance,
+  workoutSessionPerformanceToWorkoutEvent,
+} from '../adapters/workout-event.adapters';
 import {
   CardioRouteBounds,
   CardioRoutePoint,
@@ -26,9 +35,9 @@ import {
   normalizeStreakData,
   StreakData,
 } from '../models/user-stats.model';
+import type { WorkoutEvent } from '../../../shared/models/workout-event.model';
 import { ChatsService } from './chats.service';
 import { UpdateScoreResult, UpdateScoreService } from './update-score.service';
-import { WorkoutChatService } from './workout-chat.service';
 import { WorkoutSessionFormatterService } from './workout-session-formatter.service';
 
 export interface StreakUpdateResult {
@@ -40,8 +49,9 @@ export interface StreakUpdateResult {
 }
 
 export interface SaveCompletedWorkoutResult {
-  workoutLogRef: DocumentReference<DocumentData>;
+  workoutEventRef: DocumentReference<DocumentData>;
   loggedAt: Date;
+  savedEvent: WorkoutEvent;
   savedSession: WorkoutSessionPerformance;
   scoreUpdate: UpdateScoreResult | null;
   streakUpdate: StreakUpdateResult;
@@ -56,7 +66,6 @@ export class WorkoutLogService {
     private auth: Auth,
     private chatsService: ChatsService,
     private updateScoreService: UpdateScoreService,
-    private workoutChatService: WorkoutChatService,
     private workoutSessionFormatter: WorkoutSessionFormatterService
   ) {}
 
@@ -67,10 +76,9 @@ export class WorkoutLogService {
       throw new Error('User not authenticated');
     }
 
-    // Path: users/{uid}/workoutLogs
-    const workoutLogsRef = collection(
+    const workoutEventsRef = collection(
       this.firestore,
-      `users/${user.uid}/workoutLogs`
+      `users/${user.uid}/workoutEvents`
     );
     const loggedAt = new Date();
     const defaultDate = this.readText(session.date) || this.toLocalDateKey(loggedAt);
@@ -82,86 +90,35 @@ export class WorkoutLogService {
       this.readText(session.trainer_notes ?? session.notes),
       true
     );
-    const workoutLogRef = doc(workoutLogsRef, normalizedIncomingSession.date);
-    const existingWorkoutLogSnap = await getDoc(workoutLogRef);
-    const existingSession = existingWorkoutLogSnap.exists()
-      ? this.workoutSessionFormatter.normalizeSession(
-          existingWorkoutLogSnap.data() as Record<string, unknown>,
-          { defaultDate: normalizedIncomingSession.date }
-        )
-      : null;
-    const mergedTrainerNotes = await this.resolveCombinedTrainerNotes(
-      existingSession?.trainer_notes ?? '',
-      normalizedIncomingSession.trainer_notes ?? ''
-    );
-    const submittedSession = existingSession
-      ? this.workoutSessionFormatter.mergeSessions(
-          [existingSession, normalizedIncomingSession],
-          {
-            date: normalizedIncomingSession.date,
-            trainerNotes: mergedTrainerNotes,
-            isComplete: true,
-            sessionType: this.readText(
-              normalizedIncomingSession.sessionType || existingSession.sessionType
-            ),
-          }
-        )
-      : this.workoutSessionFormatter.applyTrainerNotes(
-          normalizedIncomingSession,
-          mergedTrainerNotes,
-          true
-        );
-
-    const trainingRows = Array.isArray(submittedSession.trainingRows)
-      ? submittedSession.trainingRows
+    const savedEvent = workoutSessionPerformanceToWorkoutEvent(normalizedIncomingSession);
+    const savedSession = workoutEventToWorkoutSessionPerformance(savedEvent);
+    const workoutEventRef = doc(workoutEventsRef);
+    const trainingRows = Array.isArray(savedSession.trainingRows)
+      ? savedSession.trainingRows
       : [];
-    const strengthTrainingRow = this.toObjectArray(
-      submittedSession.strengthTrainingRow ?? submittedSession.strengthTrainingRowss ?? []
-    );
-    const cardioTrainingRow = this.toObjectArray(submittedSession.cardioTrainingRow ?? []);
-    const otherTrainingRow = this.toObjectArray(submittedSession.otherTrainingRow ?? []);
-    const userWeightKg = await this.resolveUserBodyweightKg(user.uid);
-    const normalizedTrainingRows = this.prepareTrainingRowsForCalculations(trainingRows, userWeightKg);
-    const persistedStrengthTrainingRow = this.prepareStrengthRowsForStorage(
-      strengthTrainingRow,
-      userWeightKg
-    );
-    const persistedCardioTrainingRow = this.prepareCardioRowsForStorage(cardioTrainingRow);
-    const persistedOtherTrainingRow = this.prepareOtherRowsForStorage(otherTrainingRow);
     const estimatedCalories = Number(
-      submittedSession.estimated_calories ?? submittedSession.calories ?? 0
+      savedSession.estimated_calories ?? savedSession.calories ?? 0
     );
-    const trainerNotes = submittedSession.trainer_notes ?? submittedSession.notes ?? '';
-    const totalVolume = this.calculateTotalVolume(normalizedTrainingRows);
+    const trainerNotes = savedSession.trainer_notes ?? savedSession.notes ?? '';
+    const totalVolume = Number(savedSession.volume ?? 0);
     const trainerUid = await this.resolveCurrentTrainerUid(user.uid);
-    const persistedSession: WorkoutSessionPerformance = {
-      ...submittedSession,
-      trainingRows: normalizedTrainingRows,
-      strengthTrainingRow: persistedStrengthTrainingRow,
-      strengthTrainingRowss: persistedStrengthTrainingRow,
-      cardioTrainingRow: persistedCardioTrainingRow,
-      otherTrainingRow: persistedOtherTrainingRow,
-      estimated_calories: estimatedCalories,
-      trainer_notes: trainerNotes,
-      notes: trainerNotes,
-      volume: totalVolume,
-      calories: estimatedCalories,
-      exercises: this.rowsToLegacyExercises(normalizedTrainingRows),
-      isComplete: true,
-    };
-    const streakUpdate = await this.saveWorkoutLogAndUpdateStreak({
+    const streakUpdate = await this.saveWorkoutEventAndUpdateStreak({
       userId: user.uid,
-      workoutLogRef,
-      sessionToStore: persistedSession,
+      workoutEventRef,
+      eventToStore: savedEvent,
       loggedAt,
+    });
+    await this.refreshDerivedWorkoutHistoryDay({
+      userId: user.uid,
+      loggedDay: savedEvent.date,
     });
 
     let scoreUpdate: UpdateScoreResult | null = null;
     try {
       scoreUpdate = await this.updateScoreService.updateScoreAfterWorkout({
         userId: user.uid,
-        session: normalizedIncomingSession,
-        workoutLogId: workoutLogRef.id,
+        event: savedEvent,
+        workoutEventId: workoutEventRef.id,
       });
     } catch (error) {
       console.error('[WorkoutLogService] Failed to update user score:', error);
@@ -171,9 +128,9 @@ export class WorkoutLogService {
       await this.sendSummaryToCurrentTrainer({
         trainerUid,
         clientUid: user.uid,
-        clientWorkoutLogId: workoutLogRef.id,
-        session: persistedSession,
-        trainingRows: normalizedTrainingRows,
+        clientWorkoutEventId: workoutEventRef.id,
+        session: savedSession,
+        trainingRows,
         estimatedCalories,
         totalVolume,
         trainerNotes,
@@ -181,8 +138,8 @@ export class WorkoutLogService {
       await this.sendSummaryMessageToTrainer({
         trainerUid,
         clientUid: user.uid,
-        session: persistedSession,
-        trainingRows: normalizedTrainingRows,
+        session: savedSession,
+        trainingRows,
         estimatedCalories,
         trainerNotes,
         loggedAt,
@@ -190,9 +147,10 @@ export class WorkoutLogService {
     }
 
     return {
-      workoutLogRef,
+      workoutEventRef,
       loggedAt,
-      savedSession: persistedSession,
+      savedEvent,
+      savedSession,
       scoreUpdate,
       streakUpdate,
     };
@@ -201,7 +159,7 @@ export class WorkoutLogService {
   private async sendSummaryToCurrentTrainer(params: {
     trainerUid: string;
     clientUid: string;
-    clientWorkoutLogId: string;
+    clientWorkoutEventId: string;
     session: WorkoutSessionPerformance;
     trainingRows: WorkoutTrainingRow[];
     estimatedCalories: number;
@@ -222,7 +180,7 @@ export class WorkoutLogService {
       createdAt: serverTimestamp(),
       date: normalizedDate,
       clientUid: params.clientUid,
-      clientWorkoutLogId: params.clientWorkoutLogId,
+      clientWorkoutEventId: params.clientWorkoutEventId,
       estimatedCalories: params.estimatedCalories,
       totalVolume: params.totalVolume,
       trainerNotes: params.trainerNotes,
@@ -236,7 +194,10 @@ export class WorkoutLogService {
         reps: row.reps,
         weights: this.formatWeight(row),
       })),
-      source: 'ai_logger',
+      source: this.readText(params.session.sessionType) || 'workout_event',
+      sourceModel: 'workout_event',
+      isDerivedProjection: true,
+      derivedProjectionType: 'trainer_summary',
     });
 
     const trainerUserRef = doc(this.firestore, 'users', params.trainerUid);
@@ -362,19 +323,19 @@ export class WorkoutLogService {
     return fromClientDoc;
   }
 
-  private async saveWorkoutLogAndUpdateStreak(params: {
+  private async saveWorkoutEventAndUpdateStreak(params: {
     userId: string;
-    workoutLogRef: DocumentReference<DocumentData>;
-    sessionToStore: WorkoutSessionPerformance;
+    workoutEventRef: DocumentReference<DocumentData>;
+    eventToStore: WorkoutEvent;
     loggedAt: Date;
   }): Promise<StreakUpdateResult> {
-    const loggedDay = this.readText(params.sessionToStore.date) || this.toLocalDateKey(params.loggedAt);
+    const loggedDay = this.readText(params.eventToStore.date) || this.toLocalDateKey(params.loggedAt);
     const userStatsRef = doc(this.firestore, 'userStats', params.userId);
 
     return runTransaction(this.firestore, async (transaction) => {
-      const [userStatsSnap, workoutLogSnap] = await Promise.all([
+      const [userStatsSnap, workoutEventSnap] = await Promise.all([
         transaction.get(userStatsRef),
-        transaction.get(params.workoutLogRef),
+        transaction.get(params.workoutEventRef),
       ]);
       const currentUserStats = userStatsSnap.exists()
         ? userStatsSnap.data() as Record<string, unknown>
@@ -392,12 +353,12 @@ export class WorkoutLogService {
         currentEarlyMorningWorkoutsTracker,
         params.loggedAt
       );
-      const payload = this.buildPersistedWorkoutLogPayload(params.sessionToStore);
+      const payload = this.buildPersistedWorkoutEventRecordPayload(params.eventToStore);
       transaction.set(
-        params.workoutLogRef,
+        params.workoutEventRef,
         {
           ...payload,
-          ...(workoutLogSnap.exists() ? {} : { createdAt: serverTimestamp() }),
+          ...(workoutEventSnap.exists() ? {} : { createdAt: serverTimestamp() }),
           updatedAt: serverTimestamp(),
         },
         { merge: true }
@@ -415,6 +376,112 @@ export class WorkoutLogService {
 
       return this.buildStreakUpdateResult(currentStreakData, nextStreakData);
     });
+  }
+
+  private async refreshDerivedWorkoutHistoryDay(params: {
+    userId: string;
+    loggedDay: string;
+  }): Promise<void> {
+    const workoutEventsRef = collection(
+      this.firestore,
+      `users/${params.userId}/workoutEvents`
+    );
+    const workoutLogRef = doc(
+      this.firestore,
+      `users/${params.userId}/workoutLogs/${params.loggedDay}`
+    );
+    const [eventSnap, workoutLogSnap] = await Promise.all([
+      getDocs(query(workoutEventsRef, where('event.date', '==', params.loggedDay))),
+      getDoc(workoutLogRef),
+    ]);
+
+    const derivedEvents = eventSnap.docs
+      .map((docSnap) => {
+        const raw = docSnap.data() as Record<string, unknown>;
+        return {
+          workoutEventId: docSnap.id,
+          createdAt: raw['createdAt'],
+          event: workoutEventRecordToWorkoutEvent(raw),
+        };
+      })
+      .sort((left, right) => (
+        this.toTimestampMillis(left.createdAt) - this.toTimestampMillis(right.createdAt)
+      ));
+
+    if (derivedEvents.length === 0) {
+      return;
+    }
+
+    const derivedSession = this.workoutSessionFormatter.mergeSessions(
+      derivedEvents.map(({ event }) => workoutEventToWorkoutSessionPerformance(event)),
+      {
+        date: params.loggedDay,
+        isComplete: derivedEvents.every(({ event }) => !!event.summary.isComplete),
+      }
+    );
+    const payload = this.buildDerivedWorkoutHistoryPayload({
+      session: derivedSession,
+      workoutEventIds: derivedEvents.map(({ workoutEventId }) => workoutEventId),
+    });
+
+    await setDoc(
+      workoutLogRef,
+      {
+        ...payload,
+        ...(workoutLogSnap.exists() ? {} : { createdAt: serverTimestamp() }),
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true }
+    );
+  }
+
+  private buildDerivedWorkoutHistoryPayload(params: {
+    session: WorkoutSessionPerformance;
+    workoutEventIds: string[];
+  }): Record<string, unknown> {
+    const normalizedSession = this.workoutSessionFormatter.normalizeSession(params.session, {
+      defaultDate: this.readText(params.session.date) || this.toLocalDateKey(new Date()),
+      defaultTrainerNotes: this.readText(params.session.trainer_notes ?? params.session.notes),
+      isComplete: !!params.session.isComplete,
+      sessionType: this.readText(params.session.sessionType),
+    });
+    const trainerNotes = this.readText(
+      normalizedSession.trainer_notes ?? normalizedSession.notes
+    );
+    const estimatedCalories = this.toRoundedNonNegative(
+      normalizedSession.estimated_calories ?? normalizedSession.calories
+    );
+    const totalVolume = this.toRoundedNonNegative(normalizedSession.volume);
+    const strengthTrainingRow = this.toObjectArray(
+      normalizedSession.strengthTrainingRow ?? normalizedSession.strengthTrainingRowss ?? []
+    );
+
+    return this.stripUndefinedDeep({
+      date: normalizedSession.date,
+      trainingRows: Array.isArray(normalizedSession.trainingRows)
+        ? normalizedSession.trainingRows
+        : [],
+      strengthTrainingRow,
+      strengthTrainingRowss: strengthTrainingRow,
+      cardioTrainingRow: this.toObjectArray(normalizedSession.cardioTrainingRow ?? []),
+      otherTrainingRow: this.toObjectArray(normalizedSession.otherTrainingRow ?? []),
+      estimatedCalories,
+      estimated_calories: estimatedCalories,
+      calories: estimatedCalories,
+      totalVolume,
+      volume: totalVolume,
+      trainerNotes,
+      trainer_notes: trainerNotes,
+      notes: trainerNotes,
+      isComplete: !!normalizedSession.isComplete,
+      sessionType: this.readText(normalizedSession.sessionType),
+      exercises: Array.isArray(normalizedSession.exercises) ? normalizedSession.exercises : [],
+      sourceModel: 'workout_event',
+      isDerivedProjection: true,
+      derivedProjectionType: 'workout_history_day',
+      derivedFromWorkoutEventIds: params.workoutEventIds,
+      derivedFromWorkoutEventCount: params.workoutEventIds.length,
+    }) as Record<string, unknown>;
   }
 
   private calculateNextStreakData(currentStreakData: StreakData, loggedDay: string): StreakData {
@@ -523,72 +590,26 @@ export class WorkoutLogService {
     return `${year}-${month}-${day}`;
   }
 
-  private buildPersistedWorkoutLogPayload(
-    session: WorkoutSessionPerformance
-  ): Record<string, unknown> {
-    const trainerNotes = this.readText(session.trainer_notes ?? session.notes);
-    const estimatedCalories = this.toRoundedNonNegative(
-      session.estimated_calories ?? session.calories
-    );
-    const totalVolume = this.toRoundedNonNegative(session.volume);
-    const strengthTrainingRow = this.toObjectArray(
-      session.strengthTrainingRow ?? session.strengthTrainingRowss ?? []
-    );
+  private toTimestampMillis(value: unknown): number {
+    try {
+      const dateValue = (value as { toDate?: () => Date } | null | undefined)?.toDate?.() ?? value;
+      if (dateValue instanceof Date && !Number.isNaN(dateValue.getTime())) {
+        return dateValue.getTime();
+      }
 
-    return this.stripUndefinedDeep({
-      date: this.readText(session.date) || this.toLocalDateKey(new Date()),
-      trainingRows: Array.isArray(session.trainingRows) ? session.trainingRows : [],
-      strengthTrainingRow,
-      strengthTrainingRowss: strengthTrainingRow,
-      cardioTrainingRow: this.toObjectArray(session.cardioTrainingRow ?? []),
-      otherTrainingRow: this.toObjectArray(session.otherTrainingRow ?? []),
-      estimatedCalories,
-      estimated_calories: estimatedCalories,
-      calories: estimatedCalories,
-      totalVolume,
-      volume: totalVolume,
-      trainerNotes,
-      trainer_notes: trainerNotes,
-      notes: trainerNotes,
-      isComplete: !!session.isComplete,
-      sessionType: this.readText(session.sessionType),
-      exercises: Array.isArray(session.exercises) ? session.exercises : [],
-    }) as Record<string, unknown>;
+      const parsed = new Date(String(dateValue ?? ''));
+      return Number.isNaN(parsed.getTime()) ? 0 : parsed.getTime();
+    } catch {
+      return 0;
+    }
   }
 
-  private async resolveCombinedTrainerNotes(
-    existingTrainerNotes: string,
-    incomingTrainerNotes: string
-  ): Promise<string> {
-    const uniqueNotes = Array.from(
-      new Set(
-        [existingTrainerNotes, incomingTrainerNotes]
-          .map((note) => this.readText(note))
-          .filter(Boolean)
-      )
-    );
-
-    if (uniqueNotes.length === 0) {
-      return '';
-    }
-
-    if (uniqueNotes.length === 1) {
-      return uniqueNotes[0];
-    }
-
-    try {
-      const response = await this.workoutChatService.mergeWorkoutNotes({
-        notes: uniqueNotes,
-      });
-      const merged = this.readText(response.mergedNotes);
-      if (merged) {
-        return merged;
-      }
-    } catch (error) {
-      console.error('[WorkoutLogService] Failed to merge trainer notes with AI:', error);
-    }
-
-    return uniqueNotes.join(' ').replace(/\s+/g, ' ').trim();
+  private buildPersistedWorkoutEventRecordPayload(
+    event: WorkoutEvent
+  ): Record<string, unknown> {
+    return this.stripUndefinedDeep(
+      workoutEventToWorkoutEventRecord(event)
+    ) as Record<string, unknown>;
   }
 
   private async resolveUserBodyweightKg(userId: string): Promise<number> {

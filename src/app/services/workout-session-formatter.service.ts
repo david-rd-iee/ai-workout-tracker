@@ -1,6 +1,13 @@
 import { Injectable } from '@angular/core';
 import { ExerciseEstimatorsService } from './exercise-estimators.service';
 import {
+  applyTrainerNotesToWorkoutSessionPerformance,
+  createEmptyWorkoutSessionPerformance,
+  mergeWorkoutSessionPerformances,
+  workoutEventToWorkoutSessionPerformance,
+  workoutSessionPerformanceToWorkoutEvent,
+} from '../adapters/workout-event.adapters';
+import {
   CardioTrainingRow,
   OtherTrainingRow,
   SummaryExercise,
@@ -32,22 +39,7 @@ export class WorkoutSessionFormatterService {
   constructor(private exerciseEstimatorsService: ExerciseEstimatorsService) {}
 
   createEmptySession(date = new Date().toISOString().slice(0, 10)): WorkoutSessionPerformance {
-    return {
-      date,
-      trainingRows: [],
-      strengthTrainingRow: [],
-      strengthTrainingRowss: [],
-      cardioTrainingRow: [],
-      otherTrainingRow: [],
-      estimated_calories: 0,
-      trainer_notes: '',
-      isComplete: false,
-      sessionType: '',
-      notes: '',
-      volume: 0,
-      calories: 0,
-      exercises: [],
-    };
+    return createEmptyWorkoutSessionPerformance(date);
   }
 
   normalizeSession(
@@ -122,7 +114,7 @@ export class WorkoutSessionFormatterService {
     const date = this.readText(source['date']) || options.defaultDate || new Date().toISOString().slice(0, 10);
     const sessionType = this.readText(source['sessionType']) || this.readText(options.sessionType);
 
-    return {
+    const normalizedSession: WorkoutSessionPerformance = {
       date,
       trainingRows: rows,
       Training_Type: trainingType,
@@ -141,6 +133,13 @@ export class WorkoutSessionFormatterService {
       calories: estimatedCalories,
       exercises: this.rowsToLegacyExercises(rows),
     };
+
+    const canonicalEvent = workoutSessionPerformanceToWorkoutEvent(normalizedSession);
+    if (sessionType) {
+      canonicalEvent.source = this.mapSessionTypeToWorkoutEventSource(sessionType);
+    }
+
+    return workoutEventToWorkoutSessionPerformance(canonicalEvent);
   }
 
   applyTrainerNotes(
@@ -148,99 +147,40 @@ export class WorkoutSessionFormatterService {
     trainerNotes: string,
     isComplete = true
   ): WorkoutSessionPerformance {
-    const source = {
-      ...(session ?? {}),
-      trainer_notes: trainerNotes,
-      notes: trainerNotes,
-      isComplete,
-    };
-
-    return this.normalizeSession(source, {
-      defaultTrainerNotes: trainerNotes,
-      isComplete,
-    });
+    return applyTrainerNotesToWorkoutSessionPerformance(session, trainerNotes, isComplete);
   }
 
   mergeSessions(
     sessions: Array<Partial<WorkoutSessionPerformance> | Record<string, unknown> | null | undefined>,
     options: MergeSessionsOptions = {}
   ): WorkoutSessionPerformance {
-    const normalized = sessions
-      .map((session) => this.normalizeSession(session))
-      .filter((session) => session.trainingRows.length > 0);
-
-    if (normalized.length === 0) {
-      return this.applyTrainerNotes(
-        this.createEmptySession(options.date),
-        options.trainerNotes ?? '',
-        !!options.isComplete
-      );
-    }
-
-    const mergedCandidate: Partial<WorkoutSessionPerformance> = {
-      date: options.date || normalized[0].date,
-      strengthTrainingRow: normalized.reduce<WorkoutTrainingRow[]>((rows, session) => {
-        if (Array.isArray(session.strengthTrainingRow)) {
-          rows.push(...session.strengthTrainingRow);
-          return rows;
-        }
-        if (session.strengthTrainingRow) {
-          rows.push(session.strengthTrainingRow);
-          return rows;
-        }
-        if (Array.isArray(session.strengthTrainingRowss)) {
-          rows.push(...session.strengthTrainingRowss);
-        }
-        return rows;
-      }, []),
-      cardioTrainingRow: normalized.reduce<CardioTrainingRow[]>((rows, session) => {
-        if (Array.isArray(session.cardioTrainingRow)) {
-          rows.push(...session.cardioTrainingRow);
-          return rows;
-        }
-        if (session.cardioTrainingRow) {
-          rows.push(session.cardioTrainingRow);
-        }
-        return rows;
-      }, []),
-      otherTrainingRow: normalized.reduce<OtherTrainingRow[]>((rows, session) => {
-        if (Array.isArray(session.otherTrainingRow)) {
-          rows.push(...session.otherTrainingRow);
-          return rows;
-        }
-        if (session.otherTrainingRow) {
-          rows.push(session.otherTrainingRow);
-        }
-        return rows;
-      }, []),
-      estimated_calories: normalized.reduce(
-        (total, session) => total + this.toNonNegativeNumber(
-          session.estimated_calories ?? session.calories,
-          0
-        ),
-        0
-      ),
-      trainer_notes: options.trainerNotes ??
-        normalized
-          .map((session) => this.readText(session.trainer_notes ?? session.notes))
-          .filter(Boolean)
-          .join('\n\n'),
-      isComplete: typeof options.isComplete === 'boolean'
-        ? options.isComplete
-        : normalized.every((session) => !!session.isComplete),
-      sessionType: options.sessionType ||
-        normalized
-          .map((session) => this.readText(session.sessionType))
-          .find(Boolean) ||
-        '',
-    };
-
-    return this.normalizeSession(mergedCandidate, {
-      defaultTrainerNotes: mergedCandidate.trainer_notes,
-      defaultDate: mergedCandidate.date,
-      isComplete: mergedCandidate.isComplete,
-      sessionType: mergedCandidate.sessionType,
+    return mergeWorkoutSessionPerformances(sessions, {
+      date: options.date,
+      trainerNotes: options.trainerNotes,
+      isComplete: options.isComplete,
+      source: options.sessionType
+        ? this.mapSessionTypeToWorkoutEventSource(options.sessionType)
+        : undefined,
     });
+  }
+
+  private mapSessionTypeToWorkoutEventSource(
+    sessionType: string
+  ): 'chat' | 'treadmill_logger' | 'map_tracking' | 'manual' | 'imported' {
+    const normalized = this.readText(sessionType).toLowerCase();
+    if (normalized === 'treadmill' || normalized === 'treadmill_logger') {
+      return 'treadmill_logger';
+    }
+    if (normalized === 'map' || normalized === 'map_tracking') {
+      return 'map_tracking';
+    }
+    if (normalized === 'imported' || normalized === 'import') {
+      return 'imported';
+    }
+    if (normalized === 'manual') {
+      return 'manual';
+    }
+    return 'chat';
   }
 
   private normalizeRows(

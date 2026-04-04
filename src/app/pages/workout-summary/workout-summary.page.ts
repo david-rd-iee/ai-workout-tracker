@@ -23,6 +23,11 @@ import {
   WorkoutSessionPerformance,
   WorkoutTrainingRow,
 } from '../../models/workout-session.model';
+import {
+  createEmptyWorkoutSessionPerformance,
+  workoutEventToWorkoutSessionPerformance,
+  workoutSessionPerformanceToWorkoutEvent,
+} from '../../adapters/workout-event.adapters';
 
 @Component({
   selector: 'app-workout-summary',
@@ -47,21 +52,7 @@ import {
 export class WorkoutSummaryPage implements OnInit {
   loggedAt: Date | null = null;
   backHref = '/workout-chatbot';
-  summary: WorkoutSessionPerformance = {
-    date: new Date().toISOString().slice(0, 10),
-    trainingRows: [],
-    strengthTrainingRow: [],
-    cardioTrainingRow: [],
-    otherTrainingRow: [],
-    estimated_calories: 0,
-    trainer_notes: '',
-    isComplete: false,
-    sessionType: '',
-    notes: '',
-    volume: 0,
-    calories: 0,
-    exercises: [],
-  };
+  summary: WorkoutSessionPerformance = createEmptyWorkoutSessionPerformance();
 
   constructor(private router: Router, private navCtrl: NavController) {
     addIcons({ closeOutline });
@@ -245,29 +236,9 @@ export class WorkoutSummaryPage implements OnInit {
   }
 
   private normalizeSummary(value: Partial<WorkoutSessionPerformance>): WorkoutSessionPerformance {
-    const rows = Array.isArray(value.trainingRows) ? value.trainingRows : [];
-    const calories = Number(value.estimated_calories ?? value.calories ?? 0);
-    const notes = value.trainer_notes ?? value.notes ?? '';
-
-    return {
-      date: typeof value.date === 'string' && value.date ? value.date : new Date().toISOString().slice(0, 10),
-      trainingRows: rows,
-      strengthTrainingRow: Array.isArray(value.strengthTrainingRow)
-        ? value.strengthTrainingRow
-        : Array.isArray(value.strengthTrainingRowss)
-          ? value.strengthTrainingRowss
-          : [],
-      cardioTrainingRow: Array.isArray(value.cardioTrainingRow) ? value.cardioTrainingRow : [],
-      otherTrainingRow: Array.isArray(value.otherTrainingRow) ? value.otherTrainingRow : [],
-      estimated_calories: calories,
-      trainer_notes: String(notes),
-      isComplete: !!value.isComplete,
-      sessionType: value.sessionType ?? '',
-      notes: String(notes),
-      volume: Number(value.volume ?? 0),
-      calories,
-      exercises: Array.isArray(value.exercises) ? value.exercises : [],
-    };
+    return workoutEventToWorkoutSessionPerformance(
+      workoutSessionPerformanceToWorkoutEvent(value)
+    );
   }
 
   private toLoggedAtDate(value: unknown, _fallbackDate: string): Date | null {

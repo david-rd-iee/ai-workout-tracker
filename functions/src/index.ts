@@ -2,6 +2,18 @@ import { HttpsError, onCall, onRequest } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import { defineSecret } from "firebase-functions/params";
 import OpenAI from "openai";
+import {
+  createEmptyWorkoutEvent,
+  normalizeWorkoutEventCandidate,
+  workoutEventToLegacyWorkoutSession,
+} from "../../shared/adapters/workout-event.adapters";
+import type {
+  CardioWorkoutEventEntry,
+  StrengthWorkoutEventEntry,
+  WorkoutEvent,
+  WorkoutEventEntry,
+  WorkoutEventSource,
+} from "../../shared/models/workout-event.model";
 export { retrainExerciseEstimatorOnWorkoutLogCreate } from "./exerciseEstimatorTraining";
 
 const openaiApiKey = defineSecret("OPENAI_API_KEY");
@@ -165,277 +177,191 @@ function inferCardioTypeFromMessage(message: string): string | undefined {
   return undefined;
 }
 
-function toObjectArray(value: unknown): Array<Record<string, unknown>> {
-  if (Array.isArray(value)) {
-    return value.filter((entry): entry is Record<string, unknown> => !!entry && typeof entry === "object");
-  }
-
-  if (value && typeof value === "object") {
-    return [value as Record<string, unknown>];
-  }
-
-  return [];
+interface NormalizeAssistantSummaryOptions {
+  latestMessage: string;
+  source: WorkoutEventSource;
+  defaultDate?: string;
+  cardioTypeFallback?: string;
 }
 
-function normalizeSummaryRows(summary: unknown, latestMessage: string): unknown {
-  if (!summary || typeof summary !== "object") {
-    return summary;
-  }
-
-  const summaryRecord = summary as Record<string, unknown>;
-  const sessionEstimatedCalories = toPositiveNumber(summaryRecord["estimated_calories"]) ?? 0;
-  const legacyRows = toObjectArray(summaryRecord["trainingRows"]);
-  const legacyStrengthRows = legacyRows.filter((row) =>
-    String(row["Training_Type"] ?? row["training_type"] ?? row["trainingType"] ?? "")
-      .trim()
-      .toLowerCase() === "strength"
-  );
-  const legacyCardioRows = legacyRows.filter((row) =>
-    String(row["Training_Type"] ?? row["training_type"] ?? row["trainingType"] ?? "")
-      .trim()
-      .toLowerCase() === "cardio"
-  );
-  const legacyOtherRows = legacyRows.filter((row) =>
-    String(row["Training_Type"] ?? row["training_type"] ?? row["trainingType"] ?? "")
-      .trim()
-      .toLowerCase() === "other"
-  );
-
-  const strengthSource =
-    summaryRecord["strengthTrainingRow"] ??
-    summaryRecord["strengthTrainingRowss"] ??
-    legacyStrengthRows;
-  const latestWeightText = extractWeightMetricText(latestMessage);
-  const strengthRows = toObjectArray(strengthSource).map((row, index) => {
-    const normalized = {...row};
-    const displayedWeightMetric =
-      extractWeightMetricText(
-        row["displayed_weights_metric"] ??
-        row["displayWeight"] ??
-        row["weights"] ??
-        row["weight"] ??
-        row["load"]
-      ) ??
-      (index === 0 ? latestWeightText : undefined) ??
-      "bodyweight";
-    const weightsKg =
-      extractWeightKg(row["weights_kg"]) ??
-      extractWeightKg(row["weight_kg"]) ??
-      extractWeightKg(row["weights"]) ??
-      extractWeightKg(row["weight"]) ??
-      extractWeightKg(row["load"]) ??
-      extractWeightKg(displayedWeightMetric) ??
-      0;
-
-    normalized["Training_Type"] = "Strength";
-    normalized["estimated_calories"] = toPositiveNumber(
-      row["estimated_calories"] ?? row["estimatedCalories"]
-    ) ?? 0;
-    normalized["displayed_weights_metric"] = displayedWeightMetric;
-    normalized["weights_kg"] = weightsKg;
-    normalized["weights"] = displayedWeightMetric;
-    return normalized;
+function normalizeAssistantSummary(
+  summary: unknown,
+  options: NormalizeAssistantSummaryOptions
+): unknown {
+  const event = normalizeWorkoutEventCandidate(summary, {
+    defaultDate: options.defaultDate,
+    source: options.source,
   });
 
-  const rawRows =
-    summaryRecord["cardioTrainingRow"] ??
-    legacyCardioRows.map((row) => ({
-      cardio_type:
-        row["cardio_type"] ??
-        row["cardioType"] ??
-        row["exercise_type"] ??
-        row["exersice_type"] ??
-        row["type"],
-      display_distance:
-        row["display_distance"] ??
-        row["distance_input"] ??
-        row["distanceText"] ??
-        row["distance_text"],
-      display_time:
-        row["display_time"] ??
-        row["time_input"] ??
-        row["timeText"] ??
-        row["time_text"],
-      distance_meters:
-        row["distance_meters"] ??
-        row["distance"] ??
-        row["meters"],
-      time_minutes:
-        row["time_minutes"] ??
-        row["time"] ??
-        row["minutes"] ??
-        row["duration"] ??
-        row["reps"],
-      estimated_calories:
-        row["estimated_calories"] ??
-        row["estimatedCalories"],
-    }));
-  const cardioRows = toObjectArray(rawRows);
+  return workoutEventToLegacyWorkoutSession(
+    applyAssistantHeuristicsToEvent(event, options)
+  );
+}
 
-  const fromMessage = extractDistanceAndTimeFromMessage(latestMessage);
-  const fromMessageText = extractDistanceAndTimeTokensFromMessage(latestMessage);
-  const inferredCardioType = inferCardioTypeFromMessage(latestMessage);
+function applyAssistantHeuristicsToEvent(
+  event: WorkoutEvent,
+  options: NormalizeAssistantSummaryOptions
+): WorkoutEvent {
+  const nextEvent: WorkoutEvent = {
+    ...event,
+    entries: event.entries.map((entry) => cloneWorkoutEventEntry(entry)),
+    summary: {
+      ...event.summary,
+    },
+  };
+  const latestWeightText = extractWeightMetricText(options.latestMessage);
+  const firstStrengthEntryIndex = nextEvent.entries.findIndex((entry) => entry.kind === "strength");
+
+  if (latestWeightText && firstStrengthEntryIndex >= 0) {
+    const strengthEntry = nextEvent.entries[firstStrengthEntryIndex] as StrengthWorkoutEventEntry;
+    const currentLoadText = String(strengthEntry.load.displayText ?? "").trim().toLowerCase();
+    if (!currentLoadText || currentLoadText === "bodyweight" || currentLoadText === "body weight") {
+      strengthEntry.load = {
+        displayText: latestWeightText,
+        weightKg: extractWeightKg(latestWeightText) ?? strengthEntry.load.weightKg,
+      };
+    }
+  }
+
+  const inferredCardioType = normalizeCardioType(
+    options.cardioTypeFallback || inferCardioTypeFromMessage(options.latestMessage)
+  );
+  const fromMessage = extractDistanceAndTimeFromMessage(options.latestMessage);
+  const fromMessageText = extractDistanceAndTimeTokensFromMessage(options.latestMessage);
+  const firstCardioEntryIndex = nextEvent.entries.findIndex((entry) => entry.kind === "cardio");
+
   if (
-    cardioRows.length === 0 &&
+    firstCardioEntryIndex === -1 &&
     inferredCardioType &&
     (typeof fromMessage.distance === "number" || typeof fromMessage.time === "number")
   ) {
-    cardioRows.push({
-      cardio_type: inferredCardioType,
-      display_distance: fromMessageText.distanceText ?? "",
-      display_time: fromMessageText.timeText ?? "",
-      distance_meters: fromMessage.distance ?? 0,
-      time_minutes: fromMessage.time ?? 0,
-      estimated_calories: 0,
+    nextEvent.entries.push({
+      kind: "cardio",
+      cardioType: inferredCardioType,
+      estimatedCalories: 0,
+      ...(fromMessageText.distanceText || typeof fromMessage.distance === "number"
+        ? {
+          distance: {
+            ...(fromMessageText.distanceText ? {displayText: fromMessageText.distanceText} : {}),
+            ...(typeof fromMessage.distance === "number" ? {meters: fromMessage.distance} : {}),
+          },
+        }
+        : {}),
+      ...(fromMessageText.timeText || typeof fromMessage.time === "number"
+        ? {
+          duration: {
+            ...(fromMessageText.timeText ? {displayText: fromMessageText.timeText} : {}),
+            ...(typeof fromMessage.time === "number" ? {minutes: fromMessage.time} : {}),
+          },
+        }
+        : {}),
     });
+  } else if (firstCardioEntryIndex >= 0) {
+    const cardioEntry = nextEvent.entries[firstCardioEntryIndex] as CardioWorkoutEventEntry;
+    if ((!cardioEntry.cardioType || cardioEntry.cardioType === "cardio_activity") && inferredCardioType) {
+      cardioEntry.cardioType = inferredCardioType;
+    }
+
+    const nextDistance = cardioEntry.distance ? {...cardioEntry.distance} : {};
+    if (!nextDistance.displayText && fromMessageText.distanceText) {
+      nextDistance.displayText = fromMessageText.distanceText;
+    }
+    if (typeof nextDistance.meters !== "number" && typeof fromMessage.distance === "number") {
+      nextDistance.meters = fromMessage.distance;
+    }
+    if (Object.keys(nextDistance).length > 0) {
+      cardioEntry.distance = nextDistance;
+    }
+
+    const nextDuration = cardioEntry.duration ? {...cardioEntry.duration} : {};
+    if (!nextDuration.displayText && fromMessageText.timeText) {
+      nextDuration.displayText = fromMessageText.timeText;
+    }
+    if (typeof nextDuration.minutes !== "number" && typeof fromMessage.time === "number") {
+      nextDuration.minutes = fromMessage.time;
+    }
+    if (Object.keys(nextDuration).length > 0) {
+      cardioEntry.duration = nextDuration;
+    }
   }
 
-  const normalizedRows = cardioRows.map((entry, index) => {
-    const row = {...entry};
-    const rowCardioType = String(
-      row["cardio_type"] ??
-      row["cardioType"] ??
-      row["exercise_type"] ??
-      row["type"] ??
-      ""
-    ).trim();
-    const rowDistanceInput = String(
-      row["display_distance"] ??
-      row["distance_input"] ??
-      row["distanceText"] ??
-      row["distance_text"] ??
-      ""
-    ).trim();
-    const rowTimeInput = String(
-      row["display_time"] ??
-      row["time_input"] ??
-      row["timeText"] ??
-      row["time_text"] ??
-      ""
-    ).trim();
-    const rowDistance =
-      extractDistanceMeters(row["distance_meters"]) ??
-      extractDistanceMeters(row["distance"]) ??
-      extractDistanceMeters(row["meters"]);
-    const rowTime =
-      extractTimeMinutes(row["time_minutes"]) ??
-      extractTimeMinutes(row["time"]) ??
-      extractTimeMinutes(row["minutes"]) ??
-      extractTimeMinutes(row["duration"]);
-
-    const distanceMeters = index === 0 && typeof fromMessage.distance === "number"
-      ? fromMessage.distance
-      : rowDistance;
-    const timeMinutes = index === 0 && typeof fromMessage.time === "number"
-      ? fromMessage.time
-      : rowTime;
-
-    row["Training_Type"] = "Cardio";
-    row["cardio_type"] = rowCardioType || inferredCardioType || "cardio_activity";
-    const distanceInput = rowDistanceInput || (index === 0 ? fromMessageText.distanceText : undefined);
-    const timeInput = rowTimeInput || (index === 0 ? fromMessageText.timeText : undefined);
-    if (distanceInput) {
-      row["display_distance"] = distanceInput;
-      row["distance_input"] = distanceInput;
-    } else {
-      delete row["display_distance"];
-      delete row["distance_input"];
-    }
-    if (timeInput) {
-      row["display_time"] = timeInput;
-      row["time_input"] = timeInput;
-    } else {
-      delete row["display_time"];
-      delete row["time_input"];
-    }
-    row["estimated_calories"] = toPositiveNumber(
-      row["estimated_calories"] ?? row["estimatedCalories"]
-    ) ?? 0;
-    row["distance_meters"] = typeof distanceMeters === "number" ? distanceMeters : null;
-    row["time_minutes"] = typeof timeMinutes === "number" ? timeMinutes : null;
-    row["distance"] = typeof distanceMeters === "number" ? distanceMeters : null;
-    row["time"] = typeof timeMinutes === "number" ? timeMinutes : null;
-    return row;
-  });
-
-  const otherSource = summaryRecord["otherTrainingRow"] ?? legacyOtherRows;
-  const otherRows = toObjectArray(otherSource).map((row) => {
-    const normalized = {...row};
-    normalized["Training_Type"] = "Other";
-    normalized["estimated_calories"] = toPositiveNumber(
-      row["estimated_calories"] ?? row["estimatedCalories"]
-    ) ?? 0;
-    return normalized;
-  });
-
-  const allRows = [...strengthRows, ...normalizedRows, ...otherRows];
-  if (allRows.length > 0) {
-    const fallbackPerRow = sessionEstimatedCalories > 0
-      ? Math.max(1, Math.round(sessionEstimatedCalories / allRows.length))
-      : 0;
-    allRows.forEach((row) => {
-      const rowCalories = toPositiveNumber(row["estimated_calories"]) ?? 0;
-      if (rowCalories <= 0) {
-        row["estimated_calories"] = fallbackPerRow;
-      }
-    });
-  }
-
-  if (!summaryRecord["Training_Type"]) {
-    const distinctTypes = new Set(
-      allRows.map((row) => String(row["Training_Type"] ?? "").trim()).filter(Boolean)
+  nextEvent.entries = ensureEntryCalories(
+    nextEvent.entries,
+    nextEvent.summary.estimatedCalories
+  );
+  if (nextEvent.summary.estimatedCalories <= 0) {
+    nextEvent.summary.estimatedCalories = nextEvent.entries.reduce(
+      (total, entry) => total + entry.estimatedCalories,
+      0
     );
-    if (distinctTypes.size === 1) {
-      summaryRecord["Training_Type"] = Array.from(distinctTypes)[0];
-    }
   }
 
-  summaryRecord["strengthTrainingRow"] = strengthRows;
-  summaryRecord["strengthTrainingRowss"] = strengthRows;
-  summaryRecord["cardioTrainingRow"] = normalizedRows;
-  summaryRecord["otherTrainingRow"] = otherRows;
-  summaryRecord["trainingRows"] = [
-    ...strengthRows,
-    ...normalizedRows.map((row) => ({
-      Training_Type: "Cardio",
-      estimated_calories: row["estimated_calories"],
-      exercise_type:
-        row["cardio_type"] ??
-        row["exercise_type"] ??
-        "cardio_activity",
-      sets: 1,
-      reps:
-        toPositiveNumber(row["time_minutes"] ?? row["time"]) ??
-        toPositiveNumber(row["distance_meters"] ?? row["distance"]) ??
-        0,
-      displayed_weights_metric: "bodyweight",
-      weights_kg: 0,
-      weights: "bodyweight",
-    })),
-    ...otherRows.map((row) => ({
-      Training_Type: "Other",
-      estimated_calories: row["estimated_calories"],
-      exercise_type:
-        row["exercise_type"] ??
-        row["activity"] ??
-        row["name"] ??
-        "other_activity",
-      sets: row["sets"] ?? 1,
-      reps: row["reps"] ?? row["time"] ?? 1,
-      weights: row["weights"] ?? "body weight",
-    })),
-  ];
-  return summaryRecord;
+  return nextEvent;
 }
 
-function buildEmptyTreadmillSummary(): Record<string, unknown> {
+function cloneWorkoutEventEntry(entry: WorkoutEventEntry): WorkoutEventEntry {
+  if (entry.kind === "strength") {
+    return {
+      ...entry,
+      load: {...entry.load},
+    };
+  }
+
+  if (entry.kind === "cardio") {
+    return {
+      ...entry,
+      ...(entry.distance ? {distance: {...entry.distance}} : {}),
+      ...(entry.duration ? {duration: {...entry.duration}} : {}),
+      ...(entry.route
+        ? {
+          route: {
+            points: entry.route.points.map((point) => ({...point})),
+            ...(entry.route.bounds ? {bounds: {...entry.route.bounds}} : {}),
+          },
+        }
+        : {}),
+    };
+  }
+
   return {
-    date: new Date().toISOString().slice(0, 10),
-    cardioTrainingRow: [],
-    estimated_calories: 0,
-    trainer_notes: "",
-    isComplete: false,
+    ...entry,
+    ...(entry.details ? {details: {...entry.details}} : {}),
   };
+}
+
+function ensureEntryCalories(
+  entries: WorkoutEventEntry[],
+  summaryEstimatedCalories: number
+): WorkoutEventEntry[] {
+  if (entries.length === 0) {
+    return entries;
+  }
+
+  const fallbackPerEntry = summaryEstimatedCalories > 0
+    ? Math.max(1, Math.round(summaryEstimatedCalories / entries.length))
+    : 0;
+
+  return entries.map((entry) => {
+    if (entry.estimatedCalories > 0) {
+      return entry;
+    }
+
+    return {
+      ...cloneWorkoutEventEntry(entry),
+      estimatedCalories: fallbackPerEntry,
+    };
+  });
+}
+
+function normalizeCardioType(value: string | undefined): string | undefined {
+  const normalized = String(value ?? "").trim().toLowerCase();
+  return normalized || undefined;
+}
+
+function buildEmptyTreadmillSummary(): unknown {
+  return workoutEventToLegacyWorkoutSession(
+    createEmptyWorkoutEvent(new Date().toISOString().slice(0, 10), "treadmill_logger")
+  );
 }
 
 function coerceImageDataUrl(value: unknown): string {
@@ -619,9 +545,13 @@ Respond ONLY as valid JSON:
   const assistantMessage =
     parsed.assistantMessage ??
     "I had trouble understanding that. Can you rephrase your workout?";
-  const updatedSession = normalizeSummaryRows(
+  const updatedSession = normalizeAssistantSummary(
     parsed.summary ?? session ?? null,
-    message
+    {
+      latestMessage: message,
+      source: "chat",
+      defaultDate: new Date().toISOString().slice(0, 10),
+    }
   );
 
   return {
@@ -735,9 +665,14 @@ Rules:
   const assistantMessage =
     parsed.assistantMessage ??
     "I couldn't read the treadmill display clearly. Please retake the photo.";
-  const updatedSession = normalizeSummaryRows(
+  const updatedSession = normalizeAssistantSummary(
     parsed.summary ?? emptySummary,
-    ""
+    {
+      latestMessage: "",
+      source: "treadmill_logger",
+      defaultDate: new Date().toISOString().slice(0, 10),
+      cardioTypeFallback: machineType || undefined,
+    }
   );
   logger.info("treadmillLogger parsed cardio JSON", {
     machineType,
@@ -747,82 +682,6 @@ Rules:
   return {
     botMessage: assistantMessage,
     updatedSession,
-  };
-}
-
-async function handleMergeWorkoutNotesRequest(body: unknown): Promise<{mergedNotes: string}> {
-  const requestBody =
-    body && typeof body === "object" ? body as Record<string, unknown> : {};
-  const notes = Array.isArray(requestBody["notes"])
-    ? requestBody["notes"]
-        .map((note) => String(note ?? "").trim())
-        .filter((note) => !!note)
-    : [];
-
-  if (notes.length === 0) {
-    return {mergedNotes: ""};
-  }
-
-  if (notes.length === 1) {
-    return {mergedNotes: notes[0]};
-  }
-
-  const apiKey = openaiApiKey.value()?.trim() ?? "";
-  if (!apiKey) {
-    logger.error("Missing OPENAI_API_KEY secret for mergeWorkoutNotes");
-    throw new HttpsError(
-      "internal",
-      "Internal server error in mergeWorkoutNotes.",
-      "OPENAI_API_KEY is not configured for this function."
-    );
-  }
-
-  const openai = new OpenAI({ apiKey });
-  const prompt = `
-You merge same-day workout trainer notes into one natural note.
-
-Rules:
-- Preserve the meaning of every note.
-- Remove duplicates and obvious repetition.
-- Keep the final note concise and natural.
-- Do not invent new details.
-- Return valid JSON only:
-{
-  "mergedNotes": string
-}
-`;
-
-  const completion = await openai.chat.completions.create({
-    model: "gpt-4.1-mini",
-    response_format: {type: "json_object"},
-    messages: [
-      {
-        role: "system",
-        content: "You merge workout notes into one concise natural note and return JSON only.",
-      },
-      {
-        role: "user",
-        content: JSON.stringify({
-          instructions: prompt,
-          notes,
-        }),
-      },
-    ],
-    max_tokens: 200,
-  });
-
-  const raw = completion.choices[0]?.message?.content ?? "{}";
-  let parsed: any;
-  try {
-    parsed = JSON.parse(raw);
-  } catch (error) {
-    logger.error("Failed to parse JSON from mergeWorkoutNotes:", raw);
-    parsed = {};
-  }
-
-  const mergedNotes = String(parsed.mergedNotes ?? "").trim();
-  return {
-    mergedNotes: mergedNotes || notes.join(" ").replace(/\s+/g, " ").trim(),
   };
 }
 
@@ -946,62 +805,6 @@ export const treadmillLoggerCallable = onCall({secrets: [openaiApiKey]}, async (
     throw new HttpsError(
       "internal",
       "Internal server error in treadmillLogger.",
-      error?.message ?? String(error)
-    );
-  }
-});
-
-export const mergeWorkoutNotes = onRequest({secrets: [openaiApiKey]}, async (req, res) => {
-  logger.info("mergeWorkoutNotes called", { method: req.method });
-
-  res.set("Access-Control-Allow-Origin", "*");
-  res.set("Access-Control-Allow-Headers", "Content-Type");
-  res.set("Access-Control-Allow-Methods", "POST, OPTIONS");
-
-  if (req.method === "OPTIONS") {
-    res.status(204).send("");
-    return;
-  }
-
-  if (req.method !== "POST") {
-    res.status(405).send("Method Not Allowed");
-    return;
-  }
-
-  try {
-    const response = await handleMergeWorkoutNotesRequest(req.body);
-    res.status(200).json(response);
-  } catch (error: any) {
-    logger.error("Error in mergeWorkoutNotes:", error);
-    const details = error instanceof HttpsError
-      ? error.details ?? error.message
-      : error?.message ?? String(error);
-    const statusCode = error instanceof HttpsError && error.code === "invalid-argument"
-      ? 400
-      : 500;
-
-    res.status(statusCode).json({
-      error: "Internal server error in mergeWorkoutNotes.",
-      details,
-    });
-  }
-});
-
-export const mergeWorkoutNotesCallable = onCall({secrets: [openaiApiKey]}, async (request) => {
-  logger.info("mergeWorkoutNotesCallable called");
-
-  try {
-    return await handleMergeWorkoutNotesRequest(request.data);
-  } catch (error: any) {
-    logger.error("Error in mergeWorkoutNotesCallable:", error);
-
-    if (error instanceof HttpsError) {
-      throw error;
-    }
-
-    throw new HttpsError(
-      "internal",
-      "Internal server error in mergeWorkoutNotes.",
       error?.message ?? String(error)
     );
   }

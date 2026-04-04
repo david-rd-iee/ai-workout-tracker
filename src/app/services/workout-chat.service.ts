@@ -21,14 +21,6 @@ export interface TreadmillImageRequestPayload {
   machineType: string;
 }
 
-export interface MergeWorkoutNotesRequestPayload {
-  notes: string[];
-}
-
-export interface MergeWorkoutNotesResponse {
-  mergedNotes: string;
-}
-
 export interface ChatResponse {
   botMessage: string;
   updatedSession?: WorkoutSessionPerformance;
@@ -40,13 +32,10 @@ export interface ChatResponse {
 export class WorkoutChatService {
   private readonly callableName = 'workoutChatCallable';
   private readonly treadmillCallableName = 'treadmillLoggerCallable';
-  private readonly mergeWorkoutNotesCallableName = 'mergeWorkoutNotesCallable';
   private apiUrl =
     'https://us-central1-ai-fitness-f8ed4.cloudfunctions.net/workoutChat';
   private treadmillApiUrl =
     'https://us-central1-ai-fitness-f8ed4.cloudfunctions.net/treadmillLogger';
-  private mergeWorkoutNotesApiUrl =
-    'https://us-central1-ai-fitness-f8ed4.cloudfunctions.net/mergeWorkoutNotes';
 
   constructor(private http: HttpClient) {}
 
@@ -96,29 +85,6 @@ export class WorkoutChatService {
 
       return firstValueFrom(
         this.http.post<ChatResponse>(this.treadmillApiUrl, payload)
-      );
-    }
-  }
-
-  async mergeWorkoutNotes(
-    payload: MergeWorkoutNotesRequestPayload
-  ): Promise<MergeWorkoutNotesResponse> {
-    try {
-      const functions = getFunctions(undefined, 'us-central1');
-      const callable = httpsCallable<MergeWorkoutNotesRequestPayload, MergeWorkoutNotesResponse>(
-        functions,
-        this.mergeWorkoutNotesCallableName
-      );
-      const response = await callable(payload);
-      return response.data;
-    } catch (callableError) {
-      console.warn(
-        '[WorkoutChatService] Callable workout note merge failed; falling back to HTTP endpoint.',
-        callableError
-      );
-
-      return firstValueFrom(
-        this.http.post<MergeWorkoutNotesResponse>(this.mergeWorkoutNotesApiUrl, payload)
       );
     }
   }

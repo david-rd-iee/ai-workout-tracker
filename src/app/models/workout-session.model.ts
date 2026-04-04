@@ -1,3 +1,4 @@
+// Legacy UI/storage workout shape. The authoritative workout domain contract lives in shared/models/workout-event.model.ts.
 export interface ExerciseSet {
   setNumber: number;
   weight: number;

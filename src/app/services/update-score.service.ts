@@ -11,7 +11,7 @@ import {
   setDoc,
 } from '@angular/fire/firestore';
 import type { Transaction } from 'firebase/firestore';
-import { WorkoutSessionPerformance } from '../models/workout-session.model';
+import type { WorkoutEvent } from '../../../shared/models/workout-event.model';
 import {
   EXERCISE_ESTIMATOR_CARDIO_CATEGORY,
   EXERCISE_ESTIMATOR_PARENT_DOC,
@@ -65,8 +65,8 @@ export class UpdateScoreService {
 
   async updateScoreAfterWorkout(params: {
     userId: string;
-    session: WorkoutSessionPerformance;
-    workoutLogId?: string;
+    event: WorkoutEvent;
+    workoutEventId?: string;
   }): Promise<UpdateScoreResult> {
     const userId = String(params.userId ?? '').trim();
     if (!userId) {
@@ -108,8 +108,8 @@ export class UpdateScoreService {
     const strengthScoreDeltaMap: Record<string, number> = {};
     const exerciseScoreDeltaMap = new Map<string, number>();
 
-    const cardioRows = this.getCardioRows(params.session);
-    const strengthRows = this.getStrengthRows(params.session);
+    const cardioRows = this.getCardioRows(params.event);
+    const strengthRows = this.getStrengthRows(params.event);
     const genericCardioEstimator = await this.getEstimatorDoc({
       category: EXERCISE_ESTIMATOR_CARDIO_CATEGORY,
       exerciseType: 'generic_cardio',
@@ -600,30 +600,34 @@ export class UpdateScoreService {
     return nextScoreMap;
   }
 
-  private getStrengthRows(session: WorkoutSessionPerformance): Array<Record<string, unknown>> {
-    const explicitStrengthRows = this.toObjectArray(
-      session.strengthTrainingRow ?? session.strengthTrainingRowss ?? []
-    );
-    if (explicitStrengthRows.length > 0) {
-      return explicitStrengthRows;
-    }
-
-    const fallbackRows = Array.isArray(session.trainingRows) ? session.trainingRows : [];
-    return fallbackRows
-      .filter((row) => row?.Training_Type === 'Strength')
-      .map((row) => row as unknown as Record<string, unknown>);
+  private getStrengthRows(event: WorkoutEvent): Array<Record<string, unknown>> {
+    return event.entries
+      .filter((entry) => entry.kind === 'strength')
+      .map((entry) => ({
+        exercise_type: entry.exerciseType,
+        sets: entry.sets,
+        reps: entry.reps,
+        estimated_calories: entry.estimatedCalories,
+        displayed_weights_metric: entry.load.displayText,
+        weights_kg: entry.load.weightKg,
+        weights: entry.load.weightKg > 0 ? entry.load.weightKg : 'body weight',
+      }));
   }
 
-  private getCardioRows(session: WorkoutSessionPerformance): Array<Record<string, unknown>> {
-    const explicitCardioRows = this.toObjectArray(session.cardioTrainingRow ?? []);
-    if (explicitCardioRows.length > 0) {
-      return explicitCardioRows;
-    }
-
-    const fallbackRows = Array.isArray(session.trainingRows) ? session.trainingRows : [];
-    return fallbackRows
-      .filter((row) => row?.Training_Type === 'Cardio')
-      .map((row) => row as unknown as Record<string, unknown>);
+  private getCardioRows(event: WorkoutEvent): Array<Record<string, unknown>> {
+    return event.entries
+      .filter((entry) => entry.kind === 'cardio')
+      .map((entry) => ({
+        cardio_type: entry.cardioType,
+        exercise_type: entry.cardioType,
+        estimated_calories: entry.estimatedCalories,
+        distance_meters: entry.distance?.meters,
+        distance: entry.distance?.meters,
+        display_distance: entry.distance?.displayText,
+        time_minutes: entry.duration?.minutes,
+        time: entry.duration?.minutes,
+        display_time: entry.duration?.displayText,
+      }));
   }
 
   private async getEstimatorDoc(params: {
