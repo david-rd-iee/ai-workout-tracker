@@ -13,7 +13,8 @@ This codebase has dozens of pages and components. A literal single-canvas diagra
 Important architectural note discovered during generation:
 
 - The active frontend workout save flow writes canonical workout events to `users/{uid}/workoutEvents/{eventId}`.
-- The app also regenerates `users/{uid}/workoutLogs/{date}` as a derived per-day history projection from those canonical events.
+- Submit success now ends at that canonical write.
+- The `onWorkoutEventCreated` event processor layer derives user stats, score aggregates, trainer summaries, trainer chat summaries, and estimator workout logs asynchronously from `users/{uid}/workoutEvents/{eventId}`.
 - The workout history page now reads canonical `users/{uid}/workoutEvents/{eventId}` records directly.
 - The legacy `workoutSessions/{sessionId}` trigger has been retired so non-authoritative paths are no longer watched.
 - The authoritative workout domain contract now lives in `shared/models/workout-event.model.ts`.
@@ -58,6 +59,10 @@ namespace Frontend_Services {
   class VideoAnalysisService
   class AccountUserService
   class LegacyUserService
+}
+
+namespace Backend_Functions {
+  class WorkoutEventPostWriteHandlers
 }
 
 namespace Domain_Models {
@@ -222,8 +227,6 @@ LeaderboardService --> ProfileRepositoryService
 LeaderboardService --> UserStats
 
 WorkoutLogService --> WorkoutSessionFormatterService
-WorkoutLogService --> UpdateScoreService
-WorkoutLogService --> ChatsService
 WorkoutLogService --> WorkoutSessionPerformance
 WorkoutLogService --> Firestore
 
@@ -233,6 +236,11 @@ UpdateScoreService --> UserStats
 UpdateScoreService --> Firestore
 ExerciseEstimatorsService --> ExerciseEstimatorDoc
 ExerciseEstimatorsService --> Firestore
+Firestore --> WorkoutEventPostWriteHandlers : on workoutEvents create
+WorkoutEventPostWriteHandlers --> UserStats
+WorkoutEventPostWriteHandlers --> ExerciseEstimatorDoc
+WorkoutEventPostWriteHandlers --> Firestore
+WorkoutEventPostWriteHandlers --> RealtimeDatabase
 
 ChatsService --> RealtimeDatabase
 ChatsService --> AccountUserService
@@ -278,10 +286,8 @@ participant ChatFn as workoutChatCallable
 participant OpenAI
 participant EstSvc as ExerciseEstimatorsService
 participant LogSvc as WorkoutLogService
-participant Formatter as WorkoutSessionFormatterService
-participant ScoreSvc as UpdateScoreService
 participant FS as Firestore
-participant ChatDbSvc as ChatsService
+participant EventProcessor as onWorkoutEventCreated
 participant RTDB as Realtime Database
 participant RetrainFn as retrainExerciseEstimatorOnWorkoutLogCreate
 
@@ -297,32 +303,26 @@ EstSvc->>FS: Read/create exercise estimator docs
 
 User->>Page: Submit workout
 Page->>LogSvc: saveCompletedWorkout(session)
-LogSvc->>Formatter: normalizeSession(session)
-Formatter-->>LogSvc: normalized session
-
 LogSvc->>FS: Write users/{uid}/workoutEvents/{eventId}
-LogSvc->>FS: Refresh users/{uid}/workoutLogs/{date} derived day projection
-LogSvc->>FS: Transactionally update userStats streak + early-morning tracker
-LogSvc->>ScoreSvc: updateScoreAfterWorkout(userId, event, workoutEventId)
-ScoreSvc->>FS: Read userStats, users doc, estimator docs
-ScoreSvc->>FS: Write score totals, expected effort, rankings, estimator workout_logs
+LogSvc-->>Page: savedSession
+Page-->>User: Success message + workout summary
 
-par Trainer summary collection
-  LogSvc->>FS: Add users/{trainerUid}/workoutSummaries document
-and Chat summary message
-  LogSvc->>ChatDbSvc: findOrCreateDirectChat(trainerUid, clientUid)
-  ChatDbSvc->>RTDB: Read/create chat
-  LogSvc->>ChatDbSvc: sendMessage(chatId, clientUid, summaryText)
-  ChatDbSvc->>RTDB: Persist chat message + unread counters
+FS-->>EventProcessor: Trigger on users/{uid}/workoutEvents/{eventId}
+
+par User stats
+  EventProcessor->>FS: update stats
+and Score + estimator logs
+  EventProcessor->>FS: Write score totals, expected effort, rankings, estimator workout_logs
+and Trainer summary
+  EventProcessor->>FS: create trainer summary
+and Trainer chat summary
+  EventProcessor->>RTDB: enqueue/send chat summary
 end
 
 FS-->>RetrainFn: Trigger when estimator workout_logs doc is created
 RetrainFn->>FS: Retrain and persist estimator coefficients/metrics
 
-Note over LogSvc,FS: Canonical frontend path persists to users/{uid}/workoutEvents/{eventId}; workoutLogs/{date} is a temporary legacy projection
-
-LogSvc-->>Page: savedSession + streakUpdate + scoreUpdate
-Page-->>User: Success message + workout summary
+Note over LogSvc,EventProcessor: Submit success ends after the canonical write to users/{uid}/workoutEvents/{eventId}; onWorkoutEventCreated dispatches downstream processors asynchronously
 ```
 
 ## Exported Object Inventory

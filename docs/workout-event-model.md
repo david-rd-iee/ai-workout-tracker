@@ -82,7 +82,8 @@ These are also adapter shapes, not the canonical model.
 - Existing workout session payloads should become adapters around it.
 - The formatter/normalizer should translate legacy payloads, not define the schema.
 - The canonical frontend persistence path is `users/{uid}/workoutEvents/{eventId}`.
+- Submit success now means: validate payload, normalize once, write the canonical event record, return success.
+- The `onWorkoutEventCreated` event processor layer now owns downstream consequences such as streak updates, score aggregation, trainer summaries, trainer chat summaries, and estimator workout-log writes.
 - The workout history page now reads canonical `workoutEvents` directly.
 - The legacy `workoutSessions/{sessionId}` trigger path has been retired.
-- Per-day `users/{uid}/workoutLogs/{date}` docs remain temporary derived projections for any remaining legacy consumers.
 - Trainer summaries and score/streak docs remain downstream outputs derived from `WorkoutEvent`, not canonical workout storage.

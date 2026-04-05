@@ -15,6 +15,9 @@ import type {
   WorkoutEventSource,
 } from "../../shared/models/workout-event.model";
 export { retrainExerciseEstimatorOnWorkoutLogCreate } from "./exerciseEstimatorTraining";
+export {
+  onWorkoutEventCreated,
+} from "./workoutEventPostWriteHandlers";
 
 const openaiApiKey = defineSecret("OPENAI_API_KEY");
 

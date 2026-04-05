@@ -36,6 +36,10 @@ namespace Frontend_Services {
   class LegacyUserService
 }
 
+namespace Backend_Functions {
+  class WorkoutEventPostWriteHandlers
+}
+
 namespace Domain_Models {
   class WorkoutSessionPerformance {
     +date: string
@@ -197,10 +201,6 @@ LeaderboardService --> AccountUserService
 LeaderboardService --> ProfileRepositoryService
 LeaderboardService --> UserStats
 
-WorkoutLogService --> WorkoutSessionFormatterService
-WorkoutLogService --> UpdateScoreService
-WorkoutLogService --> WorkoutChatService
-WorkoutLogService --> ChatsService
 WorkoutLogService --> WorkoutSessionPerformance
 WorkoutLogService --> Firestore
 
@@ -210,6 +210,11 @@ UpdateScoreService --> UserStats
 UpdateScoreService --> Firestore
 ExerciseEstimatorsService --> ExerciseEstimatorDoc
 ExerciseEstimatorsService --> Firestore
+Firestore --> WorkoutEventPostWriteHandlers : on workoutEvents create
+WorkoutEventPostWriteHandlers --> UserStats
+WorkoutEventPostWriteHandlers --> ExerciseEstimatorDoc
+WorkoutEventPostWriteHandlers --> Firestore
+WorkoutEventPostWriteHandlers --> RealtimeDatabase
 
 ChatsService --> RealtimeDatabase
 ChatsService --> AccountUserService

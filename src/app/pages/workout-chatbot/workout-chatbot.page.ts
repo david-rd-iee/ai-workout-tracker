@@ -204,7 +204,9 @@ export class WorkoutChatbotPage implements OnInit, OnDestroy {
     const didSave = await this.persistCurrentWorkout();
     if (!didSave) return;
 
-    this.addBotMessage('Workout submitted and saved to your history.');
+    this.addBotMessage(
+      'Workout submitted and saved to your history. Stats and summaries will finish updating in the background.'
+    );
   }
 
   viewWorkoutSummary(): void {
@@ -241,12 +243,6 @@ export class WorkoutChatbotPage implements OnInit, OnDestroy {
       this.refreshSummaryDisplayRows();
       this.hasSavedWorkout = true;
       this.savedWorkoutLoggedAt = saveResult.loggedAt.toISOString();
-      if (saveResult.streakUpdate.kind !== 'unchanged') {
-        await this.showStreakUpdateAlert(saveResult.streakUpdate);
-      }
-      if (saveResult.scoreUpdate) {
-        await this.showScoreUpdateAlert(saveResult.scoreUpdate);
-      }
       return true;
     } catch (err) {
       console.error('Failed to save workout:', err);

@@ -331,12 +331,6 @@ export class MapTrackingLoggerPage implements OnDestroy {
     try {
       const saveResult = await this.workoutLogService.saveCompletedWorkout(sessionToSave);
       this.session = saveResult.savedSession;
-      if (saveResult.streakUpdate.kind !== 'unchanged') {
-        await this.showStreakUpdateAlert(saveResult.streakUpdate);
-      }
-      if (saveResult.scoreUpdate) {
-        await this.showScoreUpdateAlert(saveResult.scoreUpdate);
-      }
       await this.router.navigate(['/workout-summary'], {
         state: {
           summary: saveResult.savedSession,
