@@ -15,6 +15,7 @@ import type {
   WorkoutEventSource,
 } from "../../shared/models/workout-event.model";
 export { retrainExerciseEstimatorOnWorkoutLogCreate } from "./exerciseEstimatorTraining";
+export { completeWorkoutEvent } from "./completeWorkoutEvent";
 export {
   onWorkoutEventCreated,
 } from "./workoutEventPostWriteHandlers";

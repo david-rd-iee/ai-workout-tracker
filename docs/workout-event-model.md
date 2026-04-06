@@ -81,7 +81,7 @@ These are also adapter shapes, not the canonical model.
 - `WorkoutEvent` is the domain contract.
 - Existing workout session payloads should become adapters around it.
 - The formatter/normalizer should translate legacy payloads, not define the schema.
-- The canonical frontend persistence path is `users/{uid}/workoutEvents/{eventId}`.
+- The backend-owned `completeWorkoutEvent` command persists canonical workout events to `users/{uid}/workoutEvents/{eventId}`.
 - Submit success now means: validate payload, normalize once, write the canonical event record, return success.
 - The `onWorkoutEventCreated` event processor layer now owns downstream consequences such as streak updates, score aggregation, trainer summaries, trainer chat summaries, and estimator workout-log writes.
 - The workout history page now reads canonical `workoutEvents` directly.

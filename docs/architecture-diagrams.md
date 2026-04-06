@@ -12,8 +12,8 @@ This codebase has dozens of pages and components. A literal single-canvas diagra
 
 Important architectural note discovered during generation:
 
-- The active frontend workout save flow writes canonical workout events to `users/{uid}/workoutEvents/{eventId}`.
-- Submit success now ends at that canonical write.
+- The active frontend workout submit flow calls the backend-owned `completeWorkoutEvent` command.
+- `completeWorkoutEvent` persists the canonical workout event to `users/{uid}/workoutEvents/{eventId}` and returns success as soon as that write completes.
 - The `onWorkoutEventCreated` event processor layer derives user stats, score aggregates, trainer summaries, trainer chat summaries, and estimator workout logs asynchronously from `users/{uid}/workoutEvents/{eventId}`.
 - The workout history page now reads canonical `users/{uid}/workoutEvents/{eventId}` records directly.
 - The legacy `workoutSessions/{sessionId}` trigger has been retired so non-authoritative paths are no longer watched.
@@ -41,7 +41,6 @@ namespace Frontend_Services {
   class WorkoutChatService
   class WorkoutLogService
   class WorkoutSessionFormatterService
-  class UpdateScoreService
   class ExerciseEstimatorsService
   class GroupService
   class LeaderboardService
@@ -62,6 +61,7 @@ namespace Frontend_Services {
 }
 
 namespace Backend_Functions {
+  class CompleteWorkoutEventCallable
   class WorkoutEventPostWriteHandlers
 }
 
@@ -226,16 +226,13 @@ LeaderboardService --> AccountUserService
 LeaderboardService --> ProfileRepositoryService
 LeaderboardService --> UserStats
 
-WorkoutLogService --> WorkoutSessionFormatterService
 WorkoutLogService --> WorkoutSessionPerformance
-WorkoutLogService --> Firestore
+WorkoutLogService --> CompleteWorkoutEventCallable
 
 WorkoutSessionFormatterService --> ExerciseEstimatorsService
-UpdateScoreService --> ExerciseEstimatorDoc
-UpdateScoreService --> UserStats
-UpdateScoreService --> Firestore
 ExerciseEstimatorsService --> ExerciseEstimatorDoc
 ExerciseEstimatorsService --> Firestore
+CompleteWorkoutEventCallable --> Firestore
 Firestore --> WorkoutEventPostWriteHandlers : on workoutEvents create
 WorkoutEventPostWriteHandlers --> UserStats
 WorkoutEventPostWriteHandlers --> ExerciseEstimatorDoc
@@ -286,6 +283,7 @@ participant ChatFn as workoutChatCallable
 participant OpenAI
 participant EstSvc as ExerciseEstimatorsService
 participant LogSvc as WorkoutLogService
+participant CompleteWorkoutCmd as completeWorkoutEvent
 participant FS as Firestore
 participant EventProcessor as onWorkoutEventCreated
 participant RTDB as Realtime Database
@@ -303,8 +301,10 @@ EstSvc->>FS: Read/create exercise estimator docs
 
 User->>Page: Submit workout
 Page->>LogSvc: saveCompletedWorkout(session)
-LogSvc->>FS: Write users/{uid}/workoutEvents/{eventId}
-LogSvc-->>Page: savedSession
+LogSvc->>CompleteWorkoutCmd: completeWorkoutEvent(event)
+CompleteWorkoutCmd->>FS: Write users/{uid}/workoutEvents/{eventId}
+CompleteWorkoutCmd-->>LogSvc: {eventId, status: persisted}
+LogSvc-->>Page: savedSession + persisted status
 Page-->>User: Success message + workout summary
 
 FS-->>EventProcessor: Trigger on users/{uid}/workoutEvents/{eventId}
@@ -322,7 +322,7 @@ end
 FS-->>RetrainFn: Trigger when estimator workout_logs doc is created
 RetrainFn->>FS: Retrain and persist estimator coefficients/metrics
 
-Note over LogSvc,EventProcessor: Submit success ends after the canonical write to users/{uid}/workoutEvents/{eventId}; onWorkoutEventCreated dispatches downstream processors asynchronously
+Note over LogSvc,EventProcessor: Submit success ends when completeWorkoutEvent returns after persisting users/{uid}/workoutEvents/{eventId}; onWorkoutEventCreated dispatches downstream processors asynchronously
 ```
 
 ## Exported Object Inventory
@@ -468,7 +468,7 @@ The lists below map exported objects back to their source areas. This is the ful
 
 ### Backend functions and triggers
 
-- `functions/src/index.ts`: `workoutChat`, `workoutChatCallable`, `treadmillLogger`, `treadmillLoggerCallable`
+- `functions/src/index.ts`: `workoutChat`, `workoutChatCallable`, `treadmillLogger`, `treadmillLoggerCallable`, `completeWorkoutEvent`, `onWorkoutEventCreated`
 - `functions/src/exerciseEstimatorTraining.ts`: `retrainExerciseEstimatorOnWorkoutLogCreate`
 - `functions/src/stats/trainerStats.ts`: `onBookingChange`, `onTrainerClientChange`
 - `functions/src/stats/migrateTrainerStats.ts`: `migrateTrainerStats`

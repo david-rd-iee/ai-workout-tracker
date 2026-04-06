@@ -8,6 +8,7 @@ participant ChatFn as workoutChatCallable
 participant OpenAI
 participant EstSvc as ExerciseEstimatorsService
 participant LogSvc as WorkoutLogService
+participant CompleteWorkoutCmd as completeWorkoutEvent
 participant FS as Firestore
 participant EventProcessor as onWorkoutEventCreated
 participant RTDB as Realtime Database
@@ -25,8 +26,10 @@ EstSvc->>FS: Read/create exercise estimator docs
 
 User->>Page: Submit workout
 Page->>LogSvc: saveCompletedWorkout(session)
-LogSvc->>FS: Write users/{uid}/workoutEvents/{eventId}
-LogSvc-->>Page: savedSession
+LogSvc->>CompleteWorkoutCmd: completeWorkoutEvent(event)
+CompleteWorkoutCmd->>FS: Write users/{uid}/workoutEvents/{eventId}
+CompleteWorkoutCmd-->>LogSvc: {eventId, status: persisted}
+LogSvc-->>Page: savedSession + persisted status
 Page-->>User: Success message + workout summary
 
 FS-->>EventProcessor: Trigger on users/{uid}/workoutEvents/{eventId}
@@ -44,4 +47,4 @@ end
 FS-->>RetrainFn: Trigger when estimator workout_logs doc is created
 RetrainFn->>FS: Retrain and persist estimator coefficients/metrics
 
-Note over LogSvc,EventProcessor: Submit success ends after the canonical write to users/[uid]/workoutEvents/[eventId]<br/>onWorkoutEventCreated dispatches downstream processors asynchronously
+Note over LogSvc,EventProcessor: Submit success ends when completeWorkoutEvent returns after persisting users/[uid]/workoutEvents/[eventId]<br/>onWorkoutEventCreated dispatches downstream processors asynchronously

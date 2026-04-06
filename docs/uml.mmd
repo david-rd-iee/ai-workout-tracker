@@ -16,7 +16,6 @@ namespace Frontend_Services {
   class WorkoutChatService
   class WorkoutLogService
   class WorkoutSessionFormatterService
-  class UpdateScoreService
   class ExerciseEstimatorsService
   class GroupService
   class LeaderboardService
@@ -37,6 +36,7 @@ namespace Frontend_Services {
 }
 
 namespace Backend_Functions {
+  class CompleteWorkoutEventCallable
   class WorkoutEventPostWriteHandlers
 }
 
@@ -202,14 +202,12 @@ LeaderboardService --> ProfileRepositoryService
 LeaderboardService --> UserStats
 
 WorkoutLogService --> WorkoutSessionPerformance
-WorkoutLogService --> Firestore
+WorkoutLogService --> CompleteWorkoutEventCallable
 
 WorkoutSessionFormatterService --> ExerciseEstimatorsService
-UpdateScoreService --> ExerciseEstimatorDoc
-UpdateScoreService --> UserStats
-UpdateScoreService --> Firestore
 ExerciseEstimatorsService --> ExerciseEstimatorDoc
 ExerciseEstimatorsService --> Firestore
+CompleteWorkoutEventCallable --> Firestore
 Firestore --> WorkoutEventPostWriteHandlers : on workoutEvents create
 WorkoutEventPostWriteHandlers --> UserStats
 WorkoutEventPostWriteHandlers --> ExerciseEstimatorDoc

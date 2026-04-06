@@ -1,20 +1,15 @@
 import { Injectable } from '@angular/core';
 import { Auth } from '@angular/fire/auth';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 import {
-  Firestore,
-  DocumentData,
-  DocumentReference,
-  collection,
-  doc,
-  serverTimestamp,
-  setDoc,
-} from '@angular/fire/firestore';
-import {
-  workoutEventToWorkoutEventRecord,
   workoutEventToWorkoutSessionPerformance,
   workoutSessionPerformanceToWorkoutEvent,
 } from '../adapters/workout-event.adapters';
 import { WorkoutSessionPerformance } from '../models/workout-session.model';
+import type {
+  CompleteWorkoutEventRequest,
+  CompleteWorkoutEventResponse,
+} from '../../../shared/models/complete-workout-event.model';
 import type { WorkoutEvent } from '../../../shared/models/workout-event.model';
 import type { WorkoutEventRecordSubmissionMetadata } from '../../../shared/models/workout-event-record.model';
 
@@ -27,7 +22,8 @@ export interface StreakUpdateResult {
 }
 
 export interface SaveCompletedWorkoutResult {
-  workoutEventRef: DocumentReference<DocumentData>;
+  eventId: string;
+  status: CompleteWorkoutEventResponse['status'];
   loggedAt: Date;
   savedEvent: WorkoutEvent;
   savedSession: WorkoutSessionPerformance;
@@ -35,10 +31,9 @@ export interface SaveCompletedWorkoutResult {
 
 @Injectable({ providedIn: 'root' })
 export class WorkoutLogService {
-  constructor(
-    private firestore: Firestore,
-    private auth: Auth
-  ) {}
+  private readonly callableName = 'completeWorkoutEvent';
+
+  constructor(private auth: Auth) {}
 
   async saveCompletedWorkout(session: WorkoutSessionPerformance): Promise<SaveCompletedWorkoutResult> {
     const user = this.auth.currentUser;
@@ -63,63 +58,32 @@ export class WorkoutLogService {
     }
 
     const savedSession = workoutEventToWorkoutSessionPerformance(savedEvent);
-    const workoutEventRef = doc(
-      collection(this.firestore, `users/${user.uid}/workoutEvents`)
+    const callable = httpsCallable<CompleteWorkoutEventRequest, CompleteWorkoutEventResponse>(
+      getFunctions(undefined, 'us-central1'),
+      this.callableName
     );
+    const submissionMetadata = this.buildSubmissionMetadata(loggedAt);
 
-    // Submit success ends at the canonical event write. Downstream effects run asynchronously.
-    await setDoc(workoutEventRef, {
-      ...this.buildPersistedWorkoutEventRecordPayload(savedEvent, {
-        localSubmittedDate: this.toLocalDateKey(loggedAt),
-        localSubmittedHour: loggedAt.getHours(),
-      }),
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
+    // Submit success ends when the backend-owned canonical event write returns persisted.
+    const response = await callable({
+      event: savedEvent,
+      submissionMetadata,
     });
 
     return {
-      workoutEventRef,
+      eventId: response.data.eventId,
+      status: response.data.status,
       loggedAt,
       savedEvent,
       savedSession,
     };
   }
 
-  private buildPersistedWorkoutEventRecordPayload(
-    event: WorkoutEvent,
-    submissionMetadata?: WorkoutEventRecordSubmissionMetadata
-  ): Record<string, unknown> {
-    return this.stripUndefinedDeep({
-      ...workoutEventToWorkoutEventRecord(event),
-      ...(submissionMetadata ? { submissionMetadata } : {}),
-    }) as Record<string, unknown>;
-  }
-
-  private stripUndefinedDeep(value: unknown): unknown {
-    if (value === undefined) {
-      return undefined;
-    }
-
-    if (Array.isArray(value)) {
-      return value
-        .map((entry) => this.stripUndefinedDeep(entry))
-        .filter((entry) => entry !== undefined);
-    }
-
-    if (value && typeof value === 'object') {
-      return Object.entries(value as Record<string, unknown>).reduce<Record<string, unknown>>(
-        (sanitized, [key, entry]) => {
-          const cleanedEntry = this.stripUndefinedDeep(entry);
-          if (cleanedEntry !== undefined) {
-            sanitized[key] = cleanedEntry;
-          }
-          return sanitized;
-        },
-        {}
-      );
-    }
-
-    return value;
+  private buildSubmissionMetadata(loggedAt: Date): WorkoutEventRecordSubmissionMetadata {
+    return {
+      localSubmittedDate: this.toLocalDateKey(loggedAt),
+      localSubmittedHour: loggedAt.getHours(),
+    };
   }
 
   private readText(value: unknown): string {
