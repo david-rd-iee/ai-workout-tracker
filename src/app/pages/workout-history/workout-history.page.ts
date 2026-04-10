@@ -110,6 +110,15 @@ type WorkoutHistoryDateGroup = {
     <ion-content class="ion-padding">
       <ion-button
         expand="block"
+        fill="outline"
+        (click)="viewInsights()"
+        style="margin-bottom: 12px;"
+      >
+        Workout Insights
+      </ion-button>
+
+      <ion-button
+        expand="block"
         (click)="viewCsv()"
         [disabled]="isLoading || historyGroups.length === 0"
         style="margin-bottom: 12px;"
@@ -249,6 +258,10 @@ export class WorkoutHistoryPage implements OnInit {
         historyGroups: this.historyGroups,
       },
     });
+  }
+
+  viewInsights() {
+    this.router.navigate(['/workout-insights']);
   }
 
   private toHistoryGroup(workout: WorkoutLogDoc): WorkoutHistoryDateGroup { //takes workout and formats to what the UI uses

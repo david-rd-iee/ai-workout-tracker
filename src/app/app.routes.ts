@@ -87,6 +87,12 @@ export const routes: Routes = [
     canActivate: [authGuard],
   },
   {
+    path: 'statues/:id',
+    loadComponent: () =>
+      import('./pages/statue-detail/statue-detail.page').then((m) => m.StatueDetailPage),
+    canActivate: [authGuard],
+  },
+  {
     path: 'groups',
     loadComponent: () =>
       import('./pages/groups/groups.page').then((m) => m.GroupsPage),

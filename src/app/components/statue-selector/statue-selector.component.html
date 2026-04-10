@@ -64,6 +64,32 @@
         [showProgress]="false"
         size="small"
       ></app-greek-statue>
+
+      <div class="statue-meta">
+        <div class="statue-copy">
+          <div class="statue-name-row">
+            <h3>{{ statue.godName }}</h3>
+            <span class="stage-pill">{{ getStageLabel(statue) }}</span>
+          </div>
+          <p class="statue-title">{{ statue.title }}</p>
+          <p class="statue-description">{{ statue.description || statue.mythology || 'No description available yet.' }}</p>
+        </div>
+
+        <div class="statue-stats">
+          <div class="stat-chip">
+            <span class="chip-label">Value</span>
+            <strong>{{ getValueLabel(statue) }}</strong>
+          </div>
+          <div class="stat-chip">
+            <span class="chip-label">Category</span>
+            <strong>{{ statue.category | titlecase }}</strong>
+          </div>
+          <div class="stat-chip" *ngIf="statue.percentile !== undefined">
+            <span class="chip-label">Rarity</span>
+            <strong>Top {{ statue.percentile.toFixed(1) }}%</strong>
+          </div>
+        </div>
+      </div>
       
       <div class="selection-indicator" *ngIf="isStatueSelected(statue.id)">
         <ion-icon name="checkmark-circle" color="primary"></ion-icon>

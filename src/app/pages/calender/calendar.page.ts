@@ -16,7 +16,7 @@ export class CalendarPage implements OnInit {
     
     if (!userProfile) {
       // If user profile not loaded, navigate to client calendar by default
-      this.router.navigate(['/tabs/calender/client']);
+      void this.router.navigateByUrl('/tabs/calender/client', { replaceUrl: true });
       return;
     }
     
@@ -24,6 +24,6 @@ export class CalendarPage implements OnInit {
     const isTrainer = userProfile.accountType === 'trainer';
     const calendarRoute = isTrainer ? '/tabs/calender/trainer' : '/tabs/calender/client';
     
-    this.router.navigate([calendarRoute], { replaceUrl: true });
+    void this.router.navigateByUrl(calendarRoute, { replaceUrl: true });
   }
 }

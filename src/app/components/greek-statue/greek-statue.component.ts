@@ -28,6 +28,7 @@ export class GreekStatueComponent implements OnChanges {
   @Input() statue!: GreekStatue;
   @Input() showProgress: boolean = true;
   @Input() size: 'small' | 'medium' | 'large' = 'medium';
+  @Input() layout: 'full' | 'showcase' = 'showcase';
 
   tierConfig = STATUE_TIER_CONFIG;
   progress: {

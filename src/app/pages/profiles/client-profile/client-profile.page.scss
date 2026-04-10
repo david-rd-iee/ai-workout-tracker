@@ -162,40 +162,123 @@ ion-content {
   border-radius: 2px;
 }
 
-.display-statues-carousel {
-  padding: 10px 0 0 0;
-  position: relative;
-  
-  .statue-swiper {
-    width: 100%;
-    padding-bottom: 10px;
-    
-    swiper-slide {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-    }
-  }
+.opal-statues-card {
+  border-color: rgba(196, 164, 111, 0.45) !important;
 
-  .custom-pagination {
+  ion-card-content {
+    padding: 8px 10px 12px !important;
+  }
+}
+
+.opal-shell {
+  position: relative;
+  padding-top: 8px;
+}
+
+.opal-aura {
+  position: absolute;
+  top: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 72%;
+  height: 180px;
+  border-radius: 999px;
+  background: radial-gradient(circle at center, rgba(255, 214, 117, 0.36) 0%, rgba(255, 214, 117, 0.14) 45%, transparent 75%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.statue-swiper {
+  width: 100%;
+  overflow: visible;
+  padding: 6px 0 4px;
+
+  swiper-slide {
     display: flex;
     justify-content: center;
-    gap: 8px;
-    padding: 12px 0;
-    
-    .pagination-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background-color: rgba(212, 175, 55, 0.4);
-      cursor: pointer;
-      transition: all 0.3s ease;
-      
-      &.active {
-        background-color: #D4AF37;
-        width: 24px;
-        border-radius: 4px;
-      }
+    align-items: center;
+    transition: transform 0.25s ease;
+  }
+}
+
+.opal-slide {
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  border-radius: 18px;
+  text-align: left;
+  transform: scale(0.92);
+  opacity: 0.62;
+  transition: transform 0.25s ease, opacity 0.25s ease;
+
+  &.active {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.opal-slide:focus-visible {
+  outline: 2px solid #d4af37;
+  outline-offset: 3px;
+}
+
+.opal-statue-showcase {
+  width: 100%;
+  padding: 0 8px;
+  margin-bottom: -8px;
+  z-index: 2;
+}
+
+.opal-label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 10px 10px 8px;
+}
+
+.opal-name {
+  color: #6f4d22;
+  font-family: 'Georgia', serif;
+  font-weight: 700;
+  font-size: 1.02rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.opal-title {
+  color: #8b7355;
+  font-size: 0.8rem;
+  font-style: italic;
+  text-align: center;
+}
+
+.opal-hint {
+  text-align: center;
+  color: #a0826d;
+  font-size: 0.73rem;
+  margin-top: 2px;
+}
+
+.opal-pagination {
+  display: flex;
+  justify-content: center;
+  gap: 7px;
+  padding: 10px 0 8px;
+
+  .pagination-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 999px;
+    background-color: rgba(212, 175, 55, 0.36);
+    transition: all 0.25s ease;
+
+    &.active {
+      width: 22px;
+      background-color: #d4af37;
     }
   }
 }
@@ -206,13 +289,6 @@ ion-content {
   align-items: center;
   width: 100%;
   margin: 0 auto;
-}
-
-.statue-showcase {
-  width: 100%;
-  padding: 3px 10px;
-  margin-bottom: -8px;
-  z-index: 2;
 }
 
 .podium {
@@ -278,14 +354,29 @@ ion-content {
   .podium-inscription {
     text-align: center;
     font-family: 'Georgia', serif;
-    font-size: 1.05em;
+    font-size: 0.96em;
     font-weight: 700;
     color: #8B6F47;
     text-transform: uppercase;
-    letter-spacing: 1.5px;
+    letter-spacing: 1.2px;
     position: relative;
     z-index: 1;
     text-shadow: 0 1px 2px rgba(255, 255, 255, 0.5);
+  }
+}
+
+@media (max-width: 768px) {
+  .opal-aura {
+    width: 84%;
+    height: 160px;
+  }
+
+  .opal-name {
+    font-size: 0.94rem;
+  }
+
+  .opal-title {
+    font-size: 0.74rem;
   }
 }
 

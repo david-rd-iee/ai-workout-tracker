@@ -47,55 +47,58 @@
           </ion-label>
           <ion-button
             slot="end"
-            fill="clear"
+            fill="solid"
+            class="customize-statues-button"
             (click)="openBadgeSelector()"
             size="small"
           >
-            <ion-icon slot="icon-only" name="create-outline"></ion-icon>
+            <ion-icon slot="start" name="create-outline"></ion-icon>
+            Customize
           </ion-button>
         </ion-item>
       </ion-list>
       <ion-card-content>
-        <div class="level-progress-shell" *ngIf="currentUser?.accountType !== 'trainer'">
-          <div class="level-progress-label">Level: {{ currentLevel }}</div>
-          <ion-progress-bar
-            class="level-progress-bar"
-            [value]="currentLevelProgress"
-            aria-label="Current level progress"
-          ></ion-progress-bar>
-        </div>
         <div class="display-statues-carousel" *ngIf="displayStatues && displayStatues.length > 0; else noBadges">
-          <swiper-container
-            #statueSwiper
-            *ngIf="displayStatues.length > 0"
-            init="false"
-            class="statue-swiper"
-            (swiperslidechange)="onSlideChange($event)"
-          >
-            <swiper-slide *ngFor="let statue of displayStatues">
-              <div class="podium-container">
-                <div class="statue-showcase">
-                  <app-greek-statue
-                    [statue]="statue"
-                    [showProgress]="true"
-                    size="large"
-                  ></app-greek-statue>
-                </div>
-                <div class="podium">
-                  <div class="podium-top"></div>
-                  <div class="podium-body">
-                    <div class="podium-inscription">{{ statue.godName }}</div>
+          <div class="opal-shell">
+            <div class="opal-aura"></div>
+            <swiper-container
+              #statueSwiper
+              *ngIf="displayStatues.length > 0"
+              init="false"
+              class="statue-swiper"
+              (swiperslidechange)="onSlideChange($event)"
+            >
+              <swiper-slide *ngFor="let statue of displayStatues; let i = index">
+                <button
+                  type="button"
+                  class="opal-slide"
+                  [class.active]="i === currentSlideIndex"
+                  (click)="openStatueDetails(statue)"
+                  [attr.aria-label]="'Open details for ' + statue.godName"
+                >
+                  <div class="statue-showcase opal-statue-showcase">
+                    <app-greek-statue
+                      [statue]="statue"
+                      [showProgress]="false"
+                      layout="showcase"
+                      size="large"
+                    ></app-greek-statue>
                   </div>
-                </div>
-              </div>
-            </swiper-slide>
-          </swiper-container>
-          <div class="custom-pagination">
-            <span
-              class="pagination-dot"
-              *ngFor="let statue of displayStatues; let i = index"
-              [class.active]="i === currentSlideIndex"
-            ></span>
+                  <div class="opal-label">
+                    <span class="opal-name">{{ statue.godName }}</span>
+                    <span class="opal-title">{{ statue.title }}</span>
+                  </div>
+                </button>
+              </swiper-slide>
+            </swiper-container>
+            <div class="custom-pagination opal-pagination">
+              <span
+                class="pagination-dot"
+                *ngFor="let statue of displayStatues; let i = index"
+                [class.active]="i === currentSlideIndex"
+              ></span>
+            </div>
+            <div class="opal-hint">Tap a statue to open its details</div>
           </div>
         </div>
         <ng-template #noBadges>

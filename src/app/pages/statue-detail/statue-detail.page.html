@@ -1,0 +1,65 @@
+<app-header [transparent]="true" [showBack]="true" backHref="/profile-user"></app-header>
+
+<ion-content [fullscreen]="true" class="statue-detail-content">
+  <div class="statue-detail-page">
+    @if (isLoading) {
+      <ion-card class="loading-card">
+        <ion-card-content>
+          <ion-skeleton-text animated style="width: 65%; height: 28px;"></ion-skeleton-text>
+          <ion-skeleton-text animated style="width: 100%; height: 260px; margin-top: 12px;"></ion-skeleton-text>
+          <ion-skeleton-text animated style="width: 90%; height: 16px; margin-top: 14px;"></ion-skeleton-text>
+          <ion-skeleton-text animated style="width: 84%; height: 16px;"></ion-skeleton-text>
+        </ion-card-content>
+      </ion-card>
+    } @else if (statue) {
+      <div class="headline">
+        <h1>{{ statue.godName }}</h1>
+        <p>{{ statue.title }}</p>
+      </div>
+
+      <ion-card class="main-statue-card">
+        <ion-card-content>
+          <app-greek-statue [statue]="statue" [showProgress]="true" layout="full" size="large"></app-greek-statue>
+        </ion-card-content>
+      </ion-card>
+
+      <div class="stage-summary">
+        <div class="stage-summary-label">Level</div>
+        <div class="stage-summary-value">{{ stageDisplayName }}</div>
+        <ion-badge color="warning">{{ statue.currentLevel || 'None' }}</ion-badge>
+      </div>
+
+      <ion-card class="detail-card">
+        <ion-card-content>
+          <div class="section-label">Mythology</div>
+          <p class="body-copy">{{ statue.mythology || 'No mythology description available yet.' }}</p>
+
+          <div class="section-label">What This Tracks</div>
+          <p class="body-copy">{{ statue.description || 'No metric description available yet.' }}</p>
+
+          <ion-list lines="full" class="stat-lines">
+            <ion-item>
+              <ion-label>
+                <h3>Current Value</h3>
+                <p>{{ statue.currentValue ?? 0 }} {{ statue.unit || '' }}</p>
+              </ion-label>
+            </ion-item>
+            <ion-item>
+              <ion-label>
+                <h3>Progress To Next Tier</h3>
+                <p>{{ progressToNextLabel }}</p>
+              </ion-label>
+            </ion-item>
+          </ion-list>
+        </ion-card-content>
+      </ion-card>
+    } @else {
+      <ion-card class="detail-card">
+        <ion-card-content>
+          <div class="section-label">Statue Details</div>
+          <p class="body-copy">{{ errorMessage || 'This statue could not be loaded.' }}</p>
+        </ion-card-content>
+      </ion-card>
+    }
+  </div>
+</ion-content>
