@@ -1,0 +1,143 @@
+.statue-detail-content {
+  --background: radial-gradient(circle at top right, #fdf6e5 0%, #f7eedc 45%, #efe2cc 100%);
+}
+
+.statue-detail-page {
+  padding: 16px;
+  padding-top: 8px;
+}
+
+.headline {
+  margin: 6px 4px 12px;
+
+  h1 {
+    margin: 0;
+    font-size: 2rem;
+    line-height: 1;
+    letter-spacing: 0.5px;
+    color: #614422;
+    font-family: 'Georgia', serif;
+  }
+
+  p {
+    margin: 6px 0 0;
+    color: #8b6f47;
+    font-style: italic;
+    font-size: 0.95rem;
+  }
+}
+
+.main-statue-card,
+.detail-card,
+.loading-card {
+  margin: 0 0 14px;
+  border: 1px solid rgba(139, 111, 71, 0.25);
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 8px 24px rgba(96, 66, 34, 0.08);
+}
+
+.main-statue-card {
+  ion-card-content {
+    padding: 12px 12px 18px;
+  }
+}
+
+.main-statue-card app-greek-statue {
+  display: block;
+}
+
+.main-statue-card ::ng-deep .greek-statue {
+  margin: 0;
+}
+
+.main-statue-card ::ng-deep .greek-statue.size-large .statue-container {
+  padding: 12px 8px;
+  gap: 24px;
+}
+
+.main-statue-card ::ng-deep .greek-statue.size-large .statue-icon {
+  width: 220px;
+  height: 220px;
+}
+
+.stage-summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: -2px 4px 16px;
+  padding: 0 6px;
+}
+
+.stage-summary-label {
+  color: #8b6f47;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+}
+
+.stage-summary-value {
+  color: #614422;
+  font-size: 1rem;
+  font-weight: 700;
+  font-family: 'Georgia', serif;
+  flex: 1;
+}
+
+.section-label {
+  margin-bottom: 6px;
+  color: #7a5a31;
+  font-weight: 700;
+  font-size: 0.95rem;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+
+.body-copy {
+  margin: 0 0 14px;
+  color: #6d5432;
+  line-height: 1.45;
+}
+
+.stat-lines {
+  margin-top: 4px;
+
+  ion-item {
+    --background: transparent;
+    --padding-start: 0;
+    --inner-padding-end: 0;
+  }
+
+  h3 {
+    margin: 0;
+    color: #7a5a31;
+    font-weight: 700;
+    font-size: 0.9rem;
+  }
+
+  p {
+    margin: 2px 0 0;
+    color: #6d5432;
+  }
+}
+
+@media (max-width: 768px) {
+  .headline h1 {
+    font-size: 1.7rem;
+  }
+
+  .main-statue-card ::ng-deep .greek-statue.size-large .statue-container {
+    padding: 8px 4px 10px;
+    gap: 16px;
+  }
+
+  .main-statue-card ::ng-deep .greek-statue.size-large .statue-icon {
+    width: 200px;
+    height: 200px;
+  }
+
+  .stage-summary {
+    margin-bottom: 14px;
+    padding: 0 2px;
+  }
+}

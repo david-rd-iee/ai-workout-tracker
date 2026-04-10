@@ -34,6 +34,15 @@ import { WorkoutSummaryService } from '../../services/workout-summary.service';
     <ion-content class="ion-padding">
       <ion-button
         expand="block"
+        fill="outline"
+        (click)="viewInsights()"
+        style="margin-bottom: 12px;"
+      >
+        Workout Insights
+      </ion-button>
+
+      <ion-button
+        expand="block"
         (click)="viewCsv()"
         [disabled]="isLoading || historyGroups.length === 0"
         style="margin-bottom: 12px;"
@@ -149,10 +158,10 @@ export class WorkoutHistoryPage implements OnInit {
   }
 
   viewCsv(): void {
-    this.router.navigate(['/workout-history-csv'], {
+    void this.router.navigate(['/workout-history-csv'], {
       queryParams: {
-        userId: this.requestedUserId,
-        clientName: this.clientName,
+        ...(this.requestedUserId ? { userId: this.requestedUserId } : {}),
+        ...(this.clientName ? { clientName: this.clientName } : {}),
       },
       state: {
         historyGroups: this.historyGroups,
@@ -160,8 +169,17 @@ export class WorkoutHistoryPage implements OnInit {
     });
   }
 
+  viewInsights(): void {
+    void this.router.navigate(['/workout-insights'], {
+      queryParams: {
+        ...(this.requestedUserId ? { userId: this.requestedUserId } : {}),
+        ...(this.clientName ? { clientName: this.clientName } : {}),
+      },
+    });
+  }
+
   openSummary(date: string): void {
-    this.router.navigate(['/workout-summary'], {
+    void this.router.navigate(['/workout-summary'], {
       queryParams: {
         date,
         ...(this.requestedUserId ? { userId: this.requestedUserId } : {}),

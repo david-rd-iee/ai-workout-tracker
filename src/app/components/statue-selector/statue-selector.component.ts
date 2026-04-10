@@ -19,7 +19,12 @@ import {
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
 import { close, checkmark, checkmarkCircle } from 'ionicons/icons';
-import { getStatueLevelNumber, GreekStatue } from '../../models/greek-statue.model';
+import {
+  getStatueLevelNumber,
+  GreekStatue,
+  isCarvedStatueLevel,
+  STATUE_TIER_CONFIG,
+} from '../../models/greek-statue.model';
 import { GreekStatueComponent } from '../greek-statue/greek-statue.component';
 
 @Component({
@@ -91,6 +96,36 @@ export class StatueSelectorComponent implements OnInit {
   get categories(): string[] {
     const cats = new Set(this.carvedStatues.map(s => s.category));
     return ['all', ...Array.from(cats)];
+  }
+
+  getStageLabel(statue: GreekStatue): string {
+    if (!isCarvedStatueLevel(statue.currentLevel)) {
+      return 'Uncarved';
+    }
+
+    return STATUE_TIER_CONFIG[statue.currentLevel].displayName;
+  }
+
+  getValueLabel(statue: GreekStatue): string {
+    const value = Number(statue.currentValue ?? statue.metricValue ?? 0);
+    const unit = (statue.unit ?? '').trim();
+    return `${this.formatValue(value)}${unit ? ` ${unit}` : ''}`;
+  }
+
+  private formatValue(value: number): string {
+    if (!Number.isFinite(value)) {
+      return '0';
+    }
+
+    if (value >= 1000000) {
+      return `${(value / 1000000).toFixed(1)}M`;
+    }
+
+    if (value >= 1000) {
+      return `${(value / 1000).toFixed(1)}k`;
+    }
+
+    return value.toString();
   }
 
   isStatueSelected(statueId: string): boolean {

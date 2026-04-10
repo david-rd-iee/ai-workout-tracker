@@ -246,6 +246,14 @@
       opacity: 0.9;
     }
 
+    .tap-hint {
+      margin: 6px 0 0;
+      font-size: 0.75rem;
+      color: #8B7355;
+      font-style: italic;
+      opacity: 0.9;
+    }
+
     .statue-stats {
       display: flex;
       align-items: center;
@@ -340,6 +348,66 @@
         &::part(progress) {
           border-radius: 4px;
         }
+      }
+    }
+  }
+
+  &.showcase-layout {
+    .statue-container {
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0;
+      width: auto;
+      padding: 0;
+      background: transparent;
+      border: 0;
+      box-shadow: none;
+      overflow: visible;
+
+      &::before {
+        display: none;
+      }
+
+      &:hover {
+        background: transparent;
+        transform: none;
+        box-shadow: none;
+        border-color: transparent;
+      }
+    }
+
+    .statue-icon {
+      width: 240px;
+      height: 240px;
+      align-self: center;
+      border: 0;
+      border-radius: 0;
+      box-shadow: none;
+      background: transparent !important;
+
+      .stage-img,
+      .uncarved-stone-img,
+      .custom-icon-img {
+        object-fit: contain;
+      }
+    }
+
+    .statue-info {
+      width: 100%;
+      text-align: center;
+      align-items: center;
+
+      .statue-header {
+        align-items: center;
+
+        .carving-stage-label {
+          align-self: center;
+        }
+      }
+
+      .statue-stats {
+        justify-content: center;
       }
     }
   }
@@ -450,6 +518,27 @@
       }
     }
   }
+
+  &.showcase-layout.size-large {
+    .statue-icon {
+      width: 280px;
+      height: 280px;
+    }
+  }
+
+  &.showcase-layout.size-large {
+    .statue-container {
+      padding: 0;
+      gap: 0;
+    }
+
+    .statue-icon {
+      border-radius: 0;
+      border: 0;
+      box-shadow: none;
+      background: transparent !important;
+    }
+  }
 }
 
 // Responsive adjustments
@@ -476,6 +565,16 @@
 
     .statue-info {
       width: 100%;
+    }
+
+    &.showcase-layout .statue-icon {
+      width: 220px;
+      height: 220px;
+    }
+
+    &.showcase-layout.size-large .statue-icon {
+      width: 250px;
+      height: 250px;
     }
   }
 }

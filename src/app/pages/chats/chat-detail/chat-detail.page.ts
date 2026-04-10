@@ -69,9 +69,11 @@ interface WorkoutSummaryCardModel {
 export class ChatDetailPage implements OnInit, OnDestroy {
   @ViewChild(IonContent) content!: IonContent;
   
+  readonly atlasLogoPath = 'assets/icons/atlas.svg';
   chatId: string = '';
   otherUserId: string = '';
   otherUserName: string = 'User';
+  otherUserProfilePic: string = '';
   currentUserId: string = '';
   messageText: string = '';
   messages: Message[] = [];
@@ -176,9 +178,14 @@ export class ChatDetailPage implements OnInit, OnDestroy {
     }
     
     try {
-      const profile = await this.userService.getResolvedUserProfileDirectly(this.otherUserId, 'trainer');
+      let profile = await this.userService.getResolvedUserProfileDirectly(this.otherUserId, 'trainer');
+      if (!profile) {
+        profile = await this.userService.getResolvedUserProfileDirectly(this.otherUserId, 'client');
+      }
+
       if (profile) {
         this.otherUserName = `${profile.firstName || ''} ${profile.lastName || ''}`.trim() || 'User';
+        this.otherUserProfilePic = String(profile.profilepic || '').trim();
       }
     } catch (error) {
       console.error('Error loading other user name:', error);

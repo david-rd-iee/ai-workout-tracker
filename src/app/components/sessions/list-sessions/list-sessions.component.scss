@@ -1,27 +1,42 @@
+$atlas-surface: #f5f9ff;
+$atlas-blue: #172bff;
+$atlas-shadow-dark: #ccd5e2;
+$atlas-shadow-light: #ffffff;
+$atlas-text: #111111;
+$atlas-muted: #5b6473;
+
+@mixin atlas-neu($radius: 24px) {
+  background: $atlas-surface;
+  border-radius: $radius;
+  box-shadow:
+    7px 7px 14px rgba($atlas-shadow-dark, 0.9),
+    -7px -7px 14px rgba($atlas-shadow-light, 0.95);
+}
+
 .list-sessions-container {
   padding: 16px;
   
   .section-header {
     margin: 24px 0 16px;
-    padding-bottom: 8px;
-    border-bottom: 1px solid var(--ion-color-light-shade);
+    padding: 18px 20px;
+    @include atlas-neu(22px);
     
     h2 {
-      font-size: 28px;
-      font-weight: 600;
-      color: #000000;
+      margin: 0;
+      font-size: 22px;
+      font-weight: 700;
+      color: $atlas-text;
+      font-family: 'Roboto Flex', 'Inter', sans-serif;
     }
-    
   }
   
   .no-sessions {
-    background: #f5f5f5;
-    border-radius: 12px;
+    @include atlas-neu(22px);
     padding: 24px;
     margin-bottom: 16px;
     text-align: center;
     font-size: 16px;
-    color: #666;
+    color: $atlas-muted;
   }
   
   .sessions-list {
@@ -36,18 +51,20 @@
     grid-template-columns: auto 1fr auto;
     align-items: center;
     padding: 16px;
-    border-radius: 16px;
+    border-radius: 24px;
     gap: 16px;
     cursor: pointer;
     transition: transform 0.2s ease, box-shadow 0.2s ease;
     position: relative;
+    @include atlas-neu(24px);
     
     &:hover {
       transform: translateY(-2px);
-      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+      box-shadow:
+        10px 10px 18px rgba($atlas-shadow-dark, 0.95),
+        -8px -8px 16px rgba($atlas-shadow-light, 0.98);
     }
     
-    /* X Button styling */
     .x-button {
       position: absolute;
       top: -10px;
@@ -55,18 +72,22 @@
       width: 28px;
       height: 28px;
       border-radius: 50%;
-      background-color: #ff3b30; /* Red color for the button */
+      background: linear-gradient(135deg, #ff8a80, #ff5349);
       display: flex;
       align-items: center;
       justify-content: center;
       z-index: 10;
       cursor: pointer;
-      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+      box-shadow:
+        4px 4px 10px rgba(255, 83, 73, 0.24),
+        -2px -2px 6px rgba(255, 255, 255, 0.9);
       transition: all 0.2s ease;
       
       &:hover {
         transform: scale(1.1);
-        box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3);
+        box-shadow:
+          6px 6px 12px rgba(255, 83, 73, 0.3),
+          -2px -2px 6px rgba(255, 255, 255, 0.9);
       }
       
       ion-icon {
@@ -75,48 +96,41 @@
       }
     }
     
-    /* Card content wrapper */
     .card-content {
-      display: contents; /* Use grid layout of parent */
+      display: contents;
     }
     
     &.loading {
-      background: #f5f5f5;
+      background: $atlas-surface;
       min-height: 120px;
     }
     
-    // Alternating colors
-    &.color-1 {
-      background-color: #FCDCDE;
-    }
-    
-    &.color-2 {
-      background-color: #FCF2D5;
-    }
-    
-    &.color-3 {
-      background-color: #D8EFFF;
-    }
-    
+    &.color-1,
+    &.color-2,
+    &.color-3,
     &.color-4 {
-      background-color: #FFE8DA;
+      background: linear-gradient(145deg, #f5f9ff, #eef4fe);
     }
     
     ion-avatar {
       width: 60px;
       height: 60px;
-      border: 2px solid white;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      padding: 4px;
+      background: linear-gradient(145deg, #f8fbff, #edf3fd);
+      box-shadow:
+        inset 1px 1px 2px rgba(255, 255, 255, 0.95),
+        inset -1px -1px 2px rgba(204, 213, 226, 0.6),
+        5px 5px 10px rgba(204, 213, 226, 0.6);
       
       &.no-image {
-        background: #e0e0e0;
+        background: linear-gradient(145deg, #f8fbff, #edf3fd);
         display: flex;
         align-items: center;
         justify-content: center;
         
         ion-icon {
           font-size: 32px;
-          color: #999;
+          color: $atlas-muted;
         }
       }
     }
@@ -128,19 +142,19 @@
       
       .name {
         font-size: 18px;
-        font-weight: 600;
-        color: #333;
+        font-weight: 700;
+        color: $atlas-text;
       }
       
       .session-status {
-        font-size: 16px;
-        font-weight: 500;
-        color: #555;
+        font-size: 15px;
+        font-weight: 600;
+        color: $atlas-blue;
       }
       
       .location {
         font-size: 14px;
-        color: #777;
+        color: $atlas-muted;
       }
     }
     
@@ -150,21 +164,25 @@
       gap: 8px;
       
       .chip {
-        background: white;
-        border-radius: 12px;
+        border-radius: 16px;
         padding: 8px 12px;
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+        box-shadow:
+          inset 2px 2px 4px rgba(255, 255, 255, 0.92),
+          inset -2px -2px 4px rgba(204, 213, 226, 0.65);
         min-width: 100px;
         text-align: center;
         
         &.date-chip {
-          background: #4285F4;
+          background: linear-gradient(145deg, #3254ff, #172bff);
           color: white;
           font-weight: 500;
+          box-shadow:
+            6px 6px 12px rgba(23, 43, 255, 0.2),
+            -4px -4px 8px rgba(255, 255, 255, 0.75);
           
           div:first-child {
             font-size: 14px;
@@ -177,13 +195,13 @@
         }
         
         &.time-chip {
-          background: white;
-          color: #333;
+          background: linear-gradient(145deg, #f8fbff, #eef4fe);
+          color: $atlas-text;
           
           ion-icon {
             font-size: 18px;
             margin-bottom: 4px;
-            color: #666;
+            color: $atlas-muted;
           }
           
           div {
@@ -193,11 +211,35 @@
           
           .duration {
             font-size: 12px;
-            color: #666;
+            color: $atlas-muted;
             margin-top: 2px;
           }
         }
       }
+    }
+  }
+}
+
+@media (max-width: 768px) {
+  .list-sessions-container {
+    padding: 12px;
+
+    .session-card {
+      grid-template-columns: auto 1fr;
+      align-items: flex-start;
+    }
+
+    .session-chips {
+      grid-column: 1 / -1;
+      width: 100%;
+      flex-direction: row;
+      justify-content: flex-start;
+      padding-left: 76px;
+      flex-wrap: wrap;
+    }
+
+    .section-header h2 {
+      font-size: 20px;
     }
   }
 }
