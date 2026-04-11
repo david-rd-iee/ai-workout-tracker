@@ -274,7 +274,7 @@ describe('WorkoutWorkflowService', () => {
     expect(result.completionStatus).toBe('complete');
   });
 
-  it('estimator docs are prepared for both the incoming and updated session when needed', async () => {
+  it('loads estimator ids once for the incoming session before sending the chat request', async () => {
     const normalizedSession = sessionWithRows([strengthRow('Front Squat')]);
     const previousSession = sessionWithRows([strengthRow()]);
 
@@ -293,10 +293,7 @@ describe('WorkoutWorkflowService', () => {
     expect(workoutWorkflowEstimatorPreparationSpy.prepareEstimatorsForSession).toHaveBeenCalledWith(
       previousSession
     );
-    expect(workoutWorkflowEstimatorPreparationSpy.prepareEstimatorsForSession).toHaveBeenCalledWith(
-      normalizedSession
-    );
-    expect(workoutWorkflowEstimatorPreparationSpy.prepareEstimatorsForSession).toHaveBeenCalledTimes(2);
+    expect(workoutWorkflowEstimatorPreparationSpy.prepareEstimatorsForSession).toHaveBeenCalledTimes(1);
   });
 
   it('cancelling trainer notes returns status cancelled', async () => {

@@ -215,7 +215,7 @@ WorkoutWorkflowService --> WorkoutWorkflowEstimatorPreparationService : prepare 
 WorkoutWorkflowService --> WorkoutSessionFormatterService : normalize/apply session state
 WorkoutWorkflowService --> WorkoutChatScreenState : builds UI-ready state
 WorkoutWorkflowEstimatorPreparationService --> WorkoutWorkflowSummaryProjectionService : projectStrengthRows()
-WorkoutWorkflowEstimatorPreparationService --> ExerciseEstimatorsService : listEstimatorIds()/ensureEstimatorDocExists()
+WorkoutWorkflowEstimatorPreparationService --> ExerciseEstimatorsService : getCachedEstimatorIds()/listEstimatorIds()
 WorkoutWorkflowSummaryProjectionService --> WorkoutSessionPerformance : project summary rows
 WorkoutSummaryPage --> WorkoutSessionPerformance
 
@@ -237,6 +237,8 @@ AccountUserService --> UserStatsService
 LegacyUserService --> Firestore
 ProfileRepositoryService --> Firestore
 ProfileRepositoryService --> AppUser
+ExerciseEstimatorsService --> Firestore : read/write estimator docs + strength ID index
+WorkoutEventPostWriteHandlers --> Firestore : create missing estimator docs + upsert strength ID index
 
 GroupService --> ProfileRepositoryService
 GroupService --> Group

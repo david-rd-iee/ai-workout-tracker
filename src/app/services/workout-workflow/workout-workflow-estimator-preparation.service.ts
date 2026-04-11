@@ -14,11 +14,8 @@ export class WorkoutWorkflowEstimatorPreparationService {
 
   async prepareEstimatorsForSession(session: WorkoutSessionPerformance): Promise<string[]> {
     const strengthRows = this.workoutWorkflowSummaryProjection.projectStrengthRows(session);
-    const knownIds = await this.loadKnownEstimatorIds();
-
-    await this.ensureEstimatorDocsForRows(strengthRows, knownIds);
-
-    return [...knownIds];
+    this.normalizeStrengthRows(strengthRows);
+    return Array.from(await this.loadKnownEstimatorIds());
   }
 
   private async loadKnownEstimatorIds(): Promise<Set<string>> {
@@ -34,10 +31,7 @@ export class WorkoutWorkflowEstimatorPreparationService {
     }
   }
 
-  private async ensureEstimatorDocsForRows(
-    rows: WorkoutTrainingRow[],
-    knownIds: Set<string>
-  ): Promise<void> {
+  private normalizeStrengthRows(rows: WorkoutTrainingRow[]): void {
     for (const row of rows) {
       const normalizedId = this.exerciseEstimatorsService.normalizeEstimatorId(row.exercise_type);
       if (!normalizedId) {
@@ -45,17 +39,6 @@ export class WorkoutWorkflowEstimatorPreparationService {
       }
 
       row.exercise_type = normalizedId;
-
-      if (knownIds.has(normalizedId)) {
-        continue;
-      }
-
-      try {
-        await this.exerciseEstimatorsService.ensureEstimatorDocExists(normalizedId);
-        knownIds.add(normalizedId);
-      } catch {
-        continue;
-      }
     }
   }
 }

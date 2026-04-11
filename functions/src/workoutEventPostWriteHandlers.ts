@@ -26,6 +26,8 @@ const EXERCISE_ESTIMATOR_PARENT_DOC = "default";
 const EXERCISE_ESTIMATOR_WORKOUT_LOGS_COLLECTION = "workout_logs";
 const EXERCISE_ESTIMATOR_STRENGTH_CATEGORY = "Strength";
 const EXERCISE_ESTIMATOR_CARDIO_CATEGORY = "Cardio";
+const ESTIMATOR_IDS_INDEX_COLLECTION = "systemConfig";
+const ESTIMATOR_IDS_INDEX_DOC = "exercise_estimators_index";
 const DIRECT_CHAT_PREFIX = "direct";
 
 type ExerciseEstimatorCategory =
@@ -888,6 +890,9 @@ async function getEstimatorDoc(params: {
       }
 
       await estimatorRef.set(payload, {merge: true});
+      if (params.category === EXERCISE_ESTIMATOR_STRENGTH_CATEGORY) {
+        await upsertStrengthEstimatorIdsIndex([estimatorId]);
+      }
     }
 
     return {
@@ -923,6 +928,19 @@ async function getEstimatorDoc(params: {
   };
 }
 
+async function upsertStrengthEstimatorIdsIndex(ids: string[]): Promise<void> {
+  const normalizedIds = normalizeEstimatorIdArray(ids);
+  if (normalizedIds.length === 0) {
+    return;
+  }
+
+  const indexRef = db.doc(`${ESTIMATOR_IDS_INDEX_COLLECTION}/${ESTIMATOR_IDS_INDEX_DOC}`);
+  await indexRef.set({
+    ids: admin.firestore.FieldValue.arrayUnion(...normalizedIds),
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  }, {merge: true});
+}
+
 function buildEstimatorWorkoutLogRef(
   category: ExerciseEstimatorCategory,
   estimatorId: string,
@@ -945,6 +963,18 @@ function getEstimatorDocRef(
   return db.doc(
     `${EXERCISE_ESTIMATOR_ROOT_COLLECTION}/${EXERCISE_ESTIMATOR_PARENT_DOC}/${category}/${estimatorId}`
   );
+}
+
+function normalizeEstimatorIdArray(candidate: unknown): string[] {
+  if (!Array.isArray(candidate)) {
+    return [];
+  }
+
+  const ids = candidate
+    .map((value) => normalizeEstimatorId(String(value ?? "")))
+    .filter((value) => !!value);
+
+  return Array.from(new Set(ids)).sort((a, b) => a.localeCompare(b));
 }
 
 function calculateExpectedFromEstimator(

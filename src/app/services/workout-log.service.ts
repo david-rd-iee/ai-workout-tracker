@@ -1,5 +1,7 @@
 import { Injectable } from '@angular/core';
 import { Auth } from '@angular/fire/auth';
+import { Firestore } from '@angular/fire/firestore';
+import { doc, getDoc } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import {
   workoutEventToWorkoutSessionPerformance,
@@ -32,8 +34,13 @@ export interface SaveCompletedWorkoutResult {
 @Injectable({ providedIn: 'root' })
 export class WorkoutLogService {
   private readonly callableName = 'completeWorkoutEvent';
+  private static readonly SCORE_AGGREGATION_WAIT_TIMEOUT_MS = 8000;
+  private static readonly SCORE_AGGREGATION_POLL_INTERVAL_MS = 250;
 
-  constructor(private auth: Auth) {}
+  constructor(
+    private auth: Auth,
+    private firestore: Firestore
+  ) {}
 
   async saveCompletedWorkout(session: WorkoutSessionPerformance): Promise<SaveCompletedWorkoutResult> {
     const user = this.auth.currentUser;
@@ -69,6 +76,7 @@ export class WorkoutLogService {
       event: savedEvent,
       submissionMetadata,
     });
+    await this.waitForScoreAggregation(user.uid, response.data.eventId);
 
     return {
       eventId: response.data.eventId,
@@ -97,5 +105,51 @@ export class WorkoutLogService {
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
+  }
+
+  private async waitForScoreAggregation(userId: string, eventId: string): Promise<void> {
+    const scoreAggregationRef = doc(
+      this.firestore,
+      'users',
+      userId,
+      'workoutEvents',
+      eventId,
+      'derivations',
+      'score_aggregation'
+    );
+    const deadline = Date.now() + WorkoutLogService.SCORE_AGGREGATION_WAIT_TIMEOUT_MS;
+
+    while (Date.now() < deadline) {
+      try {
+        const snapshot = await getDoc(scoreAggregationRef);
+        if (snapshot.exists()) {
+          const status = this.readText(snapshot.data()?.['status']).toLowerCase();
+          if (status === 'completed') {
+            return;
+          }
+
+          if (status === 'failed') {
+            const reason = this.readText(snapshot.data()?.['reason']) || 'score aggregation failed';
+            throw new Error(reason);
+          }
+        }
+      } catch (error) {
+        console.warn('[WorkoutLogService] Failed while waiting for score aggregation:', error);
+        return;
+      }
+
+      await this.delay(WorkoutLogService.SCORE_AGGREGATION_POLL_INTERVAL_MS);
+    }
+
+    console.warn('[WorkoutLogService] Timed out waiting for score aggregation to complete.', {
+      userId,
+      eventId,
+    });
+  }
+
+  private delay(durationMs: number): Promise<void> {
+    return new Promise((resolve) => {
+      globalThis.setTimeout(resolve, durationMs);
+    });
   }
 }

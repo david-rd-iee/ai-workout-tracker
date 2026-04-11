@@ -74,7 +74,7 @@ describe('WorkoutChatbotPage', () => {
       loggedAt: savedAt.toISOString(),
       completionStatus: 'complete' as const,
       botMessage:
-        'Workout submitted and saved to your history. Stats and summaries will finish updating in the background.',
+        'Workout submitted and saved to your history. Score updates should now be available, and summaries will finish updating in the background.',
       savePersistenceStatus: 'persisted' as const,
     }),
   };
@@ -136,7 +136,7 @@ describe('WorkoutChatbotPage', () => {
       loggedAt: savedAt.toISOString(),
       completionStatus: 'complete' as const,
       botMessage:
-        'Workout submitted and saved to your history. Stats and summaries will finish updating in the background.',
+        'Workout submitted and saved to your history. Score updates should now be available, and summaries will finish updating in the background.',
       savePersistenceStatus: 'persisted' as const,
     });
     platformStub.is.calls.reset();

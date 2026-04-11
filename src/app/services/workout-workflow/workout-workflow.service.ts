@@ -73,8 +73,6 @@ export class WorkoutWorkflowService {
       message
     );
 
-    await this.workoutWorkflowEstimatorPreparation.prepareEstimatorsForSession(nextSession);
-
     return this.buildChatScreenState({
       session: nextSession,
       saveStatus: nextSession.isComplete ? screenState.saveStatus : 'not_saved',
@@ -112,7 +110,7 @@ export class WorkoutWorkflowService {
       saveStatus: 'saved',
       loggedAt: saveResult.loggedAt.toISOString(),
       botMessage:
-        'Workout submitted and saved to your history. Stats and summaries will finish updating in the background.',
+        'Workout submitted and saved to your history. Score updates should now be available, and summaries will finish updating in the background.',
       eventId: saveResult.eventId,
       savePersistenceStatus: saveResult.status,
     });

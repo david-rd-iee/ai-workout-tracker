@@ -20,8 +20,9 @@ participant RetrainFn as retrainExerciseEstimatorOnWorkoutLogCreate
 User->>Page: Enter workout message
 Page->>WorkflowSvc: processWorkoutMessage(message, messages, screenState)
 WorkflowSvc->>EstimatorPrep: prepareEstimatorsForSession(session)
-EstimatorPrep->>EstSvc: load known estimator IDs + ensure session strength estimators
-EstSvc->>FS: Read/create exercise estimator docs
+EstimatorPrep->>SummaryProjection: projectStrengthRows(session)
+EstimatorPrep->>EstSvc: read cached/indexed estimator IDs
+EstSvc->>FS: Read systemConfig/exercise_estimators_index<br/>or strength estimator collection fallback
 EstimatorPrep-->>WorkflowSvc: exerciseEstimatorIds
 WorkflowSvc->>ChatSvc: sendMessage(message, session, history, estimatorIds)
 ChatSvc->>ChatFn: httpsCallable(payload)
@@ -29,9 +30,6 @@ ChatFn->>OpenAI: Parse/update workout JSON
 OpenAI-->>ChatFn: assistantMessage + summary
 ChatFn-->>ChatSvc: ChatResponse
 ChatSvc-->>WorkflowSvc: botMessage + updatedSession
-WorkflowSvc->>EstimatorPrep: prepareEstimatorsForSession(updatedSession)
-EstimatorPrep->>EstSvc: ensure session strength estimators
-EstSvc->>FS: Read/create exercise estimator docs
 WorkflowSvc->>SummaryProjection: projectWorkflowState(updatedSession)
 SummaryProjection-->>WorkflowSvc: {session, summaryRows}
 WorkflowSvc-->>Page: WorkoutChatScreenState { session, summaryRows, saveStatus, loggedAt, completionStatus, botMessage }
@@ -52,6 +50,8 @@ Page-->>User: Success message + workout summary
 
 FS-->>EventProcessor: Trigger on users/{uid}/workoutEvents/{eventId}
 EventProcessor->>FS: Update streak + early-morning stats
+EventProcessor->>FS: Create missing strength/cardio estimator docs when needed
+EventProcessor->>FS: Upsert indexed strength estimator IDs for new committed exercises
 EventProcessor->>FS: Write score totals, addedScore, rankings, estimator workout_logs
 EventProcessor->>FS: Create trainer summary
 EventProcessor->>RTDB: Send trainer chat summary

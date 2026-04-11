@@ -14,7 +14,9 @@ Important architectural note discovered during generation:
 
 - The active frontend workout submit flow calls the backend-owned `completeWorkoutEvent` command.
 - `completeWorkoutEvent` persists the canonical workout event to `users/{uid}/workoutEvents/{eventId}` and returns success as soon as that write completes.
+- The chatbot estimator prep path is now read-only: it normalizes strength row IDs and reads the cached/indexed strength estimator ID list without creating estimator docs during chat.
 - The `onWorkoutEventCreated` event processor layer derives user stats, score aggregates, trainer summaries, trainer chat summaries, and estimator workout logs asynchronously from `users/{uid}/workoutEvents/{eventId}`.
+- Missing estimator docs for committed workouts are created in `onWorkoutEventCreated`, and new committed strength estimator IDs are added to `systemConfig/exercise_estimators_index` there.
 - `WorkoutWorkflowService` now returns a UI-ready `WorkoutChatScreenState` to the chatbot page instead of separate saved-workout flags.
 - The workout history page now reads canonical `users/{uid}/workoutEvents/{eventId}` records directly.
 - The legacy `workoutSessions/{sessionId}` trigger has been retired so non-authoritative paths are no longer watched.
@@ -241,7 +243,7 @@ WorkoutWorkflowService --> WorkoutWorkflowEstimatorPreparationService : prepare 
 WorkoutWorkflowService --> WorkoutSessionFormatterService : normalize/apply session state
 WorkoutWorkflowService --> WorkoutChatScreenState : builds UI-ready state
 WorkoutWorkflowEstimatorPreparationService --> WorkoutWorkflowSummaryProjectionService : projectStrengthRows()
-WorkoutWorkflowEstimatorPreparationService --> ExerciseEstimatorsService : listEstimatorIds()/ensureEstimatorDocExists()
+WorkoutWorkflowEstimatorPreparationService --> ExerciseEstimatorsService : getCachedEstimatorIds()/listEstimatorIds()
 WorkoutWorkflowSummaryProjectionService --> WorkoutSessionPerformance : project summary rows
 WorkoutSummaryPage --> WorkoutSessionPerformance
 
@@ -258,6 +260,8 @@ AccountService --> GroupService
 AccountService --> Firestore
 AccountUserService --> AccountService
 AccountUserService --> ProfileRepositoryService
+ExerciseEstimatorsService --> Firestore : read/write estimator docs + strength ID index
+WorkoutEventPostWriteHandlers --> Firestore : create missing estimator docs + upsert strength ID index
 AccountUserService --> UserBadgesService
 AccountUserService --> UserStatsService
 LegacyUserService --> Firestore
@@ -341,8 +345,9 @@ participant RetrainFn as retrainExerciseEstimatorOnWorkoutLogCreate
 User->>Page: Enter workout message
 Page->>WorkflowSvc: processWorkoutMessage(message, messages, screenState)
 WorkflowSvc->>EstimatorPrep: prepareEstimatorsForSession(session)
-EstimatorPrep->>EstSvc: load known estimator IDs + ensure session strength estimators
-EstSvc->>FS: Read/create exercise estimator docs
+EstimatorPrep->>SummaryProjection: projectStrengthRows(session)
+EstimatorPrep->>EstSvc: read cached/indexed estimator IDs
+EstSvc->>FS: Read systemConfig/exercise_estimators_index<br/>or strength estimator collection fallback
 EstimatorPrep-->>WorkflowSvc: exerciseEstimatorIds
 WorkflowSvc->>ChatSvc: sendMessage(message, session, history, estimatorIds)
 ChatSvc->>ChatFn: httpsCallable(payload)
@@ -350,9 +355,6 @@ ChatFn->>OpenAI: Parse/update workout JSON
 OpenAI-->>ChatFn: assistantMessage + summary
 ChatFn-->>ChatSvc: ChatResponse
 ChatSvc-->>WorkflowSvc: botMessage + updatedSession
-WorkflowSvc->>EstimatorPrep: prepareEstimatorsForSession(updatedSession)
-EstimatorPrep->>EstSvc: ensure session strength estimators
-EstSvc->>FS: Read/create exercise estimator docs
 WorkflowSvc->>SummaryProjection: projectWorkflowState(updatedSession)
 SummaryProjection-->>WorkflowSvc: {session, summaryRows}
 WorkflowSvc-->>Page: WorkoutChatScreenState { session, summaryRows, saveStatus, loggedAt, completionStatus, botMessage }
@@ -373,6 +375,8 @@ Page-->>User: Success message + workout summary
 
 FS-->>EventProcessor: Trigger on users/{uid}/workoutEvents/{eventId}
 EventProcessor->>FS: Update streak + early-morning stats
+EventProcessor->>FS: Create missing strength/cardio estimator docs when needed
+EventProcessor->>FS: Upsert indexed strength estimator IDs for new committed exercises
 EventProcessor->>FS: Write score totals, addedScore, rankings, estimator workout_logs
 EventProcessor->>FS: Create trainer summary
 EventProcessor->>RTDB: Send trainer chat summary
