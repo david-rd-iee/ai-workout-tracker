@@ -9,7 +9,7 @@ import {
 } from '../../models/workout-session.model';
 import { ExerciseEstimatorsService } from '../../services/exercise-estimators.service';
 import { WorkoutChatService } from '../../services/workout-chat.service';
-import { WorkoutWorkflowService } from '../../services/workout-workflow.service';
+import { WorkoutWorkflowService } from '../../services/workout-workflow/workout-workflow.service';
 import { WorkoutSessionFormatterService } from '../../services/workout-session-formatter.service';
 import { TreadmillLoggerPage } from './treadmill-logger.page';
 

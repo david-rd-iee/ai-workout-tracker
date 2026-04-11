@@ -2,8 +2,8 @@ import {
   CardioTrainingRow,
   WorkoutSessionPerformance,
   WorkoutTrainingRow,
-} from '../models/workout-session.model';
-import type { SaveCompletedWorkoutResult } from './workout-log.service';
+} from '../../models/workout-session.model';
+import type { SaveCompletedWorkoutResult } from '../workout-log.service';
 
 export interface WorkoutWorkflowMessage {
   from: 'bot' | 'user';

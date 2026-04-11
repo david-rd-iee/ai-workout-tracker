@@ -20,7 +20,7 @@ import {
 } from '../../models/workout-session.model';
 import type { StreakUpdateResult } from '../../services/workout-log.service';
 import type { UpdateScoreResult } from '../../services/update-score.service';
-import { WorkoutWorkflowService } from '../../services/workout-workflow.service';
+import { WorkoutWorkflowService } from '../../services/workout-workflow/workout-workflow.service';
 import { WorkoutSessionFormatterService } from '../../services/workout-session-formatter.service';
 
 type TrackingState = 'idle' | 'starting' | 'running' | 'finished';

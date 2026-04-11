@@ -40,8 +40,6 @@ export class WorkoutChatService {
   constructor(private http: HttpClient) {}
 
   async sendMessage(payload: ChatRequestPayload): Promise<ChatResponse> {
-    console.log('Sending payload to workoutChat:', payload);
-
     try {
       const functions = getFunctions(undefined, 'us-central1');
       const callable = httpsCallable<ChatRequestPayload, ChatResponse>(
@@ -65,10 +63,6 @@ export class WorkoutChatService {
   async analyzeTreadmillImage(
     payload: TreadmillImageRequestPayload
   ): Promise<ChatResponse> {
-    console.log('Sending payload to treadmillLogger:', {
-      hasImageDataUrl: !!payload.imageDataUrl,
-    });
-
     try {
       const functions = getFunctions(undefined, 'us-central1');
       const callable = httpsCallable<TreadmillImageRequestPayload, ChatResponse>(

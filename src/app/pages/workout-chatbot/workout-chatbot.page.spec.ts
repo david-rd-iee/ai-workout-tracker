@@ -5,7 +5,7 @@ import { Platform } from '@ionic/angular';
 import {
   WorkoutWorkflowService,
   WorkoutChatScreenState,
-} from '../../services/workout-workflow.service';
+} from '../../services/workout-workflow/workout-workflow.service';
 import { UserService } from '../../services/account/user.service';
 import { WorkoutChatbotPage } from './workout-chatbot.page';
 import { WorkoutSessionPerformance, WorkoutTrainingRow } from '../../models/workout-session.model';

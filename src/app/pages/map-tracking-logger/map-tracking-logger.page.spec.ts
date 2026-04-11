@@ -5,7 +5,7 @@ import { Firestore } from '@angular/fire/firestore';
 import { AlertController, NavController } from '@ionic/angular/standalone';
 import { UserService } from '../../services/account/user.service';
 import { CardioTrainingRow, WorkoutSessionPerformance } from '../../models/workout-session.model';
-import { WorkoutWorkflowService } from '../../services/workout-workflow.service';
+import { WorkoutWorkflowService } from '../../services/workout-workflow/workout-workflow.service';
 import { WorkoutSessionFormatterService } from '../../services/workout-session-formatter.service';
 import { MapTrackingLoggerPage } from './map-tracking-logger.page';
 

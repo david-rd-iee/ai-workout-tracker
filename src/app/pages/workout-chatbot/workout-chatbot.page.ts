@@ -23,7 +23,7 @@ import {
 import {
   WorkoutChatScreenState,
   WorkoutWorkflowService,
-} from '../../services/workout-workflow.service';
+} from '../../services/workout-workflow/workout-workflow.service';
 
 type ChatSender = 'bot' | 'user';
 

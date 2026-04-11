@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
-import { WorkoutSessionPerformance, WorkoutTrainingRow } from '../models/workout-session.model';
-import { ExerciseEstimatorsService } from './exercise-estimators.service';
+import { WorkoutSessionPerformance, WorkoutTrainingRow } from '../../models/workout-session.model';
+import { ExerciseEstimatorsService } from '../exercise-estimators.service';
 import { WorkoutWorkflowSummaryProjectionService } from './workout-workflow-summary-projection.service';
 
 @Injectable({

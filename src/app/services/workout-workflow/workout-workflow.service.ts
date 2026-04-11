@@ -1,9 +1,9 @@
 import { Injectable } from '@angular/core';
-import { WorkoutSessionPerformance } from '../models/workout-session.model';
-import { ChatHistoryMessage, WorkoutChatService } from './workout-chat.service';
-import type { SaveCompletedWorkoutResult } from './workout-log.service';
-import { WorkoutLogService } from './workout-log.service';
-import { WorkoutSessionFormatterService } from './workout-session-formatter.service';
+import { WorkoutSessionPerformance } from '../../models/workout-session.model';
+import { ChatHistoryMessage, WorkoutChatService } from '../workout-chat.service';
+import type { SaveCompletedWorkoutResult } from '../workout-log.service';
+import { WorkoutLogService } from '../workout-log.service';
+import { WorkoutSessionFormatterService } from '../workout-session-formatter.service';
 import {
   ProcessWorkoutMessageParams,
   ProcessWorkoutMessageResult,

@@ -22,7 +22,7 @@ import { ExerciseEstimatorsService } from '../../services/exercise-estimators.se
 import { WorkoutChatService } from '../../services/workout-chat.service';
 import type { StreakUpdateResult } from '../../services/workout-log.service';
 import type { UpdateScoreResult } from '../../services/update-score.service';
-import { WorkoutWorkflowService } from '../../services/workout-workflow.service';
+import { WorkoutWorkflowService } from '../../services/workout-workflow/workout-workflow.service';
 import { WorkoutSessionFormatterService } from '../../services/workout-session-formatter.service';
 
 interface MachineTypeOption {
@@ -140,7 +140,6 @@ export class TreadmillLoggerPage {
         this.selectedMachineType
       );
       this.session = nextSession;
-      this.logSessionJsonToConsole(this.session, this.selectedMachineType);
       this.statusMessage = response.botMessage?.trim() ||
         'Your treadmill workout summary is ready to review.';
 
@@ -499,34 +498,6 @@ export class TreadmillLoggerPage {
   private isUserCancellation(error: unknown): boolean {
     const text = error instanceof Error ? error.message : String(error ?? '');
     return /cancel/i.test(text);
-  }
-
-  private logSessionJsonToConsole(
-    session: WorkoutSessionPerformance,
-    machineType: string
-  ): void {
-    const debugJson = {
-      cardioTrainingRow: this.cardioRows.map((row) => ({
-        Training_Type: 'Cardio' as const,
-        estimated_calories: this.toNonNegativeNumber(row.estimated_calories, 0),
-        cardio_type: this.exerciseEstimatorsService.normalizeEstimatorId(row.cardio_type) ||
-          this.exerciseEstimatorsService.normalizeEstimatorId(machineType) ||
-          'generic_cardio',
-        display_distance: row.display_distance ?? '',
-        display_time: row.display_time ?? '',
-        distance_meters: this.toPositiveNumber(row.distance_meters ?? row.distance) ?? 0,
-        time_minutes: this.toPositiveNumber(row.time_minutes ?? row.time) ?? 0,
-      })),
-      estimated_calories: this.toNonNegativeNumber(
-        session.estimated_calories ?? session.calories,
-        0
-      ),
-      trainer_notes: session.trainer_notes ?? '',
-      isComplete: !!session.isComplete,
-    };
-
-    console.log('[TreadmillLogger] Parsed cardio JSON:', debugJson);
-    console.log('[TreadmillLogger] Parsed cardio JSON string:', JSON.stringify(debugJson, null, 2));
   }
 
   private roundToTwoDecimals(value: number): number {

@@ -3,7 +3,7 @@ import {
   CardioTrainingRow,
   WorkoutSessionPerformance,
   WorkoutTrainingRow,
-} from '../models/workout-session.model';
+} from '../../models/workout-session.model';
 import {
   WorkoutWorkflowState,
   WorkoutWorkflowSummaryRows,

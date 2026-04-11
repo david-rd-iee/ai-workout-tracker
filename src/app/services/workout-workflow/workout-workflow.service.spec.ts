@@ -3,10 +3,10 @@ import {
   CardioTrainingRow,
   WorkoutSessionPerformance,
   WorkoutTrainingRow,
-} from '../models/workout-session.model';
-import { WorkoutChatService } from './workout-chat.service';
-import { WorkoutLogService } from './workout-log.service';
-import { WorkoutSessionFormatterService } from './workout-session-formatter.service';
+} from '../../models/workout-session.model';
+import { WorkoutChatService } from '../workout-chat.service';
+import { WorkoutLogService } from '../workout-log.service';
+import { WorkoutSessionFormatterService } from '../workout-session-formatter.service';
 import { WorkoutWorkflowEstimatorPreparationService } from './workout-workflow-estimator-preparation.service';
 import { WorkoutWorkflowSummaryProjectionService } from './workout-workflow-summary-projection.service';
 import { WorkoutWorkflowService } from './workout-workflow.service';
@@ -59,6 +59,35 @@ describe('WorkoutWorkflowService', () => {
     calories: rows.reduce((total, row) => total + row.estimated_calories, 0),
     exercises: [],
     ...overrides,
+  });
+
+  const screenStateFor = (
+    session: WorkoutSessionPerformance,
+    overrides: Partial<{
+      saveStatus: 'not_saved' | 'saved' | 'cancelled';
+      loggedAt: string | null;
+      completionStatus: 'incomplete' | 'complete';
+      botMessage: string | null;
+    }> = {}
+  ) => ({
+    session,
+    summaryRows: {
+      strengthRows: Array.isArray(session.strengthTrainingRow)
+        ? session.strengthTrainingRow
+        : session.strengthTrainingRow
+          ? [session.strengthTrainingRow]
+          : [],
+      cardioRows: Array.isArray(session.cardioTrainingRow)
+        ? session.cardioTrainingRow
+        : session.cardioTrainingRow
+          ? [session.cardioTrainingRow]
+          : [],
+      otherRows: (session.trainingRows ?? []).filter((row) => row.Training_Type === 'Other'),
+    },
+    saveStatus: overrides.saveStatus ?? 'not_saved',
+    loggedAt: overrides.loggedAt ?? null,
+    completionStatus: overrides.completionStatus ?? (session.isComplete ? 'complete' : 'incomplete'),
+    botMessage: overrides.botMessage ?? null,
   });
 
   beforeEach(() => {
@@ -136,7 +165,7 @@ describe('WorkoutWorkflowService', () => {
     service = TestBed.inject(WorkoutWorkflowService);
   });
 
-  it('builds trimmed history and normalizes the chat response into workflow state', async () => {
+  it('processing a new user message updates the session and returns the new screen state', async () => {
     const previousSession = sessionWithRows([], { isComplete: true });
     const normalizedSession = sessionWithRows([strengthRow()], { isComplete: false });
     const messages = Array.from({ length: 12 }, (_, index) => ({
@@ -153,18 +182,11 @@ describe('WorkoutWorkflowService', () => {
     const result = await service.processWorkoutMessage({
       message: 'Bench press 3x8 at 135 lb',
       messages,
-      screenState: {
-        session: previousSession,
-        summaryRows: {
-          strengthRows: [],
-          cardioRows: [],
-          otherRows: [],
-        },
+      screenState: screenStateFor(previousSession, {
         saveStatus: 'saved',
         loggedAt: '2026-04-11T19:15:00.000Z',
         completionStatus: 'complete',
-        botMessage: null,
-      },
+      }),
     });
 
     expect(workoutChatServiceSpy.sendMessage).toHaveBeenCalledWith(
@@ -193,14 +215,68 @@ describe('WorkoutWorkflowService', () => {
       })
     );
     expect(result.botMessage).toBe('Bench press added.');
+    expect(result.session).toEqual(normalizedSession);
     expect(result.summaryRows.strengthRows).toEqual([strengthRow()]);
     expect(result.saveStatus).toBe('not_saved');
     expect(result.loggedAt).toBeNull();
     expect(result.completionStatus).toBe('incomplete');
   });
 
-  it('ensures missing estimator docs for new strength rows', async () => {
+  it('completion transitions clear saved state when a previously complete workout becomes incomplete', async () => {
+    const previousSession = sessionWithRows([strengthRow()], { isComplete: true });
+    const reopenedSession = sessionWithRows([strengthRow()], { isComplete: false });
+
+    workoutChatServiceSpy.sendMessage.and.resolveTo({
+      botMessage: 'Updated workout.',
+      updatedSession: reopenedSession,
+    });
+    workoutSessionFormatterSpy.normalizeSession.and.returnValue(reopenedSession);
+
+    const result = await service.processWorkoutMessage({
+      message: 'Actually make that bench 3x10',
+      messages: [{ from: 'user', text: 'Actually make that bench 3x10' }],
+      screenState: screenStateFor(previousSession, {
+        saveStatus: 'saved',
+        loggedAt: '2026-04-11T19:15:00.000Z',
+        completionStatus: 'complete',
+      }),
+    });
+
+    expect(result.saveStatus).toBe('not_saved');
+    expect(result.loggedAt).toBeNull();
+    expect(result.completionStatus).toBe('incomplete');
+  });
+
+  it('completion transitions preserve saved state when the updated workout remains complete', async () => {
+    const previousSession = sessionWithRows([strengthRow()], { isComplete: true });
+    const stillCompleteSession = sessionWithRows([strengthRow('incline_bench_press')], {
+      isComplete: true,
+    });
+
+    workoutChatServiceSpy.sendMessage.and.resolveTo({
+      botMessage: 'Adjusted completed workout.',
+      updatedSession: stillCompleteSession,
+    });
+    workoutSessionFormatterSpy.normalizeSession.and.returnValue(stillCompleteSession);
+
+    const result = await service.processWorkoutMessage({
+      message: 'Update completed workout notes',
+      messages: [{ from: 'user', text: 'Update completed workout notes' }],
+      screenState: screenStateFor(previousSession, {
+        saveStatus: 'saved',
+        loggedAt: '2026-04-11T19:15:00.000Z',
+        completionStatus: 'complete',
+      }),
+    });
+
+    expect(result.saveStatus).toBe('saved');
+    expect(result.loggedAt).toBe('2026-04-11T19:15:00.000Z');
+    expect(result.completionStatus).toBe('complete');
+  });
+
+  it('estimator docs are prepared for both the incoming and updated session when needed', async () => {
     const normalizedSession = sessionWithRows([strengthRow('Front Squat')]);
+    const previousSession = sessionWithRows([strengthRow()]);
 
     workoutChatServiceSpy.sendMessage.and.resolveTo({
       botMessage: 'Front squat added.',
@@ -211,26 +287,19 @@ describe('WorkoutWorkflowService', () => {
     await service.processWorkoutMessage({
       message: 'Front squat 3x5 at 185 lb',
       messages: [{ from: 'user', text: 'Front squat 3x5 at 185 lb' }],
-      screenState: {
-        session: sessionWithRows(),
-        summaryRows: {
-          strengthRows: [],
-          cardioRows: [],
-          otherRows: [],
-        },
-        saveStatus: 'not_saved',
-        loggedAt: null,
-        completionStatus: 'incomplete',
-        botMessage: null,
-      },
+      screenState: screenStateFor(previousSession),
     });
 
     expect(workoutWorkflowEstimatorPreparationSpy.prepareEstimatorsForSession).toHaveBeenCalledWith(
+      previousSession
+    );
+    expect(workoutWorkflowEstimatorPreparationSpy.prepareEstimatorsForSession).toHaveBeenCalledWith(
       normalizedSession
     );
+    expect(workoutWorkflowEstimatorPreparationSpy.prepareEstimatorsForSession).toHaveBeenCalledTimes(2);
   });
 
-  it('returns a cancelled submit result when trainer notes are dismissed', async () => {
+  it('cancelling trainer notes returns status cancelled', async () => {
     const requestTrainerNotes = jasmine
       .createSpy('requestTrainerNotes')
       .and.resolveTo(null);
@@ -248,7 +317,7 @@ describe('WorkoutWorkflowService', () => {
     expect(workoutLogServiceSpy.saveCompletedWorkout).not.toHaveBeenCalled();
   });
 
-  it('applies trainer notes and saves the completed workout', async () => {
+  it('successful save returns status saved', async () => {
     const requestTrainerNotes = jasmine
       .createSpy('requestTrainerNotes')
       .and.resolveTo('Felt strong');
@@ -309,5 +378,30 @@ describe('WorkoutWorkflowService', () => {
     expect(result.loggedAt).toBe('2026-04-11T19:15:00.000Z');
     expect(result.completionStatus).toBe('complete');
     expect(result.botMessage).toContain('Workout submitted and saved');
+  });
+
+  it('invalid workouts fail cleanly', async () => {
+    const requestTrainerNotes = jasmine
+      .createSpy('requestTrainerNotes')
+      .and.resolveTo('Needs review');
+    const invalidWorkoutError = new Error('Workout must include at least one entry');
+    const preparedSession = sessionWithRows([], {
+      trainer_notes: 'Needs review',
+      notes: 'Needs review',
+      isComplete: true,
+    });
+
+    workoutSessionFormatterSpy.applyTrainerNotes.and.returnValue(preparedSession);
+    workoutLogServiceSpy.saveCompletedWorkout.and.rejectWith(invalidWorkoutError);
+
+    await expectAsync(
+      service.submitWorkout({
+        session: sessionWithRows(),
+        requestTrainerNotes,
+      })
+    ).toBeRejectedWithError('Workout must include at least one entry');
+
+    expect(workoutSessionFormatterSpy.applyTrainerNotes).toHaveBeenCalled();
+    expect(workoutLogServiceSpy.saveCompletedWorkout).toHaveBeenCalledWith(preparedSession);
   });
 });

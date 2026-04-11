@@ -419,9 +419,9 @@ The lists below map exported objects back to their source areas. This is the ful
 - `src/app/services/video-analysis.service.ts`: `VideoAnalysisService`
 - `src/app/services/workout-chat.service.ts`: `WorkoutChatService`
 - `src/app/services/workout-log.service.ts`: `WorkoutLogService`
-- `src/app/services/workout-workflow.service.ts`: `WorkoutWorkflowService`
-- `src/app/services/workout-workflow-estimator-preparation.service.ts`: `WorkoutWorkflowEstimatorPreparationService`
-- `src/app/services/workout-workflow-summary-projection.service.ts`: `WorkoutWorkflowSummaryProjectionService`
+- `src/app/services/workout-workflow/workout-workflow.service.ts`: `WorkoutWorkflowService`
+- `src/app/services/workout-workflow/workout-workflow-estimator-preparation.service.ts`: `WorkoutWorkflowEstimatorPreparationService`
+- `src/app/services/workout-workflow/workout-workflow-summary-projection.service.ts`: `WorkoutWorkflowSummaryProjectionService`
 - `src/app/services/workout-session-formatter.service.ts`: `WorkoutSessionFormatterService`
 
 ### Frontend pages
