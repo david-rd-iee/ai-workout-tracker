@@ -21,7 +21,7 @@ import {
   WorkoutTrainingRow,
 } from '../../models/workout-session.model';
 import {
-  WorkoutWorkflowViewState,
+  WorkoutChatScreenState,
   WorkoutWorkflowService,
 } from '../../services/workout-workflow.service';
 
@@ -55,8 +55,9 @@ export class WorkoutChatbotPage implements OnInit, OnDestroy {
   private isIPhone = false;
   private removeKeyboardListeners: Array<() => void> = [];
   private readonly workoutWorkflowService = inject(WorkoutWorkflowService);
+  private screenState: WorkoutChatScreenState = this.workoutWorkflowService.createInitialState();
 
-  session: WorkoutSessionPerformance = this.workoutWorkflowService.createInitialState().session;
+  session: WorkoutSessionPerformance = this.screenState.session;
 
   constructor(
     private router: Router,
@@ -70,7 +71,7 @@ export class WorkoutChatbotPage implements OnInit, OnDestroy {
     this.isSavingWorkout = false;
     this.messages = [];
 
-    this.applyWorkflowViewState(this.workoutWorkflowService.createInitialState());
+    this.applyScreenState(this.workoutWorkflowService.createInitialState());
     this.addBotMessage(
       'Hey! Ready to log your workout? Include exercise, sets/reps, weight (kg or bodyweight), and I will turn it into training rows.'
     );
@@ -114,14 +115,10 @@ export class WorkoutChatbotPage implements OnInit, OnDestroy {
       const result = await this.workoutWorkflowService.processWorkoutMessage({
         message: text,
         messages: this.messages,
-        session: this.session,
-        hasSavedWorkout: this.hasSavedWorkout,
-        savedWorkoutLoggedAt: this.savedWorkoutLoggedAt,
+        screenState: this.screenState,
       });
 
-      this.applyWorkflowViewState(result);
-
-      this.addBotMessage(result.botMessage);
+      this.applyScreenState(result);
     } catch (error) {
       console.error('Error talking to AI backend:', error);
       this.addBotMessage('Oops, something went wrong while talking to the AI. Try again in a moment.');
@@ -148,15 +145,11 @@ export class WorkoutChatbotPage implements OnInit, OnDestroy {
         requestTrainerNotes: (initialValue) => this.promptForTrainerNotes(initialValue),
       });
 
-      this.applyWorkflowViewState(result);
+      this.applyScreenState(result);
 
-      if (!result.hasSavedWorkout || !result.savedWorkoutLoggedAt) {
+      if (result.saveStatus !== 'saved' || !result.loggedAt) {
         return;
       }
-
-      this.addBotMessage(
-        'Workout submitted and saved to your history. Stats and summaries will finish updating in the background.'
-      );
     } catch (error) {
       console.error('Failed to save workout:', error);
       this.addBotMessage('I had trouble saving your workout. Please try again.');
@@ -211,13 +204,18 @@ export class WorkoutChatbotPage implements OnInit, OnDestroy {
     return 'details pending';
   }
 
-  private applyWorkflowViewState(state: WorkoutWorkflowViewState): void {
+  private applyScreenState(state: WorkoutChatScreenState): void {
+    this.screenState = state;
     this.session = state.session;
     this.displayStrengthRows = state.summaryRows.strengthRows;
     this.displayCardioRows = state.summaryRows.cardioRows;
     this.displayOtherRows = state.summaryRows.otherRows;
-    this.hasSavedWorkout = state.hasSavedWorkout;
-    this.savedWorkoutLoggedAt = state.savedWorkoutLoggedAt;
+    this.hasSavedWorkout = state.saveStatus === 'saved';
+    this.savedWorkoutLoggedAt = state.loggedAt;
+
+    if (state.botMessage) {
+      this.addBotMessage(state.botMessage);
+    }
   }
 
   private readText(value: unknown): string | undefined {

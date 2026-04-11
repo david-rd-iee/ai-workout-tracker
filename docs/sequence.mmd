@@ -18,7 +18,7 @@ participant RTDB as Realtime Database
 participant RetrainFn as retrainExerciseEstimatorOnWorkoutLogCreate
 
 User->>Page: Enter workout message
-Page->>WorkflowSvc: processWorkoutMessage(message, messages, session, hasSavedWorkout, savedWorkoutLoggedAt)
+Page->>WorkflowSvc: processWorkoutMessage(message, messages, screenState)
 WorkflowSvc->>EstimatorPrep: prepareEstimatorsForSession(session)
 EstimatorPrep->>EstSvc: load known estimator IDs + ensure session strength estimators
 EstSvc->>FS: Read/create exercise estimator docs
@@ -34,7 +34,7 @@ EstimatorPrep->>EstSvc: ensure session strength estimators
 EstSvc->>FS: Read/create exercise estimator docs
 WorkflowSvc->>SummaryProjection: projectWorkflowState(updatedSession)
 SummaryProjection-->>WorkflowSvc: {session, summaryRows}
-WorkflowSvc-->>Page: { session, summaryRows, hasSavedWorkout, savedWorkoutLoggedAt, botMessage }
+WorkflowSvc-->>Page: WorkoutChatScreenState { session, summaryRows, saveStatus, loggedAt, completionStatus, botMessage }
 
 User->>Page: Submit workout
 Page->>WorkflowSvc: submitWorkout(session, requestTrainerNotes)
@@ -47,7 +47,7 @@ CompleteWorkoutCmd-->>LogSvc: {eventId, status: persisted}
 LogSvc-->>WorkflowSvc: savedSession + persisted status
 WorkflowSvc->>SummaryProjection: projectWorkflowState(savedSession)
 SummaryProjection-->>WorkflowSvc: {session, summaryRows}
-WorkflowSvc-->>Page: { status, session, summaryRows, hasSavedWorkout, savedWorkoutLoggedAt }
+WorkflowSvc-->>Page: SubmitWorkoutResult { session, summaryRows, saveStatus, loggedAt, completionStatus, botMessage, eventId, savePersistenceStatus }
 Page-->>User: Success message + workout summary
 
 FS-->>EventProcessor: Trigger on users/{uid}/workoutEvents/{eventId}

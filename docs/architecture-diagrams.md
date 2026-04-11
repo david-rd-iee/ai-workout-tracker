@@ -15,6 +15,7 @@ Important architectural note discovered during generation:
 - The active frontend workout submit flow calls the backend-owned `completeWorkoutEvent` command.
 - `completeWorkoutEvent` persists the canonical workout event to `users/{uid}/workoutEvents/{eventId}` and returns success as soon as that write completes.
 - The `onWorkoutEventCreated` event processor layer derives user stats, score aggregates, trainer summaries, trainer chat summaries, and estimator workout logs asynchronously from `users/{uid}/workoutEvents/{eventId}`.
+- `WorkoutWorkflowService` now returns a UI-ready `WorkoutChatScreenState` to the chatbot page instead of separate saved-workout flags.
 - The workout history page now reads canonical `users/{uid}/workoutEvents/{eventId}` records directly.
 - The legacy `workoutSessions/{sessionId}` trigger has been retired so non-authoritative paths are no longer watched.
 - The authoritative workout domain contract now lives in `shared/models/workout-event.model.ts`.
@@ -39,6 +40,7 @@ namespace Frontend_Pages {
 
 namespace Frontend_Services {
   class WorkoutWorkflowService
+  class WorkoutChatScreenState
   class WorkoutWorkflowSummaryProjectionService
   class WorkoutWorkflowEstimatorPreparationService
   class WorkoutChatService
@@ -231,11 +233,13 @@ UserStats o-- UserScore
 Chat o-- Message
 
 WorkoutChatbotPage --> WorkoutWorkflowService : processWorkoutMessage()/submitWorkout()
+WorkoutChatbotPage --> WorkoutChatScreenState : renders/applies
 WorkoutWorkflowService --> WorkoutChatService : sendMessage()
 WorkoutWorkflowService --> WorkoutLogService : saveCompletedWorkout()
 WorkoutWorkflowService --> WorkoutWorkflowSummaryProjectionService : project workflow/session state
 WorkoutWorkflowService --> WorkoutWorkflowEstimatorPreparationService : prepare estimators for session
 WorkoutWorkflowService --> WorkoutSessionFormatterService : normalize/apply session state
+WorkoutWorkflowService --> WorkoutChatScreenState : builds UI-ready state
 WorkoutWorkflowEstimatorPreparationService --> WorkoutWorkflowSummaryProjectionService : projectStrengthRows()
 WorkoutWorkflowEstimatorPreparationService --> ExerciseEstimatorsService : listEstimatorIds()/ensureEstimatorDocExists()
 WorkoutWorkflowSummaryProjectionService --> WorkoutSessionPerformance : project summary rows
@@ -335,7 +339,7 @@ participant RTDB as Realtime Database
 participant RetrainFn as retrainExerciseEstimatorOnWorkoutLogCreate
 
 User->>Page: Enter workout message
-Page->>WorkflowSvc: processWorkoutMessage(message, messages, session, hasSavedWorkout, savedWorkoutLoggedAt)
+Page->>WorkflowSvc: processWorkoutMessage(message, messages, screenState)
 WorkflowSvc->>EstimatorPrep: prepareEstimatorsForSession(session)
 EstimatorPrep->>EstSvc: load known estimator IDs + ensure session strength estimators
 EstSvc->>FS: Read/create exercise estimator docs
@@ -351,7 +355,7 @@ EstimatorPrep->>EstSvc: ensure session strength estimators
 EstSvc->>FS: Read/create exercise estimator docs
 WorkflowSvc->>SummaryProjection: projectWorkflowState(updatedSession)
 SummaryProjection-->>WorkflowSvc: {session, summaryRows}
-WorkflowSvc-->>Page: { session, summaryRows, hasSavedWorkout, savedWorkoutLoggedAt, botMessage }
+WorkflowSvc-->>Page: WorkoutChatScreenState { session, summaryRows, saveStatus, loggedAt, completionStatus, botMessage }
 
 User->>Page: Submit workout
 Page->>WorkflowSvc: submitWorkout(session, requestTrainerNotes)
@@ -364,7 +368,7 @@ CompleteWorkoutCmd-->>LogSvc: {eventId, status: persisted}
 LogSvc-->>WorkflowSvc: savedSession + persisted status
 WorkflowSvc->>SummaryProjection: projectWorkflowState(savedSession)
 SummaryProjection-->>WorkflowSvc: {session, summaryRows}
-WorkflowSvc-->>Page: { status, session, summaryRows, hasSavedWorkout, savedWorkoutLoggedAt }
+WorkflowSvc-->>Page: SubmitWorkoutResult { session, summaryRows, saveStatus, loggedAt, completionStatus, botMessage, eventId, savePersistenceStatus }
 Page-->>User: Success message + workout summary
 
 FS-->>EventProcessor: Trigger on users/{uid}/workoutEvents/{eventId}

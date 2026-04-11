@@ -153,9 +153,18 @@ describe('WorkoutWorkflowService', () => {
     const result = await service.processWorkoutMessage({
       message: 'Bench press 3x8 at 135 lb',
       messages,
-      session: previousSession,
-      hasSavedWorkout: true,
-      savedWorkoutLoggedAt: '2026-04-11T19:15:00.000Z',
+      screenState: {
+        session: previousSession,
+        summaryRows: {
+          strengthRows: [],
+          cardioRows: [],
+          otherRows: [],
+        },
+        saveStatus: 'saved',
+        loggedAt: '2026-04-11T19:15:00.000Z',
+        completionStatus: 'complete',
+        botMessage: null,
+      },
     });
 
     expect(workoutChatServiceSpy.sendMessage).toHaveBeenCalledWith(
@@ -185,8 +194,9 @@ describe('WorkoutWorkflowService', () => {
     );
     expect(result.botMessage).toBe('Bench press added.');
     expect(result.summaryRows.strengthRows).toEqual([strengthRow()]);
-    expect(result.hasSavedWorkout).toBeFalse();
-    expect(result.savedWorkoutLoggedAt).toBeNull();
+    expect(result.saveStatus).toBe('not_saved');
+    expect(result.loggedAt).toBeNull();
+    expect(result.completionStatus).toBe('incomplete');
   });
 
   it('ensures missing estimator docs for new strength rows', async () => {
@@ -201,9 +211,18 @@ describe('WorkoutWorkflowService', () => {
     await service.processWorkoutMessage({
       message: 'Front squat 3x5 at 185 lb',
       messages: [{ from: 'user', text: 'Front squat 3x5 at 185 lb' }],
-      session: sessionWithRows(),
-      hasSavedWorkout: false,
-      savedWorkoutLoggedAt: null,
+      screenState: {
+        session: sessionWithRows(),
+        summaryRows: {
+          strengthRows: [],
+          cardioRows: [],
+          otherRows: [],
+        },
+        saveStatus: 'not_saved',
+        loggedAt: null,
+        completionStatus: 'incomplete',
+        botMessage: null,
+      },
     });
 
     expect(workoutWorkflowEstimatorPreparationSpy.prepareEstimatorsForSession).toHaveBeenCalledWith(
@@ -222,7 +241,9 @@ describe('WorkoutWorkflowService', () => {
       requestTrainerNotes,
     });
 
-    expect(result.status).toBe('cancelled');
+    expect(result.saveStatus).toBe('cancelled');
+    expect(result.loggedAt).toBeNull();
+    expect(result.botMessage).toBeNull();
     expect(workoutSessionFormatterSpy.applyTrainerNotes).not.toHaveBeenCalled();
     expect(workoutLogServiceSpy.saveCompletedWorkout).not.toHaveBeenCalled();
   });
@@ -282,10 +303,11 @@ describe('WorkoutWorkflowService', () => {
       true
     );
     expect(workoutLogServiceSpy.saveCompletedWorkout).toHaveBeenCalledWith(preparedSession);
-    expect(result.status).toBe('saved');
+    expect(result.saveStatus).toBe('saved');
     expect(result.session).toEqual(savedSession);
     expect(result.summaryRows.cardioRows).toEqual([cardioRow()]);
-    expect(result.hasSavedWorkout).toBeTrue();
-    expect(result.savedWorkoutLoggedAt).toBe('2026-04-11T19:15:00.000Z');
+    expect(result.loggedAt).toBe('2026-04-11T19:15:00.000Z');
+    expect(result.completionStatus).toBe('complete');
+    expect(result.botMessage).toContain('Workout submitted and saved');
   });
 });

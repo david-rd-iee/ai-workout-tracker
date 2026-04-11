@@ -59,7 +59,6 @@ describe('MapTrackingLoggerPage', () => {
 
   const workoutWorkflowServiceStub = {
     submitWorkout: jasmine.createSpy('submitWorkout').and.resolveTo({
-      status: 'saved' as const,
       session: savedSession,
       summaryRows: {
         strengthRows: [],
@@ -67,9 +66,11 @@ describe('MapTrackingLoggerPage', () => {
         otherRows: [],
       },
       eventId: 'event-2',
-      saveStatus: 'persisted' as const,
-      hasSavedWorkout: true as const,
-      savedWorkoutLoggedAt: savedAt.toISOString(),
+      saveStatus: 'saved' as const,
+      loggedAt: savedAt.toISOString(),
+      completionStatus: 'complete' as const,
+      botMessage: null,
+      savePersistenceStatus: 'persisted' as const,
     }),
   };
   const workoutSessionFormatterStub = jasmine.createSpyObj<WorkoutSessionFormatterService>(
@@ -122,7 +123,6 @@ describe('MapTrackingLoggerPage', () => {
   beforeEach(() => {
     workoutWorkflowServiceStub.submitWorkout.calls.reset();
     workoutWorkflowServiceStub.submitWorkout.and.resolveTo({
-      status: 'saved' as const,
       session: savedSession,
       summaryRows: {
         strengthRows: [],
@@ -130,9 +130,11 @@ describe('MapTrackingLoggerPage', () => {
         otherRows: [],
       },
       eventId: 'event-2',
-      saveStatus: 'persisted' as const,
-      hasSavedWorkout: true as const,
-      savedWorkoutLoggedAt: savedAt.toISOString(),
+      saveStatus: 'saved' as const,
+      loggedAt: savedAt.toISOString(),
+      completionStatus: 'complete' as const,
+      botMessage: null,
+      savePersistenceStatus: 'persisted' as const,
     });
     (router.navigate as jasmine.Spy).calls.reset();
   });
@@ -167,15 +169,18 @@ describe('MapTrackingLoggerPage', () => {
     component.startedAt = new Date('2026-04-11T18:50:00.000Z');
     component.endedAt = new Date('2026-04-11T19:28:00.000Z');
     workoutWorkflowServiceStub.submitWorkout.and.resolveTo({
-      status: 'cancelled' as const,
       session: trackedSession,
       summaryRows: {
         strengthRows: [],
         cardioRows: [cardioRow()],
         otherRows: [],
       },
-      hasSavedWorkout: false,
-      savedWorkoutLoggedAt: null,
+      eventId: '',
+      saveStatus: 'cancelled' as const,
+      loggedAt: null,
+      completionStatus: 'incomplete' as const,
+      botMessage: null,
+      savePersistenceStatus: null,
     });
 
     await component.logWorkout();

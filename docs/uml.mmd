@@ -14,6 +14,7 @@ namespace Frontend_Pages {
 
 namespace Frontend_Services {
   class WorkoutWorkflowService
+  class WorkoutChatScreenState
   class WorkoutWorkflowSummaryProjectionService
   class WorkoutWorkflowEstimatorPreparationService
   class WorkoutChatService
@@ -206,11 +207,13 @@ UserStats o-- UserScore
 Chat o-- Message
 
 WorkoutChatbotPage --> WorkoutWorkflowService : processWorkoutMessage()/submitWorkout()
+WorkoutChatbotPage --> WorkoutChatScreenState : renders/applies
 WorkoutWorkflowService --> WorkoutChatService : sendMessage()
 WorkoutWorkflowService --> WorkoutLogService : saveCompletedWorkout()
 WorkoutWorkflowService --> WorkoutWorkflowSummaryProjectionService : project workflow/session state
 WorkoutWorkflowService --> WorkoutWorkflowEstimatorPreparationService : prepare estimators for session
 WorkoutWorkflowService --> WorkoutSessionFormatterService : normalize/apply session state
+WorkoutWorkflowService --> WorkoutChatScreenState : builds UI-ready state
 WorkoutWorkflowEstimatorPreparationService --> WorkoutWorkflowSummaryProjectionService : projectStrengthRows()
 WorkoutWorkflowEstimatorPreparationService --> ExerciseEstimatorsService : listEstimatorIds()/ensureEstimatorDocExists()
 WorkoutWorkflowSummaryProjectionService --> WorkoutSessionPerformance : project summary rows

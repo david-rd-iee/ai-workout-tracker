@@ -21,22 +21,23 @@ export interface WorkoutWorkflowState {
   summaryRows: WorkoutWorkflowSummaryRows;
 }
 
-export interface WorkoutWorkflowViewState extends WorkoutWorkflowState {
-  hasSavedWorkout: boolean;
-  savedWorkoutLoggedAt: string | null;
+export type WorkoutChatSaveStatus = 'not_saved' | 'saved' | 'cancelled';
+export type WorkoutChatCompletionStatus = 'incomplete' | 'complete';
+
+export interface WorkoutChatScreenState extends WorkoutWorkflowState {
+  saveStatus: WorkoutChatSaveStatus;
+  loggedAt: string | null;
+  completionStatus: WorkoutChatCompletionStatus;
+  botMessage: string | null;
 }
 
 export interface ProcessWorkoutMessageParams {
   message: string;
   messages: WorkoutWorkflowMessage[];
-  session: WorkoutSessionPerformance;
-  hasSavedWorkout: boolean;
-  savedWorkoutLoggedAt: string | null;
+  screenState: WorkoutChatScreenState;
 }
 
-export interface ProcessWorkoutMessageResult extends WorkoutWorkflowViewState {
-  botMessage: string;
-}
+export type ProcessWorkoutMessageResult = WorkoutChatScreenState;
 
 export type TrainerNotesRequester = (initialValue: string) => Promise<string | null>;
 
@@ -45,18 +46,7 @@ export interface SubmitWorkoutParams {
   requestTrainerNotes: TrainerNotesRequester;
 }
 
-export interface SubmitWorkoutSavedResult extends WorkoutWorkflowState {
-  status: 'saved';
+export interface SubmitWorkoutResult extends WorkoutChatScreenState {
   eventId: string;
-  saveStatus: SaveCompletedWorkoutResult['status'];
-  hasSavedWorkout: true;
-  savedWorkoutLoggedAt: string;
+  savePersistenceStatus: SaveCompletedWorkoutResult['status'] | null;
 }
-
-export interface SubmitWorkoutCancelledResult extends WorkoutWorkflowViewState {
-  status: 'cancelled';
-}
-
-export type SubmitWorkoutResult =
-  | SubmitWorkoutSavedResult
-  | SubmitWorkoutCancelledResult;
