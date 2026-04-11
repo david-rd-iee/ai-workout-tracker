@@ -26,25 +26,19 @@ EstSvc->>FS: Read/create exercise estimator docs
 
 User->>Page: Submit workout
 Page->>LogSvc: saveCompletedWorkout(session)
-LogSvc->>CompleteWorkoutCmd: completeWorkoutEvent(event)
+LogSvc->>CompleteWorkoutCmd: completeWorkoutEvent(normalized WorkoutEvent)
 CompleteWorkoutCmd->>FS: Write users/{uid}/workoutEvents/{eventId}
 CompleteWorkoutCmd-->>LogSvc: {eventId, status: persisted}
 LogSvc-->>Page: savedSession + persisted status
 Page-->>User: Success message + workout summary
 
 FS-->>EventProcessor: Trigger on users/{uid}/workoutEvents/{eventId}
-
-par User stats
-  EventProcessor->>FS: update stats
-and Score + estimator logs
-  EventProcessor->>FS: Write score totals, expected effort, rankings, estimator workout_logs
-and Trainer summary
-  EventProcessor->>FS: create trainer summary
-and Trainer chat summary
-  EventProcessor->>RTDB: enqueue/send chat summary
-end
+EventProcessor->>FS: Update streak + early-morning stats
+EventProcessor->>FS: Write score totals, addedScore, rankings, estimator workout_logs
+EventProcessor->>FS: Create trainer summary
+EventProcessor->>RTDB: Send trainer chat summary
 
 FS-->>RetrainFn: Trigger when estimator workout_logs doc is created
 RetrainFn->>FS: Retrain and persist estimator coefficients/metrics
 
-Note over LogSvc,EventProcessor: Submit success ends when completeWorkoutEvent returns after persisting users/[uid]/workoutEvents/[eventId]<br/>onWorkoutEventCreated dispatches downstream processors asynchronously
+Note over LogSvc,EventProcessor: Submit success ends when completeWorkoutEvent returns after persisting users/[uid]/workoutEvents/[eventId]<br/>onWorkoutEventCreated then runs the current processors sequentially

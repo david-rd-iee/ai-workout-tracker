@@ -65,8 +65,37 @@ namespace Backend_Functions {
   class WorkoutEventPostWriteHandlers
 }
 
-namespace Domain_Models {
+namespace Authoritative_Workout_Domain {
+  class WorkoutEvent {
+    +date: string
+    +entries: WorkoutEventEntry[]
+    +summary: WorkoutEventSummary
+    +source: WorkoutEventSource
+  }
+
+  class WorkoutEventSummary {
+    +estimatedCalories: number
+    +trainerNotes: string
+    +isComplete: boolean
+  }
+
+  class WorkoutEventEntry {
+    +kind: strength/cardio/other
+    +estimatedCalories: number
+  }
+
+  class WorkoutEventRecord {
+    +schemaVersion: 1
+    +event: WorkoutEvent
+    +submissionMetadata: localSubmittedDate + localSubmittedHour
+    +createdAt: timestamp
+    +updatedAt: timestamp
+  }
+}
+
+namespace Legacy_Adapter_View_Models {
   class WorkoutSessionPerformance {
+    +role: adapter/view-model
     +date: string
     +trainingRows: WorkoutTrainingRow[]
     +strengthTrainingRow: WorkoutTrainingRow[]
@@ -101,7 +130,9 @@ namespace Domain_Models {
     +Training_Type: Other
     +estimated_calories: number
   }
+}
 
+namespace Domain_Models {
   class UserStats {
     +userId: string
     +userScore: UserScore
@@ -176,11 +207,9 @@ namespace Domain_Models {
 namespace Backend_Functions {
   class WorkoutChatCallable
   class TreadmillLoggerCallable
-  class MergeWorkoutNotesCallable
   class RetrainExerciseEstimatorOnWorkoutLogCreate
   class OnBookingChange
   class OnTrainerClientChange
-  class OnWorkoutSessionCreate
 }
 
 namespace Infrastructure {
@@ -189,6 +218,9 @@ namespace Infrastructure {
   class OpenAI
 }
 
+WorkoutEvent o-- WorkoutEventSummary
+WorkoutEvent o-- WorkoutEventEntry
+WorkoutEventRecord o-- WorkoutEvent
 WorkoutSessionPerformance o-- WorkoutTrainingRow
 WorkoutSessionPerformance o-- CardioTrainingRow
 WorkoutSessionPerformance o-- OtherTrainingRow
@@ -227,12 +259,17 @@ LeaderboardService --> ProfileRepositoryService
 LeaderboardService --> UserStats
 
 WorkoutLogService --> WorkoutSessionPerformance
+WorkoutLogService ..> WorkoutEvent : canonical submit payload
 WorkoutLogService --> CompleteWorkoutEventCallable
+WorkoutSessionPerformance ..> WorkoutEvent : adapts to/from
 
 WorkoutSessionFormatterService --> ExerciseEstimatorsService
 ExerciseEstimatorsService --> ExerciseEstimatorDoc
 ExerciseEstimatorsService --> Firestore
+CompleteWorkoutEventCallable --> WorkoutEventRecord
 CompleteWorkoutEventCallable --> Firestore
+WorkoutEventPostWriteHandlers --> WorkoutEventRecord
+WorkoutEventPostWriteHandlers ..> WorkoutEvent : derive outputs from
 Firestore --> WorkoutEventPostWriteHandlers : on workoutEvents create
 WorkoutEventPostWriteHandlers --> UserStats
 WorkoutEventPostWriteHandlers --> ExerciseEstimatorDoc
@@ -256,16 +293,13 @@ VideoAnalysisService --> WorkoutSessionPerformance
 
 WorkoutChatService --> WorkoutChatCallable
 WorkoutChatService --> TreadmillLoggerCallable
-WorkoutChatService --> MergeWorkoutNotesCallable
 
 WorkoutChatCallable --> OpenAI
 TreadmillLoggerCallable --> OpenAI
-MergeWorkoutNotesCallable --> OpenAI
 
 RetrainExerciseEstimatorOnWorkoutLogCreate --> Firestore
 OnBookingChange --> Firestore
 OnTrainerClientChange --> Firestore
-OnWorkoutSessionCreate ..> Firestore : listens to legacy path
 ```
 
 ## Sequence Diagram
@@ -301,28 +335,22 @@ EstSvc->>FS: Read/create exercise estimator docs
 
 User->>Page: Submit workout
 Page->>LogSvc: saveCompletedWorkout(session)
-LogSvc->>CompleteWorkoutCmd: completeWorkoutEvent(event)
+LogSvc->>CompleteWorkoutCmd: completeWorkoutEvent(normalized WorkoutEvent)
 CompleteWorkoutCmd->>FS: Write users/{uid}/workoutEvents/{eventId}
 CompleteWorkoutCmd-->>LogSvc: {eventId, status: persisted}
 LogSvc-->>Page: savedSession + persisted status
 Page-->>User: Success message + workout summary
 
 FS-->>EventProcessor: Trigger on users/{uid}/workoutEvents/{eventId}
-
-par User stats
-  EventProcessor->>FS: update stats
-and Score + estimator logs
-  EventProcessor->>FS: Write score totals, expected effort, rankings, estimator workout_logs
-and Trainer summary
-  EventProcessor->>FS: create trainer summary
-and Trainer chat summary
-  EventProcessor->>RTDB: enqueue/send chat summary
-end
+EventProcessor->>FS: Update streak + early-morning stats
+EventProcessor->>FS: Write score totals, addedScore, rankings, estimator workout_logs
+EventProcessor->>FS: Create trainer summary
+EventProcessor->>RTDB: Send trainer chat summary
 
 FS-->>RetrainFn: Trigger when estimator workout_logs doc is created
 RetrainFn->>FS: Retrain and persist estimator coefficients/metrics
 
-Note over LogSvc,EventProcessor: Submit success ends when completeWorkoutEvent returns after persisting users/{uid}/workoutEvents/{eventId}; onWorkoutEventCreated dispatches downstream processors asynchronously
+Note over LogSvc,EventProcessor: Submit success ends when completeWorkoutEvent returns after persisting users/{uid}/workoutEvents/{eventId}; onWorkoutEventCreated then runs the current processors sequentially
 ```
 
 ## Exported Object Inventory
