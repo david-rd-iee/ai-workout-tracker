@@ -4,18 +4,20 @@ import {
   WorkoutSessionPerformance,
   WorkoutTrainingRow,
 } from '../models/workout-session.model';
-import { ExerciseEstimatorsService } from './exercise-estimators.service';
 import { WorkoutChatService } from './workout-chat.service';
 import { WorkoutLogService } from './workout-log.service';
 import { WorkoutSessionFormatterService } from './workout-session-formatter.service';
+import { WorkoutWorkflowEstimatorPreparationService } from './workout-workflow-estimator-preparation.service';
+import { WorkoutWorkflowSummaryMapperService } from './workout-workflow-summary-mapper.service';
 import { WorkoutWorkflowService } from './workout-workflow.service';
 
 describe('WorkoutWorkflowService', () => {
   let service: WorkoutWorkflowService;
   let workoutChatServiceSpy: jasmine.SpyObj<WorkoutChatService>;
   let workoutLogServiceSpy: jasmine.SpyObj<WorkoutLogService>;
-  let exerciseEstimatorsServiceSpy: jasmine.SpyObj<ExerciseEstimatorsService>;
   let workoutSessionFormatterSpy: jasmine.SpyObj<WorkoutSessionFormatterService>;
+  let workoutWorkflowSummaryMapperSpy: jasmine.SpyObj<WorkoutWorkflowSummaryMapperService>;
+  let workoutWorkflowEstimatorPreparationSpy: jasmine.SpyObj<WorkoutWorkflowEstimatorPreparationService>;
 
   const strengthRow = (exerciseType = 'bench_press'): WorkoutTrainingRow => ({
     Training_Type: 'Strength',
@@ -66,26 +68,19 @@ describe('WorkoutWorkflowService', () => {
     workoutLogServiceSpy = jasmine.createSpyObj<WorkoutLogService>('WorkoutLogService', [
       'saveCompletedWorkout',
     ]);
-    exerciseEstimatorsServiceSpy = jasmine.createSpyObj<ExerciseEstimatorsService>(
-      'ExerciseEstimatorsService',
-      ['getCachedEstimatorIds', 'listEstimatorIds', 'normalizeEstimatorId', 'ensureEstimatorDocExists']
-    );
     workoutSessionFormatterSpy = jasmine.createSpyObj<WorkoutSessionFormatterService>(
       'WorkoutSessionFormatterService',
       ['createEmptySession', 'normalizeSession', 'applyTrainerNotes']
     );
-
-    exerciseEstimatorsServiceSpy.normalizeEstimatorId.and.callFake((rawId: string) =>
-      String(rawId ?? '')
-        .trim()
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '_')
-        .replace(/^_+|_+$/g, '')
-        .replace(/_+/g, '_')
+    workoutWorkflowSummaryMapperSpy = jasmine.createSpyObj<WorkoutWorkflowSummaryMapperService>(
+      'WorkoutWorkflowSummaryMapperService',
+      ['buildWorkflowState', 'readStrengthRows']
     );
-    exerciseEstimatorsServiceSpy.getCachedEstimatorIds.and.returnValue([]);
-    exerciseEstimatorsServiceSpy.listEstimatorIds.and.resolveTo(['bench_press']);
-    exerciseEstimatorsServiceSpy.ensureEstimatorDocExists.and.resolveTo('bench_press');
+    workoutWorkflowEstimatorPreparationSpy =
+      jasmine.createSpyObj<WorkoutWorkflowEstimatorPreparationService>(
+        'WorkoutWorkflowEstimatorPreparationService',
+        ['getExerciseEstimatorIds', 'ensureEstimatorDocsForRows']
+      );
 
     workoutSessionFormatterSpy.createEmptySession.and.returnValue(sessionWithRows());
     workoutSessionFormatterSpy.normalizeSession.and.returnValue(sessionWithRows([strengthRow()]));
@@ -96,14 +91,46 @@ describe('WorkoutWorkflowService', () => {
         isComplete: true,
       })
     );
+    workoutWorkflowSummaryMapperSpy.buildWorkflowState.and.callFake((session) => ({
+      session,
+      summaryRows: {
+        strengthRows: Array.isArray(session.strengthTrainingRow)
+          ? session.strengthTrainingRow
+          : session.strengthTrainingRow
+            ? [session.strengthTrainingRow]
+            : [],
+        cardioRows: Array.isArray(session.cardioTrainingRow)
+          ? session.cardioTrainingRow
+          : session.cardioTrainingRow
+            ? [session.cardioTrainingRow]
+            : [],
+        otherRows: (session.trainingRows ?? []).filter((row) => row.Training_Type === 'Other'),
+      },
+    }));
+    workoutWorkflowSummaryMapperSpy.readStrengthRows.and.callFake((session) =>
+      Array.isArray(session.strengthTrainingRow)
+        ? session.strengthTrainingRow
+        : session.strengthTrainingRow
+          ? [session.strengthTrainingRow]
+          : []
+    );
+    workoutWorkflowEstimatorPreparationSpy.getExerciseEstimatorIds.and.resolveTo(['bench_press']);
+    workoutWorkflowEstimatorPreparationSpy.ensureEstimatorDocsForRows.and.resolveTo();
 
     TestBed.configureTestingModule({
       providers: [
         WorkoutWorkflowService,
         { provide: WorkoutChatService, useValue: workoutChatServiceSpy },
         { provide: WorkoutLogService, useValue: workoutLogServiceSpy },
-        { provide: ExerciseEstimatorsService, useValue: exerciseEstimatorsServiceSpy },
         { provide: WorkoutSessionFormatterService, useValue: workoutSessionFormatterSpy },
+        {
+          provide: WorkoutWorkflowSummaryMapperService,
+          useValue: workoutWorkflowSummaryMapperSpy,
+        },
+        {
+          provide: WorkoutWorkflowEstimatorPreparationService,
+          useValue: workoutWorkflowEstimatorPreparationSpy,
+        },
       ],
     });
 
@@ -163,13 +190,11 @@ describe('WorkoutWorkflowService', () => {
   it('ensures missing estimator docs for new strength rows', async () => {
     const normalizedSession = sessionWithRows([strengthRow('Front Squat')]);
 
-    exerciseEstimatorsServiceSpy.getCachedEstimatorIds.and.returnValue(['bench_press']);
     workoutChatServiceSpy.sendMessage.and.resolveTo({
       botMessage: 'Front squat added.',
       updatedSession: normalizedSession,
     });
     workoutSessionFormatterSpy.normalizeSession.and.returnValue(normalizedSession);
-    exerciseEstimatorsServiceSpy.ensureEstimatorDocExists.and.resolveTo('front_squat');
 
     await service.processWorkoutMessage({
       message: 'Front squat 3x5 at 185 lb',
@@ -177,8 +202,8 @@ describe('WorkoutWorkflowService', () => {
       session: sessionWithRows(),
     });
 
-    expect(exerciseEstimatorsServiceSpy.ensureEstimatorDocExists).toHaveBeenCalledWith(
-      'front_squat'
+    expect(workoutWorkflowEstimatorPreparationSpy.ensureEstimatorDocsForRows).toHaveBeenCalledWith(
+      [strengthRow('Front Squat')]
     );
   });
 
