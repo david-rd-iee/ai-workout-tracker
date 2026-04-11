@@ -38,6 +38,7 @@ namespace Frontend_Pages {
 }
 
 namespace Frontend_Services {
+  class WorkoutWorkflowService
   class WorkoutChatService
   class WorkoutLogService
   class WorkoutSessionFormatterService
@@ -227,10 +228,11 @@ WorkoutSessionPerformance o-- OtherTrainingRow
 UserStats o-- UserScore
 Chat o-- Message
 
-WorkoutChatbotPage --> WorkoutChatService : sendMessage()
-WorkoutChatbotPage --> WorkoutLogService : saveCompletedWorkout()
-WorkoutChatbotPage --> ExerciseEstimatorsService : getCachedEstimatorIds()
-WorkoutChatbotPage --> WorkoutSessionFormatterService : normalize session state
+WorkoutChatbotPage --> WorkoutWorkflowService : processWorkoutMessage()/submitWorkout()
+WorkoutWorkflowService --> WorkoutChatService : sendMessage()
+WorkoutWorkflowService --> WorkoutLogService : saveCompletedWorkout()
+WorkoutWorkflowService --> ExerciseEstimatorsService : ensureEstimatorDocExists()
+WorkoutWorkflowService --> WorkoutSessionFormatterService : normalize/apply session state
 WorkoutSummaryPage --> WorkoutSessionPerformance
 
 GroupsPage --> GroupService
@@ -312,6 +314,7 @@ autonumber
 
 actor User
 participant Page as WorkoutChatbotPage
+participant WorkflowSvc as WorkoutWorkflowService
 participant ChatSvc as WorkoutChatService
 participant ChatFn as workoutChatCallable
 participant OpenAI
@@ -324,21 +327,27 @@ participant RTDB as Realtime Database
 participant RetrainFn as retrainExerciseEstimatorOnWorkoutLogCreate
 
 User->>Page: Enter workout message
-Page->>ChatSvc: sendMessage(message, session, history, estimatorIds)
+Page->>WorkflowSvc: processWorkoutMessage(message, messages, session)
+WorkflowSvc->>ChatSvc: sendMessage(message, session, history, estimatorIds)
 ChatSvc->>ChatFn: httpsCallable(payload)
 ChatFn->>OpenAI: Parse/update workout JSON
 OpenAI-->>ChatFn: assistantMessage + summary
 ChatFn-->>ChatSvc: ChatResponse
-ChatSvc-->>Page: botMessage + updatedSession
-Page->>EstSvc: ensure estimator docs for strength rows
+ChatSvc-->>WorkflowSvc: botMessage + updatedSession
+WorkflowSvc->>EstSvc: ensure estimator docs for strength rows
 EstSvc->>FS: Read/create exercise estimator docs
+WorkflowSvc-->>Page: { session, summaryRows, botMessage }
 
 User->>Page: Submit workout
-Page->>LogSvc: saveCompletedWorkout(session)
+Page->>WorkflowSvc: submitWorkout(session, requestTrainerNotes)
+WorkflowSvc->>Page: request trainer notes
+Page-->>WorkflowSvc: trainer notes or cancel
+WorkflowSvc->>LogSvc: saveCompletedWorkout(session)
 LogSvc->>CompleteWorkoutCmd: completeWorkoutEvent(normalized WorkoutEvent)
 CompleteWorkoutCmd->>FS: Write users/{uid}/workoutEvents/{eventId}
 CompleteWorkoutCmd-->>LogSvc: {eventId, status: persisted}
-LogSvc-->>Page: savedSession + persisted status
+LogSvc-->>WorkflowSvc: savedSession + persisted status
+WorkflowSvc-->>Page: { status, session, loggedAt }
 Page-->>User: Success message + workout summary
 
 FS-->>EventProcessor: Trigger on users/{uid}/workoutEvents/{eventId}
@@ -389,6 +398,7 @@ The lists below map exported objects back to their source areas. This is the ful
 - `src/app/services/video-analysis.service.ts`: `VideoAnalysisService`
 - `src/app/services/workout-chat.service.ts`: `WorkoutChatService`
 - `src/app/services/workout-log.service.ts`: `WorkoutLogService`
+- `src/app/services/workout-workflow.service.ts`: `WorkoutWorkflowService`
 - `src/app/services/workout-session-formatter.service.ts`: `WorkoutSessionFormatterService`
 
 ### Frontend pages

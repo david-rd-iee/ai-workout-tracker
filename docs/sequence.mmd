@@ -3,6 +3,7 @@ autonumber
 
 actor User
 participant Page as WorkoutChatbotPage
+participant WorkflowSvc as WorkoutWorkflowService
 participant ChatSvc as WorkoutChatService
 participant ChatFn as workoutChatCallable
 participant OpenAI
@@ -15,21 +16,27 @@ participant RTDB as Realtime Database
 participant RetrainFn as retrainExerciseEstimatorOnWorkoutLogCreate
 
 User->>Page: Enter workout message
-Page->>ChatSvc: sendMessage(message, session, history, estimatorIds)
+Page->>WorkflowSvc: processWorkoutMessage(message, messages, session)
+WorkflowSvc->>ChatSvc: sendMessage(message, session, history, estimatorIds)
 ChatSvc->>ChatFn: httpsCallable(payload)
 ChatFn->>OpenAI: Parse/update workout JSON
 OpenAI-->>ChatFn: assistantMessage + summary
 ChatFn-->>ChatSvc: ChatResponse
-ChatSvc-->>Page: botMessage + updatedSession
-Page->>EstSvc: ensure estimator docs for strength rows
+ChatSvc-->>WorkflowSvc: botMessage + updatedSession
+WorkflowSvc->>EstSvc: ensure estimator docs for strength rows
 EstSvc->>FS: Read/create exercise estimator docs
+WorkflowSvc-->>Page: { session, summaryRows, botMessage }
 
 User->>Page: Submit workout
-Page->>LogSvc: saveCompletedWorkout(session)
+Page->>WorkflowSvc: submitWorkout(session, requestTrainerNotes)
+WorkflowSvc->>Page: request trainer notes
+Page-->>WorkflowSvc: trainer notes or cancel
+WorkflowSvc->>LogSvc: saveCompletedWorkout(session)
 LogSvc->>CompleteWorkoutCmd: completeWorkoutEvent(normalized WorkoutEvent)
 CompleteWorkoutCmd->>FS: Write users/{uid}/workoutEvents/{eventId}
 CompleteWorkoutCmd-->>LogSvc: {eventId, status: persisted}
-LogSvc-->>Page: savedSession + persisted status
+LogSvc-->>WorkflowSvc: savedSession + persisted status
+WorkflowSvc-->>Page: { status, session, loggedAt }
 Page-->>User: Success message + workout summary
 
 FS-->>EventProcessor: Trigger on users/{uid}/workoutEvents/{eventId}

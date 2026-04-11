@@ -13,6 +13,7 @@ namespace Frontend_Pages {
 }
 
 namespace Frontend_Services {
+  class WorkoutWorkflowService
   class WorkoutChatService
   class WorkoutLogService
   class WorkoutSessionFormatterService
@@ -202,10 +203,11 @@ WorkoutSessionPerformance o-- OtherTrainingRow
 UserStats o-- UserScore
 Chat o-- Message
 
-WorkoutChatbotPage --> WorkoutChatService : sendMessage()
-WorkoutChatbotPage --> WorkoutLogService : saveCompletedWorkout()
-WorkoutChatbotPage --> ExerciseEstimatorsService : getCachedEstimatorIds()
-WorkoutChatbotPage --> WorkoutSessionFormatterService : normalize session state
+WorkoutChatbotPage --> WorkoutWorkflowService : processWorkoutMessage()/submitWorkout()
+WorkoutWorkflowService --> WorkoutChatService : sendMessage()
+WorkoutWorkflowService --> WorkoutLogService : saveCompletedWorkout()
+WorkoutWorkflowService --> ExerciseEstimatorsService : ensureEstimatorDocExists()
+WorkoutWorkflowService --> WorkoutSessionFormatterService : normalize/apply session state
 WorkoutSummaryPage --> WorkoutSessionPerformance
 
 GroupsPage --> GroupService

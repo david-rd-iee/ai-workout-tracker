@@ -18,11 +18,9 @@ import {
   CardioTrainingRow,
   WorkoutSessionPerformance,
 } from '../../models/workout-session.model';
-import {
-  StreakUpdateResult,
-  WorkoutLogService,
-} from '../../services/workout-log.service';
-import { UpdateScoreResult } from '../../services/update-score.service';
+import type { StreakUpdateResult } from '../../services/workout-log.service';
+import type { UpdateScoreResult } from '../../services/update-score.service';
+import { WorkoutWorkflowService } from '../../services/workout-workflow.service';
 import { WorkoutSessionFormatterService } from '../../services/workout-session-formatter.service';
 
 type TrackingState = 'idle' | 'starting' | 'running' | 'finished';
@@ -79,7 +77,7 @@ interface ActivityDetectionResult {
   ],
 })
 export class MapTrackingLoggerPage implements OnDestroy {
-  private readonly workoutLogService = inject(WorkoutLogService);
+  private readonly workoutWorkflowService = inject(WorkoutWorkflowService);
   private readonly router = inject(Router);
   private readonly alertController = inject(AlertController);
   private readonly firestore = inject(Firestore);
@@ -311,30 +309,24 @@ export class MapTrackingLoggerPage implements OnDestroy {
       return;
     }
 
-    const trainerNotes = await this.promptForTrainerNotes(
-      this.session.trainer_notes ?? this.session.notes ?? ''
-    );
-    if (trainerNotes === null) {
-      return;
-    }
-
-    const sessionToSave = this.workoutSessionFormatter.applyTrainerNotes(
-      this.session,
-      trainerNotes,
-      true
-    );
-    this.session = sessionToSave;
-
     this.isSavingWorkout = true;
     this.errorMessage = '';
 
     try {
-      const saveResult = await this.workoutLogService.saveCompletedWorkout(sessionToSave);
-      this.session = saveResult.savedSession;
+      const result = await this.workoutWorkflowService.submitWorkout({
+        session: this.session,
+        requestTrainerNotes: (initialValue) => this.promptForTrainerNotes(initialValue),
+      });
+      this.session = result.session;
+
+      if (result.status !== 'saved') {
+        return;
+      }
+
       await this.router.navigate(['/workout-summary'], {
         state: {
-          summary: saveResult.savedSession,
-          loggedAt: saveResult.loggedAt.toISOString(),
+          summary: result.session,
+          loggedAt: result.loggedAt.toISOString(),
           backHref: '/map-tracking-logger',
         },
       });
