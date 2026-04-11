@@ -39,6 +39,8 @@ namespace Frontend_Pages {
 
 namespace Frontend_Services {
   class WorkoutWorkflowService
+  class WorkoutWorkflowSummaryProjectionService
+  class WorkoutWorkflowEstimatorPreparationService
   class WorkoutChatService
   class WorkoutLogService
   class WorkoutSessionFormatterService
@@ -231,8 +233,11 @@ Chat o-- Message
 WorkoutChatbotPage --> WorkoutWorkflowService : processWorkoutMessage()/submitWorkout()
 WorkoutWorkflowService --> WorkoutChatService : sendMessage()
 WorkoutWorkflowService --> WorkoutLogService : saveCompletedWorkout()
-WorkoutWorkflowService --> ExerciseEstimatorsService : ensureEstimatorDocExists()
+WorkoutWorkflowService --> WorkoutWorkflowSummaryProjectionService : project workflow/session rows
+WorkoutWorkflowService --> WorkoutWorkflowEstimatorPreparationService : prepare estimator docs
 WorkoutWorkflowService --> WorkoutSessionFormatterService : normalize/apply session state
+WorkoutWorkflowEstimatorPreparationService --> ExerciseEstimatorsService : ensureEstimatorDocExists()/listEstimatorIds()
+WorkoutWorkflowSummaryProjectionService --> WorkoutSessionPerformance : project summary rows
 WorkoutSummaryPage --> WorkoutSessionPerformance
 
 GroupsPage --> GroupService
@@ -315,6 +320,8 @@ autonumber
 actor User
 participant Page as WorkoutChatbotPage
 participant WorkflowSvc as WorkoutWorkflowService
+participant SummaryProjection as WorkoutWorkflowSummaryProjectionService
+participant EstimatorPrep as WorkoutWorkflowEstimatorPreparationService
 participant ChatSvc as WorkoutChatService
 participant ChatFn as workoutChatCallable
 participant OpenAI
@@ -327,16 +334,21 @@ participant RTDB as Realtime Database
 participant RetrainFn as retrainExerciseEstimatorOnWorkoutLogCreate
 
 User->>Page: Enter workout message
-Page->>WorkflowSvc: processWorkoutMessage(message, messages, session)
+Page->>WorkflowSvc: processWorkoutMessage(message, messages, session, hasSavedWorkout, savedWorkoutLoggedAt)
 WorkflowSvc->>ChatSvc: sendMessage(message, session, history, estimatorIds)
 ChatSvc->>ChatFn: httpsCallable(payload)
 ChatFn->>OpenAI: Parse/update workout JSON
 OpenAI-->>ChatFn: assistantMessage + summary
 ChatFn-->>ChatSvc: ChatResponse
 ChatSvc-->>WorkflowSvc: botMessage + updatedSession
-WorkflowSvc->>EstSvc: ensure estimator docs for strength rows
+WorkflowSvc->>SummaryProjection: projectStrengthRows(updatedSession)
+SummaryProjection-->>WorkflowSvc: strengthRows
+WorkflowSvc->>EstimatorPrep: ensureEstimatorDocsForRows(strengthRows)
+EstimatorPrep->>EstSvc: ensure estimator docs for strength rows
 EstSvc->>FS: Read/create exercise estimator docs
-WorkflowSvc-->>Page: { session, summaryRows, botMessage }
+WorkflowSvc->>SummaryProjection: projectWorkflowState(updatedSession)
+SummaryProjection-->>WorkflowSvc: {session, summaryRows}
+WorkflowSvc-->>Page: { session, summaryRows, hasSavedWorkout, savedWorkoutLoggedAt, botMessage }
 
 User->>Page: Submit workout
 Page->>WorkflowSvc: submitWorkout(session, requestTrainerNotes)
@@ -347,7 +359,9 @@ LogSvc->>CompleteWorkoutCmd: completeWorkoutEvent(normalized WorkoutEvent)
 CompleteWorkoutCmd->>FS: Write users/{uid}/workoutEvents/{eventId}
 CompleteWorkoutCmd-->>LogSvc: {eventId, status: persisted}
 LogSvc-->>WorkflowSvc: savedSession + persisted status
-WorkflowSvc-->>Page: { status, session, loggedAt }
+WorkflowSvc->>SummaryProjection: projectWorkflowState(savedSession)
+SummaryProjection-->>WorkflowSvc: {session, summaryRows}
+WorkflowSvc-->>Page: { status, session, summaryRows, hasSavedWorkout, savedWorkoutLoggedAt }
 Page-->>User: Success message + workout summary
 
 FS-->>EventProcessor: Trigger on users/{uid}/workoutEvents/{eventId}
@@ -399,6 +413,8 @@ The lists below map exported objects back to their source areas. This is the ful
 - `src/app/services/workout-chat.service.ts`: `WorkoutChatService`
 - `src/app/services/workout-log.service.ts`: `WorkoutLogService`
 - `src/app/services/workout-workflow.service.ts`: `WorkoutWorkflowService`
+- `src/app/services/workout-workflow-estimator-preparation.service.ts`: `WorkoutWorkflowEstimatorPreparationService`
+- `src/app/services/workout-workflow-summary-projection.service.ts`: `WorkoutWorkflowSummaryProjectionService`
 - `src/app/services/workout-session-formatter.service.ts`: `WorkoutSessionFormatterService`
 
 ### Frontend pages

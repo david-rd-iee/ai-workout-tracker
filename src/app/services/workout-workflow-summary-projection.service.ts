@@ -12,23 +12,23 @@ import {
 @Injectable({
   providedIn: 'root',
 })
-export class WorkoutWorkflowSummaryMapperService {
-  buildSummaryRows(session: WorkoutSessionPerformance): WorkoutWorkflowSummaryRows {
+export class WorkoutWorkflowSummaryProjectionService {
+  projectSummaryRows(session: WorkoutSessionPerformance): WorkoutWorkflowSummaryRows {
     return {
-      strengthRows: this.readStrengthRows(session),
-      cardioRows: this.readCardioRows(session),
+      strengthRows: this.projectStrengthRows(session),
+      cardioRows: this.projectCardioRows(session),
       otherRows: (session.trainingRows ?? []).filter((row) => row.Training_Type === 'Other'),
     };
   }
 
-  buildWorkflowState(session: WorkoutSessionPerformance): WorkoutWorkflowState {
+  projectWorkflowState(session: WorkoutSessionPerformance): WorkoutWorkflowState {
     return {
       session,
-      summaryRows: this.buildSummaryRows(session),
+      summaryRows: this.projectSummaryRows(session),
     };
   }
 
-  readStrengthRows(session: WorkoutSessionPerformance): WorkoutTrainingRow[] {
+  projectStrengthRows(session: WorkoutSessionPerformance): WorkoutTrainingRow[] {
     if (Array.isArray(session.strengthTrainingRow)) {
       return session.strengthTrainingRow;
     }
@@ -42,7 +42,7 @@ export class WorkoutWorkflowSummaryMapperService {
       : [];
   }
 
-  readCardioRows(session: WorkoutSessionPerformance): CardioTrainingRow[] {
+  projectCardioRows(session: WorkoutSessionPerformance): CardioTrainingRow[] {
     if (Array.isArray(session.cardioTrainingRow)) {
       return session.cardioTrainingRow;
     }

@@ -8,7 +8,7 @@ import { WorkoutChatService } from './workout-chat.service';
 import { WorkoutLogService } from './workout-log.service';
 import { WorkoutSessionFormatterService } from './workout-session-formatter.service';
 import { WorkoutWorkflowEstimatorPreparationService } from './workout-workflow-estimator-preparation.service';
-import { WorkoutWorkflowSummaryMapperService } from './workout-workflow-summary-mapper.service';
+import { WorkoutWorkflowSummaryProjectionService } from './workout-workflow-summary-projection.service';
 import { WorkoutWorkflowService } from './workout-workflow.service';
 
 describe('WorkoutWorkflowService', () => {
@@ -16,7 +16,7 @@ describe('WorkoutWorkflowService', () => {
   let workoutChatServiceSpy: jasmine.SpyObj<WorkoutChatService>;
   let workoutLogServiceSpy: jasmine.SpyObj<WorkoutLogService>;
   let workoutSessionFormatterSpy: jasmine.SpyObj<WorkoutSessionFormatterService>;
-  let workoutWorkflowSummaryMapperSpy: jasmine.SpyObj<WorkoutWorkflowSummaryMapperService>;
+  let workoutWorkflowSummaryProjectionSpy: jasmine.SpyObj<WorkoutWorkflowSummaryProjectionService>;
   let workoutWorkflowEstimatorPreparationSpy: jasmine.SpyObj<WorkoutWorkflowEstimatorPreparationService>;
 
   const strengthRow = (exerciseType = 'bench_press'): WorkoutTrainingRow => ({
@@ -72,9 +72,9 @@ describe('WorkoutWorkflowService', () => {
       'WorkoutSessionFormatterService',
       ['createEmptySession', 'normalizeSession', 'applyTrainerNotes']
     );
-    workoutWorkflowSummaryMapperSpy = jasmine.createSpyObj<WorkoutWorkflowSummaryMapperService>(
-      'WorkoutWorkflowSummaryMapperService',
-      ['buildWorkflowState', 'readStrengthRows']
+    workoutWorkflowSummaryProjectionSpy = jasmine.createSpyObj<WorkoutWorkflowSummaryProjectionService>(
+      'WorkoutWorkflowSummaryProjectionService',
+      ['projectWorkflowState', 'projectStrengthRows']
     );
     workoutWorkflowEstimatorPreparationSpy =
       jasmine.createSpyObj<WorkoutWorkflowEstimatorPreparationService>(
@@ -91,7 +91,7 @@ describe('WorkoutWorkflowService', () => {
         isComplete: true,
       })
     );
-    workoutWorkflowSummaryMapperSpy.buildWorkflowState.and.callFake((session) => ({
+    workoutWorkflowSummaryProjectionSpy.projectWorkflowState.and.callFake((session) => ({
       session,
       summaryRows: {
         strengthRows: Array.isArray(session.strengthTrainingRow)
@@ -107,7 +107,7 @@ describe('WorkoutWorkflowService', () => {
         otherRows: (session.trainingRows ?? []).filter((row) => row.Training_Type === 'Other'),
       },
     }));
-    workoutWorkflowSummaryMapperSpy.readStrengthRows.and.callFake((session) =>
+    workoutWorkflowSummaryProjectionSpy.projectStrengthRows.and.callFake((session) =>
       Array.isArray(session.strengthTrainingRow)
         ? session.strengthTrainingRow
         : session.strengthTrainingRow
@@ -124,8 +124,8 @@ describe('WorkoutWorkflowService', () => {
         { provide: WorkoutLogService, useValue: workoutLogServiceSpy },
         { provide: WorkoutSessionFormatterService, useValue: workoutSessionFormatterSpy },
         {
-          provide: WorkoutWorkflowSummaryMapperService,
-          useValue: workoutWorkflowSummaryMapperSpy,
+          provide: WorkoutWorkflowSummaryProjectionService,
+          useValue: workoutWorkflowSummaryProjectionSpy,
         },
         {
           provide: WorkoutWorkflowEstimatorPreparationService,

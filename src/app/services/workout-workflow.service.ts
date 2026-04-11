@@ -13,7 +13,7 @@ import {
   WorkoutWorkflowViewState,
 } from './workout-workflow.models';
 import { WorkoutWorkflowEstimatorPreparationService } from './workout-workflow-estimator-preparation.service';
-import { WorkoutWorkflowSummaryMapperService } from './workout-workflow-summary-mapper.service';
+import { WorkoutWorkflowSummaryProjectionService } from './workout-workflow-summary-projection.service';
 
 export type {
   ProcessWorkoutMessageParams,
@@ -35,7 +35,7 @@ export class WorkoutWorkflowService {
     private workoutChatService: WorkoutChatService,
     private workoutLogService: WorkoutLogService,
     private workoutSessionFormatter: WorkoutSessionFormatterService,
-    private workoutWorkflowSummaryMapper: WorkoutWorkflowSummaryMapperService,
+    private workoutWorkflowSummaryProjection: WorkoutWorkflowSummaryProjectionService,
     private workoutWorkflowEstimatorPreparation: WorkoutWorkflowEstimatorPreparationService
   ) {}
 
@@ -64,7 +64,7 @@ export class WorkoutWorkflowService {
     );
 
     await this.workoutWorkflowEstimatorPreparation.ensureEstimatorDocsForRows(
-      this.workoutWorkflowSummaryMapper.readStrengthRows(nextSession)
+      this.workoutWorkflowSummaryProjection.projectStrengthRows(nextSession)
     );
 
     const nextHasSavedWorkout = nextSession.isComplete
@@ -116,7 +116,7 @@ export class WorkoutWorkflowService {
   }
 
   private buildWorkflowState(session: WorkoutSessionPerformance): WorkoutWorkflowState {
-    return this.workoutWorkflowSummaryMapper.buildWorkflowState(session);
+    return this.workoutWorkflowSummaryProjection.projectWorkflowState(session);
   }
 
   private buildWorkflowViewState(
