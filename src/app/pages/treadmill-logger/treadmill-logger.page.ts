@@ -171,14 +171,14 @@ export class TreadmillLoggerPage {
       });
       this.session = result.session;
 
-      if (result.status !== 'saved') {
+      if (!result.hasSavedWorkout || !result.savedWorkoutLoggedAt) {
         return;
       }
 
       await this.router.navigate(['/workout-summary'], {
         state: {
           summary: result.session,
-          loggedAt: result.loggedAt.toISOString(),
+          loggedAt: result.savedWorkoutLoggedAt,
           backHref: '/treadmill-logger',
         },
       });

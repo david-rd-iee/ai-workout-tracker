@@ -21,15 +21,21 @@ export interface WorkoutWorkflowState {
   summaryRows: WorkoutWorkflowSummaryRows;
 }
 
+export interface WorkoutWorkflowViewState extends WorkoutWorkflowState {
+  hasSavedWorkout: boolean;
+  savedWorkoutLoggedAt: string | null;
+}
+
 export interface ProcessWorkoutMessageParams {
   message: string;
   messages: WorkoutWorkflowMessage[];
   session: WorkoutSessionPerformance;
+  hasSavedWorkout: boolean;
+  savedWorkoutLoggedAt: string | null;
 }
 
-export interface ProcessWorkoutMessageResult extends WorkoutWorkflowState {
+export interface ProcessWorkoutMessageResult extends WorkoutWorkflowViewState {
   botMessage: string;
-  shouldResetSavedWorkout: boolean;
 }
 
 export type TrainerNotesRequester = (initialValue: string) => Promise<string | null>;
@@ -42,11 +48,12 @@ export interface SubmitWorkoutParams {
 export interface SubmitWorkoutSavedResult extends WorkoutWorkflowState {
   status: 'saved';
   eventId: string;
-  loggedAt: Date;
   saveStatus: SaveCompletedWorkoutResult['status'];
+  hasSavedWorkout: true;
+  savedWorkoutLoggedAt: string;
 }
 
-export interface SubmitWorkoutCancelledResult extends WorkoutWorkflowState {
+export interface SubmitWorkoutCancelledResult extends WorkoutWorkflowViewState {
   status: 'cancelled';
 }
 

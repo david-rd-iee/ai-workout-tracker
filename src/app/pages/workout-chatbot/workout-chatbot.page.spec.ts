@@ -4,7 +4,7 @@ import { AlertController, NavController } from '@ionic/angular/standalone';
 import { Platform } from '@ionic/angular';
 import {
   WorkoutWorkflowService,
-  WorkoutWorkflowState,
+  WorkoutWorkflowViewState,
 } from '../../services/workout-workflow.service';
 import { UserService } from '../../services/account/user.service';
 import { WorkoutChatbotPage } from './workout-chatbot.page';
@@ -35,13 +35,15 @@ describe('WorkoutChatbotPage', () => {
 
   const createWorkflowState = (
     trainingRows: WorkoutTrainingRow[] = []
-  ): WorkoutWorkflowState => ({
+  ): WorkoutWorkflowViewState => ({
     session: createSession(trainingRows),
     summaryRows: {
       strengthRows: trainingRows.filter((row) => row.Training_Type === 'Strength'),
       cardioRows: [],
       otherRows: trainingRows.filter((row) => row.Training_Type === 'Other'),
     },
+    hasSavedWorkout: false,
+    savedWorkoutLoggedAt: null,
   });
 
   const initialState = createWorkflowState();
@@ -62,14 +64,14 @@ describe('WorkoutChatbotPage', () => {
     processWorkoutMessage: jasmine.createSpy('processWorkoutMessage').and.resolveTo({
       ...updatedState,
       botMessage: 'Bench press added.',
-      shouldResetSavedWorkout: false,
     }),
     submitWorkout: jasmine.createSpy('submitWorkout').and.resolveTo({
       ...updatedState,
       status: 'saved' as const,
       eventId: 'event-1',
-      loggedAt: savedAt,
       saveStatus: 'persisted' as const,
+      hasSavedWorkout: true as const,
+      savedWorkoutLoggedAt: savedAt.toISOString(),
     }),
   };
 
@@ -121,15 +123,15 @@ describe('WorkoutChatbotPage', () => {
     workoutWorkflowServiceStub.processWorkoutMessage.and.resolveTo({
       ...updatedState,
       botMessage: 'Bench press added.',
-      shouldResetSavedWorkout: false,
     });
     workoutWorkflowServiceStub.submitWorkout.calls.reset();
     workoutWorkflowServiceStub.submitWorkout.and.resolveTo({
       ...updatedState,
       status: 'saved' as const,
       eventId: 'event-1',
-      loggedAt: savedAt,
       saveStatus: 'persisted' as const,
+      hasSavedWorkout: true as const,
+      savedWorkoutLoggedAt: savedAt.toISOString(),
     });
     platformStub.is.calls.reset();
     platformStub.is.and.returnValue(false);
@@ -148,6 +150,8 @@ describe('WorkoutChatbotPage', () => {
       message: 'Bench 3x8 at 135',
       messages: jasmine.arrayContaining([{ from: 'user', text: 'Bench 3x8 at 135' }]),
       session: jasmine.objectContaining({ date: '2026-04-11' }),
+      hasSavedWorkout: false,
+      savedWorkoutLoggedAt: null,
     });
     expect(component.displayStrengthRows).toEqual([updatedRow]);
     expect(component.messages[component.messages.length - 1]).toEqual({

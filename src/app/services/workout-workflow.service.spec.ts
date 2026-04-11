@@ -155,6 +155,8 @@ describe('WorkoutWorkflowService', () => {
       message: 'Bench press 3x8 at 135 lb',
       messages,
       session: previousSession,
+      hasSavedWorkout: true,
+      savedWorkoutLoggedAt: '2026-04-11T19:15:00.000Z',
     });
 
     expect(workoutChatServiceSpy.sendMessage).toHaveBeenCalledWith(
@@ -184,7 +186,8 @@ describe('WorkoutWorkflowService', () => {
     );
     expect(result.botMessage).toBe('Bench press added.');
     expect(result.summaryRows.strengthRows).toEqual([strengthRow()]);
-    expect(result.shouldResetSavedWorkout).toBeTrue();
+    expect(result.hasSavedWorkout).toBeFalse();
+    expect(result.savedWorkoutLoggedAt).toBeNull();
   });
 
   it('ensures missing estimator docs for new strength rows', async () => {
@@ -200,6 +203,8 @@ describe('WorkoutWorkflowService', () => {
       message: 'Front squat 3x5 at 185 lb',
       messages: [{ from: 'user', text: 'Front squat 3x5 at 185 lb' }],
       session: sessionWithRows(),
+      hasSavedWorkout: false,
+      savedWorkoutLoggedAt: null,
     });
 
     expect(workoutWorkflowEstimatorPreparationSpy.ensureEstimatorDocsForRows).toHaveBeenCalledWith(
@@ -281,5 +286,7 @@ describe('WorkoutWorkflowService', () => {
     expect(result.status).toBe('saved');
     expect(result.session).toEqual(savedSession);
     expect(result.summaryRows.cardioRows).toEqual([cardioRow()]);
+    expect(result.hasSavedWorkout).toBeTrue();
+    expect(result.savedWorkoutLoggedAt).toBe('2026-04-11T19:15:00.000Z');
   });
 });

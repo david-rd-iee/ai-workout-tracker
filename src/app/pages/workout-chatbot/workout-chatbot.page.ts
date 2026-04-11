@@ -21,7 +21,7 @@ import {
   WorkoutTrainingRow,
 } from '../../models/workout-session.model';
 import {
-  WorkoutWorkflowState,
+  WorkoutWorkflowViewState,
   WorkoutWorkflowService,
 } from '../../services/workout-workflow.service';
 
@@ -67,12 +67,10 @@ export class WorkoutChatbotPage implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
-    this.hasSavedWorkout = false;
     this.isSavingWorkout = false;
-    this.savedWorkoutLoggedAt = null;
     this.messages = [];
 
-    this.applyWorkflowState(this.workoutWorkflowService.createInitialState());
+    this.applyWorkflowViewState(this.workoutWorkflowService.createInitialState());
     this.addBotMessage(
       'Hey! Ready to log your workout? Include exercise, sets/reps, weight (kg or bodyweight), and I will turn it into training rows.'
     );
@@ -117,14 +115,11 @@ export class WorkoutChatbotPage implements OnInit, OnDestroy {
         message: text,
         messages: this.messages,
         session: this.session,
+        hasSavedWorkout: this.hasSavedWorkout,
+        savedWorkoutLoggedAt: this.savedWorkoutLoggedAt,
       });
 
-      this.applyWorkflowState(result);
-
-      if (result.shouldResetSavedWorkout) {
-        this.hasSavedWorkout = false;
-        this.savedWorkoutLoggedAt = null;
-      }
+      this.applyWorkflowViewState(result);
 
       this.addBotMessage(result.botMessage);
     } catch (error) {
@@ -153,14 +148,12 @@ export class WorkoutChatbotPage implements OnInit, OnDestroy {
         requestTrainerNotes: (initialValue) => this.promptForTrainerNotes(initialValue),
       });
 
-      this.applyWorkflowState(result);
+      this.applyWorkflowViewState(result);
 
-      if (result.status !== 'saved') {
+      if (!result.hasSavedWorkout || !result.savedWorkoutLoggedAt) {
         return;
       }
 
-      this.hasSavedWorkout = true;
-      this.savedWorkoutLoggedAt = result.loggedAt.toISOString();
       this.addBotMessage(
         'Workout submitted and saved to your history. Stats and summaries will finish updating in the background.'
       );
@@ -218,11 +211,13 @@ export class WorkoutChatbotPage implements OnInit, OnDestroy {
     return 'details pending';
   }
 
-  private applyWorkflowState(state: WorkoutWorkflowState): void {
+  private applyWorkflowViewState(state: WorkoutWorkflowViewState): void {
     this.session = state.session;
     this.displayStrengthRows = state.summaryRows.strengthRows;
     this.displayCardioRows = state.summaryRows.cardioRows;
     this.displayOtherRows = state.summaryRows.otherRows;
+    this.hasSavedWorkout = state.hasSavedWorkout;
+    this.savedWorkoutLoggedAt = state.savedWorkoutLoggedAt;
   }
 
   private readText(value: unknown): string | undefined {

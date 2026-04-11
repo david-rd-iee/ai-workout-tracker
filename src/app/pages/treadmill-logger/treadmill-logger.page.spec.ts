@@ -80,8 +80,9 @@ describe('TreadmillLoggerPage', () => {
         otherRows: [],
       },
       eventId: 'event-1',
-      loggedAt: savedAt,
       saveStatus: 'persisted' as const,
+      hasSavedWorkout: true as const,
+      savedWorkoutLoggedAt: savedAt.toISOString(),
     }),
   };
 
@@ -147,8 +148,9 @@ describe('TreadmillLoggerPage', () => {
         otherRows: [],
       },
       eventId: 'event-1',
-      loggedAt: savedAt,
       saveStatus: 'persisted' as const,
+      hasSavedWorkout: true as const,
+      savedWorkoutLoggedAt: savedAt.toISOString(),
     });
     (router.navigate as jasmine.Spy).calls.reset();
   });
@@ -182,6 +184,8 @@ describe('TreadmillLoggerPage', () => {
         cardioRows: [cardioRow()],
         otherRows: [],
       },
+      hasSavedWorkout: false,
+      savedWorkoutLoggedAt: null,
     });
 
     await component.logWorkout();

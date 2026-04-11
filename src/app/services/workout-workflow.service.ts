@@ -10,6 +10,7 @@ import {
   SubmitWorkoutResult,
   WorkoutWorkflowMessage,
   WorkoutWorkflowState,
+  WorkoutWorkflowViewState,
 } from './workout-workflow.models';
 import { WorkoutWorkflowEstimatorPreparationService } from './workout-workflow-estimator-preparation.service';
 import { WorkoutWorkflowSummaryMapperService } from './workout-workflow-summary-mapper.service';
@@ -23,6 +24,7 @@ export type {
   WorkoutWorkflowMessage,
   WorkoutWorkflowState,
   WorkoutWorkflowSummaryRows,
+  WorkoutWorkflowViewState,
 } from './workout-workflow.models';
 
 @Injectable({
@@ -37,15 +39,15 @@ export class WorkoutWorkflowService {
     private workoutWorkflowEstimatorPreparation: WorkoutWorkflowEstimatorPreparationService
   ) {}
 
-  createInitialState(): WorkoutWorkflowState {
+  createInitialState(): WorkoutWorkflowViewState {
     const session = this.workoutSessionFormatter.createEmptySession();
-    return this.buildWorkflowState(session);
+    return this.buildWorkflowViewState(session, false, null);
   }
 
   async processWorkoutMessage(
     params: ProcessWorkoutMessageParams
   ): Promise<ProcessWorkoutMessageResult> {
-    const { message, messages, session } = params;
+    const { message, messages, session, hasSavedWorkout, savedWorkoutLoggedAt } = params;
     const exerciseEstimatorIds =
       await this.workoutWorkflowEstimatorPreparation.getExerciseEstimatorIds();
     const response = await this.workoutChatService.sendMessage({
@@ -65,14 +67,23 @@ export class WorkoutWorkflowService {
       this.workoutWorkflowSummaryMapper.readStrengthRows(nextSession)
     );
 
-    const workflowState = this.buildWorkflowState(nextSession);
+    const nextHasSavedWorkout = nextSession.isComplete
+      ? hasSavedWorkout
+      : false;
+    const nextSavedWorkoutLoggedAt = nextSession.isComplete
+      ? savedWorkoutLoggedAt
+      : null;
+    const workflowState = this.buildWorkflowViewState(
+      nextSession,
+      nextHasSavedWorkout,
+      nextSavedWorkoutLoggedAt
+    );
 
     return {
       ...workflowState,
       botMessage: response.botMessage?.trim()
         ? response.botMessage
         : 'I received your message, but there was no reply text. Check the backend response format.',
-      shouldResetSavedWorkout: wasComplete && !workflowState.session.isComplete,
     };
   }
 
@@ -83,7 +94,7 @@ export class WorkoutWorkflowService {
     if (trainerNotes === null) {
       return {
         status: 'cancelled',
-        ...this.buildWorkflowState(session),
+        ...this.buildWorkflowViewState(session, false, null),
       };
     }
 
@@ -98,13 +109,26 @@ export class WorkoutWorkflowService {
       status: 'saved',
       ...this.buildWorkflowState(saveResult.savedSession),
       eventId: saveResult.eventId,
-      loggedAt: saveResult.loggedAt,
       saveStatus: saveResult.status,
+      hasSavedWorkout: true,
+      savedWorkoutLoggedAt: saveResult.loggedAt.toISOString(),
     };
   }
 
   private buildWorkflowState(session: WorkoutSessionPerformance): WorkoutWorkflowState {
     return this.workoutWorkflowSummaryMapper.buildWorkflowState(session);
+  }
+
+  private buildWorkflowViewState(
+    session: WorkoutSessionPerformance,
+    hasSavedWorkout: boolean,
+    savedWorkoutLoggedAt: string | null
+  ): WorkoutWorkflowViewState {
+    return {
+      ...this.buildWorkflowState(session),
+      hasSavedWorkout,
+      savedWorkoutLoggedAt,
+    };
   }
 
   private normalizeSession(
