@@ -233,10 +233,11 @@ Chat o-- Message
 WorkoutChatbotPage --> WorkoutWorkflowService : processWorkoutMessage()/submitWorkout()
 WorkoutWorkflowService --> WorkoutChatService : sendMessage()
 WorkoutWorkflowService --> WorkoutLogService : saveCompletedWorkout()
-WorkoutWorkflowService --> WorkoutWorkflowSummaryProjectionService : project workflow/session rows
-WorkoutWorkflowService --> WorkoutWorkflowEstimatorPreparationService : prepare estimator docs
+WorkoutWorkflowService --> WorkoutWorkflowSummaryProjectionService : project workflow/session state
+WorkoutWorkflowService --> WorkoutWorkflowEstimatorPreparationService : prepare estimators for session
 WorkoutWorkflowService --> WorkoutSessionFormatterService : normalize/apply session state
-WorkoutWorkflowEstimatorPreparationService --> ExerciseEstimatorsService : ensureEstimatorDocExists()/listEstimatorIds()
+WorkoutWorkflowEstimatorPreparationService --> WorkoutWorkflowSummaryProjectionService : projectStrengthRows()
+WorkoutWorkflowEstimatorPreparationService --> ExerciseEstimatorsService : listEstimatorIds()/ensureEstimatorDocExists()
 WorkoutWorkflowSummaryProjectionService --> WorkoutSessionPerformance : project summary rows
 WorkoutSummaryPage --> WorkoutSessionPerformance
 
@@ -335,16 +336,18 @@ participant RetrainFn as retrainExerciseEstimatorOnWorkoutLogCreate
 
 User->>Page: Enter workout message
 Page->>WorkflowSvc: processWorkoutMessage(message, messages, session, hasSavedWorkout, savedWorkoutLoggedAt)
+WorkflowSvc->>EstimatorPrep: prepareEstimatorsForSession(session)
+EstimatorPrep->>EstSvc: load known estimator IDs + ensure session strength estimators
+EstSvc->>FS: Read/create exercise estimator docs
+EstimatorPrep-->>WorkflowSvc: exerciseEstimatorIds
 WorkflowSvc->>ChatSvc: sendMessage(message, session, history, estimatorIds)
 ChatSvc->>ChatFn: httpsCallable(payload)
 ChatFn->>OpenAI: Parse/update workout JSON
 OpenAI-->>ChatFn: assistantMessage + summary
 ChatFn-->>ChatSvc: ChatResponse
 ChatSvc-->>WorkflowSvc: botMessage + updatedSession
-WorkflowSvc->>SummaryProjection: projectStrengthRows(updatedSession)
-SummaryProjection-->>WorkflowSvc: strengthRows
-WorkflowSvc->>EstimatorPrep: ensureEstimatorDocsForRows(strengthRows)
-EstimatorPrep->>EstSvc: ensure estimator docs for strength rows
+WorkflowSvc->>EstimatorPrep: prepareEstimatorsForSession(updatedSession)
+EstimatorPrep->>EstSvc: ensure session strength estimators
 EstSvc->>FS: Read/create exercise estimator docs
 WorkflowSvc->>SummaryProjection: projectWorkflowState(updatedSession)
 SummaryProjection-->>WorkflowSvc: {session, summaryRows}

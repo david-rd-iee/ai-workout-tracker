@@ -208,10 +208,11 @@ Chat o-- Message
 WorkoutChatbotPage --> WorkoutWorkflowService : processWorkoutMessage()/submitWorkout()
 WorkoutWorkflowService --> WorkoutChatService : sendMessage()
 WorkoutWorkflowService --> WorkoutLogService : saveCompletedWorkout()
-WorkoutWorkflowService --> WorkoutWorkflowSummaryProjectionService : project workflow/session rows
-WorkoutWorkflowService --> WorkoutWorkflowEstimatorPreparationService : prepare estimator docs
+WorkoutWorkflowService --> WorkoutWorkflowSummaryProjectionService : project workflow/session state
+WorkoutWorkflowService --> WorkoutWorkflowEstimatorPreparationService : prepare estimators for session
 WorkoutWorkflowService --> WorkoutSessionFormatterService : normalize/apply session state
-WorkoutWorkflowEstimatorPreparationService --> ExerciseEstimatorsService : ensureEstimatorDocExists()/listEstimatorIds()
+WorkoutWorkflowEstimatorPreparationService --> WorkoutWorkflowSummaryProjectionService : projectStrengthRows()
+WorkoutWorkflowEstimatorPreparationService --> ExerciseEstimatorsService : listEstimatorIds()/ensureEstimatorDocExists()
 WorkoutWorkflowSummaryProjectionService --> WorkoutSessionPerformance : project summary rows
 WorkoutSummaryPage --> WorkoutSessionPerformance
 

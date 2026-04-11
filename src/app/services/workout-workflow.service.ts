@@ -49,7 +49,7 @@ export class WorkoutWorkflowService {
   ): Promise<ProcessWorkoutMessageResult> {
     const { message, messages, session, hasSavedWorkout, savedWorkoutLoggedAt } = params;
     const exerciseEstimatorIds =
-      await this.workoutWorkflowEstimatorPreparation.getExerciseEstimatorIds();
+      await this.workoutWorkflowEstimatorPreparation.prepareEstimatorsForSession(session);
     const response = await this.workoutChatService.sendMessage({
       message,
       session,
@@ -63,9 +63,7 @@ export class WorkoutWorkflowService {
       message
     );
 
-    await this.workoutWorkflowEstimatorPreparation.ensureEstimatorDocsForRows(
-      this.workoutWorkflowSummaryProjection.projectStrengthRows(nextSession)
-    );
+    await this.workoutWorkflowEstimatorPreparation.prepareEstimatorsForSession(nextSession);
 
     const nextHasSavedWorkout = nextSession.isComplete
       ? hasSavedWorkout

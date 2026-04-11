@@ -79,7 +79,7 @@ describe('WorkoutWorkflowService', () => {
     workoutWorkflowEstimatorPreparationSpy =
       jasmine.createSpyObj<WorkoutWorkflowEstimatorPreparationService>(
         'WorkoutWorkflowEstimatorPreparationService',
-        ['getExerciseEstimatorIds', 'ensureEstimatorDocsForRows']
+        ['prepareEstimatorsForSession']
       );
 
     workoutSessionFormatterSpy.createEmptySession.and.returnValue(sessionWithRows());
@@ -114,8 +114,7 @@ describe('WorkoutWorkflowService', () => {
           ? [session.strengthTrainingRow]
           : []
     );
-    workoutWorkflowEstimatorPreparationSpy.getExerciseEstimatorIds.and.resolveTo(['bench_press']);
-    workoutWorkflowEstimatorPreparationSpy.ensureEstimatorDocsForRows.and.resolveTo();
+    workoutWorkflowEstimatorPreparationSpy.prepareEstimatorsForSession.and.resolveTo(['bench_press']);
 
     TestBed.configureTestingModule({
       providers: [
@@ -207,8 +206,8 @@ describe('WorkoutWorkflowService', () => {
       savedWorkoutLoggedAt: null,
     });
 
-    expect(workoutWorkflowEstimatorPreparationSpy.ensureEstimatorDocsForRows).toHaveBeenCalledWith(
-      [strengthRow('Front Squat')]
+    expect(workoutWorkflowEstimatorPreparationSpy.prepareEstimatorsForSession).toHaveBeenCalledWith(
+      normalizedSession
     );
   });
 
