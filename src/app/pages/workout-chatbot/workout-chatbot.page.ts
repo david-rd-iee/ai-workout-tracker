@@ -24,6 +24,7 @@ import {
   WorkoutChatScreenState,
   WorkoutWorkflowService,
 } from '../../services/workout-workflow/workout-workflow.service';
+import type { ScoreUpdateResult } from '../../services/workout-log.service';
 
 type ChatSender = 'bot' | 'user';
 
@@ -150,6 +151,10 @@ export class WorkoutChatbotPage implements OnInit, OnDestroy {
       if (result.saveStatus !== 'saved' || !result.loggedAt) {
         return;
       }
+
+      if (result.scoreUpdate) {
+        await this.showScoreUpdateAlert(result.scoreUpdate);
+      }
     } catch (error) {
       console.error('Failed to save workout:', error);
       this.addBotMessage('I had trouble saving your workout. Please try again.');
@@ -225,6 +230,55 @@ export class WorkoutChatbotPage implements OnInit, OnDestroy {
 
     const text = value.trim();
     return text ? text : undefined;
+  }
+
+  private roundToTwoDecimals(value: number): number {
+    return Math.round((Number(value) || 0) * 100) / 100;
+  }
+
+  private formatScoreValue(value: number): string {
+    return String(this.roundToTwoDecimals(value));
+  }
+
+  private formatSignedScore(value: number): string {
+    const rounded = this.roundToTwoDecimals(value);
+    const absoluteValue = this.formatScoreValue(Math.abs(rounded));
+    return `${rounded < 0 ? '-' : '+'} ${absoluteValue}`;
+  }
+
+  private formatExerciseName(value: string): string {
+    return String(value ?? '')
+      .split('_')
+      .filter(Boolean)
+      .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
+      .join(' ');
+  }
+
+  private buildScoreUpdateMessage(scoreUpdate: ScoreUpdateResult): string {
+    const lines = scoreUpdate.exerciseScoreDeltas.map((entry) => (
+      `${this.formatExerciseName(entry.exerciseType)}: ${this.formatSignedScore(entry.addedScore)}`
+    ));
+
+    lines.push(`Cardio Added: ${this.formatSignedScore(scoreUpdate.addedCardioScore)}`);
+    lines.push(`Strength Added: ${this.formatSignedScore(scoreUpdate.addedStrengthScore)}`);
+    lines.push(`Total Added: ${this.formatSignedScore(scoreUpdate.addedTotalScore)}`);
+    lines.push('');
+    lines.push(`New Total: ${this.formatScoreValue(scoreUpdate.currentTotalScore)}`);
+
+    return lines.join('\n');
+  }
+
+  private async showScoreUpdateAlert(scoreUpdate: ScoreUpdateResult): Promise<void> {
+    const alert = await this.alertController.create({
+      mode: 'ios',
+      header: 'Score Updated',
+      cssClass: 'score-update-alert',
+      message: this.buildScoreUpdateMessage(scoreUpdate),
+      buttons: ['OK'],
+      translucent: true,
+    });
+
+    await alert.present();
   }
 
   private async promptForTrainerNotes(initialValue: string): Promise<string | null> {

@@ -18,8 +18,7 @@ import {
   CardioTrainingRow,
   WorkoutSessionPerformance,
 } from '../../models/workout-session.model';
-import type { StreakUpdateResult } from '../../services/workout-log.service';
-import type { UpdateScoreResult } from '../../services/update-score.service';
+import type { ScoreUpdateResult, StreakUpdateResult } from '../../services/workout-log.service';
 import { WorkoutWorkflowService } from '../../services/workout-workflow/workout-workflow.service';
 import { WorkoutSessionFormatterService } from '../../services/workout-session-formatter.service';
 
@@ -321,6 +320,10 @@ export class MapTrackingLoggerPage implements OnDestroy {
 
       if (result.saveStatus !== 'saved' || !result.loggedAt) {
         return;
+      }
+
+      if (result.scoreUpdate) {
+        await this.showScoreUpdateAlert(result.scoreUpdate);
       }
 
       await this.router.navigate(['/workout-summary'], {
@@ -1005,7 +1008,7 @@ export class MapTrackingLoggerPage implements OnDestroy {
     return `${rounded < 0 ? '-' : '+'} ${absoluteValue}`;
   }
 
-  private buildScoreUpdateMessage(scoreUpdate: UpdateScoreResult): string {
+  private buildScoreUpdateMessage(scoreUpdate: ScoreUpdateResult): string {
     const lines = scoreUpdate.exerciseScoreDeltas.map((entry) => (
       `${this.formatExerciseName(entry.exerciseType)}: ${this.formatSignedScore(entry.addedScore)}`
     ));
@@ -1025,7 +1028,7 @@ export class MapTrackingLoggerPage implements OnDestroy {
       .join(' ');
   }
 
-  private async showScoreUpdateAlert(scoreUpdate: UpdateScoreResult): Promise<void> {
+  private async showScoreUpdateAlert(scoreUpdate: ScoreUpdateResult): Promise<void> {
     const alert = await this.alertController.create({
       mode: 'ios',
       header: 'Score Updated',

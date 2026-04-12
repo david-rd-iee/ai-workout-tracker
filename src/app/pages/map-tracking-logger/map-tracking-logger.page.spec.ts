@@ -71,6 +71,15 @@ describe('MapTrackingLoggerPage', () => {
       completionStatus: 'complete' as const,
       botMessage: null,
       savePersistenceStatus: 'persisted' as const,
+      scoreUpdate: {
+        addedCardioScore: 58,
+        addedStrengthScore: 0,
+        addedTotalScore: 58,
+        currentTotalScore: 458,
+        exerciseScoreDeltas: [
+          { exerciseType: 'running', addedScore: 58 },
+        ],
+      },
     }),
   };
   const workoutSessionFormatterStub = jasmine.createSpyObj<WorkoutSessionFormatterService>(
@@ -135,6 +144,15 @@ describe('MapTrackingLoggerPage', () => {
       completionStatus: 'complete' as const,
       botMessage: null,
       savePersistenceStatus: 'persisted' as const,
+      scoreUpdate: {
+        addedCardioScore: 58,
+        addedStrengthScore: 0,
+        addedTotalScore: 58,
+        currentTotalScore: 458,
+        exerciseScoreDeltas: [
+          { exerciseType: 'running', addedScore: 58 },
+        ],
+      },
     });
     (router.navigate as jasmine.Spy).calls.reset();
   });
@@ -153,6 +171,11 @@ describe('MapTrackingLoggerPage', () => {
       requestTrainerNotes: jasmine.any(Function),
     });
     expect(component.session).toBe(savedSession);
+    expect(alertControllerStub.create).toHaveBeenCalledWith(
+      jasmine.objectContaining({
+        header: 'Score Updated',
+      })
+    );
     expect(router.navigate).toHaveBeenCalledWith(['/workout-summary'], {
       state: {
         summary: savedSession,
@@ -181,6 +204,7 @@ describe('MapTrackingLoggerPage', () => {
       completionStatus: 'incomplete' as const,
       botMessage: null,
       savePersistenceStatus: null,
+      scoreUpdate: null,
     });
 
     await component.logWorkout();

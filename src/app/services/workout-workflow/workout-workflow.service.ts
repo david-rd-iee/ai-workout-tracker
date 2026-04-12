@@ -95,6 +95,7 @@ export class WorkoutWorkflowService {
         botMessage: null,
         eventId: '',
         savePersistenceStatus: null,
+        scoreUpdate: null,
       });
     }
 
@@ -113,6 +114,7 @@ export class WorkoutWorkflowService {
         'Workout submitted and saved to your history. Score updates should now be available, and summaries will finish updating in the background.',
       eventId: saveResult.eventId,
       savePersistenceStatus: saveResult.status,
+      scoreUpdate: saveResult.scoreUpdate,
     });
   }
 
@@ -142,11 +144,13 @@ export class WorkoutWorkflowService {
     botMessage: string | null;
     eventId: string;
     savePersistenceStatus: SaveCompletedWorkoutResult['status'] | null;
+    scoreUpdate: SaveCompletedWorkoutResult['scoreUpdate'];
   }): SubmitWorkoutResult {
     return {
       ...this.buildChatScreenState(params),
       eventId: params.eventId,
       savePersistenceStatus: params.savePersistenceStatus,
+      scoreUpdate: params.scoreUpdate,
     };
   }
 

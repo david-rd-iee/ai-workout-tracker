@@ -76,6 +76,15 @@ describe('WorkoutChatbotPage', () => {
       botMessage:
         'Workout submitted and saved to your history. Score updates should now be available, and summaries will finish updating in the background.',
       savePersistenceStatus: 'persisted' as const,
+      scoreUpdate: {
+        addedCardioScore: 0,
+        addedStrengthScore: 75,
+        addedTotalScore: 75,
+        currentTotalScore: 275,
+        exerciseScoreDeltas: [
+          { exerciseType: 'bench_press', addedScore: 75 },
+        ],
+      },
     }),
   };
 
@@ -138,6 +147,15 @@ describe('WorkoutChatbotPage', () => {
       botMessage:
         'Workout submitted and saved to your history. Score updates should now be available, and summaries will finish updating in the background.',
       savePersistenceStatus: 'persisted' as const,
+      scoreUpdate: {
+        addedCardioScore: 0,
+        addedStrengthScore: 75,
+        addedTotalScore: 75,
+        currentTotalScore: 275,
+        exerciseScoreDeltas: [
+          { exerciseType: 'bench_press', addedScore: 75 },
+        ],
+      },
     });
     platformStub.is.calls.reset();
     platformStub.is.and.returnValue(false);
@@ -179,5 +197,10 @@ describe('WorkoutChatbotPage', () => {
     expect(workoutWorkflowServiceStub.submitWorkout).toHaveBeenCalled();
     expect(component.hasSavedWorkout).toBeTrue();
     expect(component.savedWorkoutLoggedAt).toBe(savedAt.toISOString());
+    expect(alertControllerStub.create).toHaveBeenCalledWith(
+      jasmine.objectContaining({
+        header: 'Score Updated',
+      })
+    );
   });
 });

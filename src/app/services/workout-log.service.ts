@@ -23,12 +23,26 @@ export interface StreakUpdateResult {
   maxStreak: number;
 }
 
+export interface ExerciseScoreDelta {
+  exerciseType: string;
+  addedScore: number;
+}
+
+export interface ScoreUpdateResult {
+  addedCardioScore: number;
+  addedStrengthScore: number;
+  addedTotalScore: number;
+  currentTotalScore: number;
+  exerciseScoreDeltas: ExerciseScoreDelta[];
+}
+
 export interface SaveCompletedWorkoutResult {
   eventId: string;
   status: CompleteWorkoutEventResponse['status'];
   loggedAt: Date;
   savedEvent: WorkoutEvent;
   savedSession: WorkoutSessionPerformance;
+  scoreUpdate: ScoreUpdateResult | null;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -76,7 +90,7 @@ export class WorkoutLogService {
       event: savedEvent,
       submissionMetadata,
     });
-    await this.waitForScoreAggregation(user.uid, response.data.eventId);
+    const scoreUpdate = await this.waitForScoreAggregation(user.uid, response.data.eventId);
 
     return {
       eventId: response.data.eventId,
@@ -84,6 +98,7 @@ export class WorkoutLogService {
       loggedAt,
       savedEvent,
       savedSession,
+      scoreUpdate,
     };
   }
 
@@ -107,7 +122,10 @@ export class WorkoutLogService {
     return `${year}-${month}-${day}`;
   }
 
-  private async waitForScoreAggregation(userId: string, eventId: string): Promise<void> {
+  private async waitForScoreAggregation(
+    userId: string,
+    eventId: string
+  ): Promise<ScoreUpdateResult | null> {
     const scoreAggregationRef = doc(
       this.firestore,
       'users',
@@ -125,7 +143,7 @@ export class WorkoutLogService {
         if (snapshot.exists()) {
           const status = this.readText(snapshot.data()?.['status']).toLowerCase();
           if (status === 'completed') {
-            return;
+            return this.parseScoreUpdate(snapshot.data());
           }
 
           if (status === 'failed') {
@@ -135,7 +153,7 @@ export class WorkoutLogService {
         }
       } catch (error) {
         console.warn('[WorkoutLogService] Failed while waiting for score aggregation:', error);
-        return;
+        return null;
       }
 
       await this.delay(WorkoutLogService.SCORE_AGGREGATION_POLL_INTERVAL_MS);
@@ -145,11 +163,59 @@ export class WorkoutLogService {
       userId,
       eventId,
     });
+    return null;
   }
 
   private delay(durationMs: number): Promise<void> {
     return new Promise((resolve) => {
       globalThis.setTimeout(resolve, durationMs);
     });
+  }
+
+  private parseScoreUpdate(candidate: Record<string, unknown> | undefined): ScoreUpdateResult | null {
+    if (!candidate) {
+      return null;
+    }
+
+    return {
+      addedCardioScore: this.toWholeNumber(candidate['addedCardioScore']),
+      addedStrengthScore: this.toWholeNumber(candidate['addedStrengthScore']),
+      addedTotalScore: this.toWholeNumber(candidate['addedTotalScore']),
+      currentTotalScore: this.toWholeNumber(candidate['currentTotalScore']),
+      exerciseScoreDeltas: this.normalizeExerciseScoreDeltas(candidate['exerciseScoreDeltas']),
+    };
+  }
+
+  private normalizeExerciseScoreDeltas(candidate: unknown): ExerciseScoreDelta[] {
+    if (!Array.isArray(candidate)) {
+      return [];
+    }
+
+    return candidate.reduce<ExerciseScoreDelta[]>((acc, entry) => {
+      if (!entry || typeof entry !== 'object' || Array.isArray(entry)) {
+        return acc;
+      }
+
+      const record = entry as Record<string, unknown>;
+      const exerciseType = this.readText(record['exerciseType']);
+      if (!exerciseType) {
+        return acc;
+      }
+
+      acc.push({
+        exerciseType,
+        addedScore: this.toWholeNumber(record['addedScore']),
+      });
+      return acc;
+    }, []);
+  }
+
+  private toWholeNumber(value: unknown): number {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed) || parsed < 0) {
+      return 0;
+    }
+
+    return Math.round(parsed);
   }
 }

@@ -84,6 +84,15 @@ describe('TreadmillLoggerPage', () => {
       completionStatus: 'complete' as const,
       botMessage: null,
       savePersistenceStatus: 'persisted' as const,
+      scoreUpdate: {
+        addedCardioScore: 42,
+        addedStrengthScore: 0,
+        addedTotalScore: 42,
+        currentTotalScore: 342,
+        exerciseScoreDeltas: [
+          { exerciseType: 'running', addedScore: 42 },
+        ],
+      },
     }),
   };
 
@@ -153,6 +162,15 @@ describe('TreadmillLoggerPage', () => {
       completionStatus: 'complete' as const,
       botMessage: null,
       savePersistenceStatus: 'persisted' as const,
+      scoreUpdate: {
+        addedCardioScore: 42,
+        addedStrengthScore: 0,
+        addedTotalScore: 42,
+        currentTotalScore: 342,
+        exerciseScoreDeltas: [
+          { exerciseType: 'running', addedScore: 42 },
+        ],
+      },
     });
     (router.navigate as jasmine.Spy).calls.reset();
   });
@@ -167,6 +185,11 @@ describe('TreadmillLoggerPage', () => {
       requestTrainerNotes: jasmine.any(Function),
     });
     expect(component.session).toBe(savedSession);
+    expect(alertControllerStub.create).toHaveBeenCalledWith(
+      jasmine.objectContaining({
+        header: 'Score Updated',
+      })
+    );
     expect(router.navigate).toHaveBeenCalledWith(['/workout-summary'], {
       state: {
         summary: savedSession,
@@ -191,6 +214,7 @@ describe('TreadmillLoggerPage', () => {
       completionStatus: 'incomplete' as const,
       botMessage: null,
       savePersistenceStatus: null,
+      scoreUpdate: null,
     });
 
     await component.logWorkout();

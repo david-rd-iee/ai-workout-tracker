@@ -49,4 +49,5 @@ export interface SubmitWorkoutParams {
 export interface SubmitWorkoutResult extends WorkoutChatScreenState {
   eventId: string;
   savePersistenceStatus: SaveCompletedWorkoutResult['status'] | null;
+  scoreUpdate: SaveCompletedWorkoutResult['scoreUpdate'];
 }

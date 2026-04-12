@@ -20,8 +20,7 @@ import {
 } from '../../models/workout-session.model';
 import { ExerciseEstimatorsService } from '../../services/exercise-estimators.service';
 import { WorkoutChatService } from '../../services/workout-chat.service';
-import type { StreakUpdateResult } from '../../services/workout-log.service';
-import type { UpdateScoreResult } from '../../services/update-score.service';
+import type { ScoreUpdateResult, StreakUpdateResult } from '../../services/workout-log.service';
 import { WorkoutWorkflowService } from '../../services/workout-workflow/workout-workflow.service';
 import { WorkoutSessionFormatterService } from '../../services/workout-session-formatter.service';
 
@@ -172,6 +171,10 @@ export class TreadmillLoggerPage {
 
       if (result.saveStatus !== 'saved' || !result.loggedAt) {
         return;
+      }
+
+      if (result.scoreUpdate) {
+        await this.showScoreUpdateAlert(result.scoreUpdate);
       }
 
       await this.router.navigate(['/workout-summary'], {
@@ -514,7 +517,7 @@ export class TreadmillLoggerPage {
     return `${rounded < 0 ? '-' : '+'} ${absoluteValue}`;
   }
 
-  private buildScoreUpdateMessage(scoreUpdate: UpdateScoreResult): string {
+  private buildScoreUpdateMessage(scoreUpdate: ScoreUpdateResult): string {
     const lines = scoreUpdate.exerciseScoreDeltas.map((entry) => (
       `${this.formatExerciseName(entry.exerciseType)}: ${this.formatSignedScore(entry.addedScore)}`
     ));
@@ -526,7 +529,7 @@ export class TreadmillLoggerPage {
     return lines.join('\n');
   }
 
-  private async showScoreUpdateAlert(scoreUpdate: UpdateScoreResult): Promise<void> {
+  private async showScoreUpdateAlert(scoreUpdate: ScoreUpdateResult): Promise<void> {
     const alert = await this.alertController.create({
       mode: 'ios',
       header: 'Score Updated',

@@ -30,6 +30,36 @@ const ESTIMATOR_IDS_INDEX_COLLECTION = "systemConfig";
 const ESTIMATOR_IDS_INDEX_DOC = "exercise_estimators_index";
 const DIRECT_CHAT_PREFIX = "direct";
 
+const DEFAULT_BACKEND_ESTIMATORS: EstimatorSeedDoc[] = [
+  {
+    id: "scaled_strength",
+    model: "ExponentialRegression",
+    coefficients: {
+      intercept: 1.930023505437541,
+      scale_a: 6.8896721844372255,
+      sex_code: -0.4158373373611672,
+      BMI: 0.02245514366927598,
+      age: -0.015484345713830469,
+    },
+  },
+  {
+    id: "generic_cardio",
+    model: "PolynomialRegression",
+    coefficients: {
+      intercept: 18.072324633759717,
+      age_years: 0.3384859450661544,
+      sex: -0.294160293562407,
+      bmi: -0.17289875429604545,
+      "age_years^2": -0.004779364870684193,
+      "age_years sex": -0.0353077643419397,
+      "age_years bmi": -0.0016835078819595107,
+      "sex^2": -0.8824808806872105,
+      "sex bmi": -0.05768007347331879,
+      "bmi^2": 0.0005410292122140338,
+    },
+  },
+];
+
 type ExerciseEstimatorCategory =
   typeof EXERCISE_ESTIMATOR_STRENGTH_CATEGORY |
   typeof EXERCISE_ESTIMATOR_CARDIO_CATEGORY;
@@ -50,6 +80,12 @@ interface EstimatorDoc {
   model: ExerciseEstimatorModel;
   coefficients: Record<string, number>;
   hasConfiguredEstimator: boolean;
+}
+
+interface EstimatorSeedDoc {
+  id: string;
+  model: ExerciseEstimatorModel;
+  coefficients: Record<string, number>;
 }
 
 interface ExpectedEffortMap {
@@ -84,6 +120,11 @@ interface EarlyMorningWorkoutsTracker {
 interface EstimatorWorkoutLogWrite {
   ref: FirebaseFirestore.DocumentReference;
   payload: Record<string, unknown>;
+}
+
+interface ExerciseScoreDelta {
+  exerciseType: string;
+  addedScore: number;
 }
 
 interface PersistedWorkoutEvent {
@@ -207,6 +248,7 @@ async function processWorkoutEventCreatedScoreAggregation(
   };
   const cardioScoreDeltaMap: Record<string, number> = {};
   const strengthScoreDeltaMap: Record<string, number> = {};
+  const exerciseScoreDeltaMap = new Map<string, number>();
 
   const cardioEntries = getCardioEntries(persisted.workoutEvent);
   const strengthEntries = getStrengthEntries(persisted.workoutEvent);
@@ -263,7 +305,9 @@ async function processWorkoutEventCreatedScoreAggregation(
     const score = expected > 0 && cardioPerformance.actualVo2Max > 0
       ? (cardioPerformance.actualVo2Max / expected) * 100
       : 0;
-    addScoreDelta(cardioScoreDeltaMap, exerciseType, score);
+    const roundedScore = toWholeNumber(score);
+    trackExerciseScoreDelta(exerciseScoreDeltaMap, exerciseType, roundedScore);
+    addScoreDelta(cardioScoreDeltaMap, exerciseType, roundedScore);
 
     const cardioLogPayload = {
       age: userAge,
@@ -347,7 +391,9 @@ async function processWorkoutEventCreatedScoreAggregation(
     const score = expected > 0 && actual > 0
       ? (actual / expected) * 100
       : 0;
-    addScoreDelta(strengthScoreDeltaMap, exerciseType, score);
+    const roundedScore = toWholeNumber(score);
+    trackExerciseScoreDelta(exerciseScoreDeltaMap, exerciseType, roundedScore);
+    addScoreDelta(strengthScoreDeltaMap, exerciseType, roundedScore);
 
     estimatorWorkoutLogWrites.push({
       ref: buildEstimatorWorkoutLogRef(
@@ -395,6 +441,7 @@ async function processWorkoutEventCreatedScoreAggregation(
       sumScoreEntries(strengthScoreDeltaMap, "totalStrengthScore")
     );
     const addedTotalScore = toWholeNumber(addedCardioScore + addedStrengthScore);
+    const exerciseScoreDeltas = buildExerciseScoreDeltas(exerciseScoreDeltaMap);
     const scoreDate = persisted.localSubmittedDate || persisted.workoutEvent.date || toLocalDateKey(persisted.createdAt);
     const addedScoreRef = db.doc(`userStats/${userId}/addedScore/${scoreDate}`);
 
@@ -460,6 +507,12 @@ async function processWorkoutEventCreatedScoreAggregation(
       const nextTotalScoreAddedToday = toWholeNumber(
         nextCardioScoreAddedToday + nextStrengthScoreAddedToday
       );
+      const nextExerciseScoreDeltas = applyScoreDeltas(
+        toNumberMap(currentAddedScore["exerciseScoreDeltas"]),
+        Object.fromEntries(exerciseScoreDeltaMap.entries()),
+        "__total__"
+      );
+      delete nextExerciseScoreDeltas["__total__"];
       const nextMaxAddedScoreWithinDay = toWholeNumber(Math.max(
         latestUserScore.maxAddedScoreWithinDay,
         nextTotalScoreAddedToday
@@ -496,6 +549,7 @@ async function processWorkoutEventCreatedScoreAggregation(
           cardioScoreAddedToday: nextCardioScoreAddedToday,
           strengthScoreAddedToday: nextStrengthScoreAddedToday,
           totalScoreAddedToday: nextTotalScoreAddedToday,
+          exerciseScoreDeltas: nextExerciseScoreDeltas,
           updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         },
         {merge: true}
@@ -522,7 +576,9 @@ async function processWorkoutEventCreatedScoreAggregation(
           addedCardioScore,
           addedStrengthScore,
           addedTotalScore,
+          currentTotalScore: nextTotalScore,
           scoreDate,
+          exerciseScoreDeltas,
           estimatorLogWriteCount: estimatorWorkoutLogWrites.length,
         },
         {merge: true}
@@ -878,6 +934,27 @@ async function getEstimatorDoc(params: {
   const estimatorSnap = await estimatorRef.get();
 
   if (!estimatorSnap.exists) {
+    const defaultSeed = getDefaultEstimatorSeed(params.category, estimatorId);
+    if (defaultSeed) {
+      await estimatorRef.set({
+        model: defaultSeed.model,
+        coefficients: defaultSeed.coefficients,
+        isDefaultSeed: true,
+        createdBy: "workout_event_post_write_handler_seed",
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      }, {merge: true});
+      if (params.category === EXERCISE_ESTIMATOR_STRENGTH_CATEGORY) {
+        await upsertStrengthEstimatorIdsIndex([estimatorId]);
+      }
+
+      return {
+        exists: true,
+        model: defaultSeed.model,
+        coefficients: defaultSeed.coefficients,
+        hasConfiguredEstimator: true,
+      };
+    }
+
     if (params.createWhenMissing) {
       const payload: Record<string, unknown> = {
         isUserDefined: true,
@@ -926,6 +1003,33 @@ async function getEstimatorDoc(params: {
     coefficients,
     hasConfiguredEstimator: model !== "NONE" && Object.keys(coefficients).length > 0,
   };
+}
+
+function getDefaultEstimatorSeed(
+  category: ExerciseEstimatorCategory,
+  estimatorId: string
+): EstimatorSeedDoc | null {
+  const normalizedEstimatorId = normalizeEstimatorId(estimatorId);
+  const seed = DEFAULT_BACKEND_ESTIMATORS.find((entry) => entry.id === normalizedEstimatorId);
+  if (!seed) {
+    return null;
+  }
+
+  if (
+    normalizedEstimatorId === "scaled_strength" &&
+    category !== EXERCISE_ESTIMATOR_STRENGTH_CATEGORY
+  ) {
+    return null;
+  }
+
+  if (
+    normalizedEstimatorId === "generic_cardio" &&
+    category !== EXERCISE_ESTIMATOR_CARDIO_CATEGORY
+  ) {
+    return null;
+  }
+
+  return seed;
 }
 
 async function upsertStrengthEstimatorIdsIndex(ids: string[]): Promise<void> {
@@ -1388,6 +1492,29 @@ function addScoreDelta(
 
   const priorScore = toWholeNumber(toNonNegativeNumber(scoreDeltaMap[normalizedExerciseType]));
   scoreDeltaMap[normalizedExerciseType] = priorScore + toWholeNumber(roundedScore);
+}
+
+function trackExerciseScoreDelta(
+  scoreDeltaMap: Map<string, number>,
+  exerciseType: string,
+  roundedScore: number
+): void {
+  const normalizedExerciseType = normalizeEstimatorId(exerciseType);
+  if (!normalizedExerciseType) {
+    return;
+  }
+
+  const priorScore = toWholeNumber(
+    toNonNegativeNumber(scoreDeltaMap.get(normalizedExerciseType))
+  );
+  scoreDeltaMap.set(normalizedExerciseType, priorScore + toWholeNumber(roundedScore));
+}
+
+function buildExerciseScoreDeltas(scoreDeltaMap: Map<string, number>): ExerciseScoreDelta[] {
+  return Array.from(scoreDeltaMap.entries()).map(([exerciseType, addedScore]) => ({
+    exerciseType,
+    addedScore: toWholeNumber(addedScore),
+  }));
 }
 
 function applyScoreDeltas(

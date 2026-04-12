@@ -356,6 +356,16 @@ describe('WorkoutWorkflowService', () => {
         source: 'chat',
       },
       savedSession,
+      scoreUpdate: {
+        addedCardioScore: 25,
+        addedStrengthScore: 75,
+        addedTotalScore: 100,
+        currentTotalScore: 420,
+        exerciseScoreDeltas: [
+          { exerciseType: 'bench_press', addedScore: 75 },
+          { exerciseType: 'running', addedScore: 25 },
+        ],
+      },
     });
 
     const result = await service.submitWorkout({
@@ -375,6 +385,7 @@ describe('WorkoutWorkflowService', () => {
     expect(result.loggedAt).toBe('2026-04-11T19:15:00.000Z');
     expect(result.completionStatus).toBe('complete');
     expect(result.botMessage).toContain('Workout submitted and saved');
+    expect(result.scoreUpdate?.addedTotalScore).toBe(100);
   });
 
   it('invalid workouts fail cleanly', async () => {
