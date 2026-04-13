@@ -10,7 +10,6 @@ import {
   IonTitle,
   IonToolbar,
   NavController,
-  ToastController,
 } from '@ionic/angular/standalone';
 import { Firestore, collection, getDocs } from '@angular/fire/firestore';
 import { AccountService } from '../../services/account/account.service';
@@ -43,7 +42,6 @@ export class ClientWorkoutAnalysisPage implements OnInit {
   private readonly accountService = inject(AccountService);
   private readonly firestore = inject(Firestore);
   private readonly navCtrl = inject(NavController);
-  private readonly toastCtrl = inject(ToastController);
 
   isLoading = true;
   errorMessage = '';
@@ -68,13 +66,14 @@ export class ClientWorkoutAnalysisPage implements OnInit {
     });
   }
 
-  async openClient(client: ClientWorkoutAnalysisListItem): Promise<void> {
-    const toast = await this.toastCtrl.create({
-      message: `${client.clientName} details page is coming soon.`,
-      duration: 1800,
-      position: 'bottom',
+  openClient(client: ClientWorkoutAnalysisListItem): void {
+    this.navCtrl.navigateForward(`/trainer-workout-analyzer/${client.id}`, {
+      animated: true,
+      animationDirection: 'forward',
+      queryParams: {
+        clientName: client.clientName,
+      },
     });
-    await toast.present();
   }
 
   private async loadClients(): Promise<void> {

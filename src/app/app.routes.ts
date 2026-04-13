@@ -186,6 +186,14 @@ export const routes: Routes = [
     canActivate: [authGuard],
   },
   {
+    path: 'trainer-workout-analyzer/:clientId',
+    loadComponent: () =>
+      import('./pages/trainer-workout-analyzer/trainer-workout-analyzer.page').then(
+        (m) => m.TrainerWorkoutAnalyzerPage
+      ),
+    canActivate: [authGuard],
+  },
+  {
     path: 'treadmill-logger',
     loadComponent: () =>
       import('./pages/treadmill-logger/treadmill-logger.page').then(

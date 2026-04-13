@@ -1,0 +1,64 @@
+<ion-menu side="end" type="overlay" [contentId]="contentId" class="analysis-menu">
+  <ion-header>
+    <ion-toolbar>
+      <ion-buttons slot="start">
+        <ion-menu-toggle>
+          <ion-button fill="clear" aria-label="Close analyses menu">
+            <ion-icon slot="icon-only" name="arrow-back-outline"></ion-icon>
+          </ion-button>
+        </ion-menu-toggle>
+      </ion-buttons>
+      <ion-title>Saved Analyses</ion-title>
+    </ion-toolbar>
+  </ion-header>
+
+  <ion-content class="analysis-menu-content">
+    <div class="analysis-list">
+      <p class="menu-error" *ngIf="errorMessage">{{ errorMessage }}</p>
+
+      <ng-container *ngIf="!errorMessage">
+        <div class="analysis-item" *ngFor="let analysis of workoutAnalyses">
+          {{ analysis.label }}
+        </div>
+
+        <p class="menu-empty" *ngIf="!isLoading && workoutAnalyses.length === 0">
+          No workout analyses found for this client yet.
+        </p>
+      </ng-container>
+    </div>
+  </ion-content>
+</ion-menu>
+
+<div class="ion-page" [id]="contentId">
+  <ion-header [translucent]="true">
+    <ion-toolbar>
+      <ion-buttons slot="start">
+        <ion-button fill="clear" (click)="goBack()" aria-label="Go back">
+          <ion-icon slot="icon-only" name="arrow-back-outline"></ion-icon>
+        </ion-button>
+      </ion-buttons>
+      <ion-title>{{ clientName || 'Workout Analyzer' }}</ion-title>
+      <ion-buttons slot="end">
+        <ion-menu-button autoHide="false" aria-label="Open analyses menu"></ion-menu-button>
+      </ion-buttons>
+    </ion-toolbar>
+  </ion-header>
+
+  <ion-content [fullscreen]="true" class="trainer-workout-analyzer-content">
+    <div class="trainer-workout-analyzer-page">
+      <div class="hero-card" *ngIf="!isLoading; else loadingState">
+        <h1>Workout Analyzer</h1>
+        <p *ngIf="clientName">Review saved workout analyses for {{ clientName }}.</p>
+        <p *ngIf="!clientName">Review saved workout analyses for this client.</p>
+        <p class="helper-copy">Use the top-right menu to browse every saved analysis entry.</p>
+      </div>
+
+      <ng-template #loadingState>
+        <div class="loading-state">
+          <ion-spinner name="crescent"></ion-spinner>
+          <p>Loading workout analyses...</p>
+        </div>
+      </ng-template>
+    </div>
+  </ion-content>
+</div>
