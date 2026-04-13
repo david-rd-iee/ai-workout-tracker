@@ -235,11 +235,13 @@ export class VideoAnalysisService {
     recordedAtMs: number;
     recordedVideo: Blob;
     analysis: VideoAnalysisResult;
+    workoutName?: string;
     onProgress?: ProgressCallback;
   }): Promise<SavedVideoAnalysisRecord> {
     const clientId = String(options.clientId || '').trim();
     const trainerId = String(options.trainerId || '').trim();
     const recordedAtMs = Number(options.recordedAtMs || Date.now());
+    const workoutName = String(options.workoutName || '').trim();
 
     if (!clientId) {
       throw new Error('A client ID is required before sending this analysis.');
@@ -325,6 +327,7 @@ export class VideoAnalysisService {
         id: docId,
         clientId,
         trainerId,
+        workoutName,
         source: 'camera-page',
         status: 'ready',
         recordedAt: new Date(recordedAtMs).toISOString(),

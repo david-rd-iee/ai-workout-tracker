@@ -402,6 +402,12 @@ export class ProfileUserPage implements OnInit, OnDestroy {
       animationDirection: 'forward',
     });
   }
+  goToAnalyzeClientWorkouts(): void {
+    this.navCtrl.navigateForward('/client-workout-analysis', {
+      animated: true,
+      animationDirection: 'forward',
+    });
+  }
 
   // Statue management methods
 

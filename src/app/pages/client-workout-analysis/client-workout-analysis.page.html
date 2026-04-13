@@ -1,0 +1,42 @@
+<ion-header [translucent]="true">
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-button fill="clear" (click)="goBack()" aria-label="Go back">
+        <ion-icon slot="icon-only" name="arrow-back-outline"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+    <ion-title>Clients:</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true" class="client-workout-analysis-content">
+  <div class="client-workout-analysis-page">
+    <div class="clients-shell" *ngIf="!isLoading; else loadingState">
+      <p class="error-text" *ngIf="errorMessage">{{ errorMessage }}</p>
+
+      <ng-container *ngIf="!errorMessage">
+        <button
+          type="button"
+          class="client-row"
+          *ngFor="let client of clients"
+          (click)="openClient(client)"
+        >
+          <span>{{ client.clientName }}</span>
+          <ion-icon name="chevron-forward-outline"></ion-icon>
+        </button>
+
+        <div class="empty-state" *ngIf="clients.length === 0">
+          <ion-icon name="analytics-outline"></ion-icon>
+          <p>No clients found yet.</p>
+        </div>
+      </ng-container>
+    </div>
+
+    <ng-template #loadingState>
+      <div class="loading-state">
+        <ion-spinner name="crescent"></ion-spinner>
+        <p>Loading clients...</p>
+      </div>
+    </ng-template>
+  </div>
+</ion-content>

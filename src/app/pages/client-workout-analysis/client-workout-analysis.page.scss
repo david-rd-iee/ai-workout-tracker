@@ -1,0 +1,70 @@
+.client-workout-analysis-content {
+  --padding-start: 16px;
+  --padding-end: 16px;
+  --padding-top: 16px;
+  --padding-bottom: 28px;
+  --background: linear-gradient(180deg, #f6f7f3 0%, #eef1ea 100%);
+}
+
+.client-workout-analysis-page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+.clients-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.client-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 18px;
+  border: 0;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.92);
+  color: #122523;
+  font-size: 1rem;
+  font-weight: 700;
+  text-align: left;
+  box-shadow:
+    0 12px 24px rgba(26, 43, 39, 0.08),
+    inset 0 0 0 1px rgba(31, 71, 58, 0.06);
+}
+
+.client-row ion-icon {
+  flex-shrink: 0;
+  font-size: 1.1rem;
+  color: #60716f;
+}
+
+.client-row:active {
+  transform: translateY(1px);
+}
+
+.loading-state,
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 240px;
+  color: #546361;
+  text-align: center;
+}
+
+.empty-state ion-icon {
+  font-size: 2rem;
+  color: #60716f;
+}
+
+.error-text {
+  margin: 0;
+  color: #b42318;
+}

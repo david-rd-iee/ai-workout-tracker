@@ -178,6 +178,14 @@ export const routes: Routes = [
     canActivate: [authGuard],
   },
   {
+    path: 'client-workout-analysis',
+    loadComponent: () =>
+      import('./pages/client-workout-analysis/client-workout-analysis.page').then(
+        (m) => m.ClientWorkoutAnalysisPage
+      ),
+    canActivate: [authGuard],
+  },
+  {
     path: 'treadmill-logger',
     loadComponent: () =>
       import('./pages/treadmill-logger/treadmill-logger.page').then(

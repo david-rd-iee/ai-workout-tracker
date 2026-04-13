@@ -1,6 +1,7 @@
 import { AfterViewInit, Component, ElementRef, OnDestroy, ViewChild, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {
+  AlertController,
   IonBackButton,
   IonButton,
   IonButtons,
@@ -38,6 +39,7 @@ export class CameraPage implements AfterViewInit, OnDestroy {
   private readonly videoAnalysisService = inject(VideoAnalysisService);
   private readonly userService = inject(UserService);
   private readonly toastCtrl = inject(ToastController);
+  private readonly alertCtrl = inject(AlertController);
 
   hasCameraSupport = typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia;
   hasRecordingSupport = typeof MediaRecorder !== 'undefined';
@@ -231,12 +233,20 @@ export class CameraPage implements AfterViewInit, OnDestroy {
     this.errorMessage = '';
 
     try {
+      const workoutName = await this.promptForWorkoutName();
+      if (workoutName === null) {
+        this.isUploading = false;
+        this.uploadMessage = '';
+        return;
+      }
+
       this.savedRecord = await this.videoAnalysisService.saveAnalysisToTrainer({
         clientId,
         trainerId: this.assignedTrainerId,
         recordedAtMs: this.recordedAtMs,
         recordedVideo: this.recordedVideoBlob,
         analysis: this.analysisResult,
+        workoutName,
         onProgress: (message) => {
           this.uploadMessage = message;
         },
@@ -251,6 +261,42 @@ export class CameraPage implements AfterViewInit, OnDestroy {
     } finally {
       this.isUploading = false;
     }
+  }
+
+  private async promptForWorkoutName(): Promise<string | null> {
+    return new Promise<string | null>(async (resolve) => {
+      const alert = await this.alertCtrl.create({
+        header: 'Name this workout?',
+        message: 'Enter a workout name, or skip to send without one.',
+        inputs: [
+          {
+            name: 'workoutName',
+            type: 'text',
+            placeholder: 'Leg day, Upper body, Morning run...',
+          },
+        ],
+        backdropDismiss: false,
+        buttons: [
+          {
+            text: 'Cancel',
+            role: 'cancel',
+            handler: () => resolve(null),
+          },
+          {
+            text: 'Skip',
+            handler: () => resolve(''),
+          },
+          {
+            text: 'Confirm',
+            handler: (data: { workoutName?: string }) => {
+              resolve(String(data?.workoutName || '').trim());
+            },
+          },
+        ],
+      });
+
+      await alert.present();
+    });
   }
 
   dominantMovementLabel(analysis: VideoAnalysisResult): string {

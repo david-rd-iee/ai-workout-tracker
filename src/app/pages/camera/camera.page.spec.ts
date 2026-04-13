@@ -3,7 +3,7 @@ import { signal } from '@angular/core';
 import { CameraPage } from './camera.page';
 import { VideoAnalysisService } from '../../services/video-analysis.service';
 import { UserService } from '../../services/account/user.service';
-import { ToastController } from '@ionic/angular/standalone';
+import { AlertController, ToastController } from '@ionic/angular/standalone';
 
 describe('CameraPage', () => {
   let component: CameraPage;
@@ -30,6 +30,12 @@ describe('CameraPage', () => {
     }),
   };
 
+  const alertControllerStub = {
+    create: jasmine.createSpy('create').and.resolveTo({
+      present: jasmine.createSpy('present').and.resolveTo(),
+    }),
+  };
+
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [CameraPage],
@@ -37,6 +43,7 @@ describe('CameraPage', () => {
         { provide: VideoAnalysisService, useValue: videoAnalysisServiceStub },
         { provide: UserService, useValue: userServiceStub },
         { provide: ToastController, useValue: toastControllerStub },
+        { provide: AlertController, useValue: alertControllerStub },
       ],
     }).compileComponents();
 
