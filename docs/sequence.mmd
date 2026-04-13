@@ -2,61 +2,78 @@ sequenceDiagram
 autonumber
 
 actor User
-participant Page as WorkoutChatbotPage
+participant ChatPage as WorkoutChatbotPage
 participant WorkflowSvc as WorkoutWorkflowService
-participant SummaryProjection as WorkoutWorkflowSummaryProjectionService
 participant EstimatorPrep as WorkoutWorkflowEstimatorPreparationService
+participant SummaryProjection as WorkoutWorkflowSummaryProjectionService
 participant ChatSvc as WorkoutChatService
 participant ChatFn as workoutChatCallable
 participant OpenAI
-participant EstSvc as ExerciseEstimatorsService
 participant LogSvc as WorkoutLogService
-participant CompleteWorkoutCmd as completeWorkoutEvent
+participant CompleteFn as completeWorkoutEvent
 participant FS as Firestore
-participant EventProcessor as onWorkoutEventCreated
+participant PostWrite as onWorkoutEventCreated
 participant RTDB as Realtime Database
-participant RetrainFn as retrainExerciseEstimatorOnWorkoutLogCreate
+participant HistoryPage as WorkoutHistoryPage
+participant SummarySvc as WorkoutSummaryService
+participant SummaryPage as WorkoutSummaryPage
+participant ChatDetail as ChatDetailPage
 
-User->>Page: Enter workout message
-Page->>WorkflowSvc: processWorkoutMessage(message, messages, screenState)
+User->>ChatPage: Enter workout details
+ChatPage->>WorkflowSvc: processWorkoutMessage(message, messages, screenState)
 WorkflowSvc->>EstimatorPrep: prepareEstimatorsForSession(session)
-EstimatorPrep->>SummaryProjection: projectStrengthRows(session)
-EstimatorPrep->>EstSvc: read cached/indexed estimator IDs
-EstSvc->>FS: Read systemConfig/exercise_estimators_index<br/>or strength estimator collection fallback
-EstimatorPrep-->>WorkflowSvc: exerciseEstimatorIds
+EstimatorPrep-->>WorkflowSvc: estimatorIds
 WorkflowSvc->>ChatSvc: sendMessage(message, session, history, estimatorIds)
 ChatSvc->>ChatFn: httpsCallable(payload)
-ChatFn->>OpenAI: Parse/update workout JSON
+ChatFn->>OpenAI: parse/update structured workout data
 OpenAI-->>ChatFn: assistantMessage + summary
 ChatFn-->>ChatSvc: ChatResponse
-ChatSvc-->>WorkflowSvc: botMessage + updatedSession
 WorkflowSvc->>SummaryProjection: projectWorkflowState(updatedSession)
-SummaryProjection-->>WorkflowSvc: {session, summaryRows}
-WorkflowSvc-->>Page: WorkoutChatScreenState { session, summaryRows, saveStatus, loggedAt, completionStatus, botMessage }
+WorkflowSvc-->>ChatPage: session + live summary rows
 
-User->>Page: Submit workout
-Page->>WorkflowSvc: submitWorkout(session, requestTrainerNotes)
-WorkflowSvc->>Page: request trainer notes
-Page-->>WorkflowSvc: trainer notes or cancel
+User->>ChatPage: Submit workout
+ChatPage->>WorkflowSvc: submitWorkout(session, requestTrainerNotes)
 WorkflowSvc->>LogSvc: saveCompletedWorkout(session)
-LogSvc->>CompleteWorkoutCmd: completeWorkoutEvent(normalized WorkoutEvent)
-CompleteWorkoutCmd->>FS: Write users/{uid}/workoutEvents/{eventId}
-CompleteWorkoutCmd-->>LogSvc: {eventId, status: persisted}
-LogSvc-->>WorkflowSvc: savedSession + persisted status
+LogSvc->>CompleteFn: completeWorkoutEvent(normalized WorkoutEvent)
+CompleteFn->>FS: Write users/{uid}/workoutEvents/{eventId}
+CompleteFn-->>LogSvc: { eventId, status: persisted }
+
+FS-->>PostWrite: Trigger on users/{uid}/workoutEvents/{eventId}
+PostWrite->>FS: Update user stats + score derivations
+PostWrite->>FS: Read same-day workoutEvents
+PostWrite->>FS: Upsert users/{uid}/workoutSummaries/{YYYY-MM-DD}
+
+alt user has trainerId
+  PostWrite->>FS: Read users/{uid} / clients/{uid} for trainerId and user name
+  PostWrite->>RTDB: Find or create direct chat with trainer
+  alt first workoutSummary message for the day does not exist
+    PostWrite->>RTDB: Create chats/{chatId}/messages/workout_summary_{YYYY-MM-DD}
+    PostWrite->>RTDB: Set lastMessage + lastMessageTime
+  else same-day message already exists
+    PostWrite->>RTDB: Update existing workout_summary_{YYYY-MM-DD} message text
+    PostWrite->>RTDB: Update lastMessage only
+  end
+end
+
+LogSvc->>FS: Poll derivations/workout_summary + derivations/score_aggregation
+LogSvc-->>WorkflowSvc: savedSession + scoreUpdate
 WorkflowSvc->>SummaryProjection: projectWorkflowState(savedSession)
-SummaryProjection-->>WorkflowSvc: {session, summaryRows}
-WorkflowSvc-->>Page: SubmitWorkoutResult { session, summaryRows, saveStatus, loggedAt, completionStatus, botMessage, eventId, savePersistenceStatus }
-Page-->>User: Success message + workout summary
+WorkflowSvc-->>ChatPage: saved state
 
-FS-->>EventProcessor: Trigger on users/{uid}/workoutEvents/{eventId}
-EventProcessor->>FS: Update streak + early-morning stats
-EventProcessor->>FS: Create missing strength/cardio estimator docs when needed
-EventProcessor->>FS: Upsert indexed strength estimator IDs for new committed exercises
-EventProcessor->>FS: Write score totals, addedScore, rankings, estimator workout_logs
-EventProcessor->>FS: Create trainer summary
-EventProcessor->>RTDB: Send trainer chat summary
+User->>HistoryPage: Open workout history
+HistoryPage->>SummarySvc: listRecentWorkoutSummaries(uid)
+SummarySvc->>FS: Read users/{uid}/workoutSummaries order by date desc
+SummarySvc-->>HistoryPage: grouped daily history cards
 
-FS-->>RetrainFn: Trigger when estimator workout_logs doc is created
-RetrainFn->>FS: Retrain and persist estimator coefficients/metrics
+User->>SummaryPage: Open a specific day
+SummaryPage->>SummarySvc: getWorkoutSummary(uid, date)
+SummarySvc->>FS: Read users/{uid}/workoutSummaries/{date}
+SummarySvc-->>SummaryPage: daily summary for display
 
-Note over LogSvc,EventProcessor: Submit success ends when completeWorkoutEvent returns after persisting users/[uid]/workoutEvents/[eventId]<br/>onWorkoutEventCreated then runs the current processors sequentially
+User->>ChatDetail: Open trainer chat
+ChatDetail->>RTDB: Subscribe to chats/{chatId}/messages
+RTDB-->>ChatDetail: workout_summary message
+ChatDetail-->>User: Render workout summary as custom card, not a normal bubble
+
+Note over PostWrite,SummarySvc: The daily WorkoutSummary is the source of truth for history and persisted summary views.
+Note over RTDB,ChatDetail: Trainer chat keeps one workout_summary message per day and updates it in place for additional same-day events.

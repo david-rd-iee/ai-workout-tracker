@@ -173,6 +173,46 @@
             margin-bottom: 10px;
         }
 
+        .diagram-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+        }
+
+        .diagram-card {
+            background: rgba(248, 249, 250, 0.88);
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid rgba(66, 135, 245, 0.18);
+            backdrop-filter: blur(6px);
+            overflow: auto;
+        }
+
+        .diagram-card p {
+            text-align: left;
+            margin-bottom: 12px;
+        }
+
+        .diagram-links {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+
+        .diagram-links a {
+            display: inline-flex;
+            align-items: center;
+            padding: 8px 12px;
+            border-radius: 999px;
+            background: rgba(66, 135, 245, 0.1);
+            font-weight: 600;
+        }
+
+        .diagram-card .mermaid {
+            min-width: 900px;
+        }
+
         .resource-list ul {
             margin-left: 25px;
         }
@@ -352,6 +392,251 @@
                 </div>
             </section>
 
+            <section aria-labelledby="diagrams-heading">
+                <h2 id="diagrams-heading">Architecture Diagrams</h2>
+                <p>
+                    These Mermaid diagrams reflect the current workout logging and daily workout summary architecture in the repository. The source files are kept in <code>docs/uml.mmd</code> and <code>docs/sequence.mmd</code>.
+                </p>
+
+                <div class="diagram-grid">
+                    <div class="diagram-card">
+                        <h3>UML Class Diagram</h3>
+                        <div class="diagram-links">
+                            <a href="uml.mmd">View Mermaid Source</a>
+                            <a href="uml.pdf">View PDF Export</a>
+                        </div>
+                        <pre class="mermaid">
+classDiagram
+direction LR
+
+namespace Frontend_Pages {
+  class WorkoutChatbotPage
+  class WorkoutHistoryPage
+  class WorkoutHistoryCsvPage
+  class WorkoutSummaryPage
+  class ChatDetailPage
+}
+
+namespace Frontend_Services {
+  class WorkoutWorkflowService
+  class WorkoutLogService
+  class WorkoutSummaryService
+  class WorkoutChatService
+  class WorkoutSessionFormatterService
+  class WorkoutWorkflowSummaryProjectionService
+  class WorkoutWorkflowEstimatorPreparationService
+  class ChatsService
+}
+
+namespace Backend_Functions {
+  class CompleteWorkoutEventCallable
+  class WorkoutEventPostWriteHandlers
+}
+
+namespace Shared_Domain {
+  class WorkoutEvent {
+    +date: string
+    +entries: WorkoutEventEntry[]
+    +summary: WorkoutEventSummary
+    +source: WorkoutEventSource
+  }
+
+  class WorkoutEventSummary {
+    +estimatedCalories: number
+    +trainerNotes: string
+    +isComplete: boolean
+  }
+
+  class WorkoutEventEntry {
+    +kind: strength/cardio/other
+    +estimatedCalories: number
+  }
+
+  class WorkoutEventRecord {
+    +schemaVersion: 1
+    +event: WorkoutEvent
+    +submissionMetadata: localSubmittedDate + localSubmittedHour
+    +createdAt: timestamp
+    +updatedAt: timestamp
+  }
+
+  class WorkoutSummary {
+    +date: string
+    +workoutEventIds: string[]
+    +eventCount: number
+    +aggregate: WorkoutEvent
+    +firstEventCreatedAt: ISO string
+    +lastEventCreatedAt: ISO string
+  }
+}
+
+namespace Legacy_UI_View_Model {
+  class WorkoutSessionPerformance {
+    +date: string
+    +trainingRows: WorkoutTrainingRow[]
+    +strengthTrainingRow: WorkoutTrainingRow[]
+    +cardioTrainingRow: CardioTrainingRow[]
+    +otherTrainingRow: OtherTrainingRow[]
+    +estimated_calories: number
+    +trainer_notes: string
+    +isComplete: boolean
+  }
+
+  class WorkoutTrainingRow
+  class CardioTrainingRow
+  class OtherTrainingRow
+}
+
+namespace Firebase_Data {
+  class UserWorkoutEventsCollection {
+    +users/{uid}/workoutEvents/{eventId}
+  }
+
+  class UserWorkoutSummariesCollection {
+    +users/{uid}/workoutSummaries/{YYYY-MM-DD}
+  }
+
+  class DirectChatMessage {
+    +chats/{chatId}/messages/workout_summary_{YYYY-MM-DD}
+    +type: workout_summary
+  }
+}
+
+namespace Infrastructure {
+  class Firestore
+  class RealtimeDatabase
+  class OpenAI
+}
+
+WorkoutEvent o-- WorkoutEventSummary
+WorkoutEvent o-- WorkoutEventEntry
+WorkoutEventRecord o-- WorkoutEvent
+WorkoutSummary o-- WorkoutEvent : aggregate
+WorkoutSessionPerformance o-- WorkoutTrainingRow
+WorkoutSessionPerformance o-- CardioTrainingRow
+WorkoutSessionPerformance o-- OtherTrainingRow
+
+WorkoutChatbotPage --> WorkoutWorkflowService : processWorkoutMessage()/submitWorkout()
+WorkoutHistoryPage --> WorkoutSummaryService : listRecentWorkoutSummaries()
+WorkoutHistoryCsvPage --> WorkoutHistoryPage : consumes grouped daily summaries
+WorkoutSummaryPage --> WorkoutSummaryService : getWorkoutSummary(date)
+ChatDetailPage --> ChatsService : subscribes to direct chat
+
+WorkoutWorkflowService --> WorkoutChatService : sendMessage()
+WorkoutWorkflowService --> WorkoutLogService : saveCompletedWorkout()
+WorkoutWorkflowService --> WorkoutSessionFormatterService : normalize/apply notes
+WorkoutWorkflowService --> WorkoutWorkflowSummaryProjectionService : project workflow state
+WorkoutWorkflowService --> WorkoutWorkflowEstimatorPreparationService : prepare estimator ids
+
+WorkoutSummaryService --> WorkoutSummary : normalize/read daily summaries
+WorkoutSummaryService --> WorkoutSessionPerformance : project summary/history UI
+
+WorkoutLogService --> CompleteWorkoutEventCallable : completeWorkoutEvent()
+WorkoutLogService --> Firestore : wait for derivations/workout_summary
+
+CompleteWorkoutEventCallable --> UserWorkoutEventsCollection : write canonical WorkoutEventRecord
+WorkoutEventPostWriteHandlers --> UserWorkoutSummariesCollection : upsert daily WorkoutSummary
+WorkoutEventPostWriteHandlers --> RealtimeDatabase : create or update daily trainer chat message
+WorkoutEventPostWriteHandlers --> Firestore : resolve trainerId, user name, stats, scores
+
+UserWorkoutEventsCollection --> Firestore
+UserWorkoutSummariesCollection --> Firestore
+DirectChatMessage --> RealtimeDatabase
+WorkoutChatService --> OpenAI
+                        </pre>
+                    </div>
+
+                    <div class="diagram-card">
+                        <h3>Workout Logging Sequence Diagram</h3>
+                        <div class="diagram-links">
+                            <a href="sequence.mmd">View Mermaid Source</a>
+                            <a href="sequence.pdf">View PDF Export</a>
+                        </div>
+                        <pre class="mermaid">
+sequenceDiagram
+autonumber
+
+actor User
+participant ChatPage as WorkoutChatbotPage
+participant WorkflowSvc as WorkoutWorkflowService
+participant EstimatorPrep as WorkoutWorkflowEstimatorPreparationService
+participant SummaryProjection as WorkoutWorkflowSummaryProjectionService
+participant ChatSvc as WorkoutChatService
+participant ChatFn as workoutChatCallable
+participant OpenAI
+participant LogSvc as WorkoutLogService
+participant CompleteFn as completeWorkoutEvent
+participant FS as Firestore
+participant PostWrite as onWorkoutEventCreated
+participant RTDB as Realtime Database
+participant HistoryPage as WorkoutHistoryPage
+participant SummarySvc as WorkoutSummaryService
+participant SummaryPage as WorkoutSummaryPage
+participant ChatDetail as ChatDetailPage
+
+User->>ChatPage: Enter workout details
+ChatPage->>WorkflowSvc: processWorkoutMessage(message, messages, screenState)
+WorkflowSvc->>EstimatorPrep: prepareEstimatorsForSession(session)
+EstimatorPrep-->>WorkflowSvc: estimatorIds
+WorkflowSvc->>ChatSvc: sendMessage(message, session, history, estimatorIds)
+ChatSvc->>ChatFn: httpsCallable(payload)
+ChatFn->>OpenAI: parse/update structured workout data
+OpenAI-->>ChatFn: assistantMessage + summary
+ChatFn-->>ChatSvc: ChatResponse
+WorkflowSvc->>SummaryProjection: projectWorkflowState(updatedSession)
+WorkflowSvc-->>ChatPage: session + live summary rows
+
+User->>ChatPage: Submit workout
+ChatPage->>WorkflowSvc: submitWorkout(session, requestTrainerNotes)
+WorkflowSvc->>LogSvc: saveCompletedWorkout(session)
+LogSvc->>CompleteFn: completeWorkoutEvent(normalized WorkoutEvent)
+CompleteFn->>FS: Write users/{uid}/workoutEvents/{eventId}
+CompleteFn-->>LogSvc: { eventId, status: persisted }
+
+FS-->>PostWrite: Trigger on users/{uid}/workoutEvents/{eventId}
+PostWrite->>FS: Update user stats + score derivations
+PostWrite->>FS: Read same-day workoutEvents
+PostWrite->>FS: Upsert users/{uid}/workoutSummaries/{YYYY-MM-DD}
+
+alt user has trainerId
+  PostWrite->>FS: Read users/{uid} / clients/{uid} for trainerId and user name
+  PostWrite->>RTDB: Find or create direct chat with trainer
+  alt first workoutSummary message for the day does not exist
+    PostWrite->>RTDB: Create chats/{chatId}/messages/workout_summary_{YYYY-MM-DD}
+    PostWrite->>RTDB: Set lastMessage + lastMessageTime
+  else same-day message already exists
+    PostWrite->>RTDB: Update existing workout_summary_{YYYY-MM-DD} message text
+    PostWrite->>RTDB: Update lastMessage only
+  end
+end
+
+LogSvc->>FS: Poll derivations/workout_summary + derivations/score_aggregation
+LogSvc-->>WorkflowSvc: savedSession + scoreUpdate
+WorkflowSvc->>SummaryProjection: projectWorkflowState(savedSession)
+WorkflowSvc-->>ChatPage: saved state
+
+User->>HistoryPage: Open workout history
+HistoryPage->>SummarySvc: listRecentWorkoutSummaries(uid)
+SummarySvc->>FS: Read users/{uid}/workoutSummaries order by date desc
+SummarySvc-->>HistoryPage: grouped daily history cards
+
+User->>SummaryPage: Open a specific day
+SummaryPage->>SummarySvc: getWorkoutSummary(uid, date)
+SummarySvc->>FS: Read users/{uid}/workoutSummaries/{date}
+SummarySvc-->>SummaryPage: daily summary for display
+
+User->>ChatDetail: Open trainer chat
+ChatDetail->>RTDB: Subscribe to chats/{chatId}/messages
+RTDB-->>ChatDetail: workout_summary message
+ChatDetail-->>User: Render workout summary as custom card, not a normal bubble
+
+Note over PostWrite,SummarySvc: The daily WorkoutSummary is the source of truth for history and persisted summary views.
+Note over RTDB,ChatDetail: Trainer chat keeps one workout_summary message per day and updates it in place for additional same-day events.
+                        </pre>
+                    </div>
+                </div>
+            </section>
+
             <!-- Project Repository -->
             <section aria-labelledby="repository-heading">
                 <h2 id="repository-heading">Project Repository</h2>
@@ -449,5 +734,14 @@
             <p>This website is ADA compliant and will be maintained through April 2026</p>
         </footer>
     </div>
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'default',
+            securityLevel: 'loose'
+        });
+    </script>
 </body>
 </html>
