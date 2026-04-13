@@ -52,6 +52,21 @@ ion-header {
   }
 }
 
+.message-row.workout-summary-row {
+  .message-bubble {
+    padding: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  &.sent .message-bubble,
+  &.received .message-bubble {
+    margin-left: 0;
+    margin-right: 0;
+    border-radius: 0;
+  }
+}
+
 .message-bubble {
   max-width: 70%;
   padding: 8px 12px;
@@ -103,6 +118,92 @@ ion-header {
     font-weight: 600;
     opacity: 0.75;
   }
+}
+
+.workout-summary-bubble {
+  max-width: min(82%, 420px);
+}
+
+.workout-summary-card {
+  padding: 18px 18px 16px;
+  border-radius: 24px;
+  background: #ffffff;
+  box-shadow: 0 18px 40px rgba(10, 24, 56, 0.12);
+  border: 1px solid rgba(182, 197, 220, 0.35);
+}
+
+.summary-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.logged-date {
+  margin: 0;
+  font-size: 1.45rem;
+  font-weight: 700;
+  line-height: 1.15;
+  color: #1d2a3a;
+}
+
+.summary-user-name {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 500;
+  color: #607085;
+}
+
+.calories-text {
+  margin: 2px 0 0;
+  font-size: 1rem;
+  line-height: 1.35;
+  color: #1d2a3a;
+  white-space: normal;
+}
+
+.summary-section {
+  margin-bottom: 18px;
+}
+
+.section-title {
+  margin: 0 0 10px;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #1d2a3a;
+}
+
+.entry-card {
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: #f5f7fb;
+  margin-bottom: 10px;
+}
+
+.entry-card p {
+  margin: 0 0 6px;
+  color: #314055;
+  font-size: 15px;
+  line-height: 1.4;
+  white-space: normal;
+}
+
+.entry-card p:last-child {
+  margin-bottom: 0;
+}
+
+.entry-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #18212f;
+}
+
+.summary-notes p {
+  margin: 0;
+  color: #314055;
+  font-size: 15px;
+  line-height: 1.4;
+  white-space: pre-wrap;
 }
 
 .empty-state {

@@ -27,6 +27,24 @@ import { Database } from '@angular/fire/database';
 import { Firestore, doc, updateDoc, arrayUnion, serverTimestamp } from '@angular/fire/firestore';
 import { SessionRescheduleMessageComponent } from 'src/app/components/sessions/session-reschedule-message/session-reschedule-message.component';
 
+interface WorkoutSummaryCardEntry {
+  title: string;
+  details: string[];
+}
+
+interface WorkoutSummaryCardSection {
+  title: string;
+  entries: WorkoutSummaryCardEntry[];
+}
+
+interface WorkoutSummaryCardModel {
+  date: string;
+  userName: string;
+  estimatedCaloriesLine: string;
+  sections: WorkoutSummaryCardSection[];
+  trainerNotes: string;
+}
+
 @Component({
   selector: 'app-chat-detail',
   standalone: true,
@@ -59,6 +77,7 @@ export class ChatDetailPage implements OnInit, OnDestroy {
   messages: Message[] = [];
   
   private messagesUnsubscribe: (() => void) | null = null;
+  private workoutSummaryCardCache = new Map<string, WorkoutSummaryCardModel>();
 
   constructor(
     private route: ActivatedRoute,
@@ -119,6 +138,7 @@ export class ChatDetailPage implements OnInit, OnDestroy {
   ngOnDestroy() {
     this.messagesUnsubscribe?.();
     this.messagesUnsubscribe = null;
+    this.workoutSummaryCardCache.clear();
   }
 
   loadMessages() {
@@ -127,6 +147,7 @@ export class ChatDetailPage implements OnInit, OnDestroy {
     this.messagesUnsubscribe?.();
     this.messagesUnsubscribe = onValue(messagesRef, (snapshot) => {
       this.messages = [];
+      this.workoutSummaryCardCache.clear();
       
       snapshot.forEach((childSnapshot) => {
         const message = childSnapshot.val() as Message;
@@ -213,6 +234,82 @@ export class ChatDetailPage implements OnInit, OnDestroy {
     if (diffDays < 7) return `${diffDays}d ago`;
     
     return date.toLocaleDateString();
+  }
+
+  isWorkoutSummaryMessage(message: Message): boolean {
+    return message.type === 'workout_summary';
+  }
+
+  getWorkoutSummaryCard(message: Message): WorkoutSummaryCardModel {
+    const cacheKey = `${message.messageId || message.timestamp || ''}:${message.text || ''}`;
+    const cached = this.workoutSummaryCardCache.get(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
+    const lines = String(message.text ?? '')
+      .split('\n')
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0);
+
+    const date = lines[0] ?? '';
+    const userName = lines[1] ?? '';
+    const estimatedCaloriesLine = lines[2] ?? '';
+    const sections: WorkoutSummaryCardSection[] = [];
+    let trainerNotes = '';
+    let currentSection: WorkoutSummaryCardSection | null = null;
+    let currentEntry: WorkoutSummaryCardEntry | null = null;
+
+    for (const line of lines.slice(3)) {
+      if (line === 'Strength:' || line === 'Cardio:' || line === 'Other:') {
+        currentSection = {
+          title: line.replace(':', ''),
+          entries: [],
+        };
+        sections.push(currentSection);
+        currentEntry = null;
+        continue;
+      }
+
+      if (line === 'Notes for Trainer:') {
+        currentSection = null;
+        currentEntry = null;
+        continue;
+      }
+
+      if (!currentSection) {
+        trainerNotes = trainerNotes ? `${trainerNotes}\n${line}` : line;
+        continue;
+      }
+
+      if (this.isWorkoutSummaryDetailLine(line)) {
+        if (!currentEntry) {
+          currentEntry = {
+            title: 'Workout Entry',
+            details: [],
+          };
+          currentSection.entries.push(currentEntry);
+        }
+        currentEntry.details.push(line);
+        continue;
+      }
+
+      currentEntry = {
+        title: line,
+        details: [],
+      };
+      currentSection.entries.push(currentEntry);
+    }
+
+    const parsed = {
+      date,
+      userName,
+      estimatedCaloriesLine,
+      sections,
+      trainerNotes,
+    };
+    this.workoutSummaryCardCache.set(cacheKey, parsed);
+    return parsed;
   }
 
   isGroupInvite(message: Message): boolean {
@@ -343,5 +440,17 @@ export class ChatDetailPage implements OnInit, OnDestroy {
   getRescheduleRequestId(message: Message): string {
     if (!this.isRescheduleMessage(message)) return '';
     return message.text.replace('reschedule/', '');
+  }
+
+  private isWorkoutSummaryDetailLine(line: string): boolean {
+    return [
+      'Sets:',
+      'Reps:',
+      'Weights:',
+      'Distance:',
+      'Time:',
+      'Calories Burned:',
+      'Details:',
+    ].some((prefix) => line.startsWith(prefix));
   }
 }

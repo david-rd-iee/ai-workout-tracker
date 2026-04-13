@@ -3,13 +3,18 @@ import * as logger from "firebase-functions/logger";
 import { onDocumentCreated } from "firebase-functions/v2/firestore";
 import {
   workoutEventRecordToWorkoutEvent,
-  workoutEventToLegacyWorkoutSession,
 } from "../../shared/adapters/workout-event.adapters";
+import {
+  createWorkoutSummaryFromEvents,
+  normalizeWorkoutSummaryCandidate,
+  workoutSummaryToLegacyWorkoutSession,
+} from "../../shared/adapters/workout-summary.adapters";
 import type {
   CardioWorkoutEventEntry,
   StrengthWorkoutEventEntry,
   WorkoutEvent,
 } from "../../shared/models/workout-event.model";
+import type { WorkoutSummary } from "../../shared/models/workout-summary.model";
 
 if (admin.apps.length === 0) {
   admin.initializeApp();
@@ -586,145 +591,115 @@ async function processWorkoutEventCreatedScoreAggregation(
     });
 }
 
-async function processWorkoutEventCreatedTrainerSummary(
+async function processWorkoutEventCreatedWorkoutSummary(
   context: WorkoutEventProcessorContext
 ): Promise<void> {
   const {snapshot, userId, eventId, persisted} = context;
-  const markerRef = snapshot.ref.collection(DERIVATIONS_COLLECTION).doc("trainer_summary");
+  const markerRef = snapshot.ref.collection(DERIVATIONS_COLLECTION).doc("workout_summary");
   const markerSnap = await markerRef.get();
   if (markerSnap.exists) {
     return;
   }
 
+  const summaryDate =
+    persisted.localSubmittedDate ||
+    persisted.workoutEvent.date ||
+    toLocalDateKey(persisted.createdAt);
+  const workoutSummary = await buildWorkoutSummaryForDate(
+    userId,
+    summaryDate,
+    eventId,
+    persisted
+  );
+  const clientSummaryRef = db.doc(`users/${userId}/${WORKOUT_SUMMARIES_COLLECTION}/${summaryDate}`);
+  const clientSummarySnap = await clientSummaryRef.get();
+  const isNewClientSummary = !clientSummarySnap.exists;
   const trainerUid = await resolveCurrentTrainerUid(userId);
-  if (!trainerUid) {
-    await markerRef.set(
-      {
-        status: "skipped",
-        skippedAt: admin.firestore.FieldValue.serverTimestamp(),
-        reason: "no_trainer",
-        sourceModel: "workout_event",
-        derivedFromWorkoutEventId: eventId,
-      },
-      {merge: true}
-    );
-    return;
-  }
 
-  const legacySession = toLegacyWorkoutSessionRecord(persisted.workoutEvent);
-  const trainingRows = getTrainingRows(legacySession);
-  const summaryRef = db.doc(
-    `users/${trainerUid}/${WORKOUT_SUMMARIES_COLLECTION}/${buildTrainerSummaryId(userId, eventId)}`
-  );
-  const date = readText(legacySession["date"]) || persisted.workoutEvent.date;
-  const trainerNotes = readText(legacySession["trainer_notes"] ?? legacySession["notes"]);
-  const estimatedCalories = toRoundedNonNegative(
-    legacySession["estimated_calories"] ??
-    legacySession["calories"]
-  );
-  const totalVolume = toNonNegativeNumber(legacySession["volume"]);
-
-  await Promise.all([
-    summaryRef.set(
+  const writes: Array<Promise<unknown>> = [
+    clientSummaryRef.set(
       {
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        ...buildClientWorkoutSummaryRecord(workoutSummary, eventId),
+        ...(isNewClientSummary ? {createdAt: admin.firestore.FieldValue.serverTimestamp()} : {}),
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        date,
-        clientUid: userId,
-        clientWorkoutEventId: eventId,
-        estimatedCalories,
-        totalVolume,
-        trainerNotes,
-        isComplete: true,
-        rows: trainingRows.map((row) => ({
-          trainingType: readText(row["Training_Type"]),
-          estimatedCalories: toRoundedNonNegative(row["estimated_calories"]),
-          exerciseType: readText(row["exercise_type"]),
-          exercise: fromSnakeCase(readText(row["exercise_type"])),
-          sets: toRoundedNonNegative(row["sets"]),
-          reps: toRoundedNonNegative(row["reps"]),
-          weights: formatWeight(row),
-        })),
-        source: readText(legacySession["sessionType"]) || "workout_event",
-        sourceModel: "workout_event",
-        isDerivedProjection: true,
-        derivedProjectionType: "trainer_summary",
       },
       {merge: true}
     ),
-    db.doc(`users/${trainerUid}`).set(
-      {
-        lastWorkoutSummaryAt: admin.firestore.FieldValue.serverTimestamp(),
-      },
-      {merge: true}
-    ),
-    markerRef.set(
-      {
-        status: "completed",
-        processedAt: admin.firestore.FieldValue.serverTimestamp(),
-        sourceModel: "workout_event",
-        derivedFromWorkoutEventId: eventId,
-        trainerUid,
-      },
-      {merge: true}
-    ),
-  ]);
-}
+  ];
 
-async function processWorkoutEventCreatedChatSummary(
-  context: WorkoutEventProcessorContext
-): Promise<void> {
-  const {snapshot, userId, eventId, persisted} = context;
-  const markerRef = snapshot.ref.collection(DERIVATIONS_COLLECTION).doc("trainer_chat_summary");
-  const markerSnap = await markerRef.get();
-  if (markerSnap.exists) {
-    return;
-  }
+  let chatId = "";
+  let chatMessageId = "";
+  if (trainerUid) {
+    chatId = await findOrCreateDirectChat(userId, trainerUid);
+    chatMessageId = buildSummaryChatMessageId(summaryDate);
+    const clientDisplayName = await resolveUserDisplayName(userId);
+    const messageTimestamp =
+      workoutSummary.lastEventCreatedAt ||
+      workoutSummary.firstEventCreatedAt ||
+      persisted.createdAt.toISOString();
+    const messageText = buildSummaryChatMessage(workoutSummary, clientDisplayName);
+    const messageRef = rtdb.ref(`chats/${chatId}/messages/${chatMessageId}`);
+    const existingMessageSnapshot = await messageRef.once("value");
 
-  const trainerUid = await resolveCurrentTrainerUid(userId);
-  if (!trainerUid) {
-    await markerRef.set(
-      {
-        status: "skipped",
-        skippedAt: admin.firestore.FieldValue.serverTimestamp(),
-        reason: "no_trainer",
-        sourceModel: "workout_event",
-        derivedFromWorkoutEventId: eventId,
-      },
-      {merge: true}
+    writes.push(
+      db.doc(`users/${trainerUid}`).set(
+        {
+          lastWorkoutSummaryAt: admin.firestore.FieldValue.serverTimestamp(),
+        },
+        {merge: true}
+      )
     );
-    return;
+
+    if (existingMessageSnapshot.exists()) {
+      writes.push(
+        messageRef.update({
+          text: messageText,
+          sourceModel: "workout_summary",
+          workoutSummaryDate: summaryDate,
+          derivedFromWorkoutEventId: eventId,
+          workoutEventIds: workoutSummary.workoutEventIds,
+          updatedAt: new Date().toISOString(),
+        }),
+        rtdb.ref(`chats/${chatId}/lastMessage`).set(messageText)
+      );
+    } else {
+      writes.push(
+        messageRef.set({
+          senderId: userId,
+          text: messageText,
+          timestamp: messageTimestamp,
+          read: false,
+          type: "workout_summary",
+          sourceModel: "workout_summary",
+          workoutSummaryDate: summaryDate,
+          derivedFromWorkoutEventId: eventId,
+          workoutEventIds: workoutSummary.workoutEventIds,
+        }),
+        rtdb.ref(`chats/${chatId}/lastMessage`).set(messageText),
+        rtdb.ref(`chats/${chatId}/lastMessageTime`).set(messageTimestamp)
+      );
+    }
   }
 
-  const chatId = await findOrCreateDirectChat(userId, trainerUid);
-  const messageId = `workout_summary_${eventId}`;
-  const timestamp = persisted.createdAt.toISOString();
-  const messageText = buildSummaryChatMessage(persisted.workoutEvent, persisted.createdAt);
-
-  await Promise.all([
-    rtdb.ref(`chats/${chatId}/messages/${messageId}`).set({
-      senderId: userId,
-      text: messageText,
-      timestamp,
-      read: false,
-      type: "workout_summary",
-      sourceModel: "workout_event",
-      derivedFromWorkoutEventId: eventId,
-    }),
-    rtdb.ref(`chats/${chatId}/lastMessage`).set(messageText),
-    rtdb.ref(`chats/${chatId}/lastMessageTime`).set(timestamp),
+  writes.push(
     markerRef.set(
       {
         status: "completed",
         processedAt: admin.firestore.FieldValue.serverTimestamp(),
         sourceModel: "workout_event",
         derivedFromWorkoutEventId: eventId,
+        workoutSummaryDate: summaryDate,
+        workoutSummaryEventCount: workoutSummary.eventCount,
+        workoutSummaryId: summaryDate,
         trainerUid,
-        chatId,
+        ...(chatId ? {chatId} : {}),
+        ...(chatMessageId ? {chatMessageId} : {}),
       },
       {merge: true}
-    ),
-  ]);
+    )
+  );
+
+  await Promise.all(writes);
 }
 
 const workoutEventCreatedProcessors: WorkoutEventProcessor[] = [
@@ -733,12 +708,8 @@ const workoutEventCreatedProcessors: WorkoutEventProcessor[] = [
     process: processWorkoutEventCreatedStats,
   },
   {
-    name: "create trainer summary",
-    process: processWorkoutEventCreatedTrainerSummary,
-  },
-  {
-    name: "enqueue/send chat summary",
-    process: processWorkoutEventCreatedChatSummary,
+    name: "update workout summary",
+    process: processWorkoutEventCreatedWorkoutSummary,
   },
 ];
 
@@ -1582,6 +1553,26 @@ async function resolveCurrentTrainerUid(clientUid: string): Promise<string> {
   return readText(clientData["trainerId"]);
 }
 
+async function resolveUserDisplayName(userId: string): Promise<string> {
+  const [userDocSnap, clientDocSnap] = await Promise.all([
+    db.doc(`users/${userId}`).get(),
+    db.doc(`clients/${userId}`).get(),
+  ]);
+
+  const userData = userDocSnap.exists ? userDocSnap.data() ?? {} : {};
+  const userFirstName = readText(userData["firstName"]);
+  const userLastName = readText(userData["lastName"]);
+  const fullNameFromUsers = [userFirstName, userLastName].filter(Boolean).join(" ").trim();
+  if (fullNameFromUsers) {
+    return fullNameFromUsers;
+  }
+
+  const clientData = clientDocSnap.exists ? clientDocSnap.data() ?? {} : {};
+  const clientFirstName = readText(clientData["firstName"]);
+  const clientLastName = readText(clientData["lastName"]);
+  return [clientFirstName, clientLastName].filter(Boolean).join(" ").trim();
+}
+
 async function findOrCreateDirectChat(userId1: string, userId2: string): Promise<string> {
   const userChatsSnapshot = await rtdb.ref(`userChats/${userId1}`).once("value");
   const userChats = userChatsSnapshot.val() as Record<string, unknown> | null;
@@ -1629,12 +1620,73 @@ function buildDirectChatId(userId1: string, userId2: string): string {
   return `${DIRECT_CHAT_PREFIX}_${left}_${right}`;
 }
 
-function buildTrainerSummaryId(clientUid: string, workoutEventId: string): string {
-  return `${readText(clientUid)}_${readText(workoutEventId)}`;
+async function buildWorkoutSummaryForDate(
+  userId: string,
+  summaryDate: string,
+  fallbackEventId: string,
+  fallbackPersisted: PersistedWorkoutEvent
+): Promise<WorkoutSummary> {
+  const workoutEventsSnapshot = await db
+    .collection(`users/${userId}/workoutEvents`)
+    .where("event.date", "==", summaryDate)
+    .get();
+
+  const summaryInputs = workoutEventsSnapshot.docs
+    .map((docSnap) => {
+      const rawData = docSnap.data();
+      const workoutEvent = workoutEventRecordToWorkoutEvent(rawData);
+      return {
+        workoutEventId: docSnap.id,
+        event: workoutEvent,
+        createdAt: toDate(rawData["createdAt"]) ?? undefined,
+      };
+    })
+    .filter((entry) => entry.event.summary.isComplete);
+
+  if (!summaryInputs.some((entry) => entry.workoutEventId === fallbackEventId)) {
+    summaryInputs.push({
+      workoutEventId: fallbackEventId,
+      event: fallbackPersisted.workoutEvent,
+      createdAt: fallbackPersisted.createdAt,
+    });
+  }
+
+  return normalizeWorkoutSummaryCandidate(
+    createWorkoutSummaryFromEvents(summaryInputs, {defaultDate: summaryDate}),
+    {defaultDate: summaryDate}
+  );
 }
 
-function buildSummaryChatMessage(workoutEvent: WorkoutEvent, loggedAt: Date): string {
-  const legacySession = toLegacyWorkoutSessionRecord(workoutEvent);
+function buildClientWorkoutSummaryRecord(
+  workoutSummary: WorkoutSummary,
+  updatedFromWorkoutEventId: string
+): Record<string, unknown> {
+  return {
+    date: workoutSummary.date,
+    workoutEventIds: workoutSummary.workoutEventIds,
+    eventCount: workoutSummary.eventCount,
+    aggregate: workoutSummary.aggregate,
+    ...(workoutSummary.firstEventCreatedAt ?
+      {firstEventCreatedAt: workoutSummary.firstEventCreatedAt} :
+      {}),
+    ...(workoutSummary.lastEventCreatedAt ?
+      {lastEventCreatedAt: workoutSummary.lastEventCreatedAt} :
+      {}),
+    sourceModel: "workout_summary",
+    aggregateSourceModel: "workout_event",
+    updatedFromWorkoutEventId,
+  };
+}
+
+function buildSummaryChatMessageId(summaryDate: string): string {
+  return `workout_summary_${readText(summaryDate)}`;
+}
+
+function buildSummaryChatMessage(
+  workoutSummary: WorkoutSummary,
+  clientDisplayName: string
+): string {
+  const legacySession = workoutSummaryToLegacyWorkoutSession(workoutSummary);
   const trainingRows = getTrainingRows(legacySession);
   const strengthRows = getStrengthRows(legacySession, trainingRows);
   const cardioRows = getCardioRows(legacySession, trainingRows);
@@ -1643,18 +1695,18 @@ function buildSummaryChatMessage(workoutEvent: WorkoutEvent, loggedAt: Date): st
     legacySession["estimated_calories"] ?? legacySession["calories"]
   );
   const trainerNotes = readText(legacySession["trainer_notes"] ?? legacySession["notes"]);
-  const lines: string[] = [
-    "Workout Summary",
-    "",
+  const loggedAt = toDate(`${workoutSummary.date}T12:00:00.000Z`);
+  const loggedDateLabel = loggedAt ?
     loggedAt.toLocaleDateString("en-US", {
       month: "long",
       day: "numeric",
       year: "numeric",
-    }),
-    loggedAt.toLocaleTimeString("en-US", {
-      hour: "numeric",
-      minute: "2-digit",
-    }),
+    }) :
+    workoutSummary.date;
+  const displayName = readText(clientDisplayName) || "Client";
+  const lines: string[] = [
+    loggedDateLabel,
+    displayName,
     `Estimated Total Calories: ${Math.round(estimatedCalories)} kcal`,
   ];
 
@@ -1702,10 +1754,6 @@ function buildSummaryChatMessage(workoutEvent: WorkoutEvent, loggedAt: Date): st
   }
 
   return lines.join("\n").replace(/\n{3,}/g, "\n\n").trim();
-}
-
-function toLegacyWorkoutSessionRecord(workoutEvent: WorkoutEvent): Record<string, unknown> {
-  return workoutEventToLegacyWorkoutSession(workoutEvent) as Record<string, unknown>;
 }
 
 function getTrainingRows(session: Record<string, unknown>): Array<Record<string, unknown>> {

@@ -16,36 +16,12 @@ import {
   IonSelect,
   IonSelectOption,
 } from '@ionic/angular/standalone';
-
-type StrengthHistoryEntry = {
-  exercise: string;
-  sets: number;
-  reps: number;
-  weights: string;
-  caloriesBurned: number;
-};
-
-type CardioHistoryEntry = {
-  exercise: string;
-  distance: string;
-  time: string;
-  caloriesBurned: number;
-};
-
-type OtherHistoryEntry = {
-  exercise: string;
-  details: string;
-  caloriesBurned: number;
-};
-
-type WorkoutHistoryDateGroup = {
-  date: string;
-  strength: StrengthHistoryEntry[];
-  cardio: CardioHistoryEntry[];
-  other: OtherHistoryEntry[];
-  totalCaloriesBurned: number;
-  trainerNotes: string;
-};
+import type {
+  CardioHistoryEntry,
+  OtherHistoryEntry,
+  StrengthHistoryEntry,
+  WorkoutHistoryDateGroup,
+} from '../../models/workout-history.model';
 
 type CsvTableType = 'Strength' | 'Cardio' | 'Other';
 

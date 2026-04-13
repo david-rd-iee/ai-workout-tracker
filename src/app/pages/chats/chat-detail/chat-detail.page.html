@@ -14,8 +14,12 @@
       class="message-row"
       [class.sent]="isMyMessage(message)"
       [class.received]="!isMyMessage(message)"
+      [class.workout-summary-row]="isWorkoutSummaryMessage(message)"
     >
-      <div class="message-bubble">
+      <div
+        class="message-bubble"
+        [class.workout-summary-bubble]="isWorkoutSummaryMessage(message)"
+      >
         <ng-container *ngIf="isRescheduleMessage(message); else groupInviteOrOther">
           <!-- Reschedule message -->
           <app-session-reschedule-message 
@@ -36,7 +40,7 @@
           <span class="invite-status" *ngIf="message.groupInvite?.status === 'accepted'">Accepted</span>
         </ng-container>
         <ng-template #joinRequestOrPlain>
-          <ng-container *ngIf="isJoinRequest(message); else plainMessage">
+          <ng-container *ngIf="isJoinRequest(message); else summaryOrPlain">
             <p>{{ message.text }}</p>
             <div class="invite-actions" *ngIf="canRespondJoinRequest(message)">
               <ion-button
@@ -58,12 +62,39 @@
             <span class="invite-status" *ngIf="message.joinRequest?.status === 'accepted'">Accepted</span>
             <span class="invite-status" *ngIf="message.joinRequest?.status === 'declined'">Declined</span>
           </ng-container>
-          <ng-template #plainMessage>
-            <p>{{ message.text }}</p>
+          <ng-template #summaryOrPlain>
+            <ng-container *ngIf="isWorkoutSummaryMessage(message); else plainMessage">
+              <div class="workout-summary-card">
+                <div class="summary-meta">
+                  <p class="logged-date">{{ getWorkoutSummaryCard(message).date }}</p>
+                  <p class="summary-user-name">{{ getWorkoutSummaryCard(message).userName }}</p>
+                  <p class="calories-text">{{ getWorkoutSummaryCard(message).estimatedCaloriesLine }}</p>
+                </div>
+
+                <div
+                  class="summary-section"
+                  *ngFor="let section of getWorkoutSummaryCard(message).sections"
+                >
+                  <h3 class="section-title">{{ section.title }}:</h3>
+                  <div class="entry-card" *ngFor="let entry of section.entries">
+                    <p class="entry-title">{{ entry.title }}</p>
+                    <p *ngFor="let detail of entry.details">{{ detail }}</p>
+                  </div>
+                </div>
+
+                <div class="summary-notes" *ngIf="getWorkoutSummaryCard(message).trainerNotes">
+                  <h3 class="section-title">Notes for Trainer:</h3>
+                  <p>{{ getWorkoutSummaryCard(message).trainerNotes }}</p>
+                </div>
+              </div>
+            </ng-container>
+            <ng-template #plainMessage>
+              <p>{{ message.text }}</p>
+            </ng-template>
           </ng-template>
         </ng-template>
         </ng-template>
-        <span class="timestamp">{{ formatTimestamp(message.timestamp) }}</span>
+        <span class="timestamp" *ngIf="!isWorkoutSummaryMessage(message)">{{ formatTimestamp(message.timestamp) }}</span>
       </div>
     </div>
     

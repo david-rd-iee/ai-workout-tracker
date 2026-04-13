@@ -49,6 +49,7 @@ export interface SaveCompletedWorkoutResult {
 export class WorkoutLogService {
   private readonly callableName = 'completeWorkoutEvent';
   private static readonly SCORE_AGGREGATION_WAIT_TIMEOUT_MS = 8000;
+  private static readonly WORKOUT_SUMMARY_WAIT_TIMEOUT_MS = 8000;
   private static readonly SCORE_AGGREGATION_POLL_INTERVAL_MS = 250;
 
   constructor(
@@ -90,7 +91,10 @@ export class WorkoutLogService {
       event: savedEvent,
       submissionMetadata,
     });
-    const scoreUpdate = await this.waitForScoreAggregation(user.uid, response.data.eventId);
+    const [scoreUpdate] = await Promise.all([
+      this.waitForScoreAggregation(user.uid, response.data.eventId),
+      this.waitForWorkoutSummaryProjection(user.uid, response.data.eventId),
+    ]);
 
     return {
       eventId: response.data.eventId,
@@ -164,6 +168,45 @@ export class WorkoutLogService {
       eventId,
     });
     return null;
+  }
+
+  private async waitForWorkoutSummaryProjection(userId: string, eventId: string): Promise<void> {
+    const workoutSummaryRef = doc(
+      this.firestore,
+      'users',
+      userId,
+      'workoutEvents',
+      eventId,
+      'derivations',
+      'workout_summary'
+    );
+    const deadline = Date.now() + WorkoutLogService.WORKOUT_SUMMARY_WAIT_TIMEOUT_MS;
+
+    while (Date.now() < deadline) {
+      try {
+        const snapshot = await getDoc(workoutSummaryRef);
+        if (snapshot.exists()) {
+          const status = this.readText(snapshot.data()?.['status']).toLowerCase();
+          if (status === 'completed') {
+            return;
+          }
+
+          if (status === 'failed') {
+            return;
+          }
+        }
+      } catch (error) {
+        console.warn('[WorkoutLogService] Failed while waiting for workout summary projection:', error);
+        return;
+      }
+
+      await this.delay(WorkoutLogService.SCORE_AGGREGATION_POLL_INTERVAL_MS);
+    }
+
+    console.warn('[WorkoutLogService] Timed out waiting for workout summary projection.', {
+      userId,
+      eventId,
+    });
   }
 
   private delay(durationMs: number): Promise<void> {

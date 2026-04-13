@@ -1,33 +1,32 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Params, Router } from '@angular/router';
 import { NavController } from '@ionic/angular';
 import {
-  IonContent,
-  IonHeader,
-  IonTitle,
-  IonToolbar,
-  IonCard,
-  IonCardHeader,
-  IonCardContent,
   IonButton,
   IonButtons,
+  IonCard,
+  IonCardContent,
+  IonCardHeader,
+  IonContent,
+  IonHeader,
   IonIcon,
+  IonTitle,
+  IonToolbar,
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
 import { closeOutline } from 'ionicons/icons';
+import { Auth } from '@angular/fire/auth';
+import { onAuthStateChanged } from 'firebase/auth';
 import {
   CardioTrainingRow,
   OtherTrainingRow,
   WorkoutSessionPerformance,
   WorkoutTrainingRow,
 } from '../../models/workout-session.model';
-import {
-  createEmptyWorkoutSessionPerformance,
-  workoutEventToWorkoutSessionPerformance,
-  workoutSessionPerformanceToWorkoutEvent,
-} from '../../adapters/workout-event.adapters';
+import { createEmptyWorkoutSessionPerformance } from '../../adapters/workout-event.adapters';
+import { WorkoutSummaryService } from '../../services/workout-summary.service';
 
 @Component({
   selector: 'app-workout-summary',
@@ -52,42 +51,97 @@ import {
 export class WorkoutSummaryPage implements OnInit {
   loggedAt: Date | null = null;
   backHref = '/workout-chatbot';
+  backQueryParams: Params | null = null;
   summary: WorkoutSessionPerformance = createEmptyWorkoutSessionPerformance();
 
-  constructor(private router: Router, private navCtrl: NavController) {
+  constructor(
+    private router: Router,
+    private route: ActivatedRoute,
+    private navCtrl: NavController,
+    private auth: Auth,
+    private workoutSummaryService: WorkoutSummaryService
+  ) {
     addIcons({ closeOutline });
 
-    const nav = this.router.getCurrentNavigation();
-    const incoming = nav?.extras.state?.['summary'];
-    const incomingLoggedAt = nav?.extras.state?.['loggedAt'];
-    const incomingBackHref = nav?.extras.state?.['backHref'];
-    if (incoming) {
-      this.summary = this.normalizeSummary(incoming as Partial<WorkoutSessionPerformance>);
+    const navigation = this.router.getCurrentNavigation();
+    const incomingSummary = navigation?.extras.state?.['summary'];
+    const incomingLoggedAt = navigation?.extras.state?.['loggedAt'];
+    const incomingBackHref = navigation?.extras.state?.['backHref'];
+    const incomingBackQueryParams = navigation?.extras.state?.['backQueryParams'];
+
+    if (incomingSummary) {
+      this.summary = incomingSummary as WorkoutSessionPerformance;
     }
     if (typeof incomingBackHref === 'string' && incomingBackHref.trim()) {
       this.backHref = incomingBackHref;
     }
-    this.loggedAt = this.toLoggedAtDate(incomingLoggedAt, this.summary.date);
+    if (incomingBackQueryParams && typeof incomingBackQueryParams === 'object') {
+      this.backQueryParams = incomingBackQueryParams as Params;
+    }
+    this.loggedAt = this.toLoggedAtDate(incomingLoggedAt);
   }
 
-  ngOnInit() {}
+  async ngOnInit(): Promise<void> {
+    if (this.summary.trainingRows.length > 0) {
+      return;
+    }
 
-  goBackToChat() {
+    const summaryDate = (this.route.snapshot.queryParamMap.get('date') || '').trim();
+    if (!summaryDate) {
+      return;
+    }
+
+    const requestedUserId = (this.route.snapshot.queryParamMap.get('userId') || '').trim();
+    const clientName = (this.route.snapshot.queryParamMap.get('clientName') || '').trim();
+    if (!this.backQueryParams) {
+      this.backHref = '/workout-history';
+      this.backQueryParams = {
+        ...(requestedUserId ? { userId: requestedUserId } : {}),
+        ...(clientName ? { clientName } : {}),
+      };
+    }
+
+    const targetUserId = requestedUserId || await this.resolveCurrentUserId();
+    if (!targetUserId) {
+      return;
+    }
+
+    try {
+      const persistedSummary = await this.workoutSummaryService.getWorkoutSummary(targetUserId, summaryDate);
+      if (!persistedSummary) {
+        return;
+      }
+
+      this.summary = this.workoutSummaryService.toWorkoutSessionPerformance(persistedSummary);
+      this.loggedAt = this.workoutSummaryService.toLoggedAtDate(persistedSummary);
+    } catch (error) {
+      console.error('Failed to load workout summary:', error);
+    }
+  }
+
+  goBackToChat(): void {
+    if (this.backQueryParams) {
+      void this.router.navigate([this.backHref], {
+        queryParams: this.backQueryParams,
+      });
+      return;
+    }
+
     this.navCtrl.navigateBack(this.backHref, {
       animated: true,
       animationDirection: 'back',
     });
   }
 
-  navigateToGroups() {
-    this.router.navigate(['/tabs/groups']);
+  navigateToGroups(): void {
+    void this.router.navigate(['/tabs/groups']);
   }
 
-  navigateToLeaderboard() {
-    this.router.navigate(['/tabs/leaderboard']);
+  navigateToLeaderboard(): void {
+    void this.router.navigate(['/tabs/leaderboard']);
   }
 
-  navigateToHome() {
+  navigateToHome(): void {
     this.navCtrl.navigateRoot('/tabs/home', {
       animated: true,
       animationDirection: 'forward',
@@ -131,6 +185,7 @@ export class WorkoutSummaryPage implements OnInit {
     if (Array.isArray(rows) && rows.length > 0) {
       return rows;
     }
+
     return this.summary.trainingRows.filter((row) => row.Training_Type === 'Strength');
   }
 
@@ -235,13 +290,23 @@ export class WorkoutSummaryPage implements OnInit {
     return this.readText(row['activity'] ?? row['name'] ?? row['type']) || 'Activity logged';
   }
 
-  private normalizeSummary(value: Partial<WorkoutSessionPerformance>): WorkoutSessionPerformance {
-    return workoutEventToWorkoutSessionPerformance(
-      workoutSessionPerformanceToWorkoutEvent(value)
-    );
+  private async resolveCurrentUserId(): Promise<string> {
+    const currentUser = this.auth.currentUser;
+    if (currentUser?.uid) {
+      return currentUser.uid;
+    }
+
+    const authUser = await new Promise<{ uid?: string } | null>((resolve) => {
+      const unsubscribe = onAuthStateChanged(this.auth as never, (user) => {
+        unsubscribe();
+        resolve(user);
+      });
+    });
+
+    return authUser?.uid?.trim() || '';
   }
 
-  private toLoggedAtDate(value: unknown, _fallbackDate: string): Date | null {
+  private toLoggedAtDate(value: unknown): Date | null {
     if (typeof value === 'string') {
       const parsed = new Date(value);
       if (!Number.isNaN(parsed.getTime())) {
@@ -257,6 +322,7 @@ export class WorkoutSummaryPage implements OnInit {
     if (!Number.isFinite(parsed) || parsed < 0) {
       return 0;
     }
+
     return Math.round(parsed);
   }
 
@@ -264,6 +330,7 @@ export class WorkoutSummaryPage implements OnInit {
     if (typeof value !== 'string') {
       return '';
     }
+
     return value.trim();
   }
 }
