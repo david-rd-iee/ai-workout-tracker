@@ -14,6 +14,152 @@
   --background: linear-gradient(180deg, #faf9f5 0%, #eff2ec 100%);
 }
 
+.notes-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+  background: rgba(9, 18, 23, 0.42);
+}
+
+.notes-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1000;
+  width: 100vw;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(180deg, #faf9f5 0%, #eff2ec 100%);
+  box-shadow: -18px 0 36px rgba(11, 23, 22, 0.22);
+}
+
+.notes-panel__header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: calc(14px + env(safe-area-inset-top)) 16px 14px;
+  border-bottom: 1px solid rgba(31, 71, 58, 0.08);
+}
+
+.notes-back-button {
+  width: 38px;
+  height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(8, 16, 16, 0.08);
+  color: #132624;
+}
+
+.notes-panel__title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #132624;
+}
+
+.notes-panel__body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  overflow: auto;
+}
+
+.note-item {
+  width: 100%;
+  padding: 14px 16px;
+  border: 0;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.94);
+  color: #132624;
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1.4;
+  text-align: left;
+  box-shadow:
+    0 10px 20px rgba(26, 43, 39, 0.08),
+    inset 0 0 0 1px rgba(31, 71, 58, 0.06);
+}
+
+.drawing-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.94);
+  color: #132624;
+  box-shadow:
+    0 10px 20px rgba(26, 43, 39, 0.08),
+    inset 0 0 0 1px rgba(31, 71, 58, 0.06);
+}
+
+.drawing-item img {
+  width: 72px;
+  height: 72px;
+  border-radius: 12px;
+  object-fit: cover;
+  background: #000;
+  flex-shrink: 0;
+}
+
+.drawing-item span {
+  font-size: 0.92rem;
+  font-weight: 600;
+  text-align: left;
+}
+
+.image-viewer {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.68);
+}
+
+.image-viewer__panel {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: min(92vw, 880px);
+  max-height: min(86vh, 720px);
+  padding: 18px;
+  border-radius: 24px;
+  background: rgba(12, 20, 20, 0.96);
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.32);
+}
+
+.image-viewer img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.image-viewer__close {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  width: 42px;
+  height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
 .analysis-list {
   display: flex;
   flex-direction: column;
@@ -105,6 +251,71 @@
   opacity: 0.45;
 }
 
+.video-tools {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.tools-button {
+  width: 38px;
+  height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(8, 16, 16, 0.62);
+  color: #f4f7f1;
+  backdrop-filter: blur(10px);
+  box-shadow:
+    0 10px 20px rgba(8, 16, 16, 0.16),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+.tools-button--open {
+  background: linear-gradient(135deg, #173331 0%, #254946 100%);
+}
+
+.tools-button--secondary {
+  background: rgba(8, 16, 16, 0.48);
+}
+
+.tools-button ion-icon {
+  font-size: 1rem;
+}
+
+.tools-list {
+  min-width: 150px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  border-radius: 16px;
+  background: rgba(8, 16, 16, 0.76);
+  backdrop-filter: blur(10px);
+  box-shadow:
+    0 10px 20px rgba(8, 16, 16, 0.16),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+.tool-item {
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #f4f7f1;
+  font-size: 0.86rem;
+  font-weight: 600;
+  text-align: left;
+}
+
 .player-shell {
   display: flex;
   flex-direction: column;
@@ -145,6 +356,54 @@
   z-index: 1;
   opacity: 0;
   pointer-events: none;
+}
+
+.drawing-canvas {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 4;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 100%;
+  transform: translate(-50%, -50%);
+  object-fit: contain;
+  background: #000;
+  touch-action: none;
+  cursor: crosshair;
+}
+
+.drawing-actions {
+  position: absolute;
+  right: 14px;
+  bottom: 52px;
+  z-index: 5;
+  display: flex;
+  gap: 10px;
+}
+
+.drawing-cancel-button,
+.drawing-done-button {
+  padding: 10px 14px;
+  border: 0;
+  border-radius: 999px;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.drawing-cancel-button {
+  background: rgba(8, 16, 16, 0.62);
+  color: #f4f7f1;
+}
+
+.drawing-done-button {
+  background: #f4f7f1;
+  color: #132624;
+}
+
+.drawing-done-button:disabled {
+  opacity: 0.55;
 }
 
 .player-controls {
@@ -271,6 +530,19 @@
     --width: min(50vw, 520px);
   }
 
+  .notes-panel {
+    width: min(50vw, 520px);
+  }
+
+  .image-viewer {
+    padding: 18px;
+  }
+
+  .image-viewer__panel {
+    width: min(88vw, 1100px);
+    max-height: min(82vh, 680px);
+  }
+
   .trainer-workout-analyzer-content {
     --padding-start: 0;
     --padding-end: 0;
@@ -314,10 +586,20 @@
     left: 16px;
   }
 
+  .video-tools {
+    top: 16px;
+    right: 16px;
+  }
+
   .player-controls {
     right: 0;
     bottom: 0;
     left: 0;
+  }
+
+  .drawing-actions {
+    right: 16px;
+    bottom: 42px;
   }
 
   .player-meta {

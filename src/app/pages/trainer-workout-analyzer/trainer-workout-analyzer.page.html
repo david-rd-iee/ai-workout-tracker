@@ -36,6 +36,64 @@
   </ion-content>
 </ion-menu>
 
+<div class="notes-backdrop" *ngIf="notesOpen" (click)="closeNotes()"></div>
+
+<div class="notes-panel" *ngIf="notesOpen">
+  <div class="notes-panel__header">
+    <button type="button" class="notes-back-button" (click)="closeNotes()" aria-label="Close notes">
+      <ion-icon name="arrow-back-outline"></ion-icon>
+    </button>
+    <div class="notes-panel__title">Notes</div>
+  </div>
+
+  <div class="notes-panel__body">
+    <button
+      type="button"
+      class="note-item"
+      *ngFor="let note of selectedAnalysis?.notes || []"
+      (click)="jumpToNote(note)"
+    >
+      {{ noteTimestampLabel(note) }}
+    </button>
+
+    <p class="menu-empty" *ngIf="!selectedAnalysis?.notes?.length">No notes saved yet.</p>
+  </div>
+</div>
+
+<div class="notes-backdrop" *ngIf="drawingsOpen" (click)="closeDrawings()"></div>
+
+<div class="notes-panel drawings-panel" *ngIf="drawingsOpen">
+  <div class="notes-panel__header">
+    <button type="button" class="notes-back-button" (click)="closeDrawings()" aria-label="Close drawings">
+      <ion-icon name="arrow-back-outline"></ion-icon>
+    </button>
+    <div class="notes-panel__title">Drawings</div>
+  </div>
+
+  <div class="notes-panel__body">
+    <button
+      type="button"
+      class="drawing-item"
+      *ngFor="let drawing of selectedAnalysis?.drawings || []"
+      (click)="openDrawingImage(drawing.imageUrl)"
+    >
+      <img [src]="drawing.imageUrl" alt="Saved drawing" />
+      <span>{{ drawingTimestampLabel(drawing) }}</span>
+    </button>
+
+    <p class="menu-empty" *ngIf="!selectedAnalysis?.drawings?.length">No drawings saved yet.</p>
+  </div>
+</div>
+
+<div class="image-viewer" *ngIf="selectedDrawingImageUrl">
+  <div class="image-viewer__panel">
+    <button type="button" class="image-viewer__close" (click)="closeDrawingImage()" aria-label="Close image">
+      <ion-icon name="arrow-back-outline"></ion-icon>
+    </button>
+    <img [src]="selectedDrawingImageUrl" alt="Saved drawing full view" />
+  </div>
+</div>
+
 <div class="ion-page" [id]="contentId">
   <ion-header [translucent]="true">
     <ion-toolbar>
@@ -76,15 +134,53 @@
               </button>
             </div>
 
+            <div class="video-tools">
+              <button
+                type="button"
+                class="tools-button"
+                [class.tools-button--open]="toolsOpen"
+                (click)="toggleTools()"
+                aria-label="Open tools"
+              >
+                <ion-icon name="build-outline"></ion-icon>
+              </button>
+
+              <button
+                type="button"
+                class="tools-button tools-button--secondary"
+                *ngIf="hasNotes"
+                (click)="openNotes()"
+                aria-label="Open notes"
+              >
+                <ion-icon name="document-text-outline"></ion-icon>
+              </button>
+
+              <button
+                type="button"
+                class="tools-button tools-button--secondary"
+                *ngIf="hasDrawings"
+                (click)="openDrawings()"
+                aria-label="Open drawings"
+              >
+                <ion-icon name="image-outline"></ion-icon>
+              </button>
+
+              <div class="tools-list" *ngIf="toolsOpen">
+                <button type="button" class="tool-item" (click)="addNote()">Take note</button>
+                <button type="button" class="tool-item" (click)="openDrawingTool()">Pen tool</button>
+              </div>
+            </div>
+
             <video
               #recordingVideo
               class="player-video"
               [class.player-video--active]="isRecordingMode"
-              [class.player-video--hidden]="!isRecordingMode"
+              [class.player-video--hidden]="!isRecordingMode || isDrawingMode"
               [src]="selectedAnalysis.recordingUrl"
               playsinline
               preload="auto"
               muted
+              crossorigin="anonymous"
               disablepictureinpicture
               controlslist="nofullscreen nodownload noremoteplayback"
               (loadedmetadata)="onVideoMetadataLoaded()"
@@ -92,6 +188,7 @@
               (play)="onVideoPlay()"
               (pause)="onVideoPause()"
               (ended)="onVideoPause()"
+              (click)="onVideoSurfaceTap($event)"
             ></video>
 
             <video
@@ -99,11 +196,12 @@
               #overlayVideo
               class="player-video"
               [class.player-video--active]="!isRecordingMode"
-              [class.player-video--hidden]="isRecordingMode"
+              [class.player-video--hidden]="isRecordingMode || isDrawingMode"
               [src]="selectedAnalysis.overlayUrl"
               playsinline
               preload="auto"
               muted
+              crossorigin="anonymous"
               disablepictureinpicture
               controlslist="nofullscreen nodownload noremoteplayback"
               (loadedmetadata)="onVideoMetadataLoaded()"
@@ -111,9 +209,28 @@
               (play)="onVideoPlay()"
               (pause)="onVideoPause()"
               (ended)="onVideoPause()"
+              (click)="onVideoSurfaceTap($event)"
             ></video>
 
-            <div class="player-controls" *ngIf="selectedAnalysis">
+            <canvas
+              *ngIf="isDrawingMode"
+              #drawingCanvas
+              class="drawing-canvas"
+              (pointerdown)="onDrawingPointerDown($event)"
+              (pointermove)="onDrawingPointerMove($event)"
+              (pointerup)="onDrawingPointerUp($event)"
+              (pointerleave)="onDrawingPointerUp($event)"
+              (pointercancel)="onDrawingPointerUp($event)"
+            ></canvas>
+
+            <div class="drawing-actions" *ngIf="isDrawingMode">
+              <button type="button" class="drawing-cancel-button" (click)="cancelDrawingMode()">Cancel</button>
+              <button type="button" class="drawing-done-button" [disabled]="isSavingDrawing" (click)="saveDrawing()">
+                {{ isSavingDrawing ? 'Saving...' : 'Done' }}
+              </button>
+            </div>
+
+            <div class="player-controls" *ngIf="selectedAnalysis && !isDrawingMode">
               <button
                 type="button"
                 class="player-control-button"
