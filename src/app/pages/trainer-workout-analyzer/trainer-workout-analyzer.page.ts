@@ -51,6 +51,7 @@ type WorkoutAnalysisDrawing = {
   imageUrl: string;
   storagePath: string;
   createdAtIso: string;
+  note: string;
 };
 
 type CanvasPoint = {
@@ -64,6 +65,23 @@ type AngleMeasurementResult = {
   secondEnd: CanvasPoint;
   angleDegrees: number;
 };
+
+type WorkoutAnalysisEvent =
+  | {
+      kind: 'note';
+      id: string;
+      timestampSeconds: number;
+      note: string;
+      createdAtIso: string;
+    }
+  | {
+      kind: 'drawing';
+      id: string;
+      timestampSeconds: number;
+      imageUrl: string;
+      note: string;
+      createdAtIso: string;
+    };
 
 @Component({
   selector: 'app-trainer-workout-analyzer',
@@ -111,8 +129,7 @@ export class TrainerWorkoutAnalyzerPage implements OnInit, AfterViewChecked {
   currentTimeSeconds = 0;
   durationSeconds = 0;
   toolsOpen = false;
-  notesOpen = false;
-  drawingsOpen = false;
+  eventsOpen = false;
   isDrawingMode = false;
   isSavingDrawing = false;
   selectedDrawingImageUrl = '';
@@ -187,6 +204,42 @@ export class TrainerWorkoutAnalyzerPage implements OnInit, AfterViewChecked {
     return (this.selectedAnalysis?.drawings.length ?? 0) > 0;
   }
 
+  get hasEvents(): boolean {
+    return this.timelineEvents.length > 0;
+  }
+
+  get timelineEvents(): WorkoutAnalysisEvent[] {
+    const analysis = this.selectedAnalysis;
+    if (!analysis) {
+      return [];
+    }
+
+    const noteEvents: WorkoutAnalysisEvent[] = analysis.notes.map((note, index) => ({
+      kind: 'note',
+      id: `note-${note.createdAtIso || index}-${note.timestampSeconds}`,
+      timestampSeconds: note.timestampSeconds,
+      note: note.note,
+      createdAtIso: note.createdAtIso,
+    }));
+
+    const drawingEvents: WorkoutAnalysisEvent[] = analysis.drawings.map((drawing, index) => ({
+      kind: 'drawing',
+      id: `drawing-${drawing.createdAtIso || index}-${drawing.timestampSeconds}`,
+      timestampSeconds: drawing.timestampSeconds,
+      imageUrl: drawing.imageUrl,
+      note: drawing.note,
+      createdAtIso: drawing.createdAtIso,
+    }));
+
+    return [...noteEvents, ...drawingEvents].sort((left, right) => {
+      if (left.timestampSeconds !== right.timestampSeconds) {
+        return left.timestampSeconds - right.timestampSeconds;
+      }
+
+      return left.createdAtIso.localeCompare(right.createdAtIso);
+    });
+  }
+
   get progressPercent(): number {
     if (!this.durationSeconds || !Number.isFinite(this.durationSeconds)) {
       return 0;
@@ -202,8 +255,7 @@ export class TrainerWorkoutAnalyzerPage implements OnInit, AfterViewChecked {
     this.currentTimeSeconds = 0;
     this.durationSeconds = 0;
     this.toolsOpen = false;
-    this.notesOpen = false;
-    this.drawingsOpen = false;
+    this.eventsOpen = false;
     this.isDrawingMode = false;
     this.selectedDrawingImageUrl = '';
     this.hasDrawingInk = false;
@@ -227,30 +279,17 @@ export class TrainerWorkoutAnalyzerPage implements OnInit, AfterViewChecked {
     this.toolsOpen = !this.toolsOpen;
   }
 
-  openNotes(): void {
-    if (!this.hasNotes) {
+  openEvents(): void {
+    if (!this.hasEvents) {
       return;
     }
 
     this.toolsOpen = false;
-    this.notesOpen = true;
+    this.eventsOpen = true;
   }
 
-  closeNotes(): void {
-    this.notesOpen = false;
-  }
-
-  openDrawings(): void {
-    if (!this.hasDrawings) {
-      return;
-    }
-
-    this.toolsOpen = false;
-    this.drawingsOpen = true;
-  }
-
-  closeDrawings(): void {
-    this.drawingsOpen = false;
+  closeEvents(): void {
+    this.eventsOpen = false;
   }
 
   openDrawingImage(imageUrl: string): void {
@@ -325,8 +364,7 @@ export class TrainerWorkoutAnalyzerPage implements OnInit, AfterViewChecked {
     }
 
     this.toolsOpen = false;
-    this.notesOpen = false;
-    this.drawingsOpen = false;
+    this.eventsOpen = false;
     this.selectedDrawingImageUrl = '';
     this.isDrawingMode = true;
     this.activeCanvasTool = 'draw';
@@ -369,8 +407,7 @@ export class TrainerWorkoutAnalyzerPage implements OnInit, AfterViewChecked {
     }
 
     this.toolsOpen = false;
-    this.notesOpen = false;
-    this.drawingsOpen = false;
+    this.eventsOpen = false;
     this.selectedDrawingImageUrl = '';
     this.isDrawingMode = true;
     this.activeCanvasTool = 'measure';
@@ -425,6 +462,7 @@ export class TrainerWorkoutAnalyzerPage implements OnInit, AfterViewChecked {
     this.isSavingDrawing = true;
 
     try {
+      const note = await this.promptForAttachmentNote();
       const blob = await this.canvasToBlob(canvas);
       const timestampSeconds = this.drawingTimestampSeconds || this.currentTimeSeconds;
       const createdAtIso = new Date().toISOString();
@@ -439,6 +477,7 @@ export class TrainerWorkoutAnalyzerPage implements OnInit, AfterViewChecked {
         imageUrl,
         storagePath,
         createdAtIso,
+        note,
       };
       const nextDrawings = [...analysis.drawings, nextDrawing].sort(
         (left, right) => left.timestampSeconds - right.timestampSeconds
@@ -459,38 +498,14 @@ export class TrainerWorkoutAnalyzerPage implements OnInit, AfterViewChecked {
     }
   }
 
-  async jumpToNote(note: WorkoutAnalysisNote): Promise<void> {
-    const activeVideo = this.getVideoElement(this.videoMode);
-    if (!activeVideo) {
-      return;
-    }
-
-    this.notesOpen = false;
-    await this.waitForMetadata(activeVideo).catch(() => undefined);
-    const safeTime = Math.max(
-      0,
-      Math.min(note.timestampSeconds, Math.max((activeVideo.duration || note.timestampSeconds) - 0.05, 0))
-    );
-    activeVideo.currentTime = safeTime;
-    this.currentTimeSeconds = safeTime;
-    await activeVideo.play().catch(() => undefined);
+  async jumpToNote(note: { timestampSeconds: number }): Promise<void> {
+    this.eventsOpen = false;
+    await this.jumpToTimestamp(note.timestampSeconds);
   }
 
-  async jumpToDrawing(drawing: WorkoutAnalysisDrawing): Promise<void> {
-    const activeVideo = this.getVideoElement(this.videoMode);
-    if (!activeVideo) {
-      return;
-    }
-
-    this.drawingsOpen = false;
-    await this.waitForMetadata(activeVideo).catch(() => undefined);
-    const safeTime = Math.max(
-      0,
-      Math.min(drawing.timestampSeconds, Math.max((activeVideo.duration || drawing.timestampSeconds) - 0.05, 0))
-    );
-    activeVideo.currentTime = safeTime;
-    this.currentTimeSeconds = safeTime;
-    await activeVideo.play().catch(() => undefined);
+  async jumpToDrawing(drawing: { timestampSeconds: number }): Promise<void> {
+    this.eventsOpen = false;
+    await this.jumpToTimestamp(drawing.timestampSeconds);
   }
 
   noteTimestampLabel(note: WorkoutAnalysisNote): string {
@@ -499,6 +514,14 @@ export class TrainerWorkoutAnalyzerPage implements OnInit, AfterViewChecked {
 
   drawingTimestampLabel(drawing: WorkoutAnalysisDrawing): string {
     return this.formatTime(drawing.timestampSeconds);
+  }
+
+  isTimelineNote(event: WorkoutAnalysisEvent): event is Extract<WorkoutAnalysisEvent, { kind: 'note' }> {
+    return event.kind === 'note';
+  }
+
+  isTimelineDrawing(event: WorkoutAnalysisEvent): event is Extract<WorkoutAnalysisEvent, { kind: 'drawing' }> {
+    return event.kind === 'drawing';
   }
 
   async showRecording(): Promise<void> {
@@ -927,6 +950,35 @@ export class TrainerWorkoutAnalyzerPage implements OnInit, AfterViewChecked {
     });
   }
 
+  private async promptForAttachmentNote(): Promise<string> {
+    return new Promise<string>(async (resolve) => {
+      const alert = await this.alertCtrl.create({
+        header: 'Add note?',
+        message: `Add an optional note at ${this.formatTime(this.drawingTimestampSeconds || this.currentTimeSeconds)}.`,
+        inputs: [
+          {
+            name: 'note',
+            type: 'textarea',
+            placeholder: 'Write a note for this image...',
+          },
+        ],
+        buttons: [
+          {
+            text: 'Skip',
+            role: 'cancel',
+            handler: () => resolve(''),
+          },
+          {
+            text: 'Save',
+            handler: (value: { note?: string }) => resolve(String(value?.note || '').trim()),
+          },
+        ],
+      });
+
+      await alert.present();
+    });
+  }
+
   private async persistNotes(analysisId: string, notes: WorkoutAnalysisNote[]): Promise<void> {
     const trainerId = String(this.accountService.getCredentials()().uid || '').trim();
     if (!trainerId || !this.clientId || !analysisId) {
@@ -1010,6 +1062,7 @@ export class TrainerWorkoutAnalyzerPage implements OnInit, AfterViewChecked {
         const imageUrl = typeof drawing['imageUrl'] === 'string' ? drawing['imageUrl'].trim() : '';
         const storagePath = typeof drawing['storagePath'] === 'string' ? drawing['storagePath'].trim() : '';
         const createdAtIso = typeof drawing['createdAtIso'] === 'string' ? drawing['createdAtIso'].trim() : '';
+        const note = typeof drawing['note'] === 'string' ? drawing['note'].trim() : '';
         if (!Number.isFinite(timestampSeconds) || !imageUrl) {
           return null;
         }
@@ -1019,6 +1072,7 @@ export class TrainerWorkoutAnalyzerPage implements OnInit, AfterViewChecked {
           imageUrl,
           storagePath,
           createdAtIso,
+          note,
         };
       })
       .filter((drawing): drawing is WorkoutAnalysisDrawing => drawing !== null)
@@ -1096,6 +1150,22 @@ export class TrainerWorkoutAnalyzerPage implements OnInit, AfterViewChecked {
     await new Promise<void>((resolve) => {
       window.setTimeout(resolve, milliseconds);
     });
+  }
+
+  private async jumpToTimestamp(timestampSeconds: number): Promise<void> {
+    const activeVideo = this.getVideoElement(this.videoMode);
+    if (!activeVideo) {
+      return;
+    }
+
+    await this.waitForMetadata(activeVideo).catch(() => undefined);
+    const safeTime = Math.max(
+      0,
+      Math.min(timestampSeconds, Math.max((activeVideo.duration || timestampSeconds) - 0.05, 0))
+    );
+    activeVideo.currentTime = safeTime;
+    this.currentTimeSeconds = safeTime;
+    await activeVideo.play().catch(() => undefined);
   }
 
   private asRecord(value: unknown): Record<string, unknown> | null {

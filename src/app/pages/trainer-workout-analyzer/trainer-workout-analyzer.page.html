@@ -36,52 +36,69 @@
   </ion-content>
 </ion-menu>
 
-<div class="notes-backdrop" *ngIf="notesOpen" (click)="closeNotes()"></div>
+<div class="notes-backdrop" *ngIf="eventsOpen" (click)="closeEvents()"></div>
 
-<div class="notes-panel" *ngIf="notesOpen">
+<div class="notes-panel events-panel" *ngIf="eventsOpen">
   <div class="notes-panel__header">
-    <button type="button" class="notes-back-button" (click)="closeNotes()" aria-label="Close notes">
+    <button type="button" class="notes-back-button" (click)="closeEvents()" aria-label="Close events">
       <ion-icon name="arrow-back-outline"></ion-icon>
     </button>
-    <div class="notes-panel__title">Notes</div>
+    <div class="notes-panel__title">Timeline</div>
   </div>
 
-  <div class="notes-panel__body">
-    <button
-      type="button"
-      class="note-item"
-      *ngFor="let note of selectedAnalysis?.notes || []"
-      (click)="jumpToNote(note)"
-    >
-      {{ noteTimestampLabel(note) }}
-    </button>
+  <div class="notes-panel__body events-panel__body">
+    <div class="timeline-list" *ngIf="timelineEvents.length; else emptyTimeline">
+      <div class="timeline-item" *ngFor="let event of timelineEvents">
+        <div class="timeline-item__rail">
+          <span class="timeline-item__dot"></span>
+        </div>
 
-    <p class="menu-empty" *ngIf="!selectedAnalysis?.notes?.length">No notes saved yet.</p>
-  </div>
-</div>
+        <div class="timeline-item__content" *ngIf="isTimelineNote(event)">
+          <div class="timeline-note">
+            <span class="timeline-note__bullet"></span>
+            <button
+              type="button"
+              class="timeline-time-button"
+              (click)="jumpToNote(event)"
+            >
+              {{ formatTime(event.timestampSeconds) }}
+            </button>
+            <span class="timeline-note__separator">:</span>
+            <span class="timeline-note__text">{{ event.note }}</span>
+          </div>
+        </div>
 
-<div class="notes-backdrop" *ngIf="drawingsOpen" (click)="closeDrawings()"></div>
+        <div class="timeline-item__content" *ngIf="isTimelineDrawing(event)">
+          <div class="timeline-image-row">
+            <span class="timeline-note__bullet"></span>
+            <button
+              type="button"
+              class="timeline-time-button"
+              (click)="jumpToDrawing(event)"
+            >
+              {{ formatTime(event.timestampSeconds) }}
+            </button>
+            <span class="timeline-note__separator">:</span>
+            <button
+              type="button"
+              class="timeline-image-button"
+              (click)="openDrawingImage(event.imageUrl)"
+            >
+              <img [src]="event.imageUrl" alt="Saved analysis image" />
+            </button>
+          </div>
 
-<div class="notes-panel drawings-panel" *ngIf="drawingsOpen">
-  <div class="notes-panel__header">
-    <button type="button" class="notes-back-button" (click)="closeDrawings()" aria-label="Close drawings">
-      <ion-icon name="arrow-back-outline"></ion-icon>
-    </button>
-    <div class="notes-panel__title">Drawings</div>
-  </div>
+          <div class="timeline-image-note" *ngIf="event.note">
+            <span class="timeline-image-note__bullet"></span>
+            <span>{{ event.note }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
 
-  <div class="notes-panel__body">
-    <button
-      type="button"
-      class="drawing-item"
-      *ngFor="let drawing of selectedAnalysis?.drawings || []"
-      (click)="openDrawingImage(drawing.imageUrl)"
-    >
-      <img [src]="drawing.imageUrl" alt="Saved drawing" />
-      <span>{{ drawingTimestampLabel(drawing) }}</span>
-    </button>
-
-    <p class="menu-empty" *ngIf="!selectedAnalysis?.drawings?.length">No drawings saved yet.</p>
+    <ng-template #emptyTimeline>
+      <p class="menu-empty">No notes or images saved yet.</p>
+    </ng-template>
   </div>
 </div>
 
@@ -148,19 +165,9 @@
               <button
                 type="button"
                 class="tools-button tools-button--secondary"
-                *ngIf="hasNotes"
-                (click)="openNotes()"
-                aria-label="Open notes"
-              >
-                <ion-icon name="document-text-outline"></ion-icon>
-              </button>
-
-              <button
-                type="button"
-                class="tools-button tools-button--secondary"
-                *ngIf="hasDrawings"
-                (click)="openDrawings()"
-                aria-label="Open drawings"
+                *ngIf="hasEvents"
+                (click)="openEvents()"
+                aria-label="Open timeline"
               >
                 <ion-icon name="image-outline"></ion-icon>
               </button>
