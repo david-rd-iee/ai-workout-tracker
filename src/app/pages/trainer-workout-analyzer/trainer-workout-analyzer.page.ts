@@ -1,4 +1,4 @@
-import { AfterViewChecked, Component, ElementRef, OnInit, ViewChild, inject } from '@angular/core';
+import { AfterViewChecked, Component, ElementRef, HostListener, OnInit, ViewChild, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute } from '@angular/router';
 import {
@@ -34,6 +34,8 @@ import {
 type WorkoutAnalysisMenuItem = {
   id: string;
   label: string;
+  analyzedAtIso: string;
+  workoutName: string;
   recordingUrl: string;
   overlayUrl: string;
   notes: WorkoutAnalysisNote[];
@@ -104,6 +106,9 @@ type WorkoutAnalysisEvent =
   ],
 })
 export class TrainerWorkoutAnalyzerPage implements OnInit, AfterViewChecked {
+  @ViewChild(IonContent) private contentRef?: IonContent;
+  @ViewChild('playerShell') private playerShellRef?: ElementRef<HTMLDivElement>;
+  @ViewChild('playerFrame') private playerFrameRef?: ElementRef<HTMLDivElement>;
   @ViewChild('recordingVideo') private recordingVideoRef?: ElementRef<HTMLVideoElement>;
   @ViewChild('overlayVideo') private overlayVideoRef?: ElementRef<HTMLVideoElement>;
   @ViewChild('drawingCanvas') private drawingCanvasRef?: ElementRef<HTMLCanvasElement>;
@@ -140,6 +145,7 @@ export class TrainerWorkoutAnalyzerPage implements OnInit, AfterViewChecked {
   measureInstruction = '';
   isMeasureSelectionReady = false;
   hasMeasuredAngle = false;
+  portraitPlayerFrameHeightPx: number | null = null;
 
   private pendingVideoSelectionSync = false;
   private drawing = false;
@@ -149,6 +155,7 @@ export class TrainerWorkoutAnalyzerPage implements OnInit, AfterViewChecked {
   private measurementBaseImageData: ImageData | null = null;
   private measureSelectionPath: CanvasPoint[] = [];
   private measureResult: AngleMeasurementResult | null = null;
+  private readonly portraitPlayerGutterPx = 84;
 
   constructor() {
     addIcons({
@@ -177,6 +184,11 @@ export class TrainerWorkoutAnalyzerPage implements OnInit, AfterViewChecked {
     void this.initializeSelectedVideoState();
   }
 
+  @HostListener('window:resize')
+  onWindowResize(): void {
+    this.schedulePortraitFrameHeightSync();
+  }
+
   goBack(): void {
     this.navCtrl.navigateBack('/client-workout-analysis', {
       animated: true,
@@ -186,6 +198,14 @@ export class TrainerWorkoutAnalyzerPage implements OnInit, AfterViewChecked {
 
   get activeAnalysisLabel(): string {
     return this.selectedAnalysis?.label || '';
+  }
+
+  get activeAnalysisDisplayDate(): string {
+    return this.formatAnalysisDate(this.selectedAnalysis?.analyzedAtIso || '');
+  }
+
+  get activeAnalysisDisplayTitle(): string {
+    return this.selectedAnalysis?.workoutName || '';
   }
 
   get canToggleOverlay(): boolean {
@@ -206,6 +226,10 @@ export class TrainerWorkoutAnalyzerPage implements OnInit, AfterViewChecked {
 
   get hasEvents(): boolean {
     return this.timelineEvents.length > 0;
+  }
+
+  get isLandscapeMode(): boolean {
+    return !this.isPortraitViewport();
   }
 
   get timelineEvents(): WorkoutAnalysisEvent[] {
@@ -501,11 +525,13 @@ export class TrainerWorkoutAnalyzerPage implements OnInit, AfterViewChecked {
   async jumpToNote(note: { timestampSeconds: number }): Promise<void> {
     this.eventsOpen = false;
     await this.jumpToTimestamp(note.timestampSeconds);
+    await this.scrollToPlayerTopIfPortrait();
   }
 
   async jumpToDrawing(drawing: { timestampSeconds: number }): Promise<void> {
     this.eventsOpen = false;
     await this.jumpToTimestamp(drawing.timestampSeconds);
+    await this.scrollToPlayerTopIfPortrait();
   }
 
   noteTimestampLabel(note: WorkoutAnalysisNote): string {
@@ -601,6 +627,7 @@ export class TrainerWorkoutAnalyzerPage implements OnInit, AfterViewChecked {
 
     this.applySilentVideoConfig(activeVideo);
     this.durationSeconds = Number.isFinite(activeVideo.duration) ? activeVideo.duration : 0;
+    this.schedulePortraitFrameHeightSync(activeVideo);
   }
 
   onVideoPlay(): void {
@@ -765,6 +792,7 @@ export class TrainerWorkoutAnalyzerPage implements OnInit, AfterViewChecked {
             id: docSnap.id,
             label: workoutName ? `${fallbackLabel}:${workoutName}` : fallbackLabel,
             analyzedAtIso: fallbackLabel,
+            workoutName,
             recordingUrl,
             overlayUrl,
             notes: this.readNotes(data['notes']),
@@ -773,9 +801,11 @@ export class TrainerWorkoutAnalyzerPage implements OnInit, AfterViewChecked {
         })
         .filter((analysis) => !!analysis.recordingUrl)
         .sort((left, right) => right.analyzedAtIso.localeCompare(left.analyzedAtIso))
-        .map(({ id, label, recordingUrl, overlayUrl, notes, drawings }) => ({
+        .map(({ id, label, analyzedAtIso, workoutName, recordingUrl, overlayUrl, notes, drawings }) => ({
           id,
           label,
+          analyzedAtIso,
+          workoutName,
           recordingUrl,
           overlayUrl,
           notes,
@@ -818,6 +848,7 @@ export class TrainerWorkoutAnalyzerPage implements OnInit, AfterViewChecked {
       this.currentTimeSeconds = Number.isFinite(activeVideo.currentTime) ? activeVideo.currentTime : 0;
       this.durationSeconds = Number.isFinite(activeVideo.duration) ? activeVideo.duration : this.durationSeconds;
       await this.prepareDrawingCanvas(activeVideo);
+      this.schedulePortraitFrameHeightSync(activeVideo);
       return;
     }
 
@@ -833,6 +864,7 @@ export class TrainerWorkoutAnalyzerPage implements OnInit, AfterViewChecked {
     await this.waitForMetadata(recordingVideo).catch(() => undefined);
     this.durationSeconds = Number.isFinite(recordingVideo.duration) ? recordingVideo.duration : 0;
     this.currentTimeSeconds = 0;
+    this.schedulePortraitFrameHeightSync(recordingVideo);
     void recordingVideo.play().catch(() => undefined);
   }
 
@@ -875,6 +907,8 @@ export class TrainerWorkoutAnalyzerPage implements OnInit, AfterViewChecked {
       if (currentVideo && currentVideo !== targetVideo) {
         currentVideo.pause();
       }
+
+      this.schedulePortraitFrameHeightSync(targetVideo);
     } finally {
       this.isSwitchingVideo = false;
     }
@@ -1166,6 +1200,80 @@ export class TrainerWorkoutAnalyzerPage implements OnInit, AfterViewChecked {
     activeVideo.currentTime = safeTime;
     this.currentTimeSeconds = safeTime;
     await activeVideo.play().catch(() => undefined);
+  }
+
+  private async scrollToPlayerTopIfPortrait(): Promise<void> {
+    if (this.isLandscapeMode) {
+      return;
+    }
+
+    await this.delay(0);
+
+    const playerShell = this.playerShellRef?.nativeElement;
+    if (playerShell) {
+      playerShell.scrollIntoView({
+        behavior: 'auto',
+        block: 'start',
+        inline: 'nearest',
+      });
+      return;
+    }
+
+    await this.contentRef?.scrollToTop(0);
+  }
+
+  private schedulePortraitFrameHeightSync(video?: HTMLVideoElement | null): void {
+    window.requestAnimationFrame(() => {
+      this.updatePortraitFrameHeight(video ?? this.getVideoElement(this.videoMode));
+    });
+  }
+
+  private updatePortraitFrameHeight(video: HTMLVideoElement | null): void {
+    if (!this.isPortraitViewport()) {
+      this.portraitPlayerFrameHeightPx = null;
+      return;
+    }
+
+    const frameWidth = this.playerFrameRef?.nativeElement.clientWidth ?? 0;
+    const videoWidth = video?.videoWidth ?? 0;
+    const videoHeight = video?.videoHeight ?? 0;
+    if (!frameWidth || !videoWidth || !videoHeight) {
+      return;
+    }
+
+    const contentHeight = frameWidth * (videoHeight / videoWidth);
+    this.portraitPlayerFrameHeightPx = Math.round(contentHeight + (this.portraitPlayerGutterPx * 2));
+  }
+
+  private isPortraitViewport(): boolean {
+    return window.innerHeight >= window.innerWidth;
+  }
+
+  formatSavedAnalysisLabel(analysis: WorkoutAnalysisMenuItem): string {
+    const formattedDate = this.formatAnalysisDate(analysis.analyzedAtIso);
+    return analysis.workoutName ? `${formattedDate} : ${analysis.workoutName}` : formattedDate;
+  }
+
+  private formatAnalysisDate(value: string): string {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      return '';
+    }
+
+    const parsed = new Date(trimmed);
+    if (Number.isNaN(parsed.getTime())) {
+      return trimmed;
+    }
+
+    return new Intl.DateTimeFormat('en-US', {
+      month: 'long',
+      day: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
+    }).format(parsed).replace(',', '');
   }
 
   private asRecord(value: unknown): Record<string, unknown> | null {

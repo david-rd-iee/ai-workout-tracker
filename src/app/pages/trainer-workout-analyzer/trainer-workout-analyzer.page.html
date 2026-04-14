@@ -24,7 +24,7 @@
             [class.analysis-item--active]="selectedAnalysis?.id === analysis.id"
             (click)="selectAnalysis(analysis)"
           >
-            {{ analysis.label }}
+            {{ formatSavedAnalysisLabel(analysis) }}
           </button>
         </ion-menu-toggle>
 
@@ -36,9 +36,9 @@
   </ion-content>
 </ion-menu>
 
-<div class="notes-backdrop" *ngIf="eventsOpen" (click)="closeEvents()"></div>
+<div class="notes-backdrop" *ngIf="eventsOpen && isLandscapeMode" (click)="closeEvents()"></div>
 
-<div class="notes-panel events-panel" *ngIf="eventsOpen">
+<div class="notes-panel events-panel" *ngIf="eventsOpen && isLandscapeMode">
   <div class="notes-panel__header">
     <button type="button" class="notes-back-button" (click)="closeEvents()" aria-label="Close events">
       <ion-icon name="arrow-back-outline"></ion-icon>
@@ -129,8 +129,13 @@
   <ion-content [fullscreen]="false" class="trainer-workout-analyzer-content">
     <div class="trainer-workout-analyzer-page">
       <ng-container *ngIf="!isLoading; else loadingState">
-        <div class="player-shell" *ngIf="selectedAnalysis; else emptySelection">
-          <div class="player-frame">
+        <div class="player-shell" #playerShell *ngIf="selectedAnalysis; else emptySelection">
+          <div class="player-meta">
+            <p class="player-meta__date">{{ activeAnalysisDisplayDate }}</p>
+            <h1>{{ activeAnalysisDisplayTitle || activeAnalysisLabel }}</h1>
+          </div>
+
+          <div class="player-frame" #playerFrame [style.height.px]="portraitPlayerFrameHeightPx">
             <div class="video-toggle">
               <button
                 type="button"
@@ -165,7 +170,7 @@
               <button
                 type="button"
                 class="tools-button tools-button--secondary"
-                *ngIf="hasEvents"
+                *ngIf="hasEvents && isLandscapeMode"
                 (click)="openEvents()"
                 aria-label="Open timeline"
               >
@@ -309,11 +314,59 @@
             </div>
           </div>
 
-          <div class="player-meta">
-            <h1>{{ activeAnalysisLabel }}</h1>
-            <p *ngIf="canToggleOverlay">Use the toggle to switch between the original recording and pose overlay.</p>
-            <p *ngIf="!canToggleOverlay">This analysis only has the original recording available.</p>
-          </div>
+          <section class="timeline-inline-card" *ngIf="hasEvents && !isLandscapeMode">
+            <div class="timeline-inline-card__header">Timeline</div>
+
+            <div class="timeline-list">
+              <div class="timeline-item" *ngFor="let event of timelineEvents">
+                <div class="timeline-item__rail">
+                  <span class="timeline-item__dot"></span>
+                </div>
+
+                <div class="timeline-item__content" *ngIf="isTimelineNote(event)">
+                  <div class="timeline-note">
+                    <span class="timeline-note__bullet"></span>
+                    <button
+                      type="button"
+                      class="timeline-time-button"
+                      (click)="jumpToNote(event)"
+                    >
+                      {{ formatTime(event.timestampSeconds) }}
+                    </button>
+                    <span class="timeline-note__separator">:</span>
+                    <span class="timeline-note__text">{{ event.note }}</span>
+                  </div>
+                </div>
+
+                <div class="timeline-item__content" *ngIf="isTimelineDrawing(event)">
+                  <div class="timeline-image-row">
+                    <span class="timeline-note__bullet"></span>
+                    <button
+                      type="button"
+                      class="timeline-time-button"
+                      (click)="jumpToDrawing(event)"
+                    >
+                      {{ formatTime(event.timestampSeconds) }}
+                    </button>
+                    <span class="timeline-note__separator">:</span>
+                    <button
+                      type="button"
+                      class="timeline-image-button"
+                      (click)="openDrawingImage(event.imageUrl)"
+                    >
+                      <img [src]="event.imageUrl" alt="Saved analysis image" />
+                    </button>
+                  </div>
+
+                  <div class="timeline-image-note" *ngIf="event.note">
+                    <span class="timeline-image-note__bullet"></span>
+                    <span>{{ event.note }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
         </div>
 
         <ng-template #emptySelection>
