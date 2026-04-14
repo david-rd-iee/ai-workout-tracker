@@ -223,6 +223,25 @@
               (pointercancel)="onDrawingPointerUp($event)"
             ></canvas>
 
+            <div class="drawing-mode-toggle" *ngIf="isDrawingMode">
+              <button
+                type="button"
+                class="drawing-mode-button"
+                [class.drawing-mode-button--active]="drawMode === 'freehand'"
+                (click)="setDrawMode('freehand')"
+              >
+                Free Draw
+              </button>
+              <button
+                type="button"
+                class="drawing-mode-button"
+                [class.drawing-mode-button--active]="drawMode === 'line'"
+                (click)="setDrawMode('line')"
+              >
+                Straight Line
+              </button>
+            </div>
+
             <div class="drawing-actions" *ngIf="isDrawingMode">
               <button type="button" class="drawing-cancel-button" (click)="cancelDrawingMode()">Cancel</button>
               <button type="button" class="drawing-done-button" [disabled]="isSavingDrawing" (click)="saveDrawing()">

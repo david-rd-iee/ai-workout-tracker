@@ -106,10 +106,13 @@ export class TrainerWorkoutAnalyzerPage implements OnInit, AfterViewChecked {
   selectedDrawingImageUrl = '';
   hasDrawingInk = false;
   drawingTimestampSeconds = 0;
+  drawMode: 'freehand' | 'line' = 'freehand';
 
   private pendingVideoSelectionSync = false;
   private drawing = false;
   private lastDrawPoint: { x: number; y: number } | null = null;
+  private lineStartPoint: { x: number; y: number } | null = null;
+  private lineSnapshot: ImageData | null = null;
 
   constructor() {
     addIcons({
@@ -186,6 +189,7 @@ export class TrainerWorkoutAnalyzerPage implements OnInit, AfterViewChecked {
     this.selectedDrawingImageUrl = '';
     this.hasDrawingInk = false;
     this.drawingTimestampSeconds = 0;
+    this.drawMode = 'freehand';
     this.pendingVideoSelectionSync = true;
   }
 
@@ -229,6 +233,15 @@ export class TrainerWorkoutAnalyzerPage implements OnInit, AfterViewChecked {
 
   closeDrawingImage(): void {
     this.selectedDrawingImageUrl = '';
+  }
+
+  setDrawMode(mode: 'freehand' | 'line'): void {
+    if (!this.isDrawingMode) {
+      return;
+    }
+
+    this.drawMode = mode;
+    this.resetDrawingGestureState();
   }
 
   async addNote(): Promise<void> {
@@ -292,15 +305,16 @@ export class TrainerWorkoutAnalyzerPage implements OnInit, AfterViewChecked {
     this.isDrawingMode = true;
     this.hasDrawingInk = false;
     this.drawingTimestampSeconds = Number.isFinite(activeVideo.currentTime) ? activeVideo.currentTime : this.currentTimeSeconds;
+    this.drawMode = 'freehand';
+    this.resetDrawingGestureState();
     this.pendingVideoSelectionSync = true;
   }
 
   cancelDrawingMode(): void {
     this.isDrawingMode = false;
-    this.drawing = false;
-    this.lastDrawPoint = null;
     this.hasDrawingInk = false;
     this.drawingTimestampSeconds = 0;
+    this.resetDrawingGestureState();
   }
 
   async saveDrawing(): Promise<void> {
@@ -492,14 +506,23 @@ export class TrainerWorkoutAnalyzerPage implements OnInit, AfterViewChecked {
     }
 
     const canvas = this.drawingCanvasRef?.nativeElement;
-    if (!canvas) {
+    const context = canvas?.getContext('2d');
+    if (!canvas || !context) {
       return;
     }
 
     const point = this.getCanvasPoint(canvas, event);
     this.drawing = true;
-    this.lastDrawPoint = point;
     canvas.setPointerCapture(event.pointerId);
+
+    if (this.drawMode === 'line') {
+      this.lineStartPoint = point;
+      this.lastDrawPoint = point;
+      this.lineSnapshot = context.getImageData(0, 0, canvas.width, canvas.height);
+      return;
+    }
+
+    this.lastDrawPoint = point;
     this.drawSegment(point, point);
   }
 
@@ -514,6 +537,19 @@ export class TrainerWorkoutAnalyzerPage implements OnInit, AfterViewChecked {
     }
 
     const point = this.getCanvasPoint(canvas, event);
+
+    if (this.drawMode === 'line') {
+      const context = canvas.getContext('2d');
+      if (!context || !this.lineStartPoint || !this.lineSnapshot) {
+        return;
+      }
+
+      context.putImageData(this.lineSnapshot, 0, 0);
+      this.drawSegment(this.lineStartPoint, point, false);
+      this.lastDrawPoint = point;
+      return;
+    }
+
     this.drawSegment(this.lastDrawPoint, point);
     this.lastDrawPoint = point;
   }
@@ -524,11 +560,19 @@ export class TrainerWorkoutAnalyzerPage implements OnInit, AfterViewChecked {
     }
 
     const canvas = this.drawingCanvasRef?.nativeElement;
+    if (this.drawMode === 'line' && this.drawing && canvas && this.lineStartPoint) {
+      const context = canvas.getContext('2d');
+      const point = this.getCanvasPoint(canvas, event);
+      if (context && this.lineSnapshot) {
+        context.putImageData(this.lineSnapshot, 0, 0);
+      }
+      this.drawSegment(this.lineStartPoint, point);
+    }
+
     if (canvas?.hasPointerCapture(event.pointerId)) {
       canvas.releasePointerCapture(event.pointerId);
     }
-    this.drawing = false;
-    this.lastDrawPoint = null;
+    this.resetDrawingGestureState();
   }
 
   formatTime(seconds: number): string {
@@ -941,7 +985,8 @@ export class TrainerWorkoutAnalyzerPage implements OnInit, AfterViewChecked {
 
   private drawSegment(
     from: { x: number; y: number },
-    to: { x: number; y: number }
+    to: { x: number; y: number },
+    commitInk = true
   ): void {
     const canvas = this.drawingCanvasRef?.nativeElement;
     const context = canvas?.getContext('2d');
@@ -957,7 +1002,16 @@ export class TrainerWorkoutAnalyzerPage implements OnInit, AfterViewChecked {
     context.moveTo(from.x, from.y);
     context.lineTo(to.x, to.y);
     context.stroke();
-    this.hasDrawingInk = true;
+    if (commitInk) {
+      this.hasDrawingInk = true;
+    }
+  }
+
+  private resetDrawingGestureState(): void {
+    this.drawing = false;
+    this.lastDrawPoint = null;
+    this.lineStartPoint = null;
+    this.lineSnapshot = null;
   }
 
   private async canvasToBlob(canvas: HTMLCanvasElement): Promise<Blob> {

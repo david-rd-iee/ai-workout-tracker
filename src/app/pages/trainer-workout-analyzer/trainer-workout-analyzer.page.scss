@@ -374,6 +374,40 @@
   cursor: crosshair;
 }
 
+.drawing-mode-toggle {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  z-index: 5;
+  display: inline-flex;
+  gap: 8px;
+  padding: 6px;
+  transform: translateX(-50%);
+  border-radius: 999px;
+  background: rgba(8, 16, 16, 0.72);
+  backdrop-filter: blur(10px);
+  box-shadow:
+    0 10px 20px rgba(8, 16, 16, 0.16),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+.drawing-mode-button {
+  min-width: 108px;
+  padding: 9px 14px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: rgba(244, 247, 241, 0.78);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.drawing-mode-button--active {
+  background: linear-gradient(135deg, #173331 0%, #254946 100%);
+  color: #f4f7f1;
+  box-shadow: 0 8px 18px rgba(17, 33, 32, 0.16);
+}
+
 .drawing-actions {
   position: absolute;
   right: 14px;
