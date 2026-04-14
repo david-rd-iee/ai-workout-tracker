@@ -53,6 +53,18 @@ type WorkoutAnalysisDrawing = {
   createdAtIso: string;
 };
 
+type CanvasPoint = {
+  x: number;
+  y: number;
+};
+
+type AngleMeasurementResult = {
+  vertex: CanvasPoint;
+  firstEnd: CanvasPoint;
+  secondEnd: CanvasPoint;
+  angleDegrees: number;
+};
+
 @Component({
   selector: 'app-trainer-workout-analyzer',
   standalone: true,
@@ -107,12 +119,19 @@ export class TrainerWorkoutAnalyzerPage implements OnInit, AfterViewChecked {
   hasDrawingInk = false;
   drawingTimestampSeconds = 0;
   drawMode: 'freehand' | 'line' = 'freehand';
+  activeCanvasTool: 'draw' | 'measure' | null = null;
+  measureInstruction = '';
+  isMeasureSelectionReady = false;
+  hasMeasuredAngle = false;
 
   private pendingVideoSelectionSync = false;
   private drawing = false;
-  private lastDrawPoint: { x: number; y: number } | null = null;
-  private lineStartPoint: { x: number; y: number } | null = null;
+  private lastDrawPoint: CanvasPoint | null = null;
+  private lineStartPoint: CanvasPoint | null = null;
   private lineSnapshot: ImageData | null = null;
+  private measurementBaseImageData: ImageData | null = null;
+  private measureSelectionPath: CanvasPoint[] = [];
+  private measureResult: AngleMeasurementResult | null = null;
 
   constructor() {
     addIcons({
@@ -190,6 +209,13 @@ export class TrainerWorkoutAnalyzerPage implements OnInit, AfterViewChecked {
     this.hasDrawingInk = false;
     this.drawingTimestampSeconds = 0;
     this.drawMode = 'freehand';
+    this.activeCanvasTool = null;
+    this.measureInstruction = '';
+    this.isMeasureSelectionReady = false;
+    this.hasMeasuredAngle = false;
+    this.measureSelectionPath = [];
+    this.measureResult = null;
+    this.measurementBaseImageData = null;
     this.pendingVideoSelectionSync = true;
   }
 
@@ -236,7 +262,7 @@ export class TrainerWorkoutAnalyzerPage implements OnInit, AfterViewChecked {
   }
 
   setDrawMode(mode: 'freehand' | 'line'): void {
-    if (!this.isDrawingMode) {
+    if (!this.isDrawingMode || this.activeCanvasTool !== 'draw') {
       return;
     }
 
@@ -303,21 +329,83 @@ export class TrainerWorkoutAnalyzerPage implements OnInit, AfterViewChecked {
     this.drawingsOpen = false;
     this.selectedDrawingImageUrl = '';
     this.isDrawingMode = true;
+    this.activeCanvasTool = 'draw';
     this.hasDrawingInk = false;
     this.drawingTimestampSeconds = Number.isFinite(activeVideo.currentTime) ? activeVideo.currentTime : this.currentTimeSeconds;
     this.drawMode = 'freehand';
+    this.measureInstruction = '';
+    this.isMeasureSelectionReady = false;
+    this.hasMeasuredAngle = false;
+    this.measureSelectionPath = [];
+    this.measureResult = null;
+    this.measurementBaseImageData = null;
+    this.resetDrawingGestureState();
+    this.pendingVideoSelectionSync = true;
+  }
+
+  async openAngleMeasureTool(): Promise<void> {
+    if (!this.selectedAnalysis) {
+      return;
+    }
+
+    if (!this.canToggleOverlay) {
+      await this.showInfoAlert('Overlay unavailable', 'This workout does not have an overlay video to measure.');
+      return;
+    }
+
+    if (this.videoMode !== 'overlay') {
+      await this.switchVideoMode('overlay');
+    }
+
+    const activeVideo = this.getVideoElement('overlay');
+    if (!activeVideo) {
+      return;
+    }
+
+    await this.ensureFrameReadyForCapture(activeVideo);
+
+    if (!activeVideo.paused && !activeVideo.ended) {
+      activeVideo.pause();
+    }
+
+    this.toolsOpen = false;
+    this.notesOpen = false;
+    this.drawingsOpen = false;
+    this.selectedDrawingImageUrl = '';
+    this.isDrawingMode = true;
+    this.activeCanvasTool = 'measure';
+    this.hasDrawingInk = false;
+    this.drawingTimestampSeconds = Number.isFinite(activeVideo.currentTime) ? activeVideo.currentTime : this.currentTimeSeconds;
+    this.drawMode = 'freehand';
+    this.measureInstruction = 'Circle the two skeleton lines you want to measure.';
+    this.isMeasureSelectionReady = false;
+    this.hasMeasuredAngle = false;
+    this.measureSelectionPath = [];
+    this.measureResult = null;
+    this.measurementBaseImageData = null;
     this.resetDrawingGestureState();
     this.pendingVideoSelectionSync = true;
   }
 
   cancelDrawingMode(): void {
     this.isDrawingMode = false;
+    this.activeCanvasTool = null;
     this.hasDrawingInk = false;
     this.drawingTimestampSeconds = 0;
+    this.measureInstruction = '';
+    this.isMeasureSelectionReady = false;
+    this.hasMeasuredAngle = false;
+    this.measureSelectionPath = [];
+    this.measureResult = null;
+    this.measurementBaseImageData = null;
     this.resetDrawingGestureState();
   }
 
   async saveDrawing(): Promise<void> {
+    if (this.activeCanvasTool === 'measure' && !this.hasMeasuredAngle) {
+      return;
+    }
+
     const analysis = this.selectedAnalysis;
     const canvas = this.drawingCanvasRef?.nativeElement;
     if (!analysis || !canvas || this.isSavingDrawing) {
@@ -511,6 +599,11 @@ export class TrainerWorkoutAnalyzerPage implements OnInit, AfterViewChecked {
       return;
     }
 
+    if (this.activeCanvasTool === 'measure') {
+      this.beginMeasureSelection(canvas, event);
+      return;
+    }
+
     const point = this.getCanvasPoint(canvas, event);
     this.drawing = true;
     canvas.setPointerCapture(event.pointerId);
@@ -532,7 +625,16 @@ export class TrainerWorkoutAnalyzerPage implements OnInit, AfterViewChecked {
     }
 
     const canvas = this.drawingCanvasRef?.nativeElement;
-    if (!canvas || !this.lastDrawPoint) {
+    if (!canvas) {
+      return;
+    }
+
+    if (this.activeCanvasTool === 'measure') {
+      this.extendMeasureSelection(canvas, event);
+      return;
+    }
+
+    if (!this.lastDrawPoint) {
       return;
     }
 
@@ -560,6 +662,11 @@ export class TrainerWorkoutAnalyzerPage implements OnInit, AfterViewChecked {
     }
 
     const canvas = this.drawingCanvasRef?.nativeElement;
+    if (this.activeCanvasTool === 'measure') {
+      this.finishMeasureSelection(canvas ?? null, event);
+      return;
+    }
+
     if (this.drawMode === 'line' && this.drawing && canvas && this.lineStartPoint) {
       const context = canvas.getContext('2d');
       const point = this.getCanvasPoint(canvas, event);
@@ -784,6 +891,11 @@ export class TrainerWorkoutAnalyzerPage implements OnInit, AfterViewChecked {
 
     context.clearRect(0, 0, width, height);
     context.drawImage(activeVideo, 0, 0, width, height);
+    if (this.activeCanvasTool === 'measure') {
+      this.measurementBaseImageData = context.getImageData(0, 0, width, height);
+    } else {
+      this.measurementBaseImageData = null;
+    }
   }
 
   private async promptForNote(): Promise<string | null> {
@@ -966,6 +1078,26 @@ export class TrainerWorkoutAnalyzerPage implements OnInit, AfterViewChecked {
     });
   }
 
+  private async ensureFrameReadyForCapture(video: HTMLVideoElement): Promise<void> {
+    await this.waitForMetadata(video).catch(() => undefined);
+    this.applySilentVideoConfig(video);
+
+    if (video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) {
+      await video.play().catch(() => undefined);
+      await this.delay(140);
+      video.pause();
+    }
+
+    await this.delay(80);
+    await this.waitForCurrentFrame(video).catch(() => undefined);
+  }
+
+  private async delay(milliseconds: number): Promise<void> {
+    await new Promise<void>((resolve) => {
+      window.setTimeout(resolve, milliseconds);
+    });
+  }
+
   private asRecord(value: unknown): Record<string, unknown> | null {
     return value && typeof value === 'object' ? (value as Record<string, unknown>) : null;
   }
@@ -973,7 +1105,7 @@ export class TrainerWorkoutAnalyzerPage implements OnInit, AfterViewChecked {
   private getCanvasPoint(
     canvas: HTMLCanvasElement,
     event: PointerEvent
-  ): { x: number; y: number } {
+  ): CanvasPoint {
     const rect = canvas.getBoundingClientRect();
     const scaleX = canvas.width / rect.width;
     const scaleY = canvas.height / rect.height;
@@ -1005,6 +1137,394 @@ export class TrainerWorkoutAnalyzerPage implements OnInit, AfterViewChecked {
     if (commitInk) {
       this.hasDrawingInk = true;
     }
+  }
+
+  async measureSelectedAngle(): Promise<void> {
+    if (this.activeCanvasTool !== 'measure' || !this.isMeasureSelectionReady) {
+      return;
+    }
+
+    const result = this.detectAngleWithinSelection();
+    if (!result) {
+      await this.showInfoAlert(
+        'Angle not found',
+        'Try circling a smaller area around one visible joint and the two connecting skeleton lines.'
+      );
+      return;
+    }
+
+    this.measureResult = result;
+    this.hasMeasuredAngle = true;
+    this.hasDrawingInk = true;
+    this.measureInstruction = `${result.angleDegrees.toFixed(1)} degrees measured.`;
+    this.renderMeasureSelection(true);
+  }
+
+  private beginMeasureSelection(canvas: HTMLCanvasElement, event: PointerEvent): void {
+    const point = this.getCanvasPoint(canvas, event);
+    this.drawing = true;
+    this.lastDrawPoint = point;
+    this.measureSelectionPath = [point];
+    this.isMeasureSelectionReady = false;
+    this.hasMeasuredAngle = false;
+    this.hasDrawingInk = false;
+    this.measureResult = null;
+    this.measureInstruction = 'Keep circling the two lines, then release.';
+    canvas.setPointerCapture(event.pointerId);
+    this.renderMeasureSelection(false);
+  }
+
+  private extendMeasureSelection(canvas: HTMLCanvasElement, event: PointerEvent): void {
+    const point = this.getCanvasPoint(canvas, event);
+    this.measureSelectionPath = [...this.measureSelectionPath, point];
+    this.lastDrawPoint = point;
+    this.renderMeasureSelection(false);
+  }
+
+  private finishMeasureSelection(canvas: HTMLCanvasElement | null, event: PointerEvent): void {
+    if (!canvas) {
+      this.resetDrawingGestureState();
+      return;
+    }
+
+    if (canvas.hasPointerCapture(event.pointerId)) {
+      canvas.releasePointerCapture(event.pointerId);
+    }
+
+    if (this.measureSelectionPath.length < 8) {
+      this.measureInstruction = 'Circle a little wider around the two lines.';
+      this.measureSelectionPath = [];
+      this.resetDrawingGestureState();
+      this.renderMeasureSelection(false);
+      return;
+    }
+
+    const firstPoint = this.measureSelectionPath[0];
+    this.measureSelectionPath = [...this.measureSelectionPath, firstPoint];
+    this.isMeasureSelectionReady = true;
+    this.measureInstruction = 'Selection ready. Tap Measure Angle.';
+    this.renderMeasureSelection(false);
+    this.resetDrawingGestureState();
+  }
+
+  private renderMeasureSelection(showResult: boolean): void {
+    const canvas = this.drawingCanvasRef?.nativeElement;
+    const context = canvas?.getContext('2d');
+    const baseImage = this.measurementBaseImageData;
+    if (!canvas || !context || !baseImage) {
+      return;
+    }
+
+    context.putImageData(baseImage, 0, 0);
+
+    if (this.measureSelectionPath.length >= 2) {
+      context.save();
+      context.fillStyle = 'rgba(0, 0, 0, 0.34)';
+      context.beginPath();
+      context.rect(0, 0, canvas.width, canvas.height);
+      this.traceSelectionPath(context, this.measureSelectionPath);
+      context.fill('evenodd');
+      context.restore();
+
+      context.save();
+      context.strokeStyle = 'rgba(255, 255, 255, 0.92)';
+      context.lineWidth = Math.max(3, canvas.width * 0.003);
+      context.setLineDash([14, 10]);
+      this.traceSelectionPath(context, this.measureSelectionPath);
+      context.stroke();
+      context.restore();
+    }
+
+    if (showResult && this.measureResult) {
+      this.drawHighlightedMeasureLine(this.measureResult.vertex, this.measureResult.firstEnd, '#ff9f1c');
+      this.drawHighlightedMeasureLine(this.measureResult.vertex, this.measureResult.secondEnd, '#ff4d6d');
+      this.renderAngleLabel(this.measureResult.vertex, this.measureResult.angleDegrees);
+    }
+  }
+
+  private traceSelectionPath(context: CanvasRenderingContext2D, points: CanvasPoint[]): void {
+    if (!points.length) {
+      return;
+    }
+
+    context.beginPath();
+    context.moveTo(points[0].x, points[0].y);
+    for (const point of points.slice(1)) {
+      context.lineTo(point.x, point.y);
+    }
+    context.closePath();
+  }
+
+  private detectAngleWithinSelection(): AngleMeasurementResult | null {
+    const canvas = this.drawingCanvasRef?.nativeElement;
+    const baseImage = this.measurementBaseImageData;
+    if (!canvas || !baseImage || this.measureSelectionPath.length < 4) {
+      return null;
+    }
+
+    const bounds = this.getSelectionBounds(this.measureSelectionPath, canvas.width, canvas.height);
+    const pixels: CanvasPoint[] = [];
+    const data = baseImage.data;
+
+    for (let y = bounds.minY; y <= bounds.maxY; y += 1) {
+      for (let x = bounds.minX; x <= bounds.maxX; x += 1) {
+        if (!this.isPointInPolygon({ x, y }, this.measureSelectionPath)) {
+          continue;
+        }
+
+        const pixelIndex = ((y * canvas.width) + x) * 4;
+        if (this.isSkeletonOverlayPixel(
+          data[pixelIndex],
+          data[pixelIndex + 1],
+          data[pixelIndex + 2],
+          data[pixelIndex + 3]
+        )) {
+          pixels.push({ x, y });
+        }
+      }
+    }
+
+    if (pixels.length < 50) {
+      return null;
+    }
+
+    const vertex = this.findLikelyJointPoint(pixels);
+    if (!vertex) {
+      return null;
+    }
+
+    const vectors = pixels
+      .map((point) => ({
+        point,
+        dx: point.x - vertex.x,
+        dy: point.y - vertex.y,
+      }))
+      .map((entry) => ({
+        ...entry,
+        distance: Math.hypot(entry.dx, entry.dy),
+        angle: Math.atan2(entry.dy, entry.dx),
+      }))
+      .filter((entry) => entry.distance > 14);
+
+    if (vectors.length < 20) {
+      return null;
+    }
+
+    const firstCluster = this.findDominantAngleCluster(vectors, []);
+    if (!firstCluster) {
+      return null;
+    }
+
+    const secondCluster = this.findDominantAngleCluster(vectors, [firstCluster.angle]);
+    if (!secondCluster) {
+      return null;
+    }
+
+    const angleDegrees = this.angleDifferenceDegrees(firstCluster.angle, secondCluster.angle);
+    return {
+      vertex,
+      firstEnd: firstCluster.endpoint,
+      secondEnd: secondCluster.endpoint,
+      angleDegrees,
+    };
+  }
+
+  private findLikelyJointPoint(points: CanvasPoint[]): CanvasPoint | null {
+    if (!points.length) {
+      return null;
+    }
+
+    const sampleStep = Math.max(1, Math.floor(points.length / 220));
+    const radius = 14;
+    const radiusSquared = radius * radius;
+    let bestPoint = points[0];
+    let bestScore = -1;
+
+    for (let index = 0; index < points.length; index += sampleStep) {
+      const candidate = points[index];
+      let localCount = 0;
+
+      for (const point of points) {
+        const dx = point.x - candidate.x;
+        const dy = point.y - candidate.y;
+        if ((dx * dx) + (dy * dy) <= radiusSquared) {
+          localCount += 1;
+        }
+      }
+
+      if (localCount > bestScore) {
+        bestScore = localCount;
+        bestPoint = candidate;
+      }
+    }
+
+    return bestPoint;
+  }
+
+  private findDominantAngleCluster(
+    vectors: Array<{ point: CanvasPoint; distance: number; angle: number }>,
+    excludedAngles: number[]
+  ): { angle: number; endpoint: CanvasPoint } | null {
+    const binCount = 90;
+    const binSize = (Math.PI * 2) / binCount;
+    const histogram = new Array<number>(binCount).fill(0);
+    const normalizedExcluded = excludedAngles.map((angle) => this.normalizeAngle(angle));
+
+    for (const vector of vectors) {
+      const normalized = this.normalizeAngle(vector.angle);
+      if (normalizedExcluded.some((excluded) => this.angularDistance(normalized, excluded) < 0.36)) {
+        continue;
+      }
+
+      const binIndex = Math.floor(normalized / binSize) % binCount;
+      histogram[binIndex] += 1;
+    }
+
+    let bestIndex = -1;
+    let bestCount = 0;
+    for (let index = 0; index < histogram.length; index += 1) {
+      if (histogram[index] > bestCount) {
+        bestCount = histogram[index];
+        bestIndex = index;
+      }
+    }
+
+    if (bestIndex === -1 || bestCount < 4) {
+      return null;
+    }
+
+    const targetAngle = (bestIndex + 0.5) * binSize;
+    const matchingVectors = vectors.filter((vector) => {
+      const normalized = this.normalizeAngle(vector.angle);
+      if (normalizedExcluded.some((excluded) => this.angularDistance(normalized, excluded) < 0.36)) {
+        return false;
+      }
+
+      return this.angularDistance(normalized, targetAngle) < 0.28;
+    });
+
+    if (!matchingVectors.length) {
+      return null;
+    }
+
+    const endpoint = matchingVectors.reduce((best, current) =>
+      current.distance > best.distance ? current : best
+    ).point;
+
+    return {
+      angle: targetAngle,
+      endpoint,
+    };
+  }
+
+  private drawHighlightedMeasureLine(from: CanvasPoint, to: CanvasPoint, color: string): void {
+    const canvas = this.drawingCanvasRef?.nativeElement;
+    const context = canvas?.getContext('2d');
+    if (!canvas || !context) {
+      return;
+    }
+
+    context.save();
+    context.strokeStyle = color;
+    context.lineWidth = Math.max(5, canvas.width * 0.005);
+    context.lineCap = 'round';
+    context.lineJoin = 'round';
+    context.beginPath();
+    context.moveTo(from.x, from.y);
+    context.lineTo(to.x, to.y);
+    context.stroke();
+    context.restore();
+  }
+
+  private renderAngleLabel(vertex: CanvasPoint, angleDegrees: number): void {
+    const canvas = this.drawingCanvasRef?.nativeElement;
+    const context = canvas?.getContext('2d');
+    if (!canvas || !context) {
+      return;
+    }
+
+    const label = `${angleDegrees.toFixed(1)}°`;
+    const fontSize = Math.max(22, canvas.width * 0.026);
+    const paddingX = Math.max(10, fontSize * 0.42);
+    const paddingY = Math.max(7, fontSize * 0.28);
+
+    context.save();
+    context.font = `700 ${fontSize}px Arial`;
+    context.textBaseline = 'middle';
+    const labelWidth = context.measureText(label).width;
+    const boxWidth = labelWidth + (paddingX * 2);
+    const boxHeight = fontSize + (paddingY * 2);
+    const boxX = Math.min(Math.max(vertex.x + 18, 12), Math.max(canvas.width - boxWidth - 12, 12));
+    const boxY = Math.min(Math.max(vertex.y - boxHeight - 18, 12), Math.max(canvas.height - boxHeight - 12, 12));
+
+    context.fillStyle = 'rgba(8, 16, 16, 0.84)';
+    context.beginPath();
+    context.roundRect(boxX, boxY, boxWidth, boxHeight, 18);
+    context.fill();
+
+    context.fillStyle = '#f7faf6';
+    context.fillText(label, boxX + paddingX, boxY + (boxHeight / 2));
+    context.restore();
+  }
+
+  private getSelectionBounds(
+    points: CanvasPoint[],
+    canvasWidth: number,
+    canvasHeight: number
+  ): { minX: number; maxX: number; minY: number; maxY: number } {
+    const xs = points.map((point) => point.x);
+    const ys = points.map((point) => point.y);
+
+    return {
+      minX: Math.max(0, Math.floor(Math.min(...xs))),
+      maxX: Math.min(canvasWidth - 1, Math.ceil(Math.max(...xs))),
+      minY: Math.max(0, Math.floor(Math.min(...ys))),
+      maxY: Math.min(canvasHeight - 1, Math.ceil(Math.max(...ys))),
+    };
+  }
+
+  private isPointInPolygon(point: CanvasPoint, polygon: CanvasPoint[]): boolean {
+    let isInside = false;
+
+    for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i, i += 1) {
+      const intersects = ((polygon[i].y > point.y) !== (polygon[j].y > point.y)) &&
+        (point.x < ((polygon[j].x - polygon[i].x) * (point.y - polygon[i].y)) / ((polygon[j].y - polygon[i].y) || 1e-6) + polygon[i].x);
+
+      if (intersects) {
+        isInside = !isInside;
+      }
+    }
+
+    return isInside;
+  }
+
+  private isSkeletonOverlayPixel(red: number, green: number, blue: number, alpha: number): boolean {
+    return alpha > 120 && green > 150 && blue > 140 && red < 150 && green > red + 30 && blue > red + 20;
+  }
+
+  private normalizeAngle(angle: number): number {
+    const fullRotation = Math.PI * 2;
+    return ((angle % fullRotation) + fullRotation) % fullRotation;
+  }
+
+  private angularDistance(first: number, second: number): number {
+    const difference = Math.abs(first - second);
+    return Math.min(difference, (Math.PI * 2) - difference);
+  }
+
+  private angleDifferenceDegrees(first: number, second: number): number {
+    const difference = this.angularDistance(first, second);
+    return (difference * 180) / Math.PI;
+  }
+
+  private async showInfoAlert(header: string, message: string): Promise<void> {
+    const alert = await this.alertCtrl.create({
+      header,
+      message,
+      buttons: ['OK'],
+    });
+
+    await alert.present();
   }
 
   private resetDrawingGestureState(): void {

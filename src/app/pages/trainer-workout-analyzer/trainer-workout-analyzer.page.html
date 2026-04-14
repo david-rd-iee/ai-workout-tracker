@@ -168,6 +168,7 @@
               <div class="tools-list" *ngIf="toolsOpen">
                 <button type="button" class="tool-item" (click)="addNote()">Take note</button>
                 <button type="button" class="tool-item" (click)="openDrawingTool()">Pen tool</button>
+                <button type="button" class="tool-item" (click)="openAngleMeasureTool()">Measure Angles</button>
               </div>
             </div>
 
@@ -223,7 +224,7 @@
               (pointercancel)="onDrawingPointerUp($event)"
             ></canvas>
 
-            <div class="drawing-mode-toggle" *ngIf="isDrawingMode">
+            <div class="drawing-mode-toggle" *ngIf="isDrawingMode && activeCanvasTool === 'draw'">
               <button
                 type="button"
                 class="drawing-mode-button"
@@ -242,9 +243,33 @@
               </button>
             </div>
 
-            <div class="drawing-actions" *ngIf="isDrawingMode">
+            <div class="measure-instruction" *ngIf="isDrawingMode && activeCanvasTool === 'measure' && measureInstruction">
+              {{ measureInstruction }}
+            </div>
+
+            <div class="drawing-actions" *ngIf="isDrawingMode && activeCanvasTool === 'draw'">
               <button type="button" class="drawing-cancel-button" (click)="cancelDrawingMode()">Cancel</button>
               <button type="button" class="drawing-done-button" [disabled]="isSavingDrawing" (click)="saveDrawing()">
+                {{ isSavingDrawing ? 'Saving...' : 'Done' }}
+              </button>
+            </div>
+
+            <div class="drawing-actions drawing-actions--measure" *ngIf="isDrawingMode && activeCanvasTool === 'measure'">
+              <button type="button" class="drawing-cancel-button" (click)="cancelDrawingMode()">Cancel</button>
+              <button
+                type="button"
+                class="drawing-cancel-button drawing-cancel-button--measure"
+                [disabled]="!isMeasureSelectionReady || hasMeasuredAngle"
+                (click)="measureSelectedAngle()"
+              >
+                Measure Angle
+              </button>
+              <button
+                type="button"
+                class="drawing-done-button"
+                [disabled]="!hasMeasuredAngle || isSavingDrawing"
+                (click)="saveDrawing()"
+              >
                 {{ isSavingDrawing ? 'Saving...' : 'Done' }}
               </button>
             </div>
