@@ -1192,6 +1192,7 @@ export class VideoAnalysisViewerComponent implements OnChanges, AfterViewChecked
       y: selectedPoints.reduce((sum, point) => sum + point.y, 0) / selectedPoints.length,
     };
 
+    // Initial partition: split by X relative to centroid; fall back to Y split
     const partitionA: CanvasPoint[] = [];
     const partitionB: CanvasPoint[] = [];
 
@@ -1203,23 +1204,83 @@ export class VideoAnalysisViewerComponent implements OnChanges, AfterViewChecked
       }
     }
 
-    const leftPoints = partitionA.length >= 6 ? partitionA : selectedPoints.filter((point) => point.y <= centroid.y);
-    const rightPoints = partitionB.length >= 6 ? partitionB : selectedPoints.filter((point) => point.y > centroid.y);
+    let groupA = partitionA.length >= 6 ? partitionA : selectedPoints.filter((point) => point.y <= centroid.y);
+    let groupB = partitionB.length >= 6 ? partitionB : selectedPoints.filter((point) => point.y > centroid.y);
 
-    if (leftPoints.length < 6 || rightPoints.length < 6) {
+    if (groupA.length < 6 || groupB.length < 6) {
       return null;
     }
 
-    const firstLine = this.fitLine(leftPoints);
-    const secondLine = this.fitLine(rightPoints);
+    // Iterative k-means refinement: reassign each point to whichever fitted line
+    // it sits closer to (perpendicular distance). Runs up to 3 passes.
+    for (let iter = 0; iter < 3; iter += 1) {
+      const lineA = this.fitLine(groupA);
+      const lineB = this.fitLine(groupB);
+      if (!lineA || !lineB) {
+        break;
+      }
+
+      const nextA: CanvasPoint[] = [];
+      const nextB: CanvasPoint[] = [];
+      for (const point of selectedPoints) {
+        const dA = this.perpendicularDistance(point, lineA.mean, lineA.direction);
+        const dB = this.perpendicularDistance(point, lineB.mean, lineB.direction);
+        if (dA <= dB) {
+          nextA.push(point);
+        } else {
+          nextB.push(point);
+        }
+      }
+
+      if (nextA.length < 6 || nextB.length < 6) {
+        break;
+      }
+      groupA = nextA;
+      groupB = nextB;
+    }
+
+    if (groupA.length < 6 || groupB.length < 6) {
+      return null;
+    }
+
+    const firstLine = this.fitLine(groupA);
+    const secondLine = this.fitLine(groupB);
     if (!firstLine || !secondLine) {
       return null;
     }
 
-    const vertex = centroid;
-    const firstEnd = this.extendLinePoint(vertex, firstLine.direction, 120);
-    const secondEnd = this.extendLinePoint(vertex, secondLine.direction, 120);
-    const angleDegrees = this.computeSmallerAngle(firstLine.direction, secondLine.direction);
+    // Vertex = actual intersection of the two fitted lines (the joint position).
+    // Falls back to the pixel centroid only when lines are near-parallel or the
+    // intersection is implausibly far from the selection.
+    const maxFallbackDist = Math.max(canvas.width, canvas.height) * 0.6;
+    const rawIntersection = this.intersectLines(
+      firstLine.mean, firstLine.direction,
+      secondLine.mean, secondLine.direction
+    );
+    const vertex =
+      rawIntersection &&
+      Math.hypot(rawIntersection.x - centroid.x, rawIntersection.y - centroid.y) <= maxFallbackDist
+        ? rawIntersection
+        : centroid;
+
+    // Orient each direction so it points from the vertex toward its cluster mean,
+    // ensuring the overlay lines extend along the skeleton arms not away from them.
+    const dirA = { ...firstLine.direction };
+    if ((firstLine.mean.x - vertex.x) * dirA.x + (firstLine.mean.y - vertex.y) * dirA.y < 0) {
+      dirA.x = -dirA.x;
+      dirA.y = -dirA.y;
+    }
+
+    const dirB = { ...secondLine.direction };
+    if ((secondLine.mean.x - vertex.x) * dirB.x + (secondLine.mean.y - vertex.y) * dirB.y < 0) {
+      dirB.x = -dirB.x;
+      dirB.y = -dirB.y;
+    }
+
+    const lineExtent = Math.max(80, Math.round(canvas.width * 0.1));
+    const firstEnd = this.extendLinePoint(vertex, dirA, lineExtent);
+    const secondEnd = this.extendLinePoint(vertex, dirB, lineExtent);
+    const angleDegrees = this.computeSmallerAngle(dirA, dirB);
 
     return {
       vertex,
@@ -1229,7 +1290,7 @@ export class VideoAnalysisViewerComponent implements OnChanges, AfterViewChecked
     };
   }
 
-  private fitLine(points: CanvasPoint[]): { direction: CanvasPoint } | null {
+  private fitLine(points: CanvasPoint[]): { direction: CanvasPoint; mean: CanvasPoint } | null {
     if (points.length < 2) {
       return null;
     }
@@ -1256,7 +1317,28 @@ export class VideoAnalysisViewerComponent implements OnChanges, AfterViewChecked
 
     const theta = 0.5 * Math.atan2(2 * sxy, sxx - syy);
     const direction = { x: Math.cos(theta), y: Math.sin(theta) };
-    return direction.x || direction.y ? { direction } : null;
+    return direction.x || direction.y ? { direction, mean: { x: meanX, y: meanY } } : null;
+  }
+
+  private intersectLines(
+    pointA: CanvasPoint, dirA: CanvasPoint,
+    pointB: CanvasPoint, dirB: CanvasPoint
+  ): CanvasPoint | null {
+    // Solve pointA + t*dirA = pointB + s*dirB  →  Cramer's rule on (t, s)
+    const det = dirA.x * (-dirB.y) - dirA.y * (-dirB.x);
+    if (Math.abs(det) < 1e-6) {
+      return null; // parallel
+    }
+    const dx = pointB.x - pointA.x;
+    const dy = pointB.y - pointA.y;
+    const t = (dx * (-dirB.y) - dy * (-dirB.x)) / det;
+    return { x: pointA.x + t * dirA.x, y: pointA.y + t * dirA.y };
+  }
+
+  private perpendicularDistance(point: CanvasPoint, linePoint: CanvasPoint, lineDir: CanvasPoint): number {
+    const dx = point.x - linePoint.x;
+    const dy = point.y - linePoint.y;
+    return Math.abs(dx * lineDir.y - dy * lineDir.x);
   }
 
   private extendLinePoint(origin: CanvasPoint, direction: CanvasPoint, distance: number): CanvasPoint {
@@ -1339,11 +1421,18 @@ export class VideoAnalysisViewerComponent implements OnChanges, AfterViewChecked
     context.putImageData(this.measurementBaseImageData, 0, 0);
     context.restore();
 
-    context.strokeStyle = '#f4f7f1';
-    context.lineWidth = Math.max(3, canvas.width * 0.0032);
+    // Marching-ants selection outline: white solid base then black dashes on top
+    const dashLen = Math.max(6, Math.round(canvas.width * 0.008));
+    context.lineWidth = Math.max(2, canvas.width * 0.0028);
     context.lineJoin = 'round';
-    context.lineCap = 'round';
+    context.lineCap = 'butt';
+    context.strokeStyle = '#ffffff';
+    context.setLineDash([]);
     context.stroke(path);
+    context.strokeStyle = '#000000';
+    context.setLineDash([dashLen, dashLen]);
+    context.stroke(path);
+    context.setLineDash([]);
     context.restore();
   }
 

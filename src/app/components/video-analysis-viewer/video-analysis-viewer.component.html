@@ -100,6 +100,7 @@
           [class.player-video--active]="isRecordingMode"
           [class.player-video--hidden]="!isRecordingMode || isDrawingMode"
           [src]="analysisState.recordingUrl"
+          crossorigin="anonymous"
           playsinline
           preload="auto"
           muted
@@ -120,6 +121,7 @@
           [class.player-video--active]="!isRecordingMode"
           [class.player-video--hidden]="isRecordingMode || isDrawingMode"
           [src]="analysisState.overlayUrl"
+          crossorigin="anonymous"
           playsinline
           preload="auto"
           muted
