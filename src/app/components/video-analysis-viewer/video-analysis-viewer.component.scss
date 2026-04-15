@@ -573,6 +573,10 @@
 }
 
 @media (orientation: landscape) {
+  :host {
+    height: 100%;
+  }
+
   .notes-panel {
     width: min(50vw, 520px);
   }
