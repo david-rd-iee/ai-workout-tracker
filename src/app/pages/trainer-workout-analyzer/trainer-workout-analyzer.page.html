@@ -36,360 +36,49 @@
   </ion-content>
 </ion-menu>
 
-<div class="notes-backdrop" *ngIf="eventsOpen && isLandscapeMode" (click)="closeEvents()"></div>
+<ion-header [translucent]="true">
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-button fill="clear" (click)="goBack()" aria-label="Go back">
+        <ion-icon slot="icon-only" name="arrow-back-outline"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+    <ion-title>{{ clientName || 'Workout Analyzer' }}</ion-title>
+    <ion-buttons slot="end">
+      <ion-menu-button autoHide="false" aria-label="Open analyses menu"></ion-menu-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
 
-<div class="notes-panel events-panel" *ngIf="eventsOpen && isLandscapeMode">
-  <div class="notes-panel__header">
-    <button type="button" class="notes-back-button" (click)="closeEvents()" aria-label="Close events">
-      <ion-icon name="arrow-back-outline"></ion-icon>
-    </button>
-    <div class="notes-panel__title">Timeline</div>
-  </div>
+<ion-content [id]="contentId" [fullscreen]="false" class="trainer-workout-analyzer-content">
+  <ng-container *ngIf="!isLoading; else loadingState">
+    <app-video-analysis-viewer
+      *ngIf="selectedAnalysis; else emptySelection"
+      [analysis]="selectedAnalysis"
+      [clientId]="clientId"
+      [trainerId]="trainerUid"
+      [readonly]="isSelectedAnalysisReadOnly"
+      [showTools]="!isSelectedAnalysisReadOnly"
+      [showSendToClient]="true"
+      [sendToClientLabel]="sendToClientLabel"
+      [disableSendToClient]="!canSendToClient"
+      (analysisChange)="handleAnalysisChange($event)"
+      (requestSendToClient)="sendAnalysisToClient()"
+    ></app-video-analysis-viewer>
 
-  <div class="notes-panel__body events-panel__body">
-    <div class="timeline-list" *ngIf="timelineEvents.length; else emptyTimeline">
-      <div class="timeline-item" *ngFor="let event of timelineEvents">
-        <div class="timeline-item__rail">
-          <span class="timeline-item__dot"></span>
-        </div>
-
-        <div class="timeline-item__content" *ngIf="isTimelineNote(event)">
-          <div class="timeline-note">
-            <span class="timeline-note__bullet"></span>
-            <button
-              type="button"
-              class="timeline-time-button"
-              (click)="jumpToNote(event)"
-            >
-              {{ formatTime(event.timestampSeconds) }}
-            </button>
-            <span class="timeline-note__separator">:</span>
-            <span class="timeline-note__text">{{ event.note }}</span>
-          </div>
-        </div>
-
-        <div class="timeline-item__content" *ngIf="isTimelineDrawing(event)">
-          <div class="timeline-image-row">
-            <span class="timeline-note__bullet"></span>
-            <button
-              type="button"
-              class="timeline-time-button"
-              (click)="jumpToDrawing(event)"
-            >
-              {{ formatTime(event.timestampSeconds) }}
-            </button>
-            <span class="timeline-note__separator">:</span>
-            <button
-              type="button"
-              class="timeline-image-button"
-              (click)="openDrawingImage(event.imageUrl)"
-            >
-              <img [src]="event.imageUrl" alt="Saved analysis image" />
-            </button>
-          </div>
-
-          <div class="timeline-image-note" *ngIf="event.note">
-            <span class="timeline-image-note__bullet"></span>
-            <span>{{ event.note }}</span>
-          </div>
-        </div>
+    <ng-template #emptySelection>
+      <div class="hero-card">
+        <h1>Workout Analyzer</h1>
+        <p *ngIf="clientName">Select a saved analysis for {{ clientName }} from the top-right menu.</p>
+        <p *ngIf="!clientName">Select a saved analysis from the top-right menu.</p>
       </div>
-    </div>
-
-    <ng-template #emptyTimeline>
-      <p class="menu-empty">No notes or images saved yet.</p>
     </ng-template>
-  </div>
-</div>
+  </ng-container>
 
-<div class="image-viewer" *ngIf="selectedDrawingImageUrl">
-  <div class="image-viewer__panel">
-    <button type="button" class="image-viewer__close" (click)="closeDrawingImage()" aria-label="Close image">
-      <ion-icon name="arrow-back-outline"></ion-icon>
-    </button>
-    <img [src]="selectedDrawingImageUrl" alt="Saved drawing full view" />
-  </div>
-</div>
-
-<div class="ion-page" [id]="contentId">
-  <ion-header [translucent]="true">
-    <ion-toolbar>
-      <ion-buttons slot="start">
-        <ion-button fill="clear" (click)="goBack()" aria-label="Go back">
-          <ion-icon slot="icon-only" name="arrow-back-outline"></ion-icon>
-        </ion-button>
-      </ion-buttons>
-      <ion-title>{{ clientName || 'Workout Analyzer' }}</ion-title>
-      <ion-buttons slot="end">
-        <ion-menu-button autoHide="false" aria-label="Open analyses menu"></ion-menu-button>
-      </ion-buttons>
-    </ion-toolbar>
-  </ion-header>
-
-  <ion-content [fullscreen]="false" class="trainer-workout-analyzer-content">
-    <div class="trainer-workout-analyzer-page">
-      <ng-container *ngIf="!isLoading; else loadingState">
-        <div class="player-shell" #playerShell *ngIf="selectedAnalysis; else emptySelection">
-          <div class="player-meta">
-            <p class="player-meta__date">{{ activeAnalysisDisplayDate }}</p>
-            <h1>{{ activeAnalysisDisplayTitle || activeAnalysisLabel }}</h1>
-          </div>
-
-          <div class="player-frame" #playerFrame [style.height.px]="portraitPlayerFrameHeightPx">
-            <div class="video-toggle">
-              <button
-                type="button"
-                class="toggle-button"
-                [class.toggle-button--active]="isRecordingMode"
-                (click)="showRecording()"
-              >
-                Recording
-              </button>
-              <button
-                type="button"
-                class="toggle-button"
-                [class.toggle-button--active]="!isRecordingMode"
-                [disabled]="!canToggleOverlay"
-                (click)="showOverlay()"
-              >
-                Overlay
-              </button>
-            </div>
-
-            <div class="video-tools">
-              <button
-                type="button"
-                class="tools-button"
-                [class.tools-button--open]="toolsOpen"
-                (click)="toggleTools()"
-                aria-label="Open tools"
-              >
-                <ion-icon name="build-outline"></ion-icon>
-              </button>
-
-              <button
-                type="button"
-                class="tools-button tools-button--secondary"
-                *ngIf="hasEvents && isLandscapeMode"
-                (click)="openEvents()"
-                aria-label="Open timeline"
-              >
-                <ion-icon name="image-outline"></ion-icon>
-              </button>
-
-              <div class="tools-list" *ngIf="toolsOpen">
-                <button type="button" class="tool-item" (click)="addNote()">Take note</button>
-                <button type="button" class="tool-item" (click)="openDrawingTool()">Pen tool</button>
-                <button type="button" class="tool-item" (click)="openAngleMeasureTool()">Measure Angles</button>
-              </div>
-            </div>
-
-            <video
-              #recordingVideo
-              class="player-video"
-              [class.player-video--active]="isRecordingMode"
-              [class.player-video--hidden]="!isRecordingMode || isDrawingMode"
-              [src]="selectedAnalysis.recordingUrl"
-              playsinline
-              preload="auto"
-              muted
-              crossorigin="anonymous"
-              disablepictureinpicture
-              controlslist="nofullscreen nodownload noremoteplayback"
-              (loadedmetadata)="onVideoMetadataLoaded()"
-              (timeupdate)="onVideoTimeUpdate()"
-              (play)="onVideoPlay()"
-              (pause)="onVideoPause()"
-              (ended)="onVideoPause()"
-              (click)="onVideoSurfaceTap($event)"
-            ></video>
-
-            <video
-              *ngIf="selectedAnalysis.overlayUrl"
-              #overlayVideo
-              class="player-video"
-              [class.player-video--active]="!isRecordingMode"
-              [class.player-video--hidden]="isRecordingMode || isDrawingMode"
-              [src]="selectedAnalysis.overlayUrl"
-              playsinline
-              preload="auto"
-              muted
-              crossorigin="anonymous"
-              disablepictureinpicture
-              controlslist="nofullscreen nodownload noremoteplayback"
-              (loadedmetadata)="onVideoMetadataLoaded()"
-              (timeupdate)="onVideoTimeUpdate()"
-              (play)="onVideoPlay()"
-              (pause)="onVideoPause()"
-              (ended)="onVideoPause()"
-              (click)="onVideoSurfaceTap($event)"
-            ></video>
-
-            <canvas
-              *ngIf="isDrawingMode"
-              #drawingCanvas
-              class="drawing-canvas"
-              (pointerdown)="onDrawingPointerDown($event)"
-              (pointermove)="onDrawingPointerMove($event)"
-              (pointerup)="onDrawingPointerUp($event)"
-              (pointerleave)="onDrawingPointerUp($event)"
-              (pointercancel)="onDrawingPointerUp($event)"
-            ></canvas>
-
-            <div class="drawing-mode-toggle" *ngIf="isDrawingMode && activeCanvasTool === 'draw'">
-              <button
-                type="button"
-                class="drawing-mode-button"
-                [class.drawing-mode-button--active]="drawMode === 'freehand'"
-                (click)="setDrawMode('freehand')"
-              >
-                Free Draw
-              </button>
-              <button
-                type="button"
-                class="drawing-mode-button"
-                [class.drawing-mode-button--active]="drawMode === 'line'"
-                (click)="setDrawMode('line')"
-              >
-                Straight Line
-              </button>
-            </div>
-
-            <div class="measure-instruction" *ngIf="isDrawingMode && activeCanvasTool === 'measure' && measureInstruction">
-              {{ measureInstruction }}
-            </div>
-
-            <div class="drawing-actions" *ngIf="isDrawingMode && activeCanvasTool === 'draw'">
-              <button type="button" class="drawing-cancel-button" (click)="cancelDrawingMode()">Cancel</button>
-              <button type="button" class="drawing-done-button" [disabled]="isSavingDrawing" (click)="saveDrawing()">
-                {{ isSavingDrawing ? 'Saving...' : 'Done' }}
-              </button>
-            </div>
-
-            <div class="drawing-actions drawing-actions--measure" *ngIf="isDrawingMode && activeCanvasTool === 'measure'">
-              <button type="button" class="drawing-cancel-button" (click)="cancelDrawingMode()">Cancel</button>
-              <button
-                type="button"
-                class="drawing-cancel-button drawing-cancel-button--measure"
-                [disabled]="!isMeasureSelectionReady || hasMeasuredAngle"
-                (click)="measureSelectedAngle()"
-              >
-                Measure Angle
-              </button>
-              <button
-                type="button"
-                class="drawing-done-button"
-                [disabled]="!hasMeasuredAngle || isSavingDrawing"
-                (click)="saveDrawing()"
-              >
-                {{ isSavingDrawing ? 'Saving...' : 'Done' }}
-              </button>
-            </div>
-
-            <div class="player-controls" *ngIf="selectedAnalysis && !isDrawingMode">
-              <button
-                type="button"
-                class="player-control-button"
-                (click)="togglePlayback()"
-                [attr.aria-label]="isPlaying ? 'Pause video' : 'Play video'"
-              >
-                <ion-icon [name]="isPlaying ? 'pause-outline' : 'play-outline'"></ion-icon>
-              </button>
-
-              <div class="player-progress">
-                <input
-                  type="range"
-                  min="0"
-                  max="100"
-                  step="0.1"
-                  [value]="progressPercent"
-                  (input)="onSeekInput($any($event.target).value)"
-                  aria-label="Seek video"
-                />
-                <div class="player-time">
-                  <span>{{ formatTime(currentTimeSeconds) }}</span>
-                  <span>{{ formatTime(durationSeconds) }}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <section class="timeline-inline-card" *ngIf="hasEvents && !isLandscapeMode">
-            <div class="timeline-inline-card__header">Timeline</div>
-
-            <div class="timeline-list">
-              <div class="timeline-item" *ngFor="let event of timelineEvents">
-                <div class="timeline-item__rail">
-                  <span class="timeline-item__dot"></span>
-                </div>
-
-                <div class="timeline-item__content" *ngIf="isTimelineNote(event)">
-                  <div class="timeline-note">
-                    <span class="timeline-note__bullet"></span>
-                    <button
-                      type="button"
-                      class="timeline-time-button"
-                      (click)="jumpToNote(event)"
-                    >
-                      {{ formatTime(event.timestampSeconds) }}
-                    </button>
-                    <span class="timeline-note__separator">:</span>
-                    <span class="timeline-note__text">{{ event.note }}</span>
-                  </div>
-                </div>
-
-                <div class="timeline-item__content" *ngIf="isTimelineDrawing(event)">
-                  <div class="timeline-image-row">
-                    <span class="timeline-note__bullet"></span>
-                    <button
-                      type="button"
-                      class="timeline-time-button"
-                      (click)="jumpToDrawing(event)"
-                    >
-                      {{ formatTime(event.timestampSeconds) }}
-                    </button>
-                    <span class="timeline-note__separator">:</span>
-                    <button
-                      type="button"
-                      class="timeline-image-button"
-                      (click)="openDrawingImage(event.imageUrl)"
-                    >
-                      <img [src]="event.imageUrl" alt="Saved analysis image" />
-                    </button>
-                  </div>
-
-                  <div class="timeline-image-note" *ngIf="event.note">
-                    <span class="timeline-image-note__bullet"></span>
-                    <span>{{ event.note }}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </section>
-
-        </div>
-
-        <ng-template #emptySelection>
-          <div class="hero-card">
-            <h1>Workout Analyzer</h1>
-            <p *ngIf="clientName">Select a saved analysis for {{ clientName }} from the top-right menu.</p>
-            <p *ngIf="!clientName">Select a saved analysis from the top-right menu.</p>
-            <p class="helper-copy">The selected workout will load here as a video player.</p>
-          </div>
-        </ng-template>
-
-        <div class="hero-card" *ngIf="errorMessage">
-          <h1>Workout Analyzer</h1>
-          <p>{{ errorMessage }}</p>
-        </div>
-      </ng-container>
-
-      <ng-template #loadingState>
-        <div class="loading-state">
-          <ion-spinner name="crescent"></ion-spinner>
-          <p>Loading workout analyses...</p>
-        </div>
-      </ng-template>
+  <ng-template #loadingState>
+    <div class="loading-state">
+      <ion-spinner name="crescent"></ion-spinner>
+      <p>Loading workout analyses...</p>
     </div>
-  </ion-content>
-</div>
+  </ng-template>
+</ion-content>

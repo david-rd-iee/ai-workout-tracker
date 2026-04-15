@@ -10,6 +10,7 @@ import {
   IonSpinner,
   IonTitle,
   IonToolbar,
+  NavController,
   ToastController,
 } from '@ionic/angular/standalone';
 import { VideoAnalysisResult, SavedVideoAnalysisRecord } from '../../models/video-analysis.model';
@@ -40,6 +41,7 @@ export class CameraPage implements AfterViewInit, OnDestroy {
   private readonly userService = inject(UserService);
   private readonly toastCtrl = inject(ToastController);
   private readonly alertCtrl = inject(AlertController);
+  private readonly navCtrl = inject(NavController);
 
   hasCameraSupport = typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia;
   hasRecordingSupport = typeof MediaRecorder !== 'undefined';
@@ -121,6 +123,10 @@ export class CameraPage implements AfterViewInit, OnDestroy {
   async retryCamera(): Promise<void> {
     this.stopCamera();
     await this.startCamera();
+  }
+
+  openAnalyzedVideos(): void {
+    this.navCtrl.navigateForward('/analyzed-videos');
   }
 
   async startRecording(): Promise<void> {

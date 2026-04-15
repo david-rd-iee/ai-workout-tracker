@@ -178,6 +178,20 @@ export const routes: Routes = [
     canActivate: [authGuard],
   },
   {
+    path: 'analyzed-videos',
+    loadComponent: () =>
+      import('./pages/analyzed-videos/analyzed-videos.page').then((m) => m.AnalyzedVideosPage),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'client-analyzed-video/:analysisId',
+    loadComponent: () =>
+      import('./pages/client-analyzed-video/client-analyzed-video.page').then(
+        (m) => m.ClientAnalyzedVideoPage
+      ),
+    canActivate: [authGuard],
+  },
+  {
     path: 'client-workout-analysis',
     loadComponent: () =>
       import('./pages/client-workout-analysis/client-workout-analysis.page').then(

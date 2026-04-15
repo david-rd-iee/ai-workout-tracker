@@ -1,0 +1,36 @@
+<ion-header [translucent]="true">
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-back-button defaultHref="/analyzed-videos"></ion-back-button>
+    </ion-buttons>
+    <ion-title>Analyzed Workout</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ng-container *ngIf="!isLoading; else loadingState">
+  <ion-content [fullscreen]="false" class="client-analyzed-video-content">
+    <app-video-analysis-viewer
+      *ngIf="analysis; else emptyState"
+      [analysis]="analysis"
+      [clientId]="clientId"
+      [trainerId]="trainerId"
+      [readonly]="true"
+      [showTools]="false"
+    ></app-video-analysis-viewer>
+
+    <ng-template #emptyState>
+      <div class="message-card">
+        <p>{{ errorMessage || 'Unable to load this analyzed workout.' }}</p>
+      </div>
+    </ng-template>
+  </ion-content>
+</ng-container>
+
+<ng-template #loadingState>
+  <ion-content [fullscreen]="false" class="client-analyzed-video-content">
+    <div class="loading-state">
+      <ion-spinner name="crescent"></ion-spinner>
+      <p>Loading analyzed workout...</p>
+    </div>
+  </ion-content>
+</ng-template>

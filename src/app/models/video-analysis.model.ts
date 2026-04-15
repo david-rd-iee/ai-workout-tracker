@@ -176,7 +176,13 @@ export interface VideoCompressionResult {
   height: number;
 }
 
-export interface SavedVideoAnalysisRecord {
+export interface VideoAnalysisPublicationMetadata {
+  canView?: boolean;
+  publishedToClientAt?: string | null;
+  publishedToClientBy?: string | null;
+}
+
+export interface SavedVideoAnalysisRecord extends VideoAnalysisPublicationMetadata {
   documentId: string;
   videoStoragePath: string;
   videoDownloadUrl: string;

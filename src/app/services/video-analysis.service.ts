@@ -330,6 +330,9 @@ export class VideoAnalysisService {
         workoutName,
         source: 'camera-page',
         status: 'ready',
+        canView: false,
+        publishedToClientAt: null,
+        publishedToClientBy: null,
         recordedAt: new Date(recordedAtMs).toISOString(),
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
@@ -380,6 +383,9 @@ export class VideoAnalysisService {
       videoDownloadUrl,
       overlayVideoStoragePath: overlayVideoPath || undefined,
       overlayVideoDownloadUrl: overlayVideoDownloadUrl || undefined,
+      canView: false,
+      publishedToClientAt: null,
+      publishedToClientBy: null,
     };
   }
 

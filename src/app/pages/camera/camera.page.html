@@ -103,6 +103,14 @@
         (click)="retryCamera()">
         Retry camera
       </ion-button>
+
+      <ion-button
+        expand="block"
+        fill="clear"
+        *ngIf="!hasRecordedVideo && !isRecording"
+        (click)="openAnalyzedVideos()">
+        Analyzed workouts
+      </ion-button>
     </div>
 
     <div class="analysis-grid" *ngIf="analysisResult as analysis">

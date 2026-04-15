@@ -1,0 +1,42 @@
+<ion-header [translucent]="true">
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-back-button defaultHref="/camera"></ion-back-button>
+    </ion-buttons>
+    <ion-title>Analyzed Workouts</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true" class="analyzed-videos-content">
+  <div class="analyzed-videos-page">
+    <div class="loading-state" *ngIf="isLoading; else loadedState">
+      <ion-spinner name="crescent"></ion-spinner>
+      <p>Loading analyzed workouts...</p>
+    </div>
+
+    <ng-template #loadedState>
+      <div class="message-card" *ngIf="errorMessage; else listState">
+        <p>{{ errorMessage }}</p>
+      </div>
+    </ng-template>
+
+    <ng-template #listState>
+      <div class="videos-list" *ngIf="analyzedVideos.length; else emptyState">
+        <button
+          type="button"
+          class="video-item"
+          *ngFor="let video of analyzedVideos"
+          (click)="openAnalysis(video)"
+        >
+          {{ video.label }}
+        </button>
+      </div>
+    </ng-template>
+
+    <ng-template #emptyState>
+      <div class="message-card">
+        <p>No analyzed workouts have been shared with you yet.</p>
+      </div>
+    </ng-template>
+  </div>
+</ion-content>
