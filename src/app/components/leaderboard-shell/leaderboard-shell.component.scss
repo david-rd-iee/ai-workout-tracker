@@ -68,12 +68,35 @@
   text-align: center;
 }
 
+.chart-mode-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 6px;
+}
+
+.chart-mode-select {
+  --padding-start: 8px;
+  --padding-end: 8px;
+  min-height: 30px;
+  border-radius: 8px;
+  background: rgba(24, 66, 112, 0.1);
+  color: #184270;
+  font-weight: 700;
+  font-size: 12px;
+}
+
 .graph-placeholder {
   position: relative;
   height: 264px;
   border-radius: 14px;
   background: linear-gradient(to top, rgba(47, 127, 206, 0.25), rgba(47, 127, 206, 0.05));
   overflow: hidden;
+}
+
+.trend-ngx-chart {
+  position: absolute;
+  inset: 0;
+  display: block;
 }
 
 .distribution-ngx-chart {
@@ -96,6 +119,10 @@
 
 :host ::ng-deep .distribution-ngx-chart .area {
   opacity: 0.68;
+}
+
+:host ::ng-deep .trend-ngx-chart .line-series .line {
+  stroke-width: 2.2px;
 }
 
 .distribution-point-overlay {

@@ -6,7 +6,10 @@
     [errorMsg]="errorMsg"
     [metric]="metric"
     [showScopeSelect]="false"
+    [chartMode]="chartMode"
+    [availableChartModes]="availableChartModes"
     [entries]="entries"
+    [trendSeries]="trendSeries"
     [distributionCurvePath]="distributionCurvePath"
     [distributionPoints]="distributionPoints"
     [medianMarkerXPercent]="distributionMedianXPercent"
@@ -19,6 +22,7 @@
     (back)="goBack()"
     (actionClick)="openGroupSettings()"
     (metricChange)="onMetricChanged($event)"
+    (chartModeChange)="onChartModeChanged($event)"
     (distributionPointClick)="onDistributionPointClick($event)"
     (memberClick)="onMemberClick($event)"
   ></app-leaderboard-shell>

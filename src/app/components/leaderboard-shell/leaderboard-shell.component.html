@@ -22,72 +22,108 @@
     <div class="stats-title">Stats</div>
     <div class="stats-graph">
       <div class="graph-region-label">{{ graphLabel }}</div>
+      <div class="chart-mode-row" *ngIf="availableChartModes.length > 1">
+        <ion-select
+          class="chart-mode-select"
+          interface="popover"
+          [ngModel]="chartMode"
+          (ngModelChange)="onChartModeChange($event)"
+        >
+          <ion-select-option value="distribution">View: Distribution</ion-select-option>
+          <ion-select-option value="trend">View: Added Score Over Time</ion-select-option>
+        </ion-select>
+      </div>
       <div
         class="graph-placeholder"
         #chartHost
         [style.--chart-horizontal-inset.px]="chartHorizontalInset"
         [style.--chart-vertical-inset.px]="chartVerticalInset"
       >
-        <ng-container *ngIf="distributionChartResults.length > 0; else noChartData">
-          <ngx-charts-area-chart
-            class="distribution-ngx-chart"
-            [results]="distributionChartResults"
-            [view]="chartView"
-            [scheme]="chartColorScheme"
-            [schemeType]="chartScaleType"
-            [legend]="false"
-            [xAxis]="false"
-            [yAxis]="false"
-            [showGridLines]="false"
-            [gradient]="true"
-            [autoScale]="false"
-            [timeline]="false"
-            [animations]="true"
-            [tooltipDisabled]="true"
-            [xScaleMin]="chartXMin"
-            [xScaleMax]="chartXMax"
-            [yScaleMin]="chartYMin"
-            [yScaleMax]="chartYMax"
-            [roundDomains]="false"
-          ></ngx-charts-area-chart>
-
-          <div class="distribution-median-overlay" *ngIf="hasMedianMarker()" aria-hidden="true">
-            <div
-              class="distribution-median-line"
-              [style.left.%]="medianMarkerXPercent"
-            ></div>
-            <div
-              class="distribution-median-point"
-              [style.left.%]="medianMarkerXPercent"
-              [style.top.%]="medianMarkerTopPercent()"
-            ></div>
-            <div
-              class="distribution-median-label"
-              [style.left.%]="medianMarkerXPercent"
+        <ng-container *ngIf="chartMode === 'trend'; else distributionView">
+          <ng-container *ngIf="trendSeries.length > 0; else noChartData">
+            <ngx-charts-line-chart
+              class="trend-ngx-chart"
+              [results]="trendSeries"
+              [view]="trendChartView"
+              [scheme]="trendColorScheme"
+              [legend]="false"
+              [xAxis]="true"
+              [yAxis]="true"
+              [showXAxisLabel]="true"
+              [showYAxisLabel]="true"
+              [xAxisLabel]="'Date'"
+              [yAxisLabel]="trendYAxisLabel()"
+              [autoScale]="true"
+              [timeline]="false"
+              [animations]="true"
+              [xAxisTickFormatting]="trendXAxisTickFormatting"
             >
-              {{ medianMarkerLabel }}
-            </div>
-          </div>
-
-          <div class="distribution-point-overlay">
-            <button
-              *ngFor="let point of distributionPoints; trackBy: trackByDistributionPoint"
-              type="button"
-              class="distribution-point"
-              [class.point-selected]="isPointSelected(point)"
-              [class.point-single]="point.count <= 1"
-              [style.left.%]="point.xPercent"
-              [style.top.%]="dotTopPercent(point)"
-              [attr.title]="point.rangeLabel + ' (' + point.count + ' players)'"
-              (click)="onDistributionPointTapped($event, point)"
-            >
-              <span *ngIf="point.count > 1">{{ point.count }}</span>
-            </button>
-          </div>
+            </ngx-charts-line-chart>
+          </ng-container>
         </ng-container>
 
+        <ng-template #distributionView>
+          <ng-container *ngIf="distributionChartResults.length > 0; else noChartData">
+            <ngx-charts-area-chart
+              class="distribution-ngx-chart"
+              [results]="distributionChartResults"
+              [view]="distributionChartView"
+              [scheme]="chartColorScheme"
+              [schemeType]="chartScaleType"
+              [legend]="false"
+              [xAxis]="false"
+              [yAxis]="false"
+              [showGridLines]="false"
+              [gradient]="true"
+              [autoScale]="false"
+              [timeline]="false"
+              [animations]="true"
+              [tooltipDisabled]="true"
+              [xScaleMin]="chartXMin"
+              [xScaleMax]="chartXMax"
+              [yScaleMin]="chartYMin"
+              [yScaleMax]="chartYMax"
+              [roundDomains]="false"
+            ></ngx-charts-area-chart>
+
+            <div class="distribution-median-overlay" *ngIf="hasMedianMarker()" aria-hidden="true">
+              <div
+                class="distribution-median-line"
+                [style.left.%]="medianMarkerXPercent"
+              ></div>
+              <div
+                class="distribution-median-point"
+                [style.left.%]="medianMarkerXPercent"
+                [style.top.%]="medianMarkerTopPercent()"
+              ></div>
+              <div
+                class="distribution-median-label"
+                [style.left.%]="medianMarkerXPercent"
+              >
+                {{ medianMarkerLabel }}
+              </div>
+            </div>
+
+            <div class="distribution-point-overlay">
+              <button
+                *ngFor="let point of distributionPoints; trackBy: trackByDistributionPoint"
+                type="button"
+                class="distribution-point"
+                [class.point-selected]="isPointSelected(point)"
+                [class.point-single]="point.count <= 1"
+                [style.left.%]="point.xPercent"
+                [style.top.%]="dotTopPercent(point)"
+                [attr.title]="point.rangeLabel + ' (' + point.count + ' players)'"
+                (click)="onDistributionPointTapped($event, point)"
+              >
+                <span *ngIf="point.count > 1">{{ point.count }}</span>
+              </button>
+            </div>
+          </ng-container>
+        </ng-template>
+
         <ng-template #noChartData>
-          <div class="chart-empty-msg">Load players to view the distribution.</div>
+          <div class="chart-empty-msg">{{ chartEmptyMessage() }}</div>
         </ng-template>
       </div>
     </div>

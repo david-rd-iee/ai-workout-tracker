@@ -7,7 +7,10 @@
     [metric]="metric"
     [scope]="scope"
     [showScopeSelect]="true"
+    [chartMode]="chartMode"
+    [availableChartModes]="availableChartModes"
     [entries]="entries"
+    [trendSeries]="trendSeries"
     [distributionCurvePath]="distributionCurvePath"
     [distributionPoints]="distributionPoints"
     [medianMarkerXPercent]="distributionMedianXPercent"
@@ -17,6 +20,7 @@
     (back)="goBack()"
     (metricChange)="onMetricChanged($event)"
     (scopeChange)="onScopeChanged($event)"
+    (chartModeChange)="onChartModeChanged($event)"
     (distributionPointClick)="onDistributionPointClick($event)"
     (memberClick)="onMemberClick($event)"
   ></app-leaderboard-shell>

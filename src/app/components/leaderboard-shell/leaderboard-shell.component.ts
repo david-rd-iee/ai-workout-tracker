@@ -26,9 +26,14 @@ import { FormsModule } from '@angular/forms';
 import { addIcons } from 'ionicons';
 import { arrowBackOutline, settingsOutline } from 'ionicons/icons';
 import { Color, NgxChartsModule, ScaleType } from '@swimlane/ngx-charts';
-import { LeaderboardEntry, Metric } from '../../services/leaderboard.service';
+import {
+  LeaderboardEntry,
+  LeaderboardTrendSeries,
+  Metric,
+} from '../../services/leaderboard.service';
 
 export type LeaderboardScope = 'city' | 'state' | 'country';
+export type LeaderboardChartMode = 'distribution' | 'trend';
 
 export type DistributionPoint = {
   binIndex: number;
@@ -85,6 +90,9 @@ export class LeaderboardShellComponent implements OnChanges, AfterViewInit, OnDe
   @Input() showScopeSelect = false;
 
   @Input() entries: LeaderboardEntry[] = [];
+  @Input() chartMode: LeaderboardChartMode = 'distribution';
+  @Input() availableChartModes: LeaderboardChartMode[] = ['distribution'];
+  @Input() trendSeries: LeaderboardTrendSeries[] = [];
   @Input() distributionCurvePath = '';
   @Input() distributionPoints: DistributionPoint[] = [];
   @Input() medianMarkerXPercent: number | null = null;
@@ -99,12 +107,14 @@ export class LeaderboardShellComponent implements OnChanges, AfterViewInit, OnDe
   @Output() actionClick = new EventEmitter<void>();
   @Output() metricChange = new EventEmitter<Metric>();
   @Output() scopeChange = new EventEmitter<LeaderboardScope>();
+  @Output() chartModeChange = new EventEmitter<LeaderboardChartMode>();
   @Output() distributionPointClick = new EventEmitter<DistributionPoint>();
   @Output() memberClick = new EventEmitter<LeaderboardEntry>();
 
   distributionChartResults: DistributionChartSeries[] = [];
   private distributionCurveSeries: DistributionChartDatum[] = [];
-  chartView: [number, number] = [390, 284];
+  distributionChartView: [number, number] = [390, 284];
+  trendChartView: [number, number] = [350, 264];
   readonly chartXMin = 0;
   readonly chartXMax = 100;
   readonly chartYMin = 0;
@@ -116,6 +126,23 @@ export class LeaderboardShellComponent implements OnChanges, AfterViewInit, OnDe
     selectable: true,
     group: ScaleType.Ordinal,
     domain: ['#1a5ea4'],
+  };
+  readonly trendColorScheme: Color = {
+    name: 'leaderboardTrend',
+    selectable: true,
+    group: ScaleType.Ordinal,
+    domain: [
+      '#1a5ea4',
+      '#da811a',
+      '#2f9e44',
+      '#8b5cf6',
+      '#d946ef',
+      '#ef4444',
+      '#14b8a6',
+      '#f59e0b',
+      '#7c3aed',
+      '#0ea5e9',
+    ],
   };
 
   avatarLoadErrorUserIds = new Set<string>();
@@ -150,6 +177,37 @@ export class LeaderboardShellComponent implements OnChanges, AfterViewInit, OnDe
   onScopeChange(value: LeaderboardScope): void {
     this.scopeChange.emit(value);
   }
+
+  onChartModeChange(value: LeaderboardChartMode): void {
+    if (!this.availableChartModes.includes(value) || value === this.chartMode) {
+      return;
+    }
+    this.chartModeChange.emit(value);
+  }
+
+  chartEmptyMessage(): string {
+    return this.chartMode === 'trend'
+      ? 'Load players to view added-score trends.'
+      : 'Load players to view the distribution.';
+  }
+
+  trendYAxisLabel(): string {
+    return `Added ${this.metricLabel()} Score`;
+  }
+
+  trendXAxisTickFormatting = (value: string | number | Date): string => {
+    const raw = String(value ?? '').trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+      return raw;
+    }
+
+    const parsed = new Date(`${raw}T00:00:00`);
+    if (Number.isNaN(parsed.getTime())) {
+      return raw;
+    }
+
+    return parsed.toLocaleDateString([], { month: 'short', day: 'numeric' });
+  };
 
   metricLabel(): string {
     if (this.metric === 'cardio') return 'Cardio';
@@ -321,10 +379,11 @@ export class LeaderboardShellComponent implements OnChanges, AfterViewInit, OnDe
 
     const width = Math.max(230, Math.floor(host.clientWidth));
     const height = Math.max(200, Math.floor(host.clientHeight));
-    this.chartView = [
+    this.distributionChartView = [
       width + this.chartHorizontalInset * 2,
       height + this.chartVerticalInset * 2,
     ];
+    this.trendChartView = [width, height];
   }
 
   private queueChartResize(): void {

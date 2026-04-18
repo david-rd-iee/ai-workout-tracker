@@ -11,10 +11,16 @@ import { GroupService } from '../../services/group.service';
 import { AccountService } from '../../services/account/account.service';
 import { ChatsService } from '../../services/chats.service';
 import { AppUser } from '../../models/user.model';
-import { LeaderboardEntry, LeaderboardService, Metric } from '../../services/leaderboard.service';
+import {
+  LeaderboardEntry,
+  LeaderboardService,
+  LeaderboardTrendSeries,
+  Metric,
+} from '../../services/leaderboard.service';
 import { UserService } from '../../services/account/user.service';
 import {
   DistributionPoint,
+  LeaderboardChartMode,
   LeaderboardShellComponent,
 } from '../../components/leaderboard-shell/leaderboard-shell.component';
 import {
@@ -30,6 +36,8 @@ import {
   imports: [CommonModule, IonicModule, FormsModule, LeaderboardShellComponent],
 })
 export class GroupsPage implements OnInit, OnDestroy {
+  private static readonly SMALL_POPULATION_THRESHOLD = 10;
+
   private navCtrl = inject(NavController);
   private groupService = inject(GroupService);
   private accountService = inject(AccountService);
@@ -48,9 +56,12 @@ export class GroupsPage implements OnInit, OnDestroy {
   trainingEnabled = false;
   trainingLoading = false;
   trainingMetric: Metric = 'total';
+  trainingChartMode: LeaderboardChartMode = 'distribution';
+  trainingAvailableChartModes: LeaderboardChartMode[] = ['distribution'];
   trainingLeaderboardLoading = false;
   trainingLeaderboardError: string | null = null;
   trainingEntries: LeaderboardEntry[] = [];
+  trainingTrendSeries: LeaderboardTrendSeries[] = [];
   trainingDistributionCurvePath = '';
   trainingDistributionPoints: DistributionPoint[] = [];
   trainingDistributionMedianXPercent: number | null = null;
@@ -70,6 +81,7 @@ export class GroupsPage implements OnInit, OnDestroy {
   private authSub?: Subscription;
   private allGroupsSub?: Subscription;
   private trainingLeaderboardSub?: Subscription;
+  private trainingTrendSub?: Subscription;
   private trainingLeaderboardKey: string | null = null;
   private trainingLoadVersion = 0;
 
@@ -405,7 +417,12 @@ export class GroupsPage implements OnInit, OnDestroy {
 
   private resetTrainingLeaderboardState(): void {
     this.trainingEntries = [];
+    this.trainingTrendSeries = [];
+    this.trainingChartMode = 'distribution';
+    this.trainingAvailableChartModes = ['distribution'];
     this.trainingLeaderboardError = null;
+    this.trainingTrendSub?.unsubscribe();
+    this.trainingTrendSub = undefined;
     this.clearTrainingDistributionChart();
     this.trainingSelectedPointBin = null;
     this.trainingSelectedPointUserIds.clear();
@@ -423,6 +440,9 @@ export class GroupsPage implements OnInit, OnDestroy {
     this.trainingLeaderboardLoading = true;
     this.trainingLeaderboardError = null;
     this.trainingEntries = [];
+    this.trainingTrendSeries = [];
+    this.trainingTrendSub?.unsubscribe();
+    this.trainingTrendSub = undefined;
     this.clearTrainingDistributionChart();
     this.trainingSelectedPointBin = null;
     this.trainingSelectedPointUserIds.clear();
@@ -434,12 +454,16 @@ export class GroupsPage implements OnInit, OnDestroy {
           this.trainingEntries = entries;
           this.trainingLeaderboardError = null;
           this.trainingLeaderboardLoading = false;
-          this.buildTrainingDistributionChart();
+          this.syncTrainingChartOptionsByPopulation();
+          this.syncTrainingChartForCurrentMode();
         },
         error: (err) => {
           console.warn('[GroupsPage] Failed to load training leaderboard', err);
           this.trainingLeaderboardError = 'Could not load training leaderboard.';
           this.trainingEntries = [];
+          this.trainingTrendSeries = [];
+          this.trainingTrendSub?.unsubscribe();
+          this.trainingTrendSub = undefined;
           this.clearTrainingDistributionChart();
           this.trainingLeaderboardLoading = false;
         },
@@ -457,6 +481,15 @@ export class GroupsPage implements OnInit, OnDestroy {
     if (this.trainingGroup?.groupId) {
       this.subscribeToTrainingLeaderboard(this.trainingGroup.groupId);
     }
+  }
+
+  onTrainingChartModeChange(mode: LeaderboardChartMode): void {
+    if (!this.trainingAvailableChartModes.includes(mode) || this.trainingChartMode === mode) {
+      return;
+    }
+
+    this.trainingChartMode = mode;
+    this.syncTrainingChartForCurrentMode();
   }
 
   private startAllGroupsSubscription(): void {
@@ -530,6 +563,54 @@ export class GroupsPage implements OnInit, OnDestroy {
     this.trainingDistributionMedianLabel = chart.medianLabel;
   }
 
+  private syncTrainingChartOptionsByPopulation(): void {
+    if (this.trainingEntries.length <= GroupsPage.SMALL_POPULATION_THRESHOLD) {
+      this.trainingAvailableChartModes = ['trend'];
+      this.trainingChartMode = 'trend';
+      return;
+    }
+
+    this.trainingAvailableChartModes = ['distribution', 'trend'];
+    this.trainingChartMode = 'distribution';
+  }
+
+  private syncTrainingChartForCurrentMode(): void {
+    if (this.trainingChartMode === 'trend') {
+      this.trainingSelectedPointBin = null;
+      this.trainingSelectedPointUserIds.clear();
+      this.clearTrainingDistributionChart();
+      this.subscribeToTrainingTrendSeries();
+      return;
+    }
+
+    this.trainingTrendSub?.unsubscribe();
+    this.trainingTrendSub = undefined;
+    this.trainingTrendSeries = [];
+    this.buildTrainingDistributionChart();
+  }
+
+  private subscribeToTrainingTrendSeries(): void {
+    this.trainingTrendSub?.unsubscribe();
+    this.trainingTrendSub = undefined;
+
+    if (this.trainingEntries.length === 0) {
+      this.trainingTrendSeries = [];
+      return;
+    }
+
+    this.trainingTrendSub = this.leaderboardService
+      .watchAddedScoreTrend(this.trainingEntries, this.trainingMetric)
+      .subscribe({
+        next: (series) => {
+          this.trainingTrendSeries = series;
+        },
+        error: (error) => {
+          console.warn('[GroupsPage] Failed to load training trend data', error);
+          this.trainingTrendSeries = [];
+        },
+      });
+  }
+
   private clearTrainingDistributionChart(): void {
     const chart = emptyLeaderboardDistributionChart();
     this.trainingDistributionCurvePath = chart.curvePath;
@@ -543,5 +624,6 @@ export class GroupsPage implements OnInit, OnDestroy {
     this.authSub?.unsubscribe();
     this.stopAllGroupsSubscription();
     this.clearTrainingLeaderboardSubscription();
+    this.trainingTrendSub?.unsubscribe();
   }
 }

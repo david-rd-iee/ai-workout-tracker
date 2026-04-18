@@ -45,7 +45,10 @@
         [errorMsg]="trainingLeaderboardError || ''"
         [metric]="trainingMetric"
         [showScopeSelect]="false"
+        [chartMode]="trainingChartMode"
+        [availableChartModes]="trainingAvailableChartModes"
         [entries]="trainingEntries"
+        [trendSeries]="trainingTrendSeries"
         [distributionCurvePath]="trainingDistributionCurvePath"
         [distributionPoints]="trainingDistributionPoints"
         [medianMarkerXPercent]="trainingDistributionMedianXPercent"
@@ -53,6 +56,7 @@
         [selectedPointBin]="trainingSelectedPointBin"
         [highlightedUserIds]="trainingSelectedPointUserIds"
         (metricChange)="onTrainingMetricChange($event)"
+        (chartModeChange)="onTrainingChartModeChange($event)"
         (distributionPointClick)="onTrainingDistributionPointClick($event)"
         (memberClick)="onTrainingMemberClick($event)"
       ></app-leaderboard-shell>
