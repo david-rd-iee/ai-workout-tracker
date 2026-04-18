@@ -69,6 +69,7 @@ export interface UserStats {
 
   region?: Region;
   displayName?: string; // optional but nice for UI
+  trainerVerified?: boolean;
 }
 
 export interface UserLevelProgress {

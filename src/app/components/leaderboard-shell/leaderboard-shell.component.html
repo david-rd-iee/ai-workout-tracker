@@ -199,6 +199,21 @@
             <div class="member-name">
               <div class="name-main">
                 {{ e.username || e.displayName || 'User' }}
+                <button
+                  *ngIf="e.trainerVerified"
+                  type="button"
+                  class="trainer-verified-btn"
+                  (click)="onTrainerVerifiedPressed($event, e)"
+                  aria-label="Trainer verified badge"
+                >
+                  <ion-icon name="checkmark-circle"></ion-icon>
+                </button>
+                <span
+                  *ngIf="e.trainerVerified && isTrainerVerifiedExpanded(e)"
+                  class="trainer-verified-label"
+                >
+                  Trainer Verified
+                </span>
               </div>
               <div class="name-sub" *ngIf="e.role === 'TRAINER'">Trainer: [PT]</div>
             </div>

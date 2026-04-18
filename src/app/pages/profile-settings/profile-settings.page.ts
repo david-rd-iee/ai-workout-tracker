@@ -75,6 +75,17 @@ export class ProfileSettingsPage implements OnInit {
   isSaving = false;
   errorMessage = '';
   successMessage = '';
+  private initialClientStats: {
+    age: number | null;
+    heightMeters: number | null;
+    weightKg: number | null;
+    sex: number | null;
+  } = {
+    age: null,
+    heightMeters: null,
+    weightKg: null,
+    sex: null,
+  };
 
   constructor() {
     addIcons({ arrowBackOutline });
@@ -151,6 +162,13 @@ export class ProfileSettingsPage implements OnInit {
       return;
     }
 
+    const didClientStatsChange = shouldSaveStats && this.haveClientStatsChanged(
+      parsedAge,
+      parsedHeightMeters,
+      parsedWeightKg,
+      parsedSex
+    );
+
     this.isSaving = true;
 
     let emailForUsersDoc = email;
@@ -204,11 +222,19 @@ export class ProfileSettingsPage implements OnInit {
           weightKg: parsedWeightKg,
           sex: parsedSex,
           bmi,
+          ...(didClientStatsChange ? { trainerVerified: false } : {}),
           updatedAt: serverTimestamp(),
         };
 
         const userStatsRef = doc(this.firestore, 'userStats', uid);
         await setDoc(userStatsRef, userStatsPayload, { merge: true });
+
+        this.initialClientStats = {
+          age: parsedAge,
+          heightMeters: parsedHeightMeters,
+          weightKg: parsedWeightKg,
+          sex: parsedSex,
+        };
       }
 
       if (emailVerificationSent) {
@@ -279,7 +305,21 @@ export class ProfileSettingsPage implements OnInit {
         this.heightMeters =
           typeof heightMeters === 'number' && heightMeters > 0 ? String(heightMeters) : '';
         this.weightKg = typeof weightKg === 'number' && weightKg > 0 ? String(weightKg) : '';
-        this.sex = this.parseSexValue(sex);
+        const parsedSex = this.parseSexValue(sex);
+        this.sex = parsedSex;
+        this.initialClientStats = {
+          age: typeof age === 'number' && age > 0 ? age : null,
+          heightMeters: typeof heightMeters === 'number' && heightMeters > 0 ? heightMeters : null,
+          weightKg: typeof weightKg === 'number' && weightKg > 0 ? weightKg : null,
+          sex: parsedSex,
+        };
+      } else {
+        this.initialClientStats = {
+          age: null,
+          heightMeters: null,
+          weightKg: null,
+          sex: null,
+        };
       }
     } catch (error) {
       console.error('[ProfileSettingsPage] Failed to load settings:', error);
@@ -322,6 +362,28 @@ export class ProfileSettingsPage implements OnInit {
       return parsed;
     }
     return null;
+  }
+
+  private haveClientStatsChanged(
+    age: number | null,
+    heightMeters: number | null,
+    weightKg: number | null,
+    sex: number | null
+  ): boolean {
+    return (
+      !this.areNumbersEqual(this.initialClientStats.age, age) ||
+      !this.areNumbersEqual(this.initialClientStats.heightMeters, heightMeters) ||
+      !this.areNumbersEqual(this.initialClientStats.weightKg, weightKg) ||
+      !this.areNumbersEqual(this.initialClientStats.sex, sex)
+    );
+  }
+
+  private areNumbersEqual(left: number | null, right: number | null): boolean {
+    if (left === null || right === null) {
+      return left === right;
+    }
+
+    return Math.abs(left - right) < 1e-9;
   }
 
   private async resolveCurrentUser(): Promise<User | null> {

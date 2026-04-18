@@ -106,6 +106,18 @@ ion-header {
   color: var(--ion-color-dark);
 }
 
+.full-name-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.verified-checkmark {
+  font-size: 28px;
+  color: #0a84ff;
+  flex-shrink: 0;
+}
+
 .username {
   margin-top: 10px;
   font-size: 18px;

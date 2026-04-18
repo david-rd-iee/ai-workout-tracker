@@ -32,7 +32,15 @@
       </button>
 
       <div class="identity">
-        <div class="full-name">{{ displayName }}</div>
+        <div class="full-name-row">
+          <div class="full-name">{{ displayName }}</div>
+          <ion-icon
+            *ngIf="isTrainerVerified"
+            class="verified-checkmark"
+            name="checkmark-circle"
+            aria-label="Trainer verified"
+          ></ion-icon>
+        </div>
         <div class="username" *ngIf="displayUsername">@{{ displayUsername }}</div>
       </div>
     </div>

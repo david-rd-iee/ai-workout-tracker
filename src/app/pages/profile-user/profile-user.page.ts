@@ -62,6 +62,7 @@ import {
   people,
   school,
   cash,
+  checkmarkCircle,
 } from 'ionicons/icons';
 import {
   GreekStatue,
@@ -173,6 +174,10 @@ export class ProfileUserPage implements OnInit, OnDestroy {
     return Math.min(1, Math.max(0, rawPercentage * 0.01));
   }
 
+  get isTrainerVerified(): boolean {
+    return this.currentUserStats?.trainerVerified === true;
+  }
+
   constructor() {
     addIcons({
       settingsOutline,
@@ -189,6 +194,7 @@ export class ProfileUserPage implements OnInit, OnDestroy {
       people,
       school,
       cash,
+      checkmarkCircle,
     });
 
     // Use the UserService's signal to get user data

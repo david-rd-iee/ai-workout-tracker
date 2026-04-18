@@ -10,7 +10,10 @@ import { WorkoutBuilderModalComponent } from 'src/app/components/modals/workout-
 import { AppointmentSchedulerModalComponent } from 'src/app/components/modals/appointment-scheduler-modal/appointment-scheduler-modal.component';
 import { HomeCustomizationModalComponent } from 'src/app/components/modals/home-customization-modal/home-customization-modal.component';
 import { Auth } from '@angular/fire/auth';
-import { Firestore, doc, getDoc } from '@angular/fire/firestore';
+import { Firestore, doc, getDoc, setDoc } from '@angular/fire/firestore';
+
+type VerifyFieldKey = 'heightMeters' | 'weightKg' | 'age';
+type VerifyChoice = 'true' | 'false' | null;
 
 @Component({
   selector: 'app-client-details',
@@ -37,6 +40,18 @@ import { Firestore, doc, getDoc } from '@angular/fire/firestore';
   ],
 })
 export class ClientDetailsPage implements OnInit {
+  private readonly verifyFieldOrder: VerifyFieldKey[] = ['heightMeters', 'weightKg', 'age'];
+  private readonly verifyFieldLabels: Record<VerifyFieldKey, string> = {
+    heightMeters: 'Height',
+    weightKg: 'Weight',
+    age: 'Age',
+  };
+  private readonly verifyFieldUnits: Record<VerifyFieldKey, string> = {
+    heightMeters: 'm',
+    weightKg: 'kg',
+    age: 'years',
+  };
+
   private router = inject(Router);
   private navCtrl = inject(NavController);
   private modalController = inject(ModalController);
@@ -64,6 +79,26 @@ export class ClientDetailsPage implements OnInit {
   upcomingAppointments: any[] = [];
   pastAppointments: any[] = [];
   payments: any[] = [];
+
+  isVerifyStatsModalOpen = false;
+  isLoadingVerifyStats = false;
+  isSubmittingVerifyStats = false;
+
+  verifyStatsValues: Record<VerifyFieldKey, number | null> = {
+    heightMeters: null,
+    weightKg: null,
+    age: null,
+  };
+  verifyChoices: Record<VerifyFieldKey, VerifyChoice> = {
+    heightMeters: null,
+    weightKg: null,
+    age: null,
+  };
+  verifyCorrections: Record<VerifyFieldKey, string> = {
+    heightMeters: '',
+    weightKg: '',
+    age: '',
+  };
 
   constructor() {
     addIcons({ calendar, personCircle, fitness, card, createOutline, trophy, chatbubbles, barbell, heart, body, checkmarkCircle, flag, walk });
@@ -208,6 +243,182 @@ export class ClientDetailsPage implements OnInit {
         userId: clientId,
         clientName: this.client?.name || 'Client',
       },
+    });
+  }
+
+  async openVerifyStatsModal() {
+    const clientId = String(this.client?.id ?? '').trim();
+    if (!clientId) {
+      await this.showToast('Unable to verify stats: missing client ID.', 'warning');
+      return;
+    }
+
+    this.resetVerifyStatsState();
+    this.isVerifyStatsModalOpen = true;
+    this.isLoadingVerifyStats = true;
+
+    try {
+      const statsSnap = await getDoc(doc(this.firestore, 'userStats', clientId));
+      const statsData = statsSnap.exists() ? statsSnap.data() : {};
+
+      this.verifyFieldOrder.forEach((field) => {
+        this.verifyStatsValues[field] = this.parseFieldValue(field, statsData[field]);
+      });
+    } catch (error) {
+      console.error('Failed to load client stats for verification:', error);
+      this.isVerifyStatsModalOpen = false;
+      await this.showToast('Failed to load client stats. Please try again.', 'danger');
+    } finally {
+      this.isLoadingVerifyStats = false;
+    }
+  }
+
+  closeVerifyStatsModal() {
+    if (this.isSubmittingVerifyStats) {
+      return;
+    }
+    this.isVerifyStatsModalOpen = false;
+  }
+
+  selectVerifyChoice(field: VerifyFieldKey, choice: Exclude<VerifyChoice, null>) {
+    this.verifyChoices[field] = choice;
+    if (choice === 'true') {
+      this.verifyCorrections[field] = '';
+    }
+  }
+
+  shouldShowCorrectionField(field: VerifyFieldKey): boolean {
+    return this.verifyChoices[field] === 'false';
+  }
+
+  getVerifyFieldLabel(field: VerifyFieldKey): string {
+    return this.verifyFieldLabels[field];
+  }
+
+  getVerifyFieldValueLabel(field: VerifyFieldKey): string {
+    const value = this.verifyStatsValues[field];
+    if (value === null) {
+      return 'Not set';
+    }
+
+    if (field === 'age') {
+      return `${Math.round(value)} ${this.verifyFieldUnits[field]}`;
+    }
+
+    return `${value} ${this.verifyFieldUnits[field]}`;
+  }
+
+  get canSubmitVerifyStats(): boolean {
+    if (this.isLoadingVerifyStats || this.isSubmittingVerifyStats) {
+      return false;
+    }
+
+    return this.verifyFieldOrder.every((field) => {
+      const choice = this.verifyChoices[field];
+      if (!choice) {
+        return false;
+      }
+
+      if (choice === 'true') {
+        return true;
+      }
+
+      return this.parseFieldValue(field, this.verifyCorrections[field]) !== null;
+    });
+  }
+
+  async submitVerifyStats() {
+    const clientId = String(this.client?.id ?? '').trim();
+    if (!clientId) {
+      await this.showToast('Unable to verify stats: missing client ID.', 'warning');
+      return;
+    }
+
+    if (!this.canSubmitVerifyStats) {
+      await this.showToast('Please complete all checks before submitting.', 'warning');
+      return;
+    }
+
+    const patch: Record<string, unknown> = {
+      trainerVerified: true,
+    };
+
+    this.verifyFieldOrder.forEach((field) => {
+      if (this.verifyChoices[field] !== 'false') {
+        return;
+      }
+
+      const parsedCorrection = this.parseFieldValue(field, this.verifyCorrections[field]);
+      if (parsedCorrection === null) {
+        return;
+      }
+
+      patch[field] = parsedCorrection;
+    });
+
+    const resolvedHeight = typeof patch['heightMeters'] === 'number'
+      ? patch['heightMeters']
+      : this.verifyStatsValues.heightMeters;
+    const resolvedWeight = typeof patch['weightKg'] === 'number'
+      ? patch['weightKg']
+      : this.verifyStatsValues.weightKg;
+    const resolvedBmi = this.calculateBmi(resolvedHeight, resolvedWeight);
+    if (resolvedBmi !== null) {
+      patch['bmi'] = resolvedBmi;
+    }
+
+    this.isSubmittingVerifyStats = true;
+
+    try {
+      await setDoc(doc(this.firestore, 'userStats', clientId), patch, { merge: true });
+      this.isVerifyStatsModalOpen = false;
+      await this.showToast('Stats verified successfully.', 'success');
+    } catch (error) {
+      console.error('Failed to submit verified stats:', error);
+      await this.showToast('Failed to submit verification. Please try again.', 'danger');
+    } finally {
+      this.isSubmittingVerifyStats = false;
+    }
+  }
+
+  private parseFieldValue(field: VerifyFieldKey, value: unknown): number | null {
+    const parsed = Number(String(value ?? '').trim());
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+      return null;
+    }
+
+    if (field === 'age') {
+      return Number.isInteger(parsed) ? parsed : null;
+    }
+
+    return Number(parsed.toFixed(3));
+  }
+
+  private calculateBmi(heightMeters: number | null, weightKg: number | null): number | null {
+    if (
+      heightMeters === null ||
+      weightKg === null ||
+      !Number.isFinite(heightMeters) ||
+      !Number.isFinite(weightKg) ||
+      heightMeters <= 0 ||
+      weightKg <= 0
+    ) {
+      return null;
+    }
+
+    const bmi = weightKg / (heightMeters * heightMeters);
+    return Number.isFinite(bmi) ? Number(bmi.toFixed(2)) : null;
+  }
+
+  get verifyFieldKeys(): VerifyFieldKey[] {
+    return this.verifyFieldOrder;
+  }
+
+  private resetVerifyStatsState(): void {
+    this.verifyFieldOrder.forEach((field) => {
+      this.verifyStatsValues[field] = null;
+      this.verifyChoices[field] = null;
+      this.verifyCorrections[field] = '';
     });
   }
 }

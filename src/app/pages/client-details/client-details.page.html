@@ -109,6 +109,10 @@
               <ion-icon name="chatbubbles" slot="start"></ion-icon>
               Message
             </ion-button>
+            <ion-button fill="outline" (click)="openVerifyStatsModal()">
+              <ion-icon name="checkmark-circle" slot="start"></ion-icon>
+              Verify Stats
+            </ion-button>
           </div>
         </ion-card-content>
       </ion-card>
@@ -303,5 +307,75 @@
       </ion-card>
     </div>
 
+  </div>
+
+  <div *ngIf="isVerifyStatsModalOpen" class="verify-stats-overlay">
+    <button class="verify-stats-backdrop" type="button" (click)="closeVerifyStatsModal()" aria-label="Close verify stats modal"></button>
+
+    <div class="verify-stats-modal" role="dialog" aria-modal="true" aria-label="Verify client stats">
+      <h3>Verify Stats</h3>
+
+      <p *ngIf="isLoadingVerifyStats" class="verify-stats-loading">
+        Loading client stats...
+      </p>
+
+      <div *ngIf="!isLoadingVerifyStats" class="verify-stats-grid">
+        <div class="verify-stats-grid-header">Field</div>
+        <div class="verify-stats-grid-header">Current Value</div>
+        <div class="verify-stats-grid-header">True</div>
+        <div class="verify-stats-grid-header">False</div>
+
+        <ng-container *ngFor="let field of verifyFieldKeys">
+          <div class="verify-stats-field-label">{{ getVerifyFieldLabel(field) }}</div>
+          <div class="verify-stats-current-value">{{ getVerifyFieldValueLabel(field) }}</div>
+
+          <button
+            class="verify-checkbox"
+            type="button"
+            [class.checked]="verifyChoices[field] === 'true'"
+            (click)="selectVerifyChoice(field, 'true')"
+            [disabled]="isSubmittingVerifyStats"
+            [attr.aria-label]="'Mark ' + getVerifyFieldLabel(field) + ' as true'"
+          >
+            <span *ngIf="verifyChoices[field] === 'true'">✓</span>
+          </button>
+
+          <button
+            class="verify-checkbox"
+            type="button"
+            [class.checked]="verifyChoices[field] === 'false'"
+            (click)="selectVerifyChoice(field, 'false')"
+            [disabled]="isSubmittingVerifyStats"
+            [attr.aria-label]="'Mark ' + getVerifyFieldLabel(field) + ' as false'"
+          >
+            <span *ngIf="verifyChoices[field] === 'false'">✓</span>
+          </button>
+
+          <div *ngIf="shouldShowCorrectionField(field)" class="verify-correction-row">
+            <label [for]="'verify-correction-' + field">
+              Correct {{ getVerifyFieldLabel(field) }}
+            </label>
+            <input
+              [id]="'verify-correction-' + field"
+              [(ngModel)]="verifyCorrections[field]"
+              [name]="'verify-correction-' + field"
+              [type]="field === 'age' ? 'number' : 'text'"
+              [step]="field === 'age' ? '1' : '0.01'"
+              placeholder="Enter corrected value"
+              [disabled]="isSubmittingVerifyStats"
+            />
+          </div>
+        </ng-container>
+      </div>
+
+      <div class="verify-actions">
+        <ion-button fill="clear" color="medium" (click)="closeVerifyStatsModal()" [disabled]="isSubmittingVerifyStats">
+          Cancel
+        </ion-button>
+        <ion-button color="primary" (click)="submitVerifyStats()" [disabled]="!canSubmitVerifyStats">
+          {{ isSubmittingVerifyStats ? 'Submitting...' : 'Submit' }}
+        </ion-button>
+      </div>
+    </div>
   </div>
 </ion-content>

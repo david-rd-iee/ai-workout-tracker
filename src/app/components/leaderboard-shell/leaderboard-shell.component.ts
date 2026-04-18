@@ -24,7 +24,7 @@ import {
 } from '@ionic/angular/standalone';
 import { FormsModule } from '@angular/forms';
 import { addIcons } from 'ionicons';
-import { arrowBackOutline, settingsOutline } from 'ionicons/icons';
+import { arrowBackOutline, checkmarkCircle, settingsOutline } from 'ionicons/icons';
 import { Color, NgxChartsModule, ScaleType } from '@swimlane/ngx-charts';
 import {
   LeaderboardEntry,
@@ -146,9 +146,10 @@ export class LeaderboardShellComponent implements OnChanges, AfterViewInit, OnDe
   };
 
   avatarLoadErrorUserIds = new Set<string>();
+  activeTrainerVerifiedUserId: string | null = null;
 
   constructor() {
-    addIcons({ arrowBackOutline, settingsOutline });
+    addIcons({ arrowBackOutline, settingsOutline, checkmarkCircle });
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -244,6 +245,16 @@ export class LeaderboardShellComponent implements OnChanges, AfterViewInit, OnDe
     }
     event.preventDefault();
     this.memberClick.emit(entry);
+  }
+
+  onTrainerVerifiedPressed(event: Event, entry: LeaderboardEntry): void {
+    event.stopPropagation();
+    this.activeTrainerVerifiedUserId =
+      this.activeTrainerVerifiedUserId === entry.userId ? null : entry.userId;
+  }
+
+  isTrainerVerifiedExpanded(entry: LeaderboardEntry): boolean {
+    return this.activeTrainerVerifiedUserId === entry.userId;
   }
 
   trackByDistributionPoint(_: number, point: DistributionPoint): number {

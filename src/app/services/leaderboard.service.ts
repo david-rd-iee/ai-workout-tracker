@@ -46,6 +46,7 @@ export interface LeaderboardEntry {
   username?: string;
   profilePicUrl?: string;
   role?: 'USER' | 'TRAINER';
+  trainerVerified?: boolean;
 }
 
 export interface LeaderboardTrendPoint {
@@ -114,6 +115,15 @@ export class LeaderboardService {
   private toNumber(value: unknown): number {
     const parsed = Number(value);
     return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  private toBoolean(value: unknown): boolean {
+    if (typeof value === 'boolean') {
+      return value;
+    }
+
+    const normalized = String(value ?? '').trim().toLowerCase();
+    return normalized === 'true' || normalized === '1' || normalized === 'yes';
   }
 
   private extractScoreTotals(stats: any): {
@@ -339,6 +349,7 @@ export class LeaderboardService {
       username: stats?.username,
       profilePicUrl: this.readProfilePic(stats),
       role: stats?.role,
+      trainerVerified: this.toBoolean(stats?.trainerVerified),
     };
   }
 
