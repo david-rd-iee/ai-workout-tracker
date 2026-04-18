@@ -1,4 +1,4 @@
-import { AfterViewInit, Component, ElementRef, OnDestroy, ViewChild, inject } from '@angular/core';
+import { AfterViewInit, Component, ElementRef, NgZone, OnDestroy, ViewChild, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {
   AlertController,
@@ -42,6 +42,7 @@ export class CameraPage implements AfterViewInit, OnDestroy {
   private readonly toastCtrl = inject(ToastController);
   private readonly alertCtrl = inject(AlertController);
   private readonly navCtrl = inject(NavController);
+  private readonly ngZone = inject(NgZone);
 
   hasCameraSupport = typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia;
   hasRecordingSupport = typeof MediaRecorder !== 'undefined';
@@ -169,23 +170,25 @@ export class CameraPage implements AfterViewInit, OnDestroy {
         this.isRecording = false;
       };
       recorder.onstop = () => {
-        const chunks = [...this.recordedChunks];
-        this.recordedChunks = [];
-        this.stopRecordingTimer();
-        this.isRecording = false;
+        this.ngZone.run(() => {
+          const chunks = [...this.recordedChunks];
+          this.recordedChunks = [];
+          this.stopRecordingTimer();
+          this.isRecording = false;
 
-        const shouldIgnore = this.ignoreNextRecorderStop || this.destroyed;
-        this.ignoreNextRecorderStop = false;
-        if (this.mediaRecorder === recorder) {
-          this.mediaRecorder = null;
-        }
+          const shouldIgnore = this.ignoreNextRecorderStop || this.destroyed;
+          this.ignoreNextRecorderStop = false;
+          if (this.mediaRecorder === recorder) {
+            this.mediaRecorder = null;
+          }
 
-        if (shouldIgnore) {
-          return;
-        }
+          if (shouldIgnore) {
+            return;
+          }
 
-        const mimeType = recorder.mimeType || preferredMimeType || 'video/webm';
-        void this.finishRecording(chunks, mimeType);
+          const mimeType = recorder.mimeType || preferredMimeType || 'video/webm';
+          void this.finishRecording(chunks, mimeType);
+        });
       };
 
       recorder.start(250);

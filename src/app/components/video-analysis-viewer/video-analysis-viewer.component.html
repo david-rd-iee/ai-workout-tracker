@@ -164,7 +164,6 @@
 
         <div class="drawing-actions drawing-actions--measure" *ngIf="isDrawingMode && activeCanvasTool === 'measure' && !readonly">
           <button type="button" class="drawing-cancel-button" (click)="cancelDrawingMode()">Cancel</button>
-          <button type="button" class="drawing-cancel-button drawing-cancel-button--measure" [disabled]="!isMeasureSelectionReady || hasMeasuredAngle" (click)="measureSelectedAngle()">Measure Angle</button>
           <button type="button" class="drawing-done-button" [disabled]="!hasMeasuredAngle || isSavingDrawing" (click)="saveDrawing()">
             {{ isSavingDrawing ? 'Saving...' : 'Done' }}
           </button>
@@ -183,6 +182,24 @@
           </div>
         </div>
       </div>
+
+      <section class="inline-note-panel" *ngIf="inlineNoteOpen && !isLandscapeMode">
+        <div class="inline-note-panel__header">
+          <span class="inline-note-panel__time">Note at {{ formatTime(inlineNoteTimestampSeconds) }}</span>
+        </div>
+        <textarea
+          class="inline-note-panel__input"
+          rows="3"
+          placeholder="Write your note..."
+          [value]="inlineNoteText"
+          (input)="inlineNoteText = $any($event.target).value"
+          autofocus
+        ></textarea>
+        <div class="inline-note-panel__actions">
+          <button type="button" class="inline-note-cancel" (click)="cancelInlineNote()">Cancel</button>
+          <button type="button" class="inline-note-save" (click)="submitInlineNote()">Save</button>
+        </div>
+      </section>
 
       <section class="timeline-inline-card" *ngIf="hasEvents && !isLandscapeMode">
         <div class="timeline-inline-card__header">Timeline</div>

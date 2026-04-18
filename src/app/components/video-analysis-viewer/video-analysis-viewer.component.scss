@@ -554,6 +554,73 @@
   font-weight: 500;
 }
 
+.inline-note-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px 18px;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow:
+    0 18px 34px rgba(17, 33, 32, 0.12),
+    inset 0 0 0 1px rgba(31, 71, 58, 0.08);
+}
+
+.inline-note-panel__header {
+  display: flex;
+  align-items: center;
+}
+
+.inline-note-panel__time {
+  color: #546361;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.inline-note-panel__input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border: 1.5px solid rgba(19, 38, 36, 0.14);
+  border-radius: 14px;
+  background: rgba(19, 38, 36, 0.04);
+  color: #132624;
+  font-size: 0.94rem;
+  font-family: inherit;
+  line-height: 1.5;
+  resize: none;
+  outline: none;
+}
+
+.inline-note-panel__input:focus {
+  border-color: rgba(19, 38, 36, 0.38);
+}
+
+.inline-note-panel__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.inline-note-cancel,
+.inline-note-save {
+  padding: 10px 18px;
+  border: 0;
+  border-radius: 999px;
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.inline-note-cancel {
+  background: rgba(19, 38, 36, 0.08);
+  color: #132624;
+}
+
+.inline-note-save {
+  background: linear-gradient(135deg, #173331 0%, #254946 100%);
+  color: #f4f7f1;
+}
+
 .timeline-inline-card {
   display: flex;
   flex-direction: column;
@@ -633,6 +700,13 @@
     max-width: none;
     object-position: center center;
     transform: none;
+  }
+
+  .drawing-canvas {
+    top: 50%;
+    left: 50%;
+    max-height: 100%;
+    transform: translate(-50%, -50%);
   }
 
   .video-toggle {

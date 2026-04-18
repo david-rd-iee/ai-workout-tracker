@@ -114,12 +114,65 @@ export interface ElbowFlareSummary {
   rightSeries: VideoAnalysisSeriesPoint[];
 }
 
+// ─── Pose data canonical types (CLAUDE.md spec) ─────────────────────────────
+
+export interface PoseConnection {
+  from: VideoLandmarkName;
+  to: VideoLandmarkName;
+}
+
+export interface PoseLandmark {
+  name: VideoLandmarkName;
+  x: number;
+  y: number;
+  z?: number | null;
+  visibility?: number | null;
+}
+
+export interface PoseFrame {
+  timestampMs: number;
+  frameWidth: number;
+  frameHeight: number;
+  poseScore?: number | null;
+  landmarks: PoseLandmark[];
+}
+
+export interface PoseAnalysis {
+  model: string;
+  frameRate: number;
+  connections: PoseConnection[];
+  frames: PoseFrame[];
+}
+
+// Skeleton connections used for overlay rendering and angle measurement.
+// Exported here so both the service and viewer share a single source of truth.
+export const POSE_CONNECTIONS: ReadonlyArray<readonly [VideoLandmarkName, VideoLandmarkName]> = [
+  ['nose', 'leftShoulder'],
+  ['nose', 'rightShoulder'],
+  ['leftShoulder', 'rightShoulder'],
+  ['leftShoulder', 'leftElbow'],
+  ['leftElbow', 'leftWrist'],
+  ['rightShoulder', 'rightElbow'],
+  ['rightElbow', 'rightWrist'],
+  ['leftShoulder', 'leftHip'],
+  ['rightShoulder', 'rightHip'],
+  ['leftHip', 'rightHip'],
+  ['leftHip', 'leftKnee'],
+  ['leftKnee', 'leftAnkle'],
+  ['rightHip', 'rightKnee'],
+  ['rightKnee', 'rightAnkle'],
+] as const;
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 export interface VideoAnalysisResult {
   analyzedAtIso: string;
   durationMs: number;
   sampleRateHz: number;
   framesRequested: number;
   framesAnalyzed: number;
+  captureWidth?: number;
+  captureHeight?: number;
   bodyLandmarks: VideoAnalysisFrame[];
   jointAnglesOverTime: {
     leftElbow: VideoAnalysisSeriesPoint[];

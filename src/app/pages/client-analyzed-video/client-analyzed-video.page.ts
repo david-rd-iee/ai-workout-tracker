@@ -14,7 +14,7 @@ import { Firestore } from '@angular/fire/firestore';
 import { doc, getDoc } from 'firebase/firestore';
 import { UserService } from '../../services/account/user.service';
 import { VideoAnalysisViewerComponent } from '../../components/video-analysis-viewer/video-analysis-viewer.component';
-import { VideoAnalysisViewerAnalysis } from '../../components/video-analysis-viewer/video-analysis-viewer.types';
+import { VideoAnalysisViewerAnalysis, normalizePoseFrames } from '../../components/video-analysis-viewer/video-analysis-viewer.types';
 
 @Component({
   selector: 'app-client-analyzed-video',
@@ -100,6 +100,27 @@ export class ClientAnalyzedVideoPage implements OnInit {
       const video = this.asRecord(data['video']);
       const artifacts = this.asRecord(data['artifacts']);
       const overlayVideo = this.asRecord(artifacts?.['overlayVideo']);
+      const inlinePoseAnalysis = analysisData?.['poseAnalysis'] ?? null;
+      const inlineBodyLandmarks = analysisData?.['bodyLandmarks'] ?? null;
+      let poseFrames = normalizePoseFrames(inlineBodyLandmarks, inlinePoseAnalysis);
+      // Attempt lazy fetch when inline pose data was not stored (e.g. large recordings).
+      if (!poseFrames.length) {
+        const bodyLandmarksArtifact = this.asRecord(artifacts?.['bodyLandmarks']);
+        const artifactUrl = typeof bodyLandmarksArtifact?.['downloadUrl'] === 'string'
+          ? bodyLandmarksArtifact['downloadUrl'].trim()
+          : '';
+        if (artifactUrl) {
+          try {
+            const res = await fetch(artifactUrl);
+            if (res.ok) {
+              const artifactData: unknown = await res.json();
+              poseFrames = normalizePoseFrames(artifactData, null);
+            }
+          } catch {
+            // Non-critical — angle tool will show an unavailable message.
+          }
+        }
+      }
       const analyzedAtIso = typeof analysisData?.['analyzedAtIso'] === 'string'
         ? analysisData['analyzedAtIso'].trim()
         : '';
@@ -134,6 +155,7 @@ export class ClientAnalyzedVideoPage implements OnInit {
           : null,
         notes: this.readNotes(data['notes']),
         drawings: this.readDrawings(data['drawings']),
+        poseFrames: poseFrames.length ? poseFrames : undefined,
       };
     } catch (error) {
       console.error('[ClientAnalyzedVideoPage] Failed to load analyzed workout:', error);
