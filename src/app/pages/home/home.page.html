@@ -1,9 +1,11 @@
-<app-header [currentUser]="currentUser"></app-header>
+<app-header class="home-header-overlay" [currentUser]="currentUser" [neoBlend]="true"></app-header>
 
 <ion-content [fullscreen]="true">
   <div class="background-gradient"></div>
 
   <div class="home-container">
+    <div class="home-header-space" aria-hidden="true"></div>
+
     <!-- Welcome Section -->
     <div class="welcome-section">
       <h1>Welcome back, {{ userName() }}!</h1>
@@ -90,7 +92,7 @@
 
       <!-- Upcoming Sessions -->
       <div class="upcoming-sessions" *ngIf="isWidgetEnabled('upcoming-session')">
-        <h2>Upcoming Sessions</h2>
+        <h2 class="section-title">Upcoming Sessions</h2>
         <ng-container *ngIf="upcomingSessions && upcomingSessions.length > 0; else noSessions">
           <ion-card class="session-card" *ngFor="let session of upcomingSessions" button="true" (click)="viewSessionDetails(session)">
             <ion-card-content>
@@ -170,8 +172,8 @@
 
       <!-- My Clients Section -->
       <div class="clients-section">
-        <h2>My Clients</h2>
-        <p *ngIf="clients.length === 0">No Clients, yet.</p>
+        <h2 class="section-title">My Clients</h2>
+        <p class="empty-state" *ngIf="clients.length === 0">No Clients, yet.</p>
         <ion-card class="client-card" *ngFor="let client of clients" button="true" (click)="viewClientDetails(client)">
           <ion-card-content>
             <div class="client-content">

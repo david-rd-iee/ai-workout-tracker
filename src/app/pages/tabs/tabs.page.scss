@@ -1,1 +1,59 @@
+:host {
+  --tabs-blue-top: #3274f4;
+  --tabs-blue-bottom: #2464e8;
+  --tabs-blue-text: #eef4ff;
+  --tabs-blue-text-muted: rgba(238, 244, 255, 0.86);
+}
 
+ion-tab-bar {
+  --background: transparent;
+  --border: 0;
+  --color: var(--tabs-blue-text-muted);
+  --color-selected: #ffffff;
+
+  position: relative;
+  padding: 6px 12px calc(6px + env(safe-area-inset-bottom));
+  border-top-left-radius: 24px;
+  border-top-right-radius: 24px;
+  background: linear-gradient(180deg, var(--tabs-blue-top), var(--tabs-blue-bottom));
+  box-shadow:
+    0 -10px 24px rgba(25, 75, 178, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.32);
+}
+
+ion-tab-button {
+  --background: transparent;
+  --background-focused: transparent;
+  --background-focused-opacity: 0;
+  --ripple-color: rgba(255, 255, 255, 0.26);
+  --color: var(--tabs-blue-text-muted);
+  --color-selected: #ffffff;
+
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow:
+    inset -4px -4px 8px rgba(255, 255, 255, 0.18),
+    inset 5px 5px 10px rgba(19, 67, 173, 0.3);
+  transition: transform 140ms ease, background-color 140ms ease;
+}
+
+ion-tab-button ion-icon {
+  font-size: 24px;
+}
+
+ion-tab-button ion-label {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+ion-tab-button.tab-selected {
+  background: rgba(255, 255, 255, 0.2);
+  box-shadow:
+    inset -4px -4px 8px rgba(255, 255, 255, 0.32),
+    inset 6px 6px 12px rgba(16, 56, 152, 0.34);
+}
+
+ion-tab-button:active {
+  transform: translateY(1px);
+}

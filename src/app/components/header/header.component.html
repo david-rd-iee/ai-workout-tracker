@@ -1,35 +1,64 @@
-  <ion-header>
+  <ion-header [class.neo-header]="neoBlend">
     <ion-toolbar
       class="title-container"
       [class.profile-button-top-right]="pinProfileButtonTopRight"
+      [class.neo-toolbar]="neoBlend"
     >
-        <!-- Always keep a button space on the left, even if no back button -->
-        <div class="button-space" *ngIf="!showBack"></div>
-        <ion-button (click)="goBack()" *ngIf="showBack" fill="clear" class="header-button left-button">
+        <!-- Back button on start when enabled -->
+        <ion-button (click)="goBack()" *ngIf="showBack" fill="clear" class="header-button left-button" slot="start">
           <ion-icon slot="icon-only" name="chevron-back-outline"></ion-icon>
         </ion-button>
-        
-        <ion-title><h2>{{title}}</h2></ion-title>
-        
-        <!-- Profile Avatar Button -->
-        <div class="button-space" *ngIf="showBack && !showProfileButtonWithBack"></div>
+
+        <!-- Profile avatar on the left for default headers -->
         <ion-button
           (click)="goToProfile()"
-          *ngIf="!showBack || showProfileButtonWithBack"
-          class="profile-button"
+          *ngIf="!showBack"
+          class="profile-button profile-button-large"
           [class.profile-button-floating]="pinProfileButtonTopRight"
           fill="clear"
+          slot="start"
         >
           <ion-avatar class="profile-avatar">
             <img
-              *ngIf="profilepicUrl; else showFallback"
+              *ngIf="profilepicUrl; else showFallbackLeft"
               [src]="profilepicUrl"
               alt="Profile pic"
             />
-            <ng-template #showFallback>
+            <ng-template #showFallbackLeft>
               <div class="avatar-fallback">{{ avatarInitial }}</div>
             </ng-template>
           </ion-avatar>
         </ion-button>
+
+        <!-- Profile avatar on the right when back button is shown and profile is enabled -->
+        <ion-button
+          (click)="goToProfile()"
+          *ngIf="showBack && showProfileButtonWithBack"
+          class="profile-button"
+          [class.profile-button-floating]="pinProfileButtonTopRight"
+          fill="clear"
+          slot="end"
+        >
+          <ion-avatar class="profile-avatar">
+            <img
+              *ngIf="profilepicUrl; else showFallbackRight"
+              [src]="profilepicUrl"
+              alt="Profile pic"
+            />
+            <ng-template #showFallbackRight>
+              <div class="avatar-fallback">{{ avatarInitial }}</div>
+            </ng-template>
+          </ion-avatar>
+        </ion-button>
+        
+        <ion-title><h2 [class.atlas-title]="title === 'ATLAS'">{{title}}</h2></ion-title>
+        
+        <!-- Keep the title visually centered -->
+        <div
+          class="button-space"
+          [class.button-space-profile-large]="!showBack"
+          *ngIf="!showBack || (showBack && !showProfileButtonWithBack)"
+          slot="end"
+        ></div>
     </ion-toolbar>
   </ion-header>

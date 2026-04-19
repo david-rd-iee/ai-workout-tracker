@@ -18,6 +18,7 @@ export class HeaderComponent implements OnInit {
   @Input() title: string = 'ATLAS';
   @Input() showBack: boolean = false;
   @Input() transparent: boolean = true;
+  @Input() neoBlend: boolean = false;
   @Input() backHref?: string; // Optional: if provided, navigate to this route instead of using history
   @Input() currentUser: AppUser | null = null;
   @Input() showProfileButtonWithBack: boolean = false;
@@ -114,7 +115,9 @@ export class HeaderComponent implements OnInit {
   }
 
   goBack() {
-    // If backHref is provided, use it instead of browser history
+    this.blurActiveElement();
+
+    // If backHref is provided, use Ionic back navigation so transition reverses naturally.
     if (this.backHref) {
       this.navCtrl.navigateBack(this.backHref, {
         animated: true,
