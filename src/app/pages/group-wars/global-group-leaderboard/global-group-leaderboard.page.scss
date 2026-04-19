@@ -1,0 +1,82 @@
+.global-wars-page {
+  --background: #f5ecdd;
+  padding: 12px;
+}
+
+.filter-row {
+  background: #fff;
+  border: 1px solid #d8c7aa;
+  border-radius: 12px;
+  padding: 10px 12px;
+  display: grid;
+  gap: 6px;
+
+  label {
+    font-size: 13px;
+    color: #2d4257;
+    font-weight: 600;
+  }
+}
+
+.state-message {
+  text-align: center;
+  color: #2a3d50;
+  padding: 24px 12px;
+}
+
+.state-message.error {
+  color: #af3328;
+}
+
+.leaderboard-list {
+  margin-top: 12px;
+  display: grid;
+  gap: 8px;
+}
+
+.leaderboard-row {
+  border: 1px solid #d2c4ab;
+  border-radius: 12px;
+  background: #fff;
+  display: grid;
+  grid-template-columns: auto 36px 1fr auto;
+  gap: 8px;
+  align-items: center;
+  width: 100%;
+  text-align: left;
+  padding: 8px;
+
+  img {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    object-fit: cover;
+    background: #eef1f4;
+  }
+}
+
+.rank {
+  min-width: 40px;
+  color: #21456a;
+  font-weight: 700;
+}
+
+.meta {
+  display: grid;
+
+  strong {
+    color: #253b50;
+    font-size: 14px;
+  }
+
+  small {
+    color: #5a6b79;
+    font-size: 12px;
+  }
+}
+
+.points {
+  color: #1b5f31;
+  font-size: 13px;
+  font-weight: 700;
+}

@@ -8,9 +8,12 @@ import {
   doc,
   getDoc,
   getDocs,
+  query,
   serverTimestamp,
   setDoc,
+  Timestamp,
   updateDoc,
+  where,
 } from 'firebase/firestore';
 
 import { Observable, of, from, combineLatest } from 'rxjs';
@@ -19,6 +22,24 @@ import { Group } from '../models/groups.model';
 import { AppUser } from '../models/user.model';
 import { ProfileRepositoryService } from './account/profile-repository.service';
 import { watchDocumentData, watchQueryData } from './firestore-streams.util';
+
+export interface GroupWarProfile {
+  groupId: string;
+  name: string;
+  ownerUserId: string;
+  warOptIn: boolean;
+  warEnabled: boolean;
+  warRating: number;
+  warWeight: number;
+  totalWarLeaderboardPoints: number;
+  globalLeaderboardRank?: number;
+  wins: number;
+  losses: number;
+  ties: number;
+  currentActiveWarId?: string;
+  dominantExerciseTag?: string;
+  lastWarEndedAt?: Timestamp;
+}
 
 @Injectable({
   providedIn: 'root',
@@ -47,8 +68,7 @@ export class GroupService {
     return from(getDoc(ref)).pipe(
       map((snap) => {
         if (!snap.exists()) return undefined;
-        const data = snap.data() as Omit<Group, 'groupId'>;
-        return { groupId, ...data };
+        return this.buildGroup(groupId, snap.data() as Record<string, unknown>);
       })
     );
   }
@@ -63,8 +83,11 @@ export class GroupService {
 
     const streams = groupIds.map((id) => {
       const ref = doc(this.firestore, this.groupsCollectionName, id);
-      return watchDocumentData<Group>(ref, { idField: 'groupId' }).pipe(
-        map((data) => data ?? undefined)
+      return watchDocumentData<Record<string, unknown>>(ref, { idField: 'groupId' }).pipe(
+        map((data) => {
+          if (!data) return undefined;
+          return this.buildGroup(id, data);
+        })
       );
     });
 
@@ -81,15 +104,14 @@ export class GroupService {
     const snap = await getDocs(colRef);
 
     return snap.docs.map((docSnap) => {
-      const data = docSnap.data() as Omit<Group, 'groupId'>;
-      return { groupId: docSnap.id, ...data };
+      return this.buildGroup(docSnap.id, docSnap.data() as Record<string, unknown>);
     });
   }
 
   watchAllGroups(): Observable<Group[]> {
     const colRef = collection(this.firestore, this.groupsCollectionName);
-    return watchQueryData<Group>(colRef, { idField: 'groupId' }).pipe(
-      map((groups) => groups as Group[])
+    return watchQueryData<Record<string, unknown>>(colRef, { idField: 'groupId' }).pipe(
+      map((groups) => groups.map((groupDoc) => this.buildGroup(groupDoc['groupId'], groupDoc)))
     );
   }
 
@@ -109,6 +131,82 @@ export class GroupService {
   }
 
   /**
+   * Toggle whether a group owner opts this group into Group Wars.
+   * This intentionally only updates opt-in state and does not run war orchestration.
+   */
+  async setWarOptIn(groupId: string, enabled: boolean): Promise<void> {
+    const normalizedGroupId = this.normalizeString(groupId);
+    if (!normalizedGroupId) {
+      throw new Error('groupId is required.');
+    }
+
+    await updateDoc(doc(this.firestore, this.groupsCollectionName, normalizedGroupId), {
+      warOptIn: !!enabled,
+      updatedAt: serverTimestamp(),
+    });
+  }
+
+  /**
+   * Watch a group's war-facing profile fields.
+   * Keeps GroupService focused on ownership + identity context for war workflows.
+   */
+  watchGroupWarProfile(groupId: string): Observable<GroupWarProfile | undefined> {
+    const normalizedGroupId = this.normalizeString(groupId);
+    if (!normalizedGroupId) {
+      return of(undefined);
+    }
+
+    const ref = doc(this.firestore, this.groupsCollectionName, normalizedGroupId);
+    return watchDocumentData<Record<string, unknown>>(ref, { idField: 'groupId' }).pipe(
+      map((data) => {
+        if (!data) {
+          return undefined;
+        }
+        const group = this.buildGroup(normalizedGroupId, data);
+        return this.toGroupWarProfile(group);
+      })
+    );
+  }
+
+  /**
+   * Watch groups owned by a given user.
+   */
+  watchUserOwnedGroups(uid: string): Observable<Group[]> {
+    const normalizedUid = this.normalizeString(uid);
+    if (!normalizedUid) {
+      return of([]);
+    }
+
+    const ownedGroupsQuery = query(
+      collection(this.firestore, this.groupsCollectionName),
+      where('ownerUserId', '==', normalizedUid)
+    );
+
+    return watchQueryData<Record<string, unknown>>(ownedGroupsQuery, { idField: 'groupId' }).pipe(
+      map((groups) => groups.map((groupDoc) => this.buildGroup(groupDoc['groupId'], groupDoc)))
+    );
+  }
+
+  /**
+   * Check whether a uid is the owner of a given group.
+   */
+  async isGroupOwner(groupId: string, uid: string): Promise<boolean> {
+    const normalizedGroupId = this.normalizeString(groupId);
+    const normalizedUid = this.normalizeString(uid);
+    if (!normalizedGroupId || !normalizedUid) {
+      return false;
+    }
+
+    const groupSnap = await getDoc(doc(this.firestore, this.groupsCollectionName, normalizedGroupId));
+    if (!groupSnap.exists()) {
+      return false;
+    }
+
+    const ownerUserId = this.normalizeString((groupSnap.data() as Record<string, unknown>)['ownerUserId']);
+    return ownerUserId === normalizedUid;
+  }
+
+  /**
    * Create a new group owned by this user and add it to their `groupID` array.
    */
   async createGroupForOwner(ownerUid: string, name: string, isPTGroup: boolean): Promise<string> {
@@ -120,6 +218,7 @@ export class GroupService {
       groupImage: '',
       created_at: serverTimestamp(),
       userIDs: [ownerUid],
+      ...this.buildWarDefaults(),
     });
 
     const groupId = groupDocRef.id;
@@ -238,6 +337,7 @@ export class GroupService {
       groupImage: '',
       created_at: serverTimestamp(),
       userIDs: userIds,
+      ...this.buildWarDefaults(),
     });
 
     const groupId = groupDocRef.id;
@@ -299,8 +399,83 @@ export class GroupService {
       return undefined;
     }
 
-    const data = snap.data() as Omit<Group, 'groupId'>;
-    return { groupId: normalizedGroupId, ...data };
+    return this.buildGroup(normalizedGroupId, snap.data() as Record<string, unknown>);
+  }
+
+  private buildWarDefaults(): Pick<
+    Group,
+    | 'warOptIn'
+    | 'warEnabled'
+    | 'warRating'
+    | 'warWeight'
+    | 'totalWarLeaderboardPoints'
+    | 'wins'
+    | 'losses'
+    | 'ties'
+  > {
+    return {
+      warOptIn: false,
+      warEnabled: false,
+      warRating: 1000,
+      warWeight: 1,
+      totalWarLeaderboardPoints: 0,
+      wins: 0,
+      losses: 0,
+      ties: 0,
+    };
+  }
+
+  private buildGroup(groupId: unknown, data: Record<string, unknown>): Group {
+    const normalizedGroupId = this.normalizeString(groupId);
+    const currentActiveWarId = this.normalizeString(data['currentActiveWarId']);
+    const dominantExerciseTag = this.normalizeString(data['dominantExerciseTag']);
+    const groupImage = this.normalizeString(data['groupImage']);
+    const lastWarEndedAt = this.normalizeTimestamp(data['lastWarEndedAt']);
+    const globalLeaderboardRank = this.toNonNegativeInteger(data['globalLeaderboardRank']);
+
+    return {
+      groupId: normalizedGroupId,
+      name: this.normalizeString(data['name']) || 'Group',
+      isPTGroup: data['isPTGroup'] === true,
+      ownerUserId: this.normalizeString(data['ownerUserId']),
+      created_at: this.normalizeTimestamp(data['created_at']) ?? Timestamp.now(),
+      userIDs: this.normalizeStringArray(data['userIDs']),
+      warOptIn: data['warOptIn'] === true,
+      warEnabled: data['warEnabled'] === true,
+      warRating: this.toFiniteNumber(data['warRating'], 1000),
+      warWeight: this.toFiniteNumber(data['warWeight'], 1),
+      totalWarLeaderboardPoints: this.toFiniteNumber(data['totalWarLeaderboardPoints'], 0),
+      ...(globalLeaderboardRank > 0 ? { globalLeaderboardRank } : {}),
+      wins: this.toNonNegativeInteger(data['wins']),
+      losses: this.toNonNegativeInteger(data['losses']),
+      ties: this.toNonNegativeInteger(data['ties']),
+      ...(groupImage ? { groupImage } : {}),
+      ...(currentActiveWarId ? { currentActiveWarId } : {}),
+      ...(dominantExerciseTag ? { dominantExerciseTag } : {}),
+      ...(lastWarEndedAt ? { lastWarEndedAt } : {}),
+    };
+  }
+
+  private toGroupWarProfile(group: Group): GroupWarProfile {
+    return {
+      groupId: group.groupId,
+      name: group.name,
+      ownerUserId: group.ownerUserId,
+      warOptIn: group.warOptIn,
+      warEnabled: group.warEnabled,
+      warRating: group.warRating,
+      warWeight: group.warWeight,
+      totalWarLeaderboardPoints: group.totalWarLeaderboardPoints,
+      ...(typeof group.globalLeaderboardRank === 'number'
+        ? { globalLeaderboardRank: group.globalLeaderboardRank }
+        : {}),
+      wins: group.wins,
+      losses: group.losses,
+      ties: group.ties,
+      ...(group.currentActiveWarId ? { currentActiveWarId: group.currentActiveWarId } : {}),
+      ...(group.dominantExerciseTag ? { dominantExerciseTag: group.dominantExerciseTag } : {}),
+      ...(group.lastWarEndedAt ? { lastWarEndedAt: group.lastWarEndedAt } : {}),
+    };
   }
 
   private normalizeString(value: unknown): string {
@@ -308,5 +483,35 @@ export class GroupService {
       return '';
     }
     return value.trim();
+  }
+
+  private normalizeStringArray(value: unknown): string[] {
+    if (!Array.isArray(value)) {
+      return [];
+    }
+
+    return value
+      .map((entry) => this.normalizeString(entry))
+      .filter((entry) => entry.length > 0);
+  }
+
+  private toFiniteNumber(value: unknown, fallback = 0): number {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : fallback;
+  }
+
+  private toNonNegativeInteger(value: unknown): number {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed) || parsed < 0) {
+      return 0;
+    }
+    return Math.floor(parsed);
+  }
+
+  private normalizeTimestamp(value: unknown): Timestamp | undefined {
+    if (value instanceof Timestamp) {
+      return value;
+    }
+    return undefined;
   }
 }

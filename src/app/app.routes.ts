@@ -93,6 +93,28 @@ export const routes: Routes = [
     canActivate: [authGuard],
   },
   {
+    path: 'group-wars/leaderboard',
+    loadComponent: () =>
+      import('./pages/group-wars/global-group-leaderboard/global-group-leaderboard.page').then(
+        (m) => m.GlobalGroupLeaderboardPage
+      ),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'group-wars/recap/:warId',
+    loadComponent: () =>
+      import('./pages/group-wars/group-war-recap/group-war-recap.page').then(
+        (m) => m.GroupWarRecapPage
+      ),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'group-wars/:groupId',
+    loadComponent: () =>
+      import('./pages/group-wars/group-war/group-war.page').then((m) => m.GroupWarPage),
+    canActivate: [authGuard],
+  },
+  {
   path: 'regional-leaderboard',
   loadComponent: () =>
     import('./pages/leaderboards/regional-leaderboard/regional-leaderboard.page')

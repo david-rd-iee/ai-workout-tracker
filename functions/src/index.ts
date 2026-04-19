@@ -17,6 +17,9 @@ import type {
 export { retrainExerciseEstimatorOnWorkoutLogCreate } from "./exerciseEstimatorTraining";
 export { completeWorkoutEvent } from "./completeWorkoutEvent";
 export { onClientTrainerAssignmentChange } from "./userStatsVerification";
+export { proposeGroupWarMatches } from "./groupWarMatchmaking";
+export { onGroupWarProposalUpdated } from "./groupWarProposalLifecycle";
+export { finalizeExpiredGroupWars } from "./groupWarFinalization";
 export {
   onWorkoutEventCreated,
 } from "./workoutEventPostWriteHandlers";

@@ -1,0 +1,91 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-button fill="clear" (click)="goBack()">Back</ion-button>
+    </ion-buttons>
+    <ion-title>War Recap</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="war-recap-page">
+  <section class="state-message" *ngIf="loading">
+    <ion-spinner name="crescent"></ion-spinner>
+  </section>
+
+  <section class="state-message error" *ngIf="!loading && errorMessage">
+    {{ errorMessage }}
+  </section>
+
+  <ng-container *ngIf="!loading && recap">
+    <section class="winner-banner">
+      <h1>{{ winnerBannerText }}</h1>
+      <p *ngIf="recap.finalScore">
+        Final Score: {{ recap.finalScore.challenger }} - {{ recap.finalScore.opponent }}
+      </p>
+    </section>
+
+    <section class="recap-panel">
+      <h2>Warrior Cards</h2>
+      <div class="warrior-grid">
+        <article>
+          <h3>{{ recap.challengerGroupName }}</h3>
+          <p *ngIf="challengerWarriorCard as warrior">
+            {{ warrior.displayName }} · {{ warrior.normalizedWorkoutScoreTotal }} pts
+          </p>
+          <p *ngIf="!challengerWarriorCard">No standout contributor.</p>
+        </article>
+        <article>
+          <h3>{{ recap.opponentGroupName }}</h3>
+          <p *ngIf="opponentWarriorCard as warrior">
+            {{ warrior.displayName }} · {{ warrior.normalizedWorkoutScoreTotal }} pts
+          </p>
+          <p *ngIf="!opponentWarriorCard">No standout contributor.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="recap-panel">
+      <h2>Most-Used Exercises</h2>
+      <div class="warrior-grid">
+        <article>
+          <h3>{{ recap.challengerGroupName }}</h3>
+          <p *ngIf="challengerMostUsedExercise as exercise">
+            {{ exercise.exerciseTag }} · {{ exercise.normalizedWorkoutScoreTotal }} pts
+          </p>
+          <p *ngIf="!challengerMostUsedExercise">No exercise pattern yet.</p>
+        </article>
+        <article>
+          <h3>{{ recap.opponentGroupName }}</h3>
+          <p *ngIf="opponentMostUsedExercise as exercise">
+            {{ exercise.exerciseTag }} · {{ exercise.normalizedWorkoutScoreTotal }} pts
+          </p>
+          <p *ngIf="!opponentMostUsedExercise">No exercise pattern yet.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="recap-panel">
+      <h2>Summary Metrics</h2>
+      <ul>
+        <li *ngIf="recap.totalWorkoutsSubmitted">
+          Total workouts: {{ recap.totalWorkoutsSubmitted.total }}
+        </li>
+        <li *ngIf="recap.totalWorkoutsSubmitted">
+          Challenger workouts: {{ recap.totalWorkoutsSubmitted.challenger }}
+        </li>
+        <li *ngIf="recap.totalWorkoutsSubmitted">
+          Opponent workouts: {{ recap.totalWorkoutsSubmitted.opponent }}
+        </li>
+        <li *ngIf="recap.cardioVsStrengthShare?.overall">
+          Overall cardio share: {{ shareLabel(recap.cardioVsStrengthShare?.overall?.cardioShare) }}
+        </li>
+        <li *ngIf="recap.cardioVsStrengthShare?.overall">
+          Overall strength share: {{ shareLabel(recap.cardioVsStrengthShare?.overall?.strengthShare) }}
+        </li>
+        <li *ngIf="recap.standoutSingleWorkoutContribution as standout">
+          Standout workout: {{ standout.displayName }} · {{ standout.normalizedWorkoutScoreTotal }} pts
+        </li>
+      </ul>
+    </section>
+  </ng-container>
+</ion-content>

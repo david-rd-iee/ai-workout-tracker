@@ -43,6 +43,13 @@ export const routes: Routes = [
           },
         ],
       },
+      {
+        path: 'wars',
+        loadComponent: () =>
+          import('../group-wars/global-group-leaderboard/global-group-leaderboard.page').then(
+            (m) => m.GlobalGroupLeaderboardPage
+          ),
+      },
       // default inside /tabs → /tabs/home
       {
         path: '',

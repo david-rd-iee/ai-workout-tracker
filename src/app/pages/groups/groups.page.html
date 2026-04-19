@@ -76,21 +76,70 @@
       </div>
 
       <div class="card-list" *ngIf="!loading && !errorMessage && friendGroups.length > 0">
-        <button
-          class="group-card group-card-button"
+        <article
+          class="group-card"
           [class.owner-highlight]="isOwnedByCurrentUser(group)"
-          type="button"
           *ngFor="let group of friendGroups"
-          (click)="openGroup(group)"
         >
-          <img
-            [src]="group.groupImage || 'assets/icons/Icon.png'"
-            (error)="$any($event.target).src = 'assets/icons/Icon.png'"
-            alt=""
-            aria-hidden="true"
-          />
-          <p>{{ group.name }}</p>
-        </button>
+          <button
+            class="group-card-button"
+            type="button"
+            (click)="openGroup(group)"
+          >
+            <img
+              [src]="group.groupImage || 'assets/icons/Icon.png'"
+              (error)="$any($event.target).src = 'assets/icons/Icon.png'"
+              alt=""
+              aria-hidden="true"
+            />
+            <p>{{ group.name }}</p>
+          </button>
+
+          <section class="group-war-controls" *ngIf="isOwnedByCurrentUser(group)">
+            <div class="war-opt-in-row">
+              <span>War opt-in</span>
+              <ion-toggle
+                [checked]="group.warOptIn"
+                [disabled]="isWarOptInSaving(group.groupId)"
+                (ionChange)="onWarOptInToggle(group, !!$event.detail.checked)"
+              ></ion-toggle>
+            </div>
+          </section>
+
+          <section class="war-status-card active" *ngIf="hasActiveWar(group.groupId)">
+            <h3>Active War</h3>
+            <p>Opponent: {{ warOpponentGroupIdFor(group, activeWarForGroup(group.groupId)) }}</p>
+            <p>Ends: {{ warEndLabel(activeWarForGroup(group.groupId)) }}</p>
+            <button type="button" class="war-action-btn" (click)="openGroupWar(group)">
+              Open War
+            </button>
+          </section>
+
+          <section class="war-status-card pending" *ngIf="hasPendingProposal(group.groupId)">
+            <h3>Pending Proposal</h3>
+            <p>Opponent: {{ warOpponentGroupIdFor(group, pendingWarForGroup(group.groupId)) }}</p>
+            <p>Status: Awaiting owner confirmation</p>
+
+            <div class="pending-actions" *ngIf="isPendingWarOwnerActionable(group, pendingWarForGroup(group.groupId))">
+              <button
+                type="button"
+                class="war-action-btn accept"
+                [disabled]="isPendingWarActionInFlight(pendingWarForGroup(group.groupId)?.warId || '')"
+                (click)="acceptPendingProposal(group, pendingWarForGroup(group.groupId))"
+              >
+                Accept
+              </button>
+              <button
+                type="button"
+                class="war-action-btn decline"
+                [disabled]="isPendingWarActionInFlight(pendingWarForGroup(group.groupId)?.warId || '')"
+                (click)="declinePendingProposal(group, pendingWarForGroup(group.groupId))"
+              >
+                Decline
+              </button>
+            </div>
+          </section>
+        </article>
       </div>
     </ng-template>
   </section>

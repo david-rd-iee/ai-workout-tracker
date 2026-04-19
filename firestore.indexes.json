@@ -1,4 +1,85 @@
 {
-  "indexes": [],
+  "indexes": [
+    {
+      "collectionGroup": "groupWars",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "startAt", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "groupWars",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "activatedAt", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "groupWars",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "endAt", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "groupWars",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "endsAt", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "groupWars",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "groupAId", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "groupWars",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "challengerGroupId", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "groupWars",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "groupBId", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "groupWars",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "opponentGroupId", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "rankings",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "totalWarLeaderboardPoints", "order": "DESCENDING" },
+        { "fieldPath": "__name__", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "rankings",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "dominantExerciseTag", "order": "ASCENDING" },
+        { "fieldPath": "totalWarLeaderboardPoints", "order": "DESCENDING" }
+      ]
+    }
+  ],
   "fieldOverrides": []
 }

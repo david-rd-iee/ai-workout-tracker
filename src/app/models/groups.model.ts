@@ -10,4 +10,16 @@ export interface Group {
   created_at: Timestamp;
   groupImage?: string;
   userIDs: string[];
+  warOptIn: boolean;
+  warEnabled: boolean;
+  warRating: number;
+  warWeight: number;
+  totalWarLeaderboardPoints: number;
+  globalLeaderboardRank?: number;
+  wins: number;
+  losses: number;
+  ties: number;
+  currentActiveWarId?: string;
+  dominantExerciseTag?: string;
+  lastWarEndedAt?: Timestamp;
 }
