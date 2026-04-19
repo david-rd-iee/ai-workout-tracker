@@ -1,157 +1,221 @@
-<ion-header [translucent]="true">
-  <ion-toolbar class="settings-toolbar">
-    <ion-buttons slot="start">
-      <ion-button fill="clear" class="back-button" (click)="goBack()" aria-label="Go back">
-        <ion-icon name="arrow-back-outline" slot="icon-only"></ion-icon>
-      </ion-button>
-    </ion-buttons>
-    <ion-title>User Settings</ion-title>
-  </ion-toolbar>
-</ion-header>
+<app-header
+  [title]="'User Settings'"
+  [transparent]="true"
+  [neoBlend]="true"
+  [showBack]="true"
+  backHref="/profile-user"
+></app-header>
 
 <ion-content [fullscreen]="true" class="settings-content">
-  <div class="settings-shell">
-    <section class="settings-panel">
-      <h2>Profile Details</h2>
-      <p class="page-copy">Update your personal information.</p>
+  <div class="background-gradient"></div>
 
-      <form class="settings-form" (ngSubmit)="saveSettings()">
-        <div class="field-grid">
-          <ion-item lines="none">
-            <ion-input
-              class="settings-input"
-              label="First Name"
-              label-placement="stacked"
-              [(ngModel)]="firstName"
-              name="firstName"
-              placeholder="Enter first name"
-              [disabled]="isLoading || isSaving"
-              required
-            ></ion-input>
-          </ion-item>
+  <div class="settings-page">
+    <div class="settings-shell">
+      <section class="settings-panel">
+        <h2>Profile Details</h2>
+        <p class="page-copy">Update your personal information.</p>
 
-          <ion-item lines="none">
-            <ion-input
-              class="settings-input"
-              label="Last Name"
-              label-placement="stacked"
-              [(ngModel)]="lastName"
-              name="lastName"
-              placeholder="Enter last name"
-              [disabled]="isLoading || isSaving"
-              required
-            ></ion-input>
-          </ion-item>
+        <form class="settings-form" (ngSubmit)="saveSettings()">
+          <div class="field-grid">
+            <ion-item lines="none" class="settings-field">
+              <ion-input
+                class="settings-input"
+                label="First Name"
+                label-placement="stacked"
+                [(ngModel)]="firstName"
+                name="firstName"
+                placeholder="Enter first name"
+                [disabled]="isLoading || isSaving"
+                required
+              ></ion-input>
+            </ion-item>
 
-          <ion-item lines="none" *ngIf="!isTrainer">
-            <ion-select
-              class="settings-input"
-              label="Sex"
-              label-placement="stacked"
-              [(ngModel)]="sex"
-              name="sex"
-              placeholder="Select sex"
-              interface="popover"
-              [disabled]="isLoading || isSaving"
-              required
-            >
-              <ion-select-option [value]="1">Male</ion-select-option>
-              <ion-select-option [value]="2">Female</ion-select-option>
-              <ion-select-option [value]="1.5">Other</ion-select-option>
-            </ion-select>
-          </ion-item>
+            <ion-item lines="none" class="settings-field">
+              <ion-input
+                class="settings-input"
+                label="Last Name"
+                label-placement="stacked"
+                [(ngModel)]="lastName"
+                name="lastName"
+                placeholder="Enter last name"
+                [disabled]="isLoading || isSaving"
+                required
+              ></ion-input>
+            </ion-item>
 
-          <ion-item lines="none">
-            <ion-input
-              class="settings-input"
-              label="Email"
-              label-placement="stacked"
-              type="email"
-              [(ngModel)]="email"
-              name="email"
-              placeholder="Enter email"
-              [disabled]="isLoading || isSaving"
-              required
-            ></ion-input>
-          </ion-item>
+            <ion-item lines="none" class="settings-field" *ngIf="!isTrainer">
+              <ion-select
+                class="settings-input"
+                label="Sex"
+                label-placement="stacked"
+                [(ngModel)]="sex"
+                name="sex"
+                placeholder="Select sex"
+                interface="popover"
+                [disabled]="isLoading || isSaving"
+                required
+              >
+                <ion-select-option [value]="1">Male</ion-select-option>
+                <ion-select-option [value]="2">Female</ion-select-option>
+                <ion-select-option [value]="1.5">Other</ion-select-option>
+              </ion-select>
+            </ion-item>
 
-          <ion-item lines="none" *ngIf="!isTrainer">
-            <ion-input
-              class="settings-input"
-              label="Age"
-              label-placement="stacked"
-              type="number"
-              inputmode="numeric"
-              [(ngModel)]="age"
-              name="age"
-              placeholder="e.g. 29"
-              [disabled]="isLoading || isSaving"
-              required
-            ></ion-input>
-          </ion-item>
+            <ion-item lines="none" class="settings-field">
+              <ion-input
+                class="settings-input"
+                label="Email"
+                label-placement="stacked"
+                type="email"
+                [(ngModel)]="email"
+                name="email"
+                placeholder="Enter email"
+                [disabled]="isLoading || isSaving"
+                required
+              ></ion-input>
+            </ion-item>
 
-          <ion-item lines="none" *ngIf="!isTrainer">
-            <ion-input
-              class="settings-input"
-              label="Height (m)"
-              label-placement="stacked"
-              type="number"
-              inputmode="decimal"
-              [(ngModel)]="heightMeters"
-              name="heightMeters"
-              placeholder="e.g. 1.78"
-              [disabled]="isLoading || isSaving"
-              required
-            ></ion-input>
-          </ion-item>
+            <ion-item lines="none" class="settings-field" *ngIf="!isTrainer">
+              <ion-input
+                class="settings-input"
+                label="Age"
+                label-placement="stacked"
+                type="number"
+                inputmode="numeric"
+                [(ngModel)]="age"
+                name="age"
+                placeholder="e.g. 29"
+                [disabled]="isLoading || isSaving"
+                required
+              ></ion-input>
+            </ion-item>
 
-          <ion-item lines="none" *ngIf="!isTrainer">
-            <ion-input
-              class="settings-input"
-              label="Weight (kg)"
-              label-placement="stacked"
-              type="number"
-              inputmode="decimal"
-              [(ngModel)]="weightKg"
-              name="weightKg"
-              placeholder="e.g. 72"
-              [disabled]="isLoading || isSaving"
-              required
-            ></ion-input>
-          </ion-item>
-        </div>
+            <ion-item lines="none" class="settings-field" *ngIf="!isTrainer">
+              <ion-select
+                class="settings-input"
+                label="Units"
+                label-placement="stacked"
+                [(ngModel)]="unitSystem"
+                name="unitSystem"
+                interface="popover"
+                [disabled]="isLoading || isSaving"
+                (ionChange)="onUnitSystemChange()"
+              >
+                <ion-select-option value="metric">Metric (m, kg)</ion-select-option>
+                <ion-select-option value="imperial">Imperial (ft/in, lb)</ion-select-option>
+              </ion-select>
+            </ion-item>
 
-        <ion-text color="danger" *ngIf="errorMessage">
-          <p class="form-message">{{ errorMessage }}</p>
-        </ion-text>
+            <p class="unit-helper" *ngIf="!isTrainer">
+              Height and weight are always stored in meters and kilograms.
+            </p>
 
-        <ion-text color="success" *ngIf="successMessage">
-          <p class="form-message">{{ successMessage }}</p>
-        </ion-text>
+            <ion-item lines="none" class="settings-field" *ngIf="!isTrainer && unitSystem === 'metric'">
+              <ion-input
+                class="settings-input"
+                label="Height (m)"
+                label-placement="stacked"
+                type="number"
+                inputmode="decimal"
+                [(ngModel)]="heightMeters"
+                name="heightMeters"
+                placeholder="e.g. 1.78"
+                [disabled]="isLoading || isSaving"
+                required
+              ></ion-input>
+            </ion-item>
+
+            <div class="imperial-height-grid" *ngIf="!isTrainer && unitSystem === 'imperial'">
+              <ion-item lines="none" class="settings-field">
+                <ion-input
+                  class="settings-input"
+                  label="Height (ft)"
+                  label-placement="stacked"
+                  type="number"
+                  inputmode="numeric"
+                  [(ngModel)]="heightFeet"
+                  name="heightFeet"
+                  placeholder="e.g. 5"
+                  [disabled]="isLoading || isSaving"
+                ></ion-input>
+              </ion-item>
+
+              <ion-item lines="none" class="settings-field">
+                <ion-input
+                  class="settings-input"
+                  label="Height (in)"
+                  label-placement="stacked"
+                  type="number"
+                  inputmode="decimal"
+                  [(ngModel)]="heightInches"
+                  name="heightInches"
+                  placeholder="e.g. 10"
+                  [disabled]="isLoading || isSaving"
+                ></ion-input>
+              </ion-item>
+            </div>
+
+            <ion-item lines="none" class="settings-field" *ngIf="!isTrainer && unitSystem === 'metric'">
+              <ion-input
+                class="settings-input"
+                label="Weight (kg)"
+                label-placement="stacked"
+                type="number"
+                inputmode="decimal"
+                [(ngModel)]="weightKg"
+                name="weightKg"
+                placeholder="e.g. 72"
+                [disabled]="isLoading || isSaving"
+                required
+              ></ion-input>
+            </ion-item>
+
+            <ion-item lines="none" class="settings-field" *ngIf="!isTrainer && unitSystem === 'imperial'">
+              <ion-input
+                class="settings-input"
+                label="Weight (lb)"
+                label-placement="stacked"
+                type="number"
+                inputmode="decimal"
+                [(ngModel)]="weightPounds"
+                name="weightPounds"
+                placeholder="e.g. 165"
+                [disabled]="isLoading || isSaving"
+                required
+              ></ion-input>
+            </ion-item>
+          </div>
+
+          <ion-text color="danger" *ngIf="errorMessage">
+            <p class="form-message">{{ errorMessage }}</p>
+          </ion-text>
+
+          <ion-text color="success" *ngIf="successMessage">
+            <p class="form-message">{{ successMessage }}</p>
+          </ion-text>
+
+          <ion-button
+            type="submit"
+            class="save-settings-btn"
+            [disabled]="isLoading || isSaving"
+          >
+            {{ isSaving ? 'Saving...' : 'Save Changes' }}
+          </ion-button>
+        </form>
+      </section>
+
+      <section class="settings-panel">
+        <h2>Account</h2>
+        <p class="page-copy">Manage your session.</p>
 
         <ion-button
-          type="submit"
-          class="save-settings-btn"
+          class="logout-settings-btn"
           [disabled]="isLoading || isSaving"
+          (click)="logout()"
         >
-          {{ isSaving ? 'Saving...' : 'Save Changes' }}
+          Logout
         </ion-button>
-      </form>
-    </section>
-
-    <section class="settings-panel">
-      <h2>Account</h2>
-      <p class="page-copy">Manage your session.</p>
-
-      <ion-button
-        color="danger"
-        fill="outline"
-        class="logout-settings-btn"
-        [disabled]="isLoading || isSaving"
-        (click)="logout()"
-      >
-        Logout
-      </ion-button>
-    </section>
+      </section>
+    </div>
   </div>
 </ion-content>

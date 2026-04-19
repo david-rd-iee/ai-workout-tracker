@@ -587,7 +587,7 @@ ion-header {
 .customize-statues-button {
   --background: linear-gradient(145deg, #79a8ff, #2e6ef5);
   --background-hover: linear-gradient(145deg, #8eb6ff, #4a83f8);
-  --background-activated: linear-gradient(145deg, #5f95fd, #2461e4);
+  --background-activated: linear-gradient(145deg, #4f88f5, #1f55cb);
   --color: #ffffff;
   --border-radius: 16px;
   --box-shadow:
@@ -612,7 +612,8 @@ ion-header {
 
   &::part(native) {
     padding: 8px 18px;
-    overflow: visible;
+    border-radius: 16px;
+    overflow: hidden;
     line-height: 1.2;
   }
 }

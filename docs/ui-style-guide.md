@@ -10,11 +10,15 @@ It documents the exact tokens and patterns currently implemented.
 - `src/app/pages/home/home.page.scss`
 - `src/app/components/header/header.component.scss`
 - `src/app/components/header/header.component.html`
+- `src/app/components/statue-selector/statue-selector.component.scss`
+- `src/app/components/statue-selector/statue-selector.component.html`
 - `src/app/pages/tabs/tabs.page.scss`
 
 ## Visual direction
 - Soft raised neumorphic surfaces (not high-contrast cards)
-- Cool blue-gray base with clean blue accents (no purple cast)
+- Cool blue-gray base with controlled accent profiles
+- Default accent profile: blue
+- Statue-focused accent profile: gold (allowed and recommended for statue selector flows)
 - Subtle atmospheric gradients for depth
 - Rounded geometry with gentle, diffuse shadows
 
@@ -30,8 +34,16 @@ It documents the exact tokens and patterns currently implemented.
 | Text muted | `#8b9ab0` | Secondary/supporting text |
 | Accent blue (light) | `#6f9eff` | Active fills, secondary accent |
 | Accent blue (primary) | `#2e6ef5` | Icons, emphasis, key actions |
+| Accent gold (primary) | `#d4af37` | Statue-focused emphasis and selected states |
+| Accent gold (deep) | `#b8941a` | Gold pressed/active states |
+| Accent gold text | `#8b7355` | Gold-themed copy on statue surfaces |
 | Header translucent bg | `rgba(231, 237, 245, 0.44)` | Header shell |
 | Header toolbar bg | `rgba(231, 237, 245, 0.82)` | Header body |
+
+### Accent profiles
+- Blue profile (default): use `#2e6ef5` as primary accent for general product pages.
+- Gold profile (statue-focused): use `#d4af37`/`#b8941a` for statue selector UI, rarity emphasis, and selection states.
+- Keep one primary accent profile per screen (do not mix blue and gold equally on the same view).
 
 ### Page gradient
 ```scss
@@ -160,15 +172,31 @@ For profile-style pages, keep content spacing as-is and apply visual treatment o
   - light raised background
   - icon color `#2e6ef5`
 
-### Primary blue actions
-- Buttons (e.g. customize CTA) should use:
+### Primary actions
+- Blue action gradient set:
   - default: `linear-gradient(145deg, #79a8ff, #2e6ef5)`
   - hover: `linear-gradient(145deg, #8eb6ff, #4a83f8)`
-  - active: `linear-gradient(145deg, #5f95fd, #2461e4)`
+  - active: `linear-gradient(145deg, #4f88f5, #1f55cb)` (darker press state)
+- Gold action gradient set (statue-focused screens):
+  - default: `linear-gradient(145deg, #f0cf68, #d4af37)`
+  - hover: `linear-gradient(145deg, #f5d779, #dfbc4c)`
+  - active: `linear-gradient(145deg, #d8b446, #b8941a)` (darker press state)
+- Press interaction must preserve shape (no rectangular morphing):
+  - keep the same radius on native part, e.g. `&::part(native) { border-radius: 16px; overflow: hidden; }`
 
 ### Progress
 - Track background: `rgba(143, 159, 184, 0.2)`
 - Fill gradient: `linear-gradient(90deg, #79a8ff 0%, #2e6ef5 100%)`
+- Gold-profile progress fill: `linear-gradient(90deg, #f0cf68 0%, #d4af37 100%)`
+
+### Statue selector modal (gold profile)
+- Keep the same neumorphic base surfaces (`neo-raised`/`neo-inset`) as other pages.
+- Apply gold accent tokens to:
+  - selected card state
+  - stage/rarity pills
+  - primary confirm button
+  - selection indicators
+- Gold usage should feel restrained and premium, not high-saturation yellow blocks.
 
 ## Motion and interaction
 - Raised press response:
@@ -181,17 +209,20 @@ For profile-style pages, keep content spacing as-is and apply visual treatment o
 
 ### Do
 - Keep blue accents consistent with header settings icon tone.
+- Use the gold profile intentionally on statue-focused selector experiences.
 - Maintain soft contrast and diffuse lighting.
 - Reuse tokens/mixins instead of ad-hoc shadows.
 
 ### Avoid
 - Purple-led accent drift for icons/buttons.
+- Using gold as a global app accent outside statue-focused contexts.
 - Outline rings around hero surfaces.
 - Flat cards without raised/inset depth treatment.
 
 ## Adoption checklist
 - Apply `neoBlend` header where this style is used.
+- Choose a single accent profile for the screen (blue default, gold for statue-focused selector flows).
 - Add page background + atmospheric gradient.
 - Use `neo-raised` and `neo-inset` primitives consistently.
 - Keep existing page spacing/layout unless explicitly changing layout.
-- Verify icons/buttons stay in the blue accent family (`#2e6ef5`-led).
+- Verify accents follow the chosen profile (`#2e6ef5`-led or `#d4af37`-led).

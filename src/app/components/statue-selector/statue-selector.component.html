@@ -1,15 +1,16 @@
-<ion-header>
-  <ion-toolbar>
+<ion-header class="selector-header-bar">
+  <ion-toolbar class="selector-toolbar">
     <ion-title>Choose Display Statues</ion-title>
     <ion-buttons slot="end">
-      <ion-button (click)="cancel()">
+      <ion-button class="close-button" (click)="cancel()">
         <ion-icon name="close"></ion-icon>
       </ion-button>
     </ion-buttons>
   </ion-toolbar>
 </ion-header>
 
-<ion-content class="ion-padding">
+<ion-content class="selector-content">
+  <div class="selector-shell">
   <div class="selector-header">
     <p>Select up to {{ maxDisplayStatues }} carved statues to showcase in your divine gallery (or select none to hide statues)</p>
     <div class="selection-actions">
@@ -17,6 +18,7 @@
         Selected: {{ selectedStatueIds.length }} / {{ maxDisplayStatues }}
       </p>
       <ion-button 
+        class="clear-btn"
         *ngIf="selectedStatueIds.length > 0"
         fill="clear" 
         size="small" 
@@ -103,14 +105,16 @@
 
   <div class="button-container">
     <ion-button 
+      class="confirm-btn"
       expand="block" 
       (click)="confirm()" 
       color="primary"
     >
       {{ selectedStatueIds.length === 0 ? 'Hide All Statues' : 'Save Selection' }}
     </ion-button>
-    <ion-button expand="block" (click)="cancel()" fill="outline" color="medium">
+    <ion-button class="cancel-btn" expand="block" (click)="cancel()" fill="outline" color="medium">
       Cancel
     </ion-button>
+  </div>
   </div>
 </ion-content>
