@@ -646,11 +646,19 @@ export class ProfileUserPage implements OnInit, OnDestroy {
   }
 
   async openBadgeSelector() {
+    const carvedStatues = this.allStatues.filter((statue) =>
+      isCarvedStatueLevel(statue.currentLevel)
+    );
+    const carvedStatueIdSet = new Set(carvedStatues.map((statue) => statue.id));
+    const selectedCarvedIds = this.displayStatueIds.filter((id) =>
+      carvedStatueIdSet.has(id)
+    );
+
     const modal = await this.modalCtrl.create({
       component: StatueSelectorComponent,
       componentProps: {
-        carvedStatues: this.allStatues,
-        selectedStatueIds: this.displayStatueIds
+        carvedStatues,
+        selectedStatueIds: selectedCarvedIds
       }
     });
 
@@ -658,8 +666,14 @@ export class ProfileUserPage implements OnInit, OnDestroy {
 
     const { data, role } = await modal.onWillDismiss();
 
-    if (role === 'confirm' && data) {
-      this.displayStatueIds = data;
+    if (role === 'confirm') {
+      const nextDisplayIds = Array.isArray(data)
+        ? data
+            .map((id) => String(id ?? '').trim())
+            .filter((id): id is string => id.length > 0 && carvedStatueIdSet.has(id))
+        : [];
+
+      this.displayStatueIds = Array.from(new Set(nextDisplayIds));
       this.updateDisplayStatues();
       await this.saveDisplayStatues();
     }

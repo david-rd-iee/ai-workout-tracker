@@ -33,7 +33,7 @@
         <!-- Profile avatar on the right when back button is shown and profile is enabled -->
         <ion-button
           (click)="goToProfile()"
-          *ngIf="showBack && showProfileButtonWithBack"
+          *ngIf="showBack && showProfileButtonWithBack && !showEndActionButton"
           class="profile-button"
           [class.profile-button-floating]="pinProfileButtonTopRight"
           fill="clear"
@@ -50,6 +50,17 @@
             </ng-template>
           </ion-avatar>
         </ion-button>
+
+        <ion-button
+          (click)="onEndActionClick()"
+          *ngIf="showEndActionButton"
+          fill="clear"
+          class="header-button"
+          slot="end"
+          [attr.aria-label]="endActionAriaLabel"
+        >
+          <ion-icon slot="icon-only" [name]="endActionIconName"></ion-icon>
+        </ion-button>
         
         <ion-title><h2 [class.atlas-title]="title === 'ATLAS'">{{title}}</h2></ion-title>
         
@@ -57,7 +68,7 @@
         <div
           class="button-space"
           [class.button-space-profile-large]="!showBack"
-          *ngIf="!showBack || (showBack && !showProfileButtonWithBack)"
+          *ngIf="!showEndActionButton && (!showBack || (showBack && !showProfileButtonWithBack))"
           slot="end"
         ></div>
     </ion-toolbar>

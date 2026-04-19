@@ -12,33 +12,33 @@ app-header.home-header-overlay {
 }
 
 ion-content {
-  --background: #e7edf5;
+  --background: #dbe3f0;
 }
 
-$neo-surface: #ebf1f8;
-$neo-surface-high: #f2f6fc;
-$neo-shadow-dark: rgba(163, 177, 198, 0.58);
-$neo-shadow-light: rgba(255, 255, 255, 0.96);
-$neo-text: #283244;
-$neo-muted: #6f7d92;
+$neo-surface: #e8eef8;
+$neo-surface-high: #f1f5fc;
+$neo-shadow-dark: rgba(184, 196, 214, 0.88);
+$neo-shadow-light: rgba(249, 252, 255, 0.95);
+$neo-text: #5a6880;
+$neo-muted: #8b9ab0;
 $neo-accent: #2e6ef5;
 
 @mixin neo-raised($radius: 24px) {
   background: linear-gradient(145deg, $neo-surface-high, $neo-surface);
   border-radius: $radius;
-  border: 1px solid rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.78);
   box-shadow:
-    14px 14px 26px -14px $neo-shadow-dark,
-    -14px -14px 26px -12px $neo-shadow-light;
+    14px 14px 28px -14px $neo-shadow-dark,
+    -12px -12px 24px -14px $neo-shadow-light;
 }
 
 @mixin neo-inset($radius: 18px) {
-  background: linear-gradient(145deg, #e2e8f0, #eff4fa);
+  background: linear-gradient(145deg, #edf2fb, #e4ebf7);
   border-radius: $radius;
-  border: 1px solid rgba(255, 255, 255, 0.48);
+  border: 1px solid rgba(255, 255, 255, 0.56);
   box-shadow:
-    inset 8px 8px 14px -9px rgba(154, 171, 194, 0.72),
-    inset -8px -8px 14px -9px rgba(255, 255, 255, 0.92);
+    inset 7px 7px 12px -10px rgba(184, 196, 214, 0.9),
+    inset -7px -7px 12px -10px rgba(249, 252, 255, 0.95);
 }
 
 @mixin neo-icon-well($size: 54px, $radius: 16px) {
@@ -56,15 +56,16 @@ $neo-accent: #2e6ef5;
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(circle at 88% 6%, rgba(46, 110, 245, 0.055) 0, rgba(46, 110, 245, 0) 36%),
-    linear-gradient(180deg, #e3e7ee 0%, #e1e5ec 100%);
+    radial-gradient(circle at 14% -4%, rgba(255, 255, 255, 0.84) 0, rgba(255, 255, 255, 0) 36%),
+    radial-gradient(circle at 86% 8%, rgba(160, 179, 219, 0.34) 0, rgba(160, 179, 219, 0) 42%),
+    linear-gradient(145deg, #d5deeb 0%, #e8eef8 48%, #dbe4f1 100%);
   pointer-events: none;
 }
 
 .home-container {
   position: relative;
   z-index: 1;
-  padding: 0 20px 20px;
+  padding: 0 16px 20px;
   max-width: 1200px;
   margin: 0 auto;
   color: $neo-text;
@@ -155,7 +156,7 @@ ion-card {
   transition: transform 180ms ease, box-shadow 180ms ease;
 
   &:active {
-    transform: translateY(1px) scale(0.996);
+    transform: translateY(1px) scale(0.997);
     box-shadow:
       10px 10px 20px -14px rgba(163, 177, 198, 0.6),
       -8px -8px 18px -12px rgba(255, 255, 255, 0.8);

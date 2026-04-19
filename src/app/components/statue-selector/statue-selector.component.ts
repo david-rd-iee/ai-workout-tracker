@@ -70,9 +70,12 @@ export class StatueSelectorComponent implements OnInit {
   }
 
   get filteredStatues(): GreekStatue[] {
+    const carvedOnly = this.carvedStatues.filter((statue) =>
+      isCarvedStatueLevel(statue.currentLevel)
+    );
     let statues = this.selectedCategory === 'all' 
-      ? [...this.carvedStatues]
-      : this.carvedStatues.filter(s => s.category === this.selectedCategory);
+      ? [...carvedOnly]
+      : carvedOnly.filter(s => s.category === this.selectedCategory);
     
     if (this.sortBy === 'carving') {
       // Sort by rarity (percentile) - lowest % first (most rare)
@@ -94,7 +97,11 @@ export class StatueSelectorComponent implements OnInit {
   }
 
   get categories(): string[] {
-    const cats = new Set(this.carvedStatues.map(s => s.category));
+    const cats = new Set(
+      this.carvedStatues
+        .filter((statue) => isCarvedStatueLevel(statue.currentLevel))
+        .map((s) => s.category)
+    );
     return ['all', ...Array.from(cats)];
   }
 
