@@ -1,148 +1,161 @@
 <ion-content [fullscreen]="true" class="groups-page">
-  <section class="top-panel">
-    <button class="back-btn" type="button" (click)="goBack()" aria-label="Go back">
-      <ion-icon name="arrow-back-outline"></ion-icon>
-    </button>
+  <div class="groups-page-container">
+    <section class="top-panel">
+      <div class="panel-actions">
+        <button class="back-btn" type="button" (click)="goBack()" aria-label="Go back">
+          <ion-icon name="arrow-back-outline"></ion-icon>
+        </button>
 
-    <h1>Groups</h1>
-
-    <div class="tab-toggle">
-      <button
-        type="button"
-        [class.active]="selectedTab === 'training'"
-        [class.disabled]="!trainingEnabled"
-        [disabled]="!trainingEnabled"
-        (click)="selectTab('training')"
-      >
-        Training
-      </button>
-      <button
-        type="button"
-        [class.active]="selectedTab === 'friends'"
-        (click)="selectTab('friends')"
-      >
-        Friends
-      </button>
-    </div>
-  </section>
-
-  <section class="groups-content">
-    <ng-container *ngIf="selectedTab === 'training'; else friendsTab">
-      <div class="state-message" *ngIf="trainingLoading">
-        <ion-spinner name="crescent"></ion-spinner>
-      </div>
-
-      <div class="state-message" *ngIf="!trainingLoading && !trainingEnabled">
-        Training leaderboard unavailable.
-      </div>
-
-      <app-leaderboard-shell
-        *ngIf="!trainingLoading && trainingEnabled && trainingGroup"
-        [showTopbar]="false"
-        [title]="trainingTitle"
-        [graphLabel]="trainingTitle"
-        [loading]="trainingLeaderboardLoading"
-        [errorMsg]="trainingLeaderboardError || ''"
-        [metric]="trainingMetric"
-        [showScopeSelect]="false"
-        [chartMode]="trainingChartMode"
-        [availableChartModes]="trainingAvailableChartModes"
-        [entries]="trainingEntries"
-        [trendSeries]="trainingTrendSeries"
-        [distributionCurvePath]="trainingDistributionCurvePath"
-        [distributionPoints]="trainingDistributionPoints"
-        [medianMarkerXPercent]="trainingDistributionMedianXPercent"
-        [medianMarkerLabel]="trainingDistributionMedianLabel"
-        [selectedPointBin]="trainingSelectedPointBin"
-        [highlightedUserIds]="trainingSelectedPointUserIds"
-        (metricChange)="onTrainingMetricChange($event)"
-        (chartModeChange)="onTrainingChartModeChange($event)"
-        (distributionPointClick)="onTrainingDistributionPointClick($event)"
-        (memberClick)="onTrainingMemberClick($event)"
-      ></app-leaderboard-shell>
-    </ng-container>
-
-    <ng-template #friendsTab>
-      <div class="state-message" *ngIf="loading">
-        <ion-spinner name="crescent"></ion-spinner>
-      </div>
-
-      <div class="state-message error" *ngIf="!loading && errorMessage">
-        {{ errorMessage }}
-      </div>
-
-      <div class="state-message" *ngIf="!loading && !errorMessage && friendGroups.length === 0">
-        You are not in any friend groups yet.
-      </div>
-
-      <div class="card-list" *ngIf="!loading && !errorMessage && friendGroups.length > 0">
-        <article
-          class="group-card"
-          [class.owner-highlight]="isOwnedByCurrentUser(group)"
-          *ngFor="let group of friendGroups"
+        <button
+          class="wars-leaderboard-btn"
+          type="button"
+          (click)="openWarsLeaderboard()"
+          aria-label="Open wars leaderboard"
         >
-          <button
-            class="group-card-button"
-            type="button"
-            (click)="openGroup(group)"
-          >
-            <img
-              [src]="group.groupImage || 'assets/icons/Icon.png'"
-              (error)="$any($event.target).src = 'assets/icons/Icon.png'"
-              alt=""
-              aria-hidden="true"
-            />
-            <p>{{ group.name }}</p>
-          </button>
-
-          <section class="group-war-controls" *ngIf="isOwnedByCurrentUser(group)">
-            <div class="war-opt-in-row">
-              <span>War opt-in</span>
-              <ion-toggle
-                [checked]="group.warOptIn"
-                [disabled]="isWarOptInSaving(group.groupId)"
-                (ionChange)="onWarOptInToggle(group, !!$event.detail.checked)"
-              ></ion-toggle>
-            </div>
-          </section>
-
-          <section class="war-status-card active" *ngIf="hasActiveWar(group.groupId)">
-            <h3>Active War</h3>
-            <p>Opponent: {{ warOpponentGroupIdFor(group, activeWarForGroup(group.groupId)) }}</p>
-            <p>Ends: {{ warEndLabel(activeWarForGroup(group.groupId)) }}</p>
-            <button type="button" class="war-action-btn" (click)="openGroupWar(group)">
-              Open War
-            </button>
-          </section>
-
-          <section class="war-status-card pending" *ngIf="hasPendingProposal(group.groupId)">
-            <h3>Pending Proposal</h3>
-            <p>Opponent: {{ warOpponentGroupIdFor(group, pendingWarForGroup(group.groupId)) }}</p>
-            <p>Status: Awaiting owner confirmation</p>
-
-            <div class="pending-actions" *ngIf="isPendingWarOwnerActionable(group, pendingWarForGroup(group.groupId))">
-              <button
-                type="button"
-                class="war-action-btn accept"
-                [disabled]="isPendingWarActionInFlight(pendingWarForGroup(group.groupId)?.warId || '')"
-                (click)="acceptPendingProposal(group, pendingWarForGroup(group.groupId))"
-              >
-                Accept
-              </button>
-              <button
-                type="button"
-                class="war-action-btn decline"
-                [disabled]="isPendingWarActionInFlight(pendingWarForGroup(group.groupId)?.warId || '')"
-                (click)="declinePendingProposal(group, pendingWarForGroup(group.groupId))"
-              >
-                Decline
-              </button>
-            </div>
-          </section>
-        </article>
+          <span>Leaderboard</span>
+        </button>
       </div>
-    </ng-template>
-  </section>
+
+      <h1>Groups</h1>
+
+      <div class="tab-toggle">
+        <button
+          type="button"
+          [class.active]="selectedTab === 'training'"
+          [class.disabled]="!trainingEnabled"
+          [disabled]="!trainingEnabled"
+          (click)="selectTab('training')"
+        >
+          Training
+        </button>
+        <button
+          type="button"
+          [class.active]="selectedTab === 'friends'"
+          (click)="selectTab('friends')"
+        >
+          Friends
+        </button>
+      </div>
+    </section>
+
+    <section class="groups-content">
+      <ng-container *ngIf="selectedTab === 'training'; else friendsTab">
+        <div class="state-message" *ngIf="trainingLoading">
+          <ion-spinner name="crescent"></ion-spinner>
+        </div>
+
+        <div class="state-message" *ngIf="!trainingLoading && !trainingEnabled">
+          Training leaderboard unavailable.
+        </div>
+
+        <app-leaderboard-shell
+          *ngIf="!trainingLoading && trainingEnabled && trainingGroup"
+          [showTopbar]="false"
+          [title]="trainingTitle"
+          [graphLabel]="trainingTitle"
+          [loading]="trainingLeaderboardLoading"
+          [errorMsg]="trainingLeaderboardError || ''"
+          [metric]="trainingMetric"
+          [showScopeSelect]="false"
+          [chartMode]="trainingChartMode"
+          [availableChartModes]="trainingAvailableChartModes"
+          [entries]="trainingEntries"
+          [trendSeries]="trainingTrendSeries"
+          [distributionCurvePath]="trainingDistributionCurvePath"
+          [distributionPoints]="trainingDistributionPoints"
+          [medianMarkerXPercent]="trainingDistributionMedianXPercent"
+          [medianMarkerLabel]="trainingDistributionMedianLabel"
+          [selectedPointBin]="trainingSelectedPointBin"
+          [highlightedUserIds]="trainingSelectedPointUserIds"
+          (metricChange)="onTrainingMetricChange($event)"
+          (chartModeChange)="onTrainingChartModeChange($event)"
+          (distributionPointClick)="onTrainingDistributionPointClick($event)"
+          (memberClick)="onTrainingMemberClick($event)"
+        ></app-leaderboard-shell>
+      </ng-container>
+
+      <ng-template #friendsTab>
+        <div class="state-message" *ngIf="loading">
+          <ion-spinner name="crescent"></ion-spinner>
+        </div>
+
+        <div class="state-message error" *ngIf="!loading && errorMessage">
+          {{ errorMessage }}
+        </div>
+
+        <div class="state-message" *ngIf="!loading && !errorMessage && friendGroups.length === 0">
+          You are not in any friend groups yet.
+        </div>
+
+        <div class="card-list" *ngIf="!loading && !errorMessage && friendGroups.length > 0">
+          <article
+            class="group-card"
+            [class.owner-highlight]="isOwnedByCurrentUser(group)"
+            *ngFor="let group of friendGroups"
+          >
+            <button
+              class="group-card-button"
+              type="button"
+              (click)="openGroup(group)"
+            >
+              <img
+                [src]="group.groupImage || 'assets/icons/Icon.png'"
+                (error)="$any($event.target).src = 'assets/icons/Icon.png'"
+                alt=""
+                aria-hidden="true"
+              />
+              <p>{{ group.name }}</p>
+            </button>
+
+            <section class="group-war-controls" *ngIf="isOwnedByCurrentUser(group)">
+              <div class="war-opt-in-row">
+                <span>War opt-in</span>
+                <ion-toggle
+                  [checked]="group.warOptIn"
+                  [disabled]="isWarOptInSaving(group.groupId)"
+                  (ionChange)="onWarOptInToggle(group, !!$event.detail.checked)"
+                ></ion-toggle>
+              </div>
+            </section>
+
+            <section class="war-status-card active" *ngIf="hasActiveWar(group.groupId)">
+              <h3>Active War</h3>
+              <p>Opponent: {{ warOpponentGroupIdFor(group, activeWarForGroup(group.groupId)) }}</p>
+              <p>Ends: {{ warEndLabel(activeWarForGroup(group.groupId)) }}</p>
+              <button type="button" class="war-action-btn" (click)="openGroupWar(group)">
+                Open War
+              </button>
+            </section>
+
+            <section class="war-status-card pending" *ngIf="hasPendingProposal(group.groupId)">
+              <h3>Pending Proposal</h3>
+              <p>Opponent: {{ warOpponentGroupIdFor(group, pendingWarForGroup(group.groupId)) }}</p>
+              <p>Status: Awaiting owner confirmation</p>
+
+              <div class="pending-actions" *ngIf="isPendingWarOwnerActionable(group, pendingWarForGroup(group.groupId))">
+                <button
+                  type="button"
+                  class="war-action-btn accept"
+                  [disabled]="isPendingWarActionInFlight(pendingWarForGroup(group.groupId)?.warId || '')"
+                  (click)="acceptPendingProposal(group, pendingWarForGroup(group.groupId))"
+                >
+                  Accept
+                </button>
+                <button
+                  type="button"
+                  class="war-action-btn decline"
+                  [disabled]="isPendingWarActionInFlight(pendingWarForGroup(group.groupId)?.warId || '')"
+                  (click)="declinePendingProposal(group, pendingWarForGroup(group.groupId))"
+                >
+                  Decline
+                </button>
+              </div>
+            </section>
+          </article>
+        </div>
+      </ng-template>
+    </section>
+  </div>
 
   <button
     *ngIf="selectedTab === 'friends'"

@@ -24,13 +24,14 @@ import {
   buildLeaderboardDistributionChart,
   emptyLeaderboardDistributionChart,
 } from '../../../components/leaderboard-shell/leaderboard-distribution.util';
+import { HeaderComponent } from '../../../components/header/header.component';
 
 @Component({
   selector: 'app-leaderboard',
   standalone: true,
   templateUrl: './leaderboard.page.html',
   styleUrls: ['./leaderboard.page.scss'],
-  imports: [CommonModule, IonContent, LeaderboardShellComponent],
+  imports: [CommonModule, IonContent, LeaderboardShellComponent, HeaderComponent],
 })
 export class LeaderboardPage implements OnInit, OnDestroy {
   private static readonly SMALL_POPULATION_THRESHOLD = 10;
@@ -117,13 +118,6 @@ export class LeaderboardPage implements OnInit, OnDestroy {
         this.clearDistributionChart();
         this.loading = false;
       },
-    });
-  }
-
-  goBack(): void {
-    this.navCtrl.navigateBack('/groups', {
-      animated: true,
-      animationDirection: 'back',
     });
   }
 

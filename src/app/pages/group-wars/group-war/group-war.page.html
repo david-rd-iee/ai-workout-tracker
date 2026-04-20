@@ -1,75 +1,77 @@
-<ion-header>
-  <ion-toolbar>
-    <ion-buttons slot="start">
-      <ion-button fill="clear" (click)="goBack()">Back</ion-button>
-    </ion-buttons>
-    <ion-title>Group War</ion-title>
-  </ion-toolbar>
-</ion-header>
+<app-header
+  [transparent]="true"
+  [neoBlend]="true"
+  [showBack]="true"
+  backHref="/groups"
+  title="Group War"
+></app-header>
 
-<ion-content class="group-war-page">
-  <section class="state-message" *ngIf="loading">
-    <ion-spinner name="crescent"></ion-spinner>
-  </section>
-
-  <section class="state-message error" *ngIf="!loading && errorMessage">
-    {{ errorMessage }}
-  </section>
-
-  <ng-container *ngIf="!loading && hasWar && war">
-    <section class="war-hero">
-      <h1>{{ groupName }} vs {{ opponentGroupName }}</h1>
-      <p class="countdown">Time left: {{ countdownLabel }}</p>
-      <div class="live-score">
-        <div>
-          <span class="label">{{ groupName }}</span>
-          <span class="value">{{ myScore }}</span>
-        </div>
-        <span class="divider">-</span>
-        <div>
-          <span class="label">{{ opponentGroupName }}</span>
-          <span class="value">{{ opponentScore }}</span>
-        </div>
-      </div>
+<ion-content [fullscreen]="true" class="group-war-page">
+  <div class="background-gradient"></div>
+  <div class="group-war-container">
+    <section class="state-message" *ngIf="loading">
+      <ion-spinner name="crescent"></ion-spinner>
     </section>
 
-    <section class="war-panel">
-      <h2>Member Standings</h2>
-      <div class="state-message" *ngIf="memberStandings.length === 0">
-        No member standings yet.
-      </div>
-      <div class="standings-list" *ngIf="memberStandings.length > 0">
-        <article class="standing-row" *ngFor="let standing of memberStandings">
-          <div class="standing-rank">#{{ standing.rank }}</div>
-          <img
-            [src]="standing.profilePicUrl || 'assets/icons/Icon.png'"
-            (error)="$any($event.target).src = 'assets/icons/Icon.png'"
-            alt=""
-            aria-hidden="true"
-          />
-          <div class="standing-meta">
-            <strong>{{ standing.displayName }}</strong>
-            <small>{{ standing.workoutCount }} workouts</small>
+    <section class="state-message error" *ngIf="!loading && errorMessage">
+      {{ errorMessage }}
+    </section>
+
+    <ng-container *ngIf="!loading && hasWar && war">
+      <section class="war-hero">
+        <h1>{{ groupName }} vs {{ opponentGroupName }}</h1>
+        <p class="countdown">Time left: {{ countdownLabel }}</p>
+        <div class="live-score">
+          <div>
+            <span class="label">{{ groupName }}</span>
+            <span class="value">{{ myScore }}</span>
           </div>
-          <div class="standing-score">{{ standing.normalizedWorkoutScoreTotal }}</div>
-        </article>
-      </div>
-    </section>
+          <span class="divider">-</span>
+          <div>
+            <span class="label">{{ opponentGroupName }}</span>
+            <span class="value">{{ opponentScore }}</span>
+          </div>
+        </div>
+      </section>
 
-    <section class="war-panel">
-      <h2>Exercise Breakdown</h2>
-      <div class="breakdown-grid">
-        <article>
-          <h3>{{ groupName }}</h3>
-          <p>Cardio: {{ myCardioPoints }} ({{ myCardioSharePercent }}%)</p>
-          <p>Strength: {{ myStrengthPoints }} ({{ myStrengthSharePercent }}%)</p>
-        </article>
-        <article>
-          <h3>{{ opponentGroupName }}</h3>
-          <p>Cardio: {{ opponentCardioPoints }} ({{ opponentCardioSharePercent }}%)</p>
-          <p>Strength: {{ opponentStrengthPoints }} ({{ opponentStrengthSharePercent }}%)</p>
-        </article>
-      </div>
-    </section>
-  </ng-container>
+      <section class="war-panel">
+        <h2>Member Standings</h2>
+        <div class="state-message panel-state" *ngIf="memberStandings.length === 0">
+          No member standings yet.
+        </div>
+        <div class="standings-list" *ngIf="memberStandings.length > 0">
+          <article class="standing-row" *ngFor="let standing of memberStandings">
+            <div class="standing-rank">#{{ standing.rank }}</div>
+            <img
+              [src]="standing.profilePicUrl || 'assets/icons/Icon.png'"
+              (error)="$any($event.target).src = 'assets/icons/Icon.png'"
+              alt=""
+              aria-hidden="true"
+            />
+            <div class="standing-meta">
+              <strong>{{ standing.displayName }}</strong>
+              <small>{{ standing.workoutCount }} workouts</small>
+            </div>
+            <div class="standing-score">{{ standing.normalizedWorkoutScoreTotal }}</div>
+          </article>
+        </div>
+      </section>
+
+      <section class="war-panel">
+        <h2>Exercise Breakdown</h2>
+        <div class="breakdown-grid">
+          <article>
+            <h3>{{ groupName }}</h3>
+            <p>Cardio: {{ myCardioPoints }} ({{ myCardioSharePercent }}%)</p>
+            <p>Strength: {{ myStrengthPoints }} ({{ myStrengthSharePercent }}%)</p>
+          </article>
+          <article>
+            <h3>{{ opponentGroupName }}</h3>
+            <p>Cardio: {{ opponentCardioPoints }} ({{ opponentCardioSharePercent }}%)</p>
+            <p>Strength: {{ opponentStrengthPoints }} ({{ opponentStrengthSharePercent }}%)</p>
+          </article>
+        </div>
+      </section>
+    </ng-container>
+  </div>
 </ion-content>

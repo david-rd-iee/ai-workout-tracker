@@ -4,7 +4,7 @@ import { AlertController, IonicModule, NavController, ToastController } from '@i
 import { FormsModule } from '@angular/forms';
 import { Subscription } from 'rxjs';
 import { addIcons } from 'ionicons';
-import { arrowBackOutline, addOutline, closeOutline } from 'ionicons/icons';
+import { arrowBackOutline, addOutline, closeOutline, trophyOutline } from 'ionicons/icons';
 
 import { Group } from '../../models/groups.model';
 import { GroupWar } from '../../models/group-war.model';
@@ -95,7 +95,7 @@ export class GroupsPage implements OnInit, OnDestroy {
   pendingWarActionIds = new Set<string>();
 
   constructor() {
-    addIcons({ arrowBackOutline, addOutline, closeOutline });
+    addIcons({ arrowBackOutline, addOutline, closeOutline, trophyOutline });
   }
 
   ngOnInit(): void {
@@ -123,6 +123,13 @@ export class GroupsPage implements OnInit, OnDestroy {
     this.navCtrl.navigateBack('/profile-user', {
       animated: true,
       animationDirection: 'back',
+    });
+  }
+
+  openWarsLeaderboard(): void {
+    this.navCtrl.navigateForward('/group-wars/leaderboard', {
+      animated: true,
+      animationDirection: 'forward',
     });
   }
 

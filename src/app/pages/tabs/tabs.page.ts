@@ -14,7 +14,6 @@ import {
   homeOutline,
   calendarOutline,
   chatbubbleEllipsesSharp,
-  trophyOutline,
 } from 'ionicons/icons';
 import { filter } from 'rxjs/operators';
 import { UserService } from '../../services/account/user.service';
@@ -46,7 +45,6 @@ export class TabsPage {
       homeOutline,
       calendarOutline,
       chatbubbleEllipsesSharp,
-      trophyOutline,
     });
 
     this.currentUrl = this.router.url;

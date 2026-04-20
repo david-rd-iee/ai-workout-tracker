@@ -1,59 +1,46 @@
-<ion-header>
-  <ion-toolbar>
-    <ion-buttons slot="start">
-      <ion-button fill="clear" (click)="goToGroups()">Groups</ion-button>
-    </ion-buttons>
-    <ion-title>Global Group Leaderboard</ion-title>
-  </ion-toolbar>
-</ion-header>
+<app-header
+  [transparent]="true"
+  [neoBlend]="true"
+  [showBack]="true"
+  backHref="/groups"
+  title="Wars Leaderboard"
+></app-header>
 
-<ion-content class="global-wars-page">
-  <section class="filter-row" *ngIf="!loading">
-    <label for="exercise-filter">Exercise filter</label>
-    <ion-select
-      id="exercise-filter"
-      interface="popover"
-      [value]="exerciseFilter"
-      (ionChange)="onFilterChange($event.detail.value)"
-    >
-      <ion-select-option value="all">All groups</ion-select-option>
-      <ion-select-option *ngFor="let option of exerciseOptions" [value]="option">
-        {{ option }}
-      </ion-select-option>
-    </ion-select>
-  </section>
+<ion-content [fullscreen]="true" class="global-wars-page">
+  <div class="background-gradient"></div>
+  <div class="global-wars-container">
+    <section class="state-message" *ngIf="loading">
+      <ion-spinner name="crescent"></ion-spinner>
+    </section>
 
-  <section class="state-message" *ngIf="loading">
-    <ion-spinner name="crescent"></ion-spinner>
-  </section>
+    <section class="state-message error" *ngIf="!loading && errorMessage">
+      {{ errorMessage }}
+    </section>
 
-  <section class="state-message error" *ngIf="!loading && errorMessage">
-    {{ errorMessage }}
-  </section>
+    <section class="state-message" *ngIf="!loading && !errorMessage && entries.length === 0">
+      No leaderboard rows yet.
+    </section>
 
-  <section class="state-message" *ngIf="!loading && !errorMessage && filteredEntries.length === 0">
-    No leaderboard rows match this filter.
-  </section>
-
-  <section class="leaderboard-list" *ngIf="!loading && !errorMessage && filteredEntries.length > 0">
-    <button
-      type="button"
-      class="leaderboard-row"
-      *ngFor="let entry of filteredEntries"
-      (click)="openGroup(entry.groupId)"
-    >
-      <div class="rank">#{{ entry.rank || entry.globalLeaderboardRank || '-' }}</div>
-      <img
-        [src]="entry.groupImage || 'assets/icons/Icon.png'"
-        (error)="$any($event.target).src = 'assets/icons/Icon.png'"
-        alt=""
-        aria-hidden="true"
-      />
-      <div class="meta">
-        <strong>{{ entry.groupName }}</strong>
-        <small>W{{ entry.wins }} - L{{ entry.losses }} - T{{ entry.ties }}</small>
-      </div>
-      <div class="points">{{ entry.totalWarLeaderboardPoints }} pts</div>
-    </button>
-  </section>
+    <section class="leaderboard-list" *ngIf="!loading && !errorMessage && entries.length > 0">
+      <button
+        type="button"
+        class="leaderboard-row"
+        *ngFor="let entry of entries"
+        (click)="openGroup(entry.groupId)"
+      >
+        <div class="rank">#{{ entry.rank || entry.globalLeaderboardRank || '-' }}</div>
+        <img
+          [src]="entry.groupImage || 'assets/icons/Icon.png'"
+          (error)="$any($event.target).src = 'assets/icons/Icon.png'"
+          alt=""
+          aria-hidden="true"
+        />
+        <div class="meta">
+          <strong>{{ entry.groupName }}</strong>
+          <small>W{{ entry.wins }} - L{{ entry.losses }} - T{{ entry.ties }}</small>
+        </div>
+        <div class="points">{{ entry.totalWarLeaderboardPoints }} pts</div>
+      </button>
+    </section>
+  </div>
 </ion-content>
