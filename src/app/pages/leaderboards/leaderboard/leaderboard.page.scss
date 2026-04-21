@@ -32,9 +32,27 @@
   min-height: 100%;
 }
 
+:host ::ng-deep app-header ion-title {
+  padding-inline: 56px;
+}
+
+:host ::ng-deep app-header h2 {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 @media (max-width: 768px) {
   .lb-container {
     padding: 14px;
     padding-top: 10px;
+  }
+
+  :host ::ng-deep app-header ion-title {
+    padding-inline: 52px;
+  }
+
+  :host ::ng-deep app-header h2 {
+    font-size: 1.2rem;
   }
 }

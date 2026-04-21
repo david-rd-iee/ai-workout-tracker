@@ -18,7 +18,7 @@ export class HeaderComponent implements OnInit {
   @Input() title: string = 'ATLAS';
   @Input() showBack: boolean = false;
   @Input() transparent: boolean = true;
-  @Input() neoBlend: boolean = false;
+  @Input() neoBlend: boolean = true;
   @Input() backHref?: string; // Optional: if provided, navigate to this route instead of using history
   @Input() currentUser: AppUser | null = null;
   @Input() showProfileButtonWithBack: boolean = false;

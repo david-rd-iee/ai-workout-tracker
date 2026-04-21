@@ -1,11 +1,14 @@
+<app-header
+  [title]="'Groups'"
+  [showBack]="true"
+  [backHref]="'/profile-user'"
+></app-header>
+
 <ion-content [fullscreen]="true" class="groups-page">
+  <div class="background-gradient"></div>
   <div class="groups-page-container">
     <section class="top-panel">
       <div class="panel-actions">
-        <button class="back-btn" type="button" (click)="goBack()" aria-label="Go back">
-          <ion-icon name="arrow-back-outline"></ion-icon>
-        </button>
-
         <button
           class="wars-leaderboard-btn"
           type="button"
@@ -16,7 +19,9 @@
         </button>
       </div>
 
+      <p class="panel-eyebrow">Community</p>
       <h1>Groups</h1>
+      <p class="panel-copy">Manage your training group, friends groups, and leaderboard activity in one place.</p>
 
       <div class="tab-toggle">
         <button

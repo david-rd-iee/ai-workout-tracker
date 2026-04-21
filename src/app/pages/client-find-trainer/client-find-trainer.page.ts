@@ -1,20 +1,12 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { NavController } from '@ionic/angular';
 import {
   IonAvatar,
   IonButton,
-  IonButtons,
   IonContent,
-  IonHeader,
-  IonIcon,
   IonSpinner,
   IonText,
-  IonTitle,
-  IonToolbar,
 } from '@ionic/angular/standalone';
-import { addIcons } from 'ionicons';
-import { arrowBackOutline } from 'ionicons/icons';
 import { Auth, onAuthStateChanged } from '@angular/fire/auth';
 import {
   Firestore,
@@ -28,6 +20,7 @@ import { Router } from '@angular/router';
 import { User } from 'firebase/auth';
 import { UserService } from '../../services/account/user.service';
 import { ProfileRepositoryService } from '../../services/account/profile-repository.service';
+import { HeaderComponent } from '../../components/header/header.component';
 
 interface TrainerCard {
   uid: string;
@@ -43,20 +36,15 @@ interface TrainerCard {
   standalone: true,
   imports: [
     CommonModule,
+    HeaderComponent,
     IonAvatar,
     IonButton,
-    IonButtons,
     IonContent,
-    IonHeader,
-    IonIcon,
     IonSpinner,
     IonText,
-    IonTitle,
-    IonToolbar,
   ],
 })
 export class ClientFindTrainerPage implements OnInit {
-  private navCtrl = inject(NavController);
   private auth = inject(Auth);
   private firestore = inject(Firestore);
   private router = inject(Router);
@@ -73,19 +61,8 @@ export class ClientFindTrainerPage implements OnInit {
 
   readonly fallbackProfileImage = 'assets/user_icons/profilePhoto.svg';
 
-  constructor() {
-    addIcons({ arrowBackOutline });
-  }
-
   ngOnInit(): void {
     void this.loadPage();
-  }
-
-  goBack(): void {
-    this.navCtrl.navigateBack('/profile-user', {
-      animated: true,
-      animationDirection: 'back',
-    });
   }
 
   trackTrainer(_: number, trainer: TrainerCard): string {

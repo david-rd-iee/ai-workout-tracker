@@ -6,8 +6,6 @@ import { Firestore, doc, getDoc } from '@angular/fire/firestore';
 import {
   AlertController,
   IonButton,
-  IonCard,
-  IonCardContent,
   IonContent,
   IonText,
 } from '@ionic/angular/standalone';
@@ -68,8 +66,6 @@ interface ActivityDetectionResult {
   imports: [
     CommonModule,
     IonButton,
-    IonCard,
-    IonCardContent,
     IonContent,
     IonText,
     HeaderComponent,

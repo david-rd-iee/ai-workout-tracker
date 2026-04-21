@@ -1,17 +1,39 @@
-<ion-header [translucent]="true">
-  <ion-toolbar>
-    <ion-buttons slot="start">
-      <ion-button fill="clear" (click)="goBack()" aria-label="Go back">
-        <ion-icon slot="icon-only" name="arrow-back-outline"></ion-icon>
-      </ion-button>
-    </ion-buttons>
-    <ion-title>Clients:</ion-title>
-  </ion-toolbar>
-</ion-header>
+<app-header
+  [title]="'Workout Analysis'"
+  [showBack]="true"
+  [backHref]="'/profile-user'"
+></app-header>
 
 <ion-content [fullscreen]="true" class="client-workout-analysis-content">
+  <div class="background-gradient"></div>
   <div class="client-workout-analysis-page">
-    <div class="clients-shell" *ngIf="!isLoading; else loadingState">
+    <section class="analysis-hero">
+      <p class="hero-eyebrow">Trainer Tools</p>
+      <h1>Open a client and review workout performance.</h1>
+      <p class="hero-copy">
+        Jump into individual analysis with a cleaner trainer workflow that keeps your client list, coaching context, and next step in one place.
+      </p>
+
+      <div class="hero-summary">
+        <div class="summary-chip">
+          <span class="summary-label">Clients</span>
+          <strong>{{ clients.length }}</strong>
+        </div>
+        <div class="summary-chip">
+          <span class="summary-label">Status</span>
+          <strong>{{ isLoading ? 'Loading list' : 'Ready to review' }}</strong>
+        </div>
+      </div>
+    </section>
+
+    <section class="clients-shell" *ngIf="!isLoading; else loadingState">
+      <div class="shell-heading">
+        <div>
+          <h2>Client Analysis Queue</h2>
+          <p>Choose a client to open the trainer workout analyzer and inspect recent training output.</p>
+        </div>
+      </div>
+
       <p class="error-text" *ngIf="errorMessage">{{ errorMessage }}</p>
 
       <ng-container *ngIf="!errorMessage">
@@ -30,7 +52,7 @@
           <p>No clients found yet.</p>
         </div>
       </ng-container>
-    </div>
+    </section>
 
     <ng-template #loadingState>
       <div class="loading-state">

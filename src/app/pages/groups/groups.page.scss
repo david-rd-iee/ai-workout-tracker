@@ -11,11 +11,6 @@ $neo-shadow-light: rgba(249, 252, 255, 0.95);
 $neo-text: #5a6880;
 $neo-muted: #8b9ab0;
 $neo-accent: #2e6ef5;
-$neo-accent-soft: #6f9eff;
-$neo-gold: #d4af37;
-$neo-gold-deep: #b8941a;
-$neo-gold-light: #f0cf68;
-$neo-gold-text: #8b7355;
 
 @mixin neo-raised($radius: 22px) {
   background: linear-gradient(145deg, $neo-surface-high, $neo-surface);
@@ -35,10 +30,19 @@ $neo-gold-text: #8b7355;
     inset -7px -7px 12px -10px rgba(249, 252, 255, 0.95);
 }
 
+.background-gradient {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 14% -4%, rgba(255, 255, 255, 0.84) 0, rgba(255, 255, 255, 0) 36%),
+    radial-gradient(circle at 86% 8%, rgba(160, 179, 219, 0.34) 0, rgba(160, 179, 219, 0) 42%),
+    linear-gradient(145deg, #d5deeb 0%, #e8eef8 48%, #dbe4f1 100%);
+  pointer-events: none;
+}
+
 .groups-page {
   --background: $neo-page-bg;
   --ion-background-color: $neo-page-bg;
-  background: $neo-page-bg;
   position: relative;
 }
 
@@ -50,87 +54,63 @@ $neo-gold-text: #8b7355;
 .groups-page-container {
   position: relative;
   z-index: 1;
+  min-height: 100%;
+  max-width: 980px;
+  margin: 0 auto;
   padding: 16px;
   padding-top: 10px;
-  max-width: 980px;
-  min-height: 100%;
-  margin: 0 auto;
 }
 
 .top-panel {
-  border: 1px solid rgba(255, 255, 255, 0.66);
-  border-radius: 26px;
-  background: linear-gradient(145deg, #79a8ff, #2e6ef5);
-  box-shadow:
-    12px 12px 22px -14px rgba(28, 77, 178, 0.52),
-    -10px -10px 20px -14px rgba(176, 205, 255, 0.82);
-  position: sticky;
-  top: 10px;
-  z-index: 5;
-  padding: 14px;
+  @include neo-raised(26px);
+  display: grid;
+  gap: 14px;
+  padding: 18px;
 
   h1 {
-    margin: 8px 0 14px;
-    text-align: center;
+    margin: 0;
     font-size: clamp(2rem, 5.1vw, 2.95rem);
     line-height: 0.98;
-    font-weight: 700;
-    letter-spacing: 0.01em;
-    color: #f8fbff;
-    text-shadow: 0 1px 0 rgba(22, 63, 146, 0.35);
+    font-weight: 680;
+    letter-spacing: -0.02em;
+    color: $neo-text;
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.7);
   }
 }
 
 .panel-actions {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  justify-content: flex-end;
 }
 
-.back-btn {
-  border: 1px solid rgba(255, 255, 255, 0.54);
-  border-radius: 50%;
-  background: linear-gradient(145deg, #f5d779, #d8b446);
-  box-shadow:
-    7px 7px 14px -11px rgba(148, 116, 28, 0.5),
-    -7px -7px 14px -11px rgba(255, 242, 199, 0.82);
-  border: 0;
-  color: #685124;
-  width: 44px;
-  height: 44px;
-  min-width: 44px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  transition: transform 170ms ease, box-shadow 170ms ease;
+.panel-eyebrow {
+  margin: 0;
+  color: $neo-accent;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
 
-  ion-icon {
-    font-size: 26px;
-  }
-
-  &:active {
-    transform: translateY(1px) scale(0.997);
-    box-shadow:
-      9px 9px 18px -14px rgba(136, 108, 28, 0.5),
-      -6px -6px 14px -12px rgba(255, 247, 221, 0.78);
-  }
+.panel-copy {
+  margin: -4px 0 0;
+  color: $neo-muted;
+  font-size: 0.94rem;
+  line-height: 1.5;
 }
 
 .wars-leaderboard-btn {
-  border: 1px solid rgba(255, 255, 255, 0.86);
-  border-radius: 999px;
-  background: linear-gradient(145deg, #ffffff, #eaf1fb);
-  box-shadow:
-    8px 8px 16px -12px rgba(37, 83, 177, 0.34),
-    -8px -8px 16px -12px rgba(255, 255, 255, 0.92);
   border: 0;
-  color: #2e6ef5;
-  min-height: 44px;
+  border-radius: 999px;
+  background: linear-gradient(145deg, #eef3fb, #e2e9f5);
+  box-shadow:
+    8px 8px 16px -12px rgba(184, 196, 214, 0.92),
+    -8px -8px 16px -12px rgba(255, 255, 255, 0.92);
+  color: $neo-accent;
+  min-height: 42px;
   min-width: 132px;
   padding: 8px 14px;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   font-size: 16px;
@@ -140,19 +120,11 @@ $neo-gold-text: #8b7355;
 
   &:active {
     transform: translateY(1px) scale(0.997);
-    box-shadow:
-      9px 9px 18px -14px rgba(37, 83, 177, 0.34),
-      -6px -6px 14px -12px rgba(255, 255, 255, 0.88);
   }
 }
 
 .tab-toggle {
-  background: linear-gradient(145deg, rgba(255, 247, 224, 0.95), rgba(236, 207, 116, 0.78));
-  border: 1px solid rgba(255, 255, 255, 0.46);
-  border-radius: 20px;
-  box-shadow:
-    inset 7px 7px 12px -10px rgba(157, 125, 35, 0.58),
-    inset -7px -7px 12px -10px rgba(255, 248, 226, 0.86);
+  @include neo-inset(20px);
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 8px;
@@ -161,7 +133,7 @@ $neo-gold-text: #8b7355;
   button {
     border: 0;
     background: transparent;
-    color: $neo-gold-text;
+    color: $neo-muted;
     font-size: 16px;
     font-weight: 700;
     border-radius: 16px;
@@ -171,10 +143,10 @@ $neo-gold-text: #8b7355;
   }
 
   button.active {
-    background: linear-gradient(145deg, #d8b446, $neo-gold-deep);
-    color: #fff7e3;
+    background: linear-gradient(145deg, #79a8ff, #2e6ef5);
+    color: #f7fbff;
     box-shadow:
-      7px 7px 16px -12px rgba(136, 108, 28, 0.52),
+      7px 7px 16px -12px rgba(78, 122, 210, 0.52),
       inset 1px 1px 1px rgba(255, 255, 255, 0.4);
   }
 
@@ -238,12 +210,12 @@ $neo-gold-text: #8b7355;
 }
 
 .group-card.owner-highlight {
-  border-color: #d4af37;
+  border-color: rgba(46, 110, 245, 0.48);
   border-width: 2px;
   box-shadow:
     14px 14px 28px -14px $neo-shadow-dark,
     -12px -12px 24px -14px $neo-shadow-light,
-    0 0 0 2px rgba(212, 175, 55, 0.24);
+    0 0 0 2px rgba(46, 110, 245, 0.12);
 }
 
 .state-message {
@@ -360,7 +332,6 @@ $neo-gold-text: #8b7355;
 }
 
 .add-group-btn {
-  @include neo-raised(50%);
   position: fixed;
   left: 50%;
   transform: translateX(-50%);
@@ -375,6 +346,9 @@ $neo-gold-text: #8b7355;
   align-items: center;
   justify-content: center;
   z-index: 8;
+  box-shadow:
+    14px 14px 28px -14px rgba(78, 122, 210, 0.6),
+    -12px -12px 24px -14px rgba(255, 255, 255, 0.9);
   transition: transform 170ms ease, box-shadow 170ms ease;
 
   ion-icon {
@@ -383,9 +357,6 @@ $neo-gold-text: #8b7355;
 
   &:active {
     transform: translateX(-50%) translateY(1px) scale(0.997);
-    box-shadow:
-      10px 10px 20px -14px rgba(78, 122, 210, 0.6),
-      -8px -8px 18px -12px rgba(255, 255, 255, 0.8);
   }
 }
 
@@ -426,6 +397,17 @@ $neo-gold-text: #8b7355;
   }
 }
 
+:host ::ng-deep app-header .header-button {
+  --background: linear-gradient(145deg, #eef3fb, #e2e9f5);
+  --background-hover: linear-gradient(145deg, #f5f8fd, #e8eef8);
+  --background-activated: linear-gradient(145deg, #e0e8f4, #d5deed);
+  --color: #2e6ef5;
+  border-radius: 50%;
+  box-shadow:
+    8px 8px 16px -12px rgba(184, 196, 214, 0.92),
+    -8px -8px 16px -12px rgba(249, 252, 255, 0.96);
+}
+
 @media (max-width: 768px) {
   .groups-page-container {
     padding: 14px;
@@ -435,7 +417,7 @@ $neo-gold-text: #8b7355;
 
 @media (max-width: 480px) {
   .top-panel {
-    padding: 12px;
+    padding: 16px;
 
     h1 {
       font-size: 2.25rem;

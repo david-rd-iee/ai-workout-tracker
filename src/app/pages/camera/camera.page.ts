@@ -2,20 +2,16 @@ import { AfterViewInit, Component, ElementRef, NgZone, OnDestroy, ViewChild, inj
 import { CommonModule } from '@angular/common';
 import {
   AlertController,
-  IonBackButton,
   IonButton,
-  IonButtons,
   IonContent,
-  IonHeader,
   IonSpinner,
-  IonTitle,
-  IonToolbar,
   NavController,
   ToastController,
 } from '@ionic/angular/standalone';
 import { VideoAnalysisResult, SavedVideoAnalysisRecord } from '../../models/video-analysis.model';
 import { VideoAnalysisService } from '../../services/video-analysis.service';
 import { UserService } from '../../services/account/user.service';
+import { HeaderComponent } from '../../components/header/header.component';
 
 @Component({
   selector: 'app-camera',
@@ -23,12 +19,8 @@ import { UserService } from '../../services/account/user.service';
   styleUrls: ['./camera.page.scss'],
   standalone: true,
   imports: [
+    HeaderComponent,
     IonContent,
-    IonHeader,
-    IonTitle,
-    IonToolbar,
-    IonButtons,
-    IonBackButton,
     IonButton,
     IonSpinner,
     CommonModule,

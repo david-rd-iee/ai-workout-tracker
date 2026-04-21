@@ -1,20 +1,16 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {
-  IonButton,
-  IonButtons,
   IonContent,
-  IonHeader,
   IonIcon,
   IonSpinner,
-  IonTitle,
-  IonToolbar,
   NavController,
 } from '@ionic/angular/standalone';
 import { Firestore, collection, getDocs } from '@angular/fire/firestore';
 import { AccountService } from '../../services/account/account.service';
 import { addIcons } from 'ionicons';
-import { analyticsOutline, arrowBackOutline, chevronForwardOutline } from 'ionicons/icons';
+import { analyticsOutline, chevronForwardOutline } from 'ionicons/icons';
+import { HeaderComponent } from 'src/app/components/header/header.component';
 
 type ClientWorkoutAnalysisListItem = {
   id: string;
@@ -28,14 +24,10 @@ type ClientWorkoutAnalysisListItem = {
   styleUrls: ['./client-workout-analysis.page.scss'],
   imports: [
     CommonModule,
-    IonButton,
-    IonButtons,
     IonContent,
-    IonHeader,
     IonIcon,
     IonSpinner,
-    IonTitle,
-    IonToolbar,
+    HeaderComponent,
   ],
 })
 export class ClientWorkoutAnalysisPage implements OnInit {
@@ -49,7 +41,6 @@ export class ClientWorkoutAnalysisPage implements OnInit {
 
   constructor() {
     addIcons({
-      arrowBackOutline,
       analyticsOutline,
       chevronForwardOutline,
     });

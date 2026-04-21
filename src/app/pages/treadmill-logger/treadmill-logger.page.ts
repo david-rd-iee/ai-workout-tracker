@@ -5,8 +5,6 @@ import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
 import {
   AlertController,
   IonButton,
-  IonCard,
-  IonCardContent,
   IonContent,
   IonSpinner,
   IonText,
@@ -37,8 +35,6 @@ interface MachineTypeOption {
   imports: [
     CommonModule,
     IonButton,
-    IonCard,
-    IonCardContent,
     IonContent,
     IonSpinner,
     IonText,

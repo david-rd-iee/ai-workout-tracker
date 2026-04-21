@@ -1,13 +1,11 @@
-<ion-header [translucent]="true">
-  <ion-toolbar>
-    <ion-buttons slot="start">
-      <ion-back-button defaultHref="/profile-user"></ion-back-button>
-    </ion-buttons>
-    <ion-title>Analyze workout</ion-title>
-  </ion-toolbar>
-</ion-header>
+<app-header
+  [title]="'Analyze Workout'"
+  [showBack]="true"
+  [backHref]="'/profile-user'"
+></app-header>
 
 <ion-content [fullscreen]="true" class="camera-content">
+  <div class="background-gradient"></div>
   <div class="camera-page">
     <div class="preview-wrap" [class.preview-wrap--recorded]="hasRecordedVideo">
       <video #cameraVideo class="camera-preview" autoplay playsinline muted></video>
