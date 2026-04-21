@@ -1,3 +1,178 @@
+$atlas-surface-high: #f1f5fc;
+$atlas-surface: #e8eef8;
+$atlas-shadow-dark: rgba(184, 196, 214, 0.88);
+$atlas-shadow-light: rgba(249, 252, 255, 0.95);
+$atlas-text: #5a6880;
+$atlas-muted: #8b9ab0;
+$atlas-accent: #2e6ef5;
+
+@mixin neo-raised($radius: 22px) {
+  background: linear-gradient(145deg, $atlas-surface-high, $atlas-surface);
+  border-radius: $radius;
+  border: 1px solid rgba(255, 255, 255, 0.78);
+  box-shadow:
+    14px 14px 28px -14px $atlas-shadow-dark,
+    -12px -12px 24px -14px $atlas-shadow-light;
+}
+
+@mixin neo-inset($radius: 18px) {
+  background: linear-gradient(145deg, #edf2fb, #e4ebf7);
+  border-radius: $radius;
+  border: 1px solid rgba(255, 255, 255, 0.56);
+  box-shadow:
+    inset 7px 7px 12px -10px rgba(184, 196, 214, 0.9),
+    inset -7px -7px 12px -10px rgba(249, 252, 255, 0.95);
+}
+
+.insights-content {
+  --background: #dbe3f0;
+  position: relative;
+}
+
+.background-gradient {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 14% -4%, rgba(255, 255, 255, 0.84) 0, rgba(255, 255, 255, 0) 36%),
+    radial-gradient(circle at 86% 8%, rgba(160, 179, 219, 0.34) 0, rgba(160, 179, 219, 0) 42%),
+    linear-gradient(145deg, #d5deeb 0%, #e8eef8 48%, #dbe4f1 100%);
+}
+
+.insights-page {
+  position: relative;
+  z-index: 1;
+  padding: 16px;
+  padding-top: 10px;
+  max-width: 960px;
+  margin: 0 auto;
+}
+
 .apple-health-widget {
-    margin-top: 16px;
+  margin: 0;
+  --background: transparent;
+  background: transparent;
+  box-shadow: none;
+  border: 0;
+  @include neo-raised(26px);
+
+  ion-card-content {
+    padding: 18px;
   }
+}
+
+.widget-header {
+  margin-bottom: 14px;
+
+  h2 {
+    margin: 0;
+    color: $atlas-text;
+    font-size: 1.1rem;
+    font-weight: 700;
+  }
+}
+
+.health-status {
+  margin: 6px 0 0;
+  color: $atlas-muted;
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+
+.actions-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.connect-button,
+.load-button {
+  margin: 0;
+
+  &::part(native) {
+    border-radius: 16px;
+    overflow: hidden;
+    text-transform: none;
+    font-weight: 700;
+    transition: transform 170ms ease;
+  }
+
+  &:active::part(native) {
+    transform: translateY(1px) scale(0.997);
+  }
+}
+
+.connect-button {
+  --color: #ffffff;
+  --background: linear-gradient(145deg, #79a8ff, #2e6ef5);
+  --background-hover: linear-gradient(145deg, #8eb6ff, #4a83f8);
+  --background-activated: linear-gradient(145deg, #4f88f5, #1f55cb);
+}
+
+.load-button {
+  --color: $atlas-accent;
+  --background: linear-gradient(145deg, #eef3fb, #e2eaf7);
+  --background-hover: linear-gradient(145deg, #f5f8fd, #e8eef8);
+  --background-activated: linear-gradient(145deg, #e0e8f4, #d5deed);
+}
+
+.metric-grid {
+  margin-top: 14px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.metric-well {
+  padding: 12px;
+  @include neo-inset(18px);
+}
+
+.metric-label {
+  margin: 0;
+  color: $atlas-muted;
+  font-size: 0.74rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.metric-value {
+  margin: 6px 0 0;
+  color: $atlas-text;
+  font-size: 0.98rem;
+  font-weight: 700;
+}
+
+.sample-time {
+  margin: 12px 0 0;
+  color: $atlas-muted;
+  font-size: 0.84rem;
+}
+
+.chart-shell {
+  margin-top: 14px;
+  padding: 12px;
+  overflow-x: auto;
+  @include neo-inset(18px);
+
+  h3 {
+    margin: 0 0 10px;
+    color: $atlas-text;
+    font-size: 0.9rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+  }
+}
+
+@media (max-width: 768px) {
+  .insights-page {
+    padding: 14px;
+    padding-top: 10px;
+  }
+
+  .metric-grid {
+    grid-template-columns: 1fr;
+  }
+}

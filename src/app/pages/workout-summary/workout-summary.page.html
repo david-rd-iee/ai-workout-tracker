@@ -1,31 +1,30 @@
-<ion-header>
-  <ion-toolbar>
-    <ion-buttons slot="start">
-      <ion-button (click)="goBackToChat()">
-        <ion-icon name="close-outline"></ion-icon>
-      </ion-button>
-    </ion-buttons>
-    <ion-title>Workout Summary</ion-title>
-  </ion-toolbar>
-</ion-header>
+<app-header
+  [title]="'Workout Summary'"
+  [showBack]="true"
+  [backHref]="headerBackHref"
+  [transparent]="true"
+  [neoBlend]="true"
+></app-header>
 
-<ion-content [fullscreen]="true">
+<ion-content [fullscreen]="true" class="summary-content">
   <div class="background-gradient"></div>
-  <div class="ion-padding">
+
+  <div class="summary-page">
     <ion-card class="summary-card">
       <ion-card-header>
         <div class="summary-meta">
           <p class="logged-date">{{ loggedDateLabel }}</p>
           <p class="logged-time" *ngIf="loggedTimeLabel">{{ loggedTimeLabel }}</p>
           <p class="calories-text">
-            Estimated Total Calories: <strong>{{ summary.estimated_calories || summary.calories }} kcal</strong>
+            Estimated Total Calories:
+            <strong>{{ summary.estimated_calories || summary.calories }} kcal</strong>
           </p>
         </div>
       </ion-card-header>
 
       <ion-card-content>
         <div class="summary-section" *ngIf="strengthRows.length > 0">
-          <h3 class="section-title">Strength:</h3>
+          <h3 class="section-title">Strength</h3>
           <div class="entry-card" *ngFor="let row of strengthRows">
             <p class="entry-title">{{ formatExerciseName(row.exercise_type) }}</p>
             <p>Sets: {{ row.sets }}</p>
@@ -36,7 +35,7 @@
         </div>
 
         <div class="summary-section" *ngIf="cardioRows.length > 0">
-          <h3 class="section-title">Cardio:</h3>
+          <h3 class="section-title">Cardio</h3>
           <div class="entry-card" *ngFor="let row of cardioRows">
             <p class="entry-title">{{ formatExerciseName(row.cardio_type) }}</p>
             <p>Distance: {{ formatCardioDistance(row) }}</p>
@@ -46,7 +45,7 @@
         </div>
 
         <div class="summary-section" *ngIf="otherRows.length > 0">
-          <h3 class="section-title">Other:</h3>
+          <h3 class="section-title">Other</h3>
           <div class="entry-card" *ngFor="let row of otherRows">
             <p class="entry-title">{{ formatOtherExerciseName(row) }}</p>
             <p>Details: {{ formatOtherDetails(row) }}</p>
@@ -55,33 +54,21 @@
         </div>
 
         <div class="actions">
-          <ion-button
-            fill="outline"
-            size="small"
-            expand="block"
-            (click)="navigateToGroups()"
-          >
+          <ion-button class="secondary-action" expand="block" (click)="navigateToGroups()">
             Share to Group
           </ion-button>
-          <ion-button
-            size="small"
-            expand="block"
-            (click)="navigateToLeaderboard()"
-          >
+          <ion-button class="primary-action" expand="block" (click)="navigateToLeaderboard()">
             View Leaderboard
           </ion-button>
-          <ion-button
-            fill="clear"
-            size="small"
-            expand="block"
-            (click)="navigateToHome()"
-          >
+          <ion-button class="ghost-action" expand="block" (click)="navigateToHome()">
             Back to Home
           </ion-button>
         </div>
 
-        <h3 class="section-title" *ngIf="summary.trainer_notes">Notes for Trainer:</h3>
-        <p *ngIf="summary.trainer_notes">{{ summary.trainer_notes }}</p>
+        <div class="notes-well" *ngIf="summary.trainer_notes">
+          <h3 class="section-title">Notes for Trainer</h3>
+          <p>{{ summary.trainer_notes }}</p>
+        </div>
       </ion-card-content>
     </ion-card>
   </div>

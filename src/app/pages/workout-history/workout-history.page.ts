@@ -2,127 +2,42 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import {
-  IonBackButton,
   IonButton,
-  IonButtons,
   IonContent,
-  IonHeader,
+  IonIcon,
   IonItem,
   IonLabel,
   IonList,
-  IonTitle,
-  IonToolbar,
 } from '@ionic/angular/standalone';
 import { Auth } from '@angular/fire/auth';
 import { onAuthStateChanged } from 'firebase/auth';
+import { addIcons } from 'ionicons';
+import { analyticsOutline, chevronForwardOutline, gridOutline } from 'ionicons/icons';
 import type { WorkoutHistoryDateGroup } from '../../models/workout-history.model';
 import { WorkoutSummaryService } from '../../services/workout-summary.service';
+import { HeaderComponent } from '../../components/header/header.component';
 
 @Component({
   selector: 'app-workout-history',
   standalone: true,
-  template: `
-    <ion-header>
-      <ion-toolbar>
-        <ion-buttons slot="start">
-          <ion-back-button defaultHref="/tabs/home"></ion-back-button>
-        </ion-buttons>
-        <ion-title>{{ pageTitle }}</ion-title>
-      </ion-toolbar>
-    </ion-header>
-
-    <ion-content class="ion-padding">
-      <ion-button
-        expand="block"
-        fill="outline"
-        (click)="viewInsights()"
-        style="margin-bottom: 12px;"
-      >
-        Workout Insights
-      </ion-button>
-
-      <ion-button
-        expand="block"
-        (click)="viewCsv()"
-        [disabled]="isLoading || historyGroups.length === 0"
-        style="margin-bottom: 12px;"
-      >
-        View CSV
-      </ion-button>
-
-      <ion-list>
-        <ion-item *ngIf="isLoading">
-          <ion-label>Loading workouts...</ion-label>
-        </ion-item>
-
-        <ion-item *ngIf="!isLoading && historyGroups.length === 0">
-          <ion-label>No workouts saved yet.</ion-label>
-        </ion-item>
-
-        <ion-item *ngFor="let day of historyGroups" button detail (click)="openSummary(day.date)">
-          <ion-label class="ion-text-wrap">
-            <p><strong>{{ day.date }}</strong></p>
-
-            <div *ngIf="day.strength.length > 0" style="margin-top: 8px;">
-              <p><strong>Strength:</strong></p>
-              <div *ngFor="let entry of day.strength" style="margin-left: 12px;">
-                <p><strong>{{ entry.exercise }}</strong></p>
-                <p style="margin-left: 12px;">Sets: {{ entry.sets }}</p>
-                <p style="margin-left: 12px;">Reps: {{ entry.reps }}</p>
-                <p style="margin-left: 12px;">Weights: {{ entry.weights }}</p>
-                <p style="margin-left: 12px;">Calories Burned: {{ entry.caloriesBurned }}</p>
-              </div>
-            </div>
-
-            <div *ngIf="day.cardio.length > 0" style="margin-top: 8px;">
-              <p><strong>Cardio:</strong></p>
-              <div *ngFor="let entry of day.cardio" style="margin-left: 12px;">
-                <p><strong>{{ entry.exercise }}</strong></p>
-                <p style="margin-left: 12px;">Distance: {{ entry.distance || 'N/A' }}</p>
-                <p style="margin-left: 12px;">Time: {{ entry.time || 'N/A' }}</p>
-                <p style="margin-left: 12px;">Calories Burned: {{ entry.caloriesBurned }}</p>
-              </div>
-            </div>
-
-            <div *ngIf="day.other.length > 0" style="margin-top: 8px;">
-              <p><strong>Other:</strong></p>
-              <div *ngFor="let entry of day.other" style="margin-left: 12px;">
-                <p><strong>{{ entry.exercise }}</strong></p>
-                <p style="margin-left: 12px;">Details: {{ entry.details }}</p>
-                <p style="margin-left: 12px;">Calories Burned: {{ entry.caloriesBurned }}</p>
-              </div>
-            </div>
-
-            <p style="margin-top: 10px;">
-              <strong>Total Calories Burned:</strong> {{ day.totalCaloriesBurned }}
-            </p>
-
-            <p *ngIf="day.trainerNotes" style="margin-top: 8px;">
-              <strong>Trainer Notes:</strong> {{ day.trainerNotes }}
-            </p>
-          </ion-label>
-        </ion-item>
-      </ion-list>
-    </ion-content>
-  `,
+  templateUrl: './workout-history.page.html',
+  styleUrls: ['./workout-history.page.scss'],
   imports: [
     CommonModule,
+    HeaderComponent,
     IonContent,
-    IonHeader,
-    IonTitle,
-    IonToolbar,
-    IonButtons,
-    IonBackButton,
     IonList,
     IonItem,
     IonLabel,
     IonButton,
+    IonIcon,
   ],
 })
 export class WorkoutHistoryPage implements OnInit {
   historyGroups: WorkoutHistoryDateGroup[] = [];
   isLoading = false;
   pageTitle = 'Workout History';
+  backHref = '/profile-user';
   private requestedUserId = '';
   private clientName = '';
 
@@ -131,7 +46,13 @@ export class WorkoutHistoryPage implements OnInit {
     private route: ActivatedRoute,
     private router: Router,
     private workoutSummaryService: WorkoutSummaryService
-  ) {}
+  ) {
+    addIcons({
+      analyticsOutline,
+      gridOutline,
+      chevronForwardOutline,
+    });
+  }
 
   async ngOnInit(): Promise<void> {
     this.isLoading = true;

@@ -8,72 +8,16 @@
   [pinProfileButtonTopRight]="true"
 ></app-header>
 
-<ion-content [fullscreen]="true" class="chat-content">
+<ion-content [fullscreen]="true" class="chat-content" [scrollY]="hasUserMessages">
   <div class="background-gradient"></div>
   <div class="chats-container">
     <div class="content-area">
       <div
         class="chat-layout"
         [class.has-summary-panel]="showSummaryPanel"
+        [class.pre-chat]="!hasUserMessages"
         [style.--keyboard-offset.px]="keyboardOffset"
       >
-        <div class="chat-main-column">
-          <div class="chat-panel">
-            <section class="chat-hero">
-              <p class="hero-eyebrow">AI Logging</p>
-              <h1>Talk through your workout</h1>
-              <p class="hero-copy">Describe exercises naturally and the AI coach will build your workout log as you go.</p>
-            </section>
-
-            <div class="messages-list">
-              <div
-                *ngFor="let msg of messages"
-                [ngClass]="{
-                  'message-row': true,
-                  'received': msg.from === 'bot',
-                  'sent': msg.from === 'user'
-                }"
-              >
-                <div class="message-bubble">
-                  <p>{{ msg.text }}</p>
-                </div>
-              </div>
-
-              <div
-                *ngIf="isLoading"
-                class="message-row received typing-wrapper"
-              >
-                <div class="message-bubble typing-indicator">
-                  <span></span>
-                  <span></span>
-                  <span></span>
-                </div>
-              </div>
-            </div>
-
-            <div class="input-container">
-              <div class="input-wrapper">
-                <ion-input
-                  [(ngModel)]="userInput"
-                  placeholder="Message AI Coach"
-                  class="message-input"
-                  (keyup.enter)="handleSend()"
-                  [disabled]="isLoading"
-                ></ion-input>
-
-                <ion-button
-                  (click)="handleSend()"
-                  [disabled]="isLoading || !userInput.trim()"
-                  shape="round"
-                  class="send-button"
-                >
-                  <ion-icon slot="icon-only" name="arrow-up"></ion-icon>
-                </ion-button>
-              </div>
-            </div>
-          </div>
-        </div>
-
         <div class="chat-summary-column" *ngIf="showSummaryPanel">
           <div class="workout-summary-card-container" *ngIf="showLiveSummary">
             <div class="workout-summary-card">
@@ -138,6 +82,63 @@
             >
               View Workout Summary
             </ion-button>
+          </div>
+        </div>
+
+        <div class="chat-main-column">
+          <div class="chat-panel">
+            <section class="chat-hero" *ngIf="!hasUserMessages">
+              <p class="hero-eyebrow">AI Logging</p>
+              <h1>Talk through your workout</h1>
+              <p class="hero-copy">Describe exercises naturally and the AI coach will build your workout log as you go.</p>
+            </section>
+
+            <div class="messages-list">
+              <div
+                *ngFor="let msg of messages"
+                [ngClass]="{
+                  'message-row': true,
+                  'received': msg.from === 'bot',
+                  'sent': msg.from === 'user'
+                }"
+              >
+                <div class="message-bubble">
+                  <p>{{ msg.text }}</p>
+                </div>
+              </div>
+
+              <div
+                *ngIf="isLoading"
+                class="message-row received typing-wrapper"
+              >
+                <div class="message-bubble typing-indicator">
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                </div>
+              </div>
+            </div>
+
+            <div class="input-container">
+              <div class="input-wrapper">
+                <ion-input
+                  [(ngModel)]="userInput"
+                  placeholder="Message AI Coach"
+                  class="message-input"
+                  (keyup.enter)="handleSend()"
+                  [disabled]="isLoading"
+                ></ion-input>
+
+                <ion-button
+                  (click)="handleSend()"
+                  [disabled]="isLoading || !userInput.trim()"
+                  shape="round"
+                  class="send-button"
+                >
+                  <ion-icon slot="icon-only" name="arrow-up"></ion-icon>
+                </ion-button>
+              </div>
+            </div>
           </div>
         </div>
       </div>

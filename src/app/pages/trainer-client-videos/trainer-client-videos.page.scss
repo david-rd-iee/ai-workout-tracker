@@ -24,7 +24,7 @@ $atlas-blue-strong: #2e6ef5;
     inset -7px -7px 12px -10px rgba(249, 252, 255, 0.95);
 }
 
-.client-workout-analysis-content {
+.trainer-client-videos-content {
   --background: #dbe3f0;
   position: relative;
 }
@@ -39,7 +39,7 @@ $atlas-blue-strong: #2e6ef5;
     linear-gradient(145deg, #d5deeb 0%, #e8eef8 48%, #dbe4f1 100%);
 }
 
-.client-workout-analysis-page {
+.trainer-client-videos-page {
   position: relative;
   z-index: 1;
   display: grid;
@@ -53,13 +53,13 @@ $atlas-blue-strong: #2e6ef5;
   padding-bottom: 28px;
 }
 
-.analysis-hero,
-.clients-shell,
+.videos-hero,
+.videos-shell,
 .loading-state {
   @include atlas-neu(26px);
 }
 
-.analysis-hero {
+.videos-hero {
   padding: 20px;
 }
 
@@ -72,14 +72,13 @@ $atlas-blue-strong: #2e6ef5;
   text-transform: uppercase;
 }
 
-.analysis-hero h1 {
+.videos-hero h1 {
   margin: 0;
   color: $atlas-text;
-  font-size: clamp(2rem, 4.5vw, 2.8rem);
-  line-height: 1;
+  font-size: clamp(1.85rem, 4.2vw, 2.5rem);
+  line-height: 1.05;
   font-weight: 680;
-  letter-spacing: -0.03em;
-  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.7);
+  letter-spacing: -0.02em;
 }
 
 .hero-copy {
@@ -87,80 +86,74 @@ $atlas-blue-strong: #2e6ef5;
   max-width: 40rem;
   color: $atlas-muted;
   line-height: 1.55;
-  font-size: 0.96rem;
+  font-size: 0.95rem;
 }
 
-.hero-summary {
-  margin-top: 14px;
-  display: inline-grid;
-  grid-template-columns: minmax(0, 180px);
-  gap: 8px;
-}
-
-.summary-chip {
-  @include atlas-inset(14px);
-  padding: 10px 12px;
+.videos-shell {
   display: grid;
-  gap: 2px;
-}
-
-.summary-label {
-  color: $atlas-muted;
-  font-size: 0.76rem;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.summary-chip strong {
-  color: $atlas-text;
-  font-size: 0.92rem;
-}
-
-.clients-shell {
-  display: grid;
-  gap: 14px;
+  gap: 12px;
   padding: 18px;
 }
 
-.shell-heading h2 {
+.videos-shell h2 {
   margin: 0;
   color: $atlas-text;
   font-size: 1.1rem;
   font-weight: 680;
 }
 
-.shell-heading p {
-  margin: 8px 0 0;
-  color: $atlas-muted;
-  font-size: 0.92rem;
-  line-height: 1.5;
-}
-
-.client-row {
+.video-row {
   width: 100%;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 16px 18px;
+  padding: 14px;
   border: 0;
   text-align: left;
-  color: $atlas-text;
-  font-size: 1rem;
-  font-weight: 700;
   @include atlas-neu(22px);
   transition: transform 170ms ease, box-shadow 170ms ease;
 }
 
-.client-row ion-icon {
-  flex-shrink: 0;
-  font-size: 1.1rem;
-  color: $atlas-blue-strong;
+.video-row:active {
+  transform: translateY(1px) scale(0.997);
 }
 
-.client-row:active {
-  transform: translateY(1px) scale(0.997);
+.video-copy {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.video-copy strong {
+  color: $atlas-text;
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.video-copy small {
+  color: $atlas-muted;
+  font-size: 0.84rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.video-row-icon {
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  @include atlas-neu(50%);
+}
+
+.video-row-icon ion-icon {
+  color: $atlas-blue-strong;
+  font-size: 1.05rem;
 }
 
 .loading-state,
@@ -210,13 +203,13 @@ $atlas-blue-strong: #2e6ef5;
 }
 
 @media (max-width: 768px) {
-  .client-workout-analysis-page {
+  .trainer-client-videos-page {
     padding: 14px;
     padding-top: 10px;
   }
 
-  .analysis-hero,
-  .clients-shell,
+  .videos-hero,
+  .videos-shell,
   .loading-state {
     padding: 16px;
   }

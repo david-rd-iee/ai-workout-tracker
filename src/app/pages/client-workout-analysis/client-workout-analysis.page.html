@@ -19,18 +19,14 @@
           <span class="summary-label">Clients</span>
           <strong>{{ clients.length }}</strong>
         </div>
-        <div class="summary-chip">
-          <span class="summary-label">Status</span>
-          <strong>{{ isLoading ? 'Loading list' : 'Ready to review' }}</strong>
-        </div>
       </div>
     </section>
 
     <section class="clients-shell" *ngIf="!isLoading; else loadingState">
       <div class="shell-heading">
         <div>
-          <h2>Client Analysis Queue</h2>
-          <p>Choose a client to open the trainer workout analyzer and inspect recent training output.</p>
+          <h2>Clients:</h2>
+          <p>Choose a client to view analyzed videos and open a workout for detailed review.</p>
         </div>
       </div>
 

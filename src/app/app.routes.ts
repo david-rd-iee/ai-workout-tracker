@@ -228,6 +228,14 @@ export const routes: Routes = [
     canActivate: [authGuard],
   },
   {
+    path: 'trainer-client-videos/:clientId',
+    loadComponent: () =>
+      import('./pages/trainer-client-videos/trainer-client-videos.page').then(
+        (m) => m.TrainerClientVideosPage
+      ),
+    canActivate: [authGuard],
+  },
+  {
     path: 'trainer-workout-analyzer/:clientId',
     loadComponent: () =>
       import('./pages/trainer-workout-analyzer/trainer-workout-analyzer.page').then(

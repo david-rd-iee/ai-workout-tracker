@@ -360,34 +360,180 @@ $neo-accent: #2e6ef5;
   }
 }
 
+:host ::ng-deep .groups-search-modal {
+  --width: min(680px, calc(100% - 24px));
+  --height: min(86vh, 760px);
+  --border-radius: 28px;
+  --backdrop-opacity: 0.28;
+}
+
+:host ::ng-deep .groups-search-modal::part(content) {
+  border-radius: 28px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.78);
+  background: $neo-page-bg;
+  box-shadow:
+    16px 16px 30px -14px rgba(184, 196, 214, 0.85),
+    -12px -12px 24px -14px rgba(249, 252, 255, 0.9);
+}
+
+.search-modal-header {
+  box-shadow: none;
+  backdrop-filter: saturate(112%) blur(4px);
+  -webkit-backdrop-filter: saturate(112%) blur(4px);
+  background: rgba(231, 237, 245, 0.44);
+}
+
+.search-modal-toolbar {
+  --background: rgba(231, 237, 245, 0.82);
+  --min-height: 66px;
+  --padding-start: 10px;
+  --padding-end: 10px;
+  --padding-top: 0;
+  --padding-bottom: 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.68);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.84),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.72);
+
+  ion-title {
+    color: #30415b;
+    font-size: 1.18rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+  }
+}
+
+.search-modal-close-btn {
+  --background: linear-gradient(145deg, #eef3fb, #e2e9f5);
+  --background-hover: linear-gradient(145deg, #f5f8fd, #e8eef8);
+  --background-activated: linear-gradient(145deg, #e0e8f4, #d5deed);
+  --color: $neo-accent;
+  --border-radius: 14px;
+  --box-shadow: none;
+  width: 42px;
+  height: 42px;
+  margin: 0;
+  box-shadow:
+    7px 7px 14px -12px rgba(153, 171, 198, 0.85),
+    -7px -7px 14px -11px rgba(255, 255, 255, 0.9);
+
+  &::part(native) {
+    border-radius: 14px;
+    overflow: hidden;
+  }
+}
+
 .search-modal-content {
   --background: $neo-page-bg;
+  position: relative;
+}
+
+.search-modal-gradient {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 14% -4%, rgba(255, 255, 255, 0.84) 0, rgba(255, 255, 255, 0) 36%),
+    radial-gradient(circle at 86% 8%, rgba(160, 179, 219, 0.34) 0, rgba(160, 179, 219, 0) 42%),
+    linear-gradient(145deg, #d5deeb 0%, #e8eef8 48%, #dbe4f1 100%);
+  pointer-events: none;
+}
+
+.search-modal-shell {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+}
+
+.search-modal-actions {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.create-group-btn {
+  --background: linear-gradient(145deg, #79a8ff, #2e6ef5);
+  --background-hover: linear-gradient(145deg, #8eb6ff, #4a83f8);
+  --background-activated: linear-gradient(145deg, #4f88f5, #1f55cb);
+  --color: #f7fbff;
+  --border-radius: 16px;
+  min-height: 44px;
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  box-shadow:
+    8px 8px 16px -12px rgba(78, 122, 210, 0.55),
+    inset 1px 1px 1px rgba(255, 255, 255, 0.4);
+
+  &::part(native) {
+    border-radius: 16px;
+    overflow: hidden;
+    padding: 0 16px;
+  }
+}
+
+.searchbar-shell {
+  @include neo-inset(20px);
+  padding: 4px 8px;
+}
+
+.group-searchbar {
+  --background: transparent;
+  --box-shadow: none;
+  --color: $neo-text;
+  --icon-color: $neo-accent;
+  --placeholder-color: $neo-muted;
+  --clear-button-color: $neo-muted;
+  --cancel-button-color: $neo-accent;
+  --border-radius: 16px;
+  padding: 0;
+}
+
+.search-modal-shell .state-message {
+  @include neo-inset(16px);
+  color: $neo-text;
+  padding: 16px 14px;
+}
+
+.search-modal-shell .state-message.error {
+  color: #9d5f67;
 }
 
 .search-results {
   display: grid;
-  gap: 10px;
-  margin-top: 8px;
+  gap: 12px;
 }
 
 .search-result-item {
-  @include neo-raised(18px);
+  @include neo-raised(22px);
   width: 100%;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   border: 0;
   color: $neo-text;
   padding: 10px 12px;
   text-align: left;
+  transition: transform 170ms ease, box-shadow 170ms ease;
+
+  &:active {
+    transform: translateY(1px) scale(0.997);
+    box-shadow:
+      9px 9px 18px -14px rgba(184, 196, 214, 0.9),
+      -6px -6px 14px -12px rgba(249, 252, 255, 0.86);
+  }
 
   img {
-    width: 38px;
-    height: 38px;
-    border-radius: 10px;
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
     object-fit: cover;
     background: #f4f4f4;
     flex: 0 0 auto;
+    @include neo-inset(12px);
+    padding: 3px;
   }
 
   span {
@@ -412,6 +558,17 @@ $neo-accent: #2e6ef5;
   .groups-page-container {
     padding: 14px;
     padding-top: 10px;
+  }
+
+  :host ::ng-deep .groups-search-modal {
+    --width: calc(100% - 12px);
+    --height: min(90vh, 760px);
+    --border-radius: 24px;
+  }
+
+  .search-modal-shell {
+    padding: 14px;
+    gap: 12px;
   }
 }
 
@@ -447,5 +604,24 @@ $neo-accent: #2e6ef5;
     ion-icon {
       font-size: 32px;
     }
+  }
+
+  :host ::ng-deep .groups-search-modal {
+    --width: 100%;
+    --height: 100%;
+    --border-radius: 0;
+  }
+
+  :host ::ng-deep .groups-search-modal::part(content) {
+    border-radius: 0;
+  }
+
+  .search-modal-toolbar {
+    --min-height: 62px;
+  }
+
+  .create-group-btn {
+    min-height: 42px;
+    font-size: 0.9rem;
   }
 }

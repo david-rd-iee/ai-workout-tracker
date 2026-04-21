@@ -173,56 +173,69 @@
   </button>
 </ion-content>
 
-<ion-modal [isOpen]="searchModalOpen" (didDismiss)="closeGroupSearch()">
+<ion-modal cssClass="groups-search-modal" [isOpen]="searchModalOpen" (didDismiss)="closeGroupSearch()">
   <ng-template>
-    <ion-header>
-      <ion-toolbar>
-        <ion-buttons slot="start">
-          <ion-button fill="clear" (click)="promptCreateGroup()">Create Group</ion-button>
-        </ion-buttons>
+    <ion-header class="search-modal-header">
+      <ion-toolbar class="search-modal-toolbar">
         <ion-title>Find Groups</ion-title>
         <ion-buttons slot="end">
-          <ion-button fill="clear" (click)="closeGroupSearch()" aria-label="Close">
+          <ion-button
+            fill="clear"
+            class="search-modal-close-btn"
+            (click)="closeGroupSearch()"
+            aria-label="Close"
+          >
             <ion-icon name="close-outline" slot="icon-only"></ion-icon>
           </ion-button>
         </ion-buttons>
       </ion-toolbar>
     </ion-header>
 
-    <ion-content class="search-modal-content ion-padding">
-      <ion-searchbar
-        [(ngModel)]="searchQuery"
-        placeholder="Search group name"
-        autocapitalize="off"
-      ></ion-searchbar>
+    <ion-content [fullscreen]="true" class="search-modal-content">
+      <div class="search-modal-gradient"></div>
 
-      <div class="state-message" *ngIf="allGroupsLoading">
-        <ion-spinner name="crescent"></ion-spinner>
-      </div>
+      <div class="search-modal-shell">
+        <div class="search-modal-actions">
+          <ion-button class="create-group-btn" (click)="promptCreateGroup()">Create Group</ion-button>
+        </div>
 
-      <div class="state-message error" *ngIf="!allGroupsLoading && allGroupsError">
-        {{ allGroupsError }}
-      </div>
+        <div class="searchbar-shell">
+          <ion-searchbar
+            class="group-searchbar"
+            [(ngModel)]="searchQuery"
+            placeholder="Search group name"
+            autocapitalize="off"
+          ></ion-searchbar>
+        </div>
 
-      <div class="state-message" *ngIf="!allGroupsLoading && !allGroupsError && filteredAllGroups.length === 0">
-        No groups found.
-      </div>
+        <div class="state-message" *ngIf="allGroupsLoading">
+          <ion-spinner name="crescent"></ion-spinner>
+        </div>
 
-      <div class="search-results" *ngIf="!allGroupsLoading && !allGroupsError && filteredAllGroups.length > 0">
-        <button
-          class="search-result-item"
-          type="button"
-          *ngFor="let group of filteredAllGroups"
-          (click)="onSearchGroupPressed(group)"
-        >
-          <img
-            [src]="group.groupImage || 'assets/icons/Icon.png'"
-            (error)="$any($event.target).src = 'assets/icons/Icon.png'"
-            alt=""
-            aria-hidden="true"
-          />
-          <span>{{ group.name }}</span>
-        </button>
+        <div class="state-message error" *ngIf="!allGroupsLoading && allGroupsError">
+          {{ allGroupsError }}
+        </div>
+
+        <div class="state-message" *ngIf="!allGroupsLoading && !allGroupsError && filteredAllGroups.length === 0">
+          No groups found.
+        </div>
+
+        <div class="search-results" *ngIf="!allGroupsLoading && !allGroupsError && filteredAllGroups.length > 0">
+          <button
+            class="search-result-item"
+            type="button"
+            *ngFor="let group of filteredAllGroups"
+            (click)="onSearchGroupPressed(group)"
+          >
+            <img
+              [src]="group.groupImage || 'assets/icons/Icon.png'"
+              (error)="$any($event.target).src = 'assets/icons/Icon.png'"
+              alt=""
+              aria-hidden="true"
+            />
+            <span>{{ group.name }}</span>
+          </button>
+        </div>
       </div>
     </ion-content>
   </ng-template>

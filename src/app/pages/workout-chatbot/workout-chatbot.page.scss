@@ -47,12 +47,17 @@ $atlas-accent: #172bff;
   display: flex;
   flex-direction: column;
   min-height: 100%;
+  height: 100%;
   position: relative;
   z-index: 1;
 }
 
 .content-area {
   flex: 1;
+  min-height: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
   margin-top: 8px;
   overflow: visible;
   padding: 6px;
@@ -61,7 +66,10 @@ $atlas-accent: #172bff;
 
 .chat-layout {
   min-height: 100%;
-  display: grid;
+  height: 100%;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
   gap: 16px;
   --keyboard-offset: 0px;
 }
@@ -71,15 +79,29 @@ $atlas-accent: #172bff;
   min-width: 0;
 }
 
+.chat-main-column {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+}
+
 .chat-panel,
 .workout-summary-card {
   @include atlas-neu(28px);
 }
 
 .chat-panel {
-  min-height: calc(100dvh - 156px);
+  flex: 1;
+  min-height: 0;
+  height: 100%;
   position: relative;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.chat-layout.pre-chat .chat-panel {
+  height: 100%;
 }
 
 .chat-hero {
@@ -116,6 +138,11 @@ $atlas-accent: #172bff;
 @include sharedChat.ios-chat-ui;
 
 .messages-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   padding: 8px 18px var(--composer-clearance);
 }
 
@@ -140,7 +167,7 @@ $atlas-accent: #172bff;
   position: absolute;
   left: 16px;
   right: 16px;
-  bottom: calc(var(--keyboard-offset, 0px) + env(safe-area-inset-bottom, 0px) + 12px);
+  bottom: calc(var(--keyboard-offset, 0px) + env(safe-area-inset-bottom, 0px));
   padding: 0;
   background: transparent;
   z-index: 20;
@@ -307,15 +334,20 @@ $atlas-accent: #172bff;
 
 @media (orientation: landscape) and (max-height: 500px) {
   .chat-layout.has-summary-panel {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    flex-direction: row;
+    align-items: stretch;
+  }
+
+  .chat-layout.has-summary-panel .chat-summary-column {
+    flex: 0 0 min(42%, 420px);
   }
 
   .chat-layout.has-summary-panel .chat-summary-column {
     position: sticky;
     top: 0;
     align-self: start;
-    border-left: 1px solid var(--split-divider-color);
-    padding-left: 12px;
+    border-right: 1px solid var(--split-divider-color);
+    padding-right: 12px;
     max-height: calc(
       100dvh - var(--keyboard-offset, 0px) - env(safe-area-inset-top, 0px)
         - var(--composer-clearance) - 12px
@@ -337,7 +369,12 @@ $atlas-accent: #172bff;
   }
 
   .chat-panel {
-    min-height: calc(100dvh - 146px);
+    min-height: 0;
+    height: 100%;
+  }
+
+  .chat-layout.pre-chat .chat-panel {
+    height: 100%;
   }
 
   .input-container {

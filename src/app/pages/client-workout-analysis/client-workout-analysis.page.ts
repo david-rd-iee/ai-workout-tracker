@@ -58,7 +58,7 @@ export class ClientWorkoutAnalysisPage implements OnInit {
   }
 
   openClient(client: ClientWorkoutAnalysisListItem): void {
-    this.navCtrl.navigateForward(`/trainer-workout-analyzer/${client.id}`, {
+    this.navCtrl.navigateForward(`/trainer-client-videos/${client.id}`, {
       animated: true,
       animationDirection: 'forward',
       queryParams: {

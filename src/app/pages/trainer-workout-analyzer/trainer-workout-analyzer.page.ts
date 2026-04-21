@@ -57,6 +57,7 @@ export class TrainerWorkoutAnalyzerPage implements OnInit {
   errorMessage = '';
   clientId = '';
   clientName = '';
+  analysisId = '';
   workoutAnalyses: VideoAnalysisViewerAnalysis[] = [];
   selectedAnalysis: VideoAnalysisViewerAnalysis | null = null;
   isPublishingToClient = false;
@@ -68,6 +69,7 @@ export class TrainerWorkoutAnalyzerPage implements OnInit {
   async ngOnInit(): Promise<void> {
     this.clientId = String(this.route.snapshot.paramMap.get('clientId') || '').trim();
     this.clientName = String(this.route.snapshot.queryParamMap.get('clientName') || '').trim();
+    this.analysisId = String(this.route.snapshot.queryParamMap.get('analysisId') || '').trim();
     await this.loadWorkoutAnalyses();
   }
 
@@ -252,7 +254,11 @@ export class TrainerWorkoutAnalyzerPage implements OnInit {
         .filter((analysis) => !!analysis.recordingUrl)
         .sort((left, right) => right.analyzedAtIso.localeCompare(left.analyzedAtIso));
 
-      this.selectedAnalysis = this.workoutAnalyses[0] ?? null;
+      const initiallySelectedAnalysis = this.analysisId
+        ? this.workoutAnalyses.find((analysis) => analysis.id === this.analysisId) ?? null
+        : null;
+
+      this.selectedAnalysis = initiallySelectedAnalysis || this.workoutAnalyses[0] || null;
     } catch (error) {
       console.error('[TrainerWorkoutAnalyzerPage] Failed to load workout analyses:', error);
       this.errorMessage = 'Unable to load workout analyses right now.';
