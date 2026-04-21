@@ -134,7 +134,6 @@ export class HomePage implements OnInit, OnDestroy {
   
   // Display properties
   currentDate = new Date();
-
   userName(): string {
     return this.currentUser?.firstName || 'User';
   }

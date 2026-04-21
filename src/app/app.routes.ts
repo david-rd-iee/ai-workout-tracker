@@ -87,6 +87,12 @@ export const routes: Routes = [
     canActivate: [authGuard],
   },
   {
+    path: 'statues/:id',
+    loadComponent: () =>
+      import('./pages/statue-detail/statue-detail.page').then((m) => m.StatueDetailPage),
+    canActivate: [authGuard],
+  },
+  {
     path: 'groups',
     loadComponent: () =>
       import('./pages/groups/groups.page').then((m) => m.GroupsPage),
@@ -218,6 +224,14 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./pages/client-workout-analysis/client-workout-analysis.page').then(
         (m) => m.ClientWorkoutAnalysisPage
+      ),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'trainer-client-videos/:clientId',
+    loadComponent: () =>
+      import('./pages/trainer-client-videos/trainer-client-videos.page').then(
+        (m) => m.TrainerClientVideosPage
       ),
     canActivate: [authGuard],
   },

@@ -3,11 +3,23 @@
     <ion-buttons slot="start">
       <ion-back-button defaultHref="/tabs/chats" text=""></ion-back-button>
     </ion-buttons>
-    <ion-title>{{ otherUserName }}</ion-title>
+    <ion-title>
+      <div class="chat-header-brand">
+        <div class="brand-badge">
+          <img
+            [src]="otherUserProfilePic || atlasLogoPath"
+            [alt]="otherUserName"
+            [class.profile-photo]="!!otherUserProfilePic"
+          />
+        </div>
+        <div class="brand-name">{{ otherUserName }}</div>
+      </div>
+    </ion-title>
   </ion-toolbar>
 </ion-header>
 
 <ion-content [fullscreen]="true" class="chat-content">
+  <div class="background-gradient"></div>
   <div class="messages-list">
     <div 
       *ngFor="let message of messages" 
@@ -110,7 +122,7 @@
     <div class="input-wrapper">
       <ion-textarea
         [(ngModel)]="messageText"
-        placeholder="iMessage"
+        placeholder="Type a message"
         rows="1"
         [autoGrow]="true"
         class="message-input"

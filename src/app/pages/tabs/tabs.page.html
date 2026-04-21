@@ -8,7 +8,7 @@
       <ion-label>Home</ion-label>
     </ion-tab-button>
 
-    <ion-tab-button tab="calender">
+    <ion-tab-button tab="calender" [href]="calendarHref" (click)="onCalendarTabClick($event)">
       <ion-icon name="calendar-outline"></ion-icon>
       <ion-label>Calendar</ion-label>
     </ion-tab-button>
@@ -16,11 +16,6 @@
     <ion-tab-button tab="chats">
       <ion-icon name="chatbubble-ellipses-sharp"></ion-icon>
       <ion-label>Chats</ion-label>
-    </ion-tab-button>
-
-    <ion-tab-button tab="wars">
-      <ion-icon name="trophy-outline"></ion-icon>
-      <ion-label>Wars</ion-label>
     </ion-tab-button>
 
   </ion-tab-bar>

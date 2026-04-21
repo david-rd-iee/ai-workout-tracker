@@ -1,10 +1,68 @@
-ion-content {
-  --background: transparent;
+$atlas-surface-high: #f1f5fc;
+$atlas-surface: #e8eef8;
+$atlas-shadow-dark: rgba(184, 196, 214, 0.88);
+$atlas-shadow-light: rgba(249, 252, 255, 0.95);
+$atlas-text: #5a6880;
+$atlas-muted: #8b9ab0;
+$atlas-accent: #2e6ef5;
+
+@mixin neo-raised($radius: 22px) {
+  background: linear-gradient(145deg, $atlas-surface-high, $atlas-surface);
+  border-radius: $radius;
+  border: 1px solid rgba(255, 255, 255, 0.78);
+  box-shadow:
+    14px 14px 28px -14px $atlas-shadow-dark,
+    -12px -12px 24px -14px $atlas-shadow-light;
+}
+
+@mixin neo-inset($radius: 18px) {
+  background: linear-gradient(145deg, #edf2fb, #e4ebf7);
+  border-radius: $radius;
+  border: 1px solid rgba(255, 255, 255, 0.56);
+  box-shadow:
+    inset 7px 7px 12px -10px rgba(184, 196, 214, 0.9),
+    inset -7px -7px 12px -10px rgba(249, 252, 255, 0.95);
+}
+
+.summary-content {
+  --background: #dbe3f0;
+  position: relative;
+}
+
+.background-gradient {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 14% -4%, rgba(255, 255, 255, 0.84) 0, rgba(255, 255, 255, 0) 36%),
+    radial-gradient(circle at 86% 8%, rgba(160, 179, 219, 0.34) 0, rgba(160, 179, 219, 0) 42%),
+    linear-gradient(145deg, #d5deeb 0%, #e8eef8 48%, #dbe4f1 100%);
+}
+
+.summary-page {
+  position: relative;
+  z-index: 1;
+  padding: 16px;
+  padding-top: 10px;
+  max-width: 920px;
+  margin: 0 auto;
 }
 
 .summary-card {
-  border-radius: 24px;
-  box-shadow: 0 20px 40px rgba(10, 24, 56, 0.08);
+  margin: 0;
+  --background: transparent;
+  background: transparent;
+  box-shadow: none;
+  border: 0;
+  @include neo-raised(26px);
+
+  ion-card-header {
+    padding: 18px 18px 0;
+  }
+
+  ion-card-content {
+    padding: 16px 18px 18px;
+  }
 }
 
 .summary-meta {
@@ -15,64 +73,126 @@ ion-content {
 
 .logged-date {
   margin: 0;
-  font-size: 1.5rem;
+  color: $atlas-text;
+  font-size: 1.36rem;
   font-weight: 700;
-  color: #1d2a3a;
 }
 
 .logged-time {
   margin: 0;
-  font-size: 0.95rem;
-  color: #607085;
+  color: $atlas-muted;
+  font-size: 0.88rem;
 }
 
 .calories-text {
-  margin: 4px 0 0;
-  color: #1d2a3a;
-}
+  margin: 2px 0 0;
+  padding: 10px 12px;
+  color: $atlas-text;
+  font-size: 0.9rem;
+  @include neo-inset(16px);
 
-.section-title {
-  margin: 0 0 10px;
-  font-size: 1rem;
-  font-weight: 700;
-  color: #1d2a3a;
+  strong {
+    color: #41557a;
+  }
 }
 
 .summary-section {
-  margin-bottom: 18px;
+  margin-top: 14px;
+}
+
+.section-title {
+  margin: 0 0 8px;
+  color: $atlas-text;
+  font-size: 0.9rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .entry-card {
-  padding: 14px 16px;
-  border-radius: 16px;
-  background: #f5f7fb;
-  margin-bottom: 10px;
-}
+  margin-bottom: 8px;
+  padding: 12px;
+  @include neo-inset(18px);
 
-.entry-card p {
-  margin: 0 0 6px;
-  color: #314055;
-}
+  p {
+    margin: 0 0 4px;
+    color: #44566f;
+    font-size: 0.86rem;
+    line-height: 1.35;
+  }
 
-.entry-card p:last-child {
-  margin-bottom: 0;
+  p:last-child {
+    margin-bottom: 0;
+  }
 }
 
 .entry-title {
-  font-size: 1rem;
+  color: #33445d;
+  font-size: 0.94rem;
   font-weight: 700;
-  color: #18212f;
 }
 
 .actions {
-  display: flex;
-  flex-direction: row;
-  gap: 8px;
   margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
-@media (max-width: 375px) {
-  .actions {
-    flex-direction: column;
+.primary-action,
+.secondary-action,
+.ghost-action {
+  margin: 0;
+
+  &::part(native) {
+    border-radius: 16px;
+    overflow: hidden;
+    text-transform: none;
+    font-weight: 700;
+    transition: transform 170ms ease;
+  }
+
+  &:active::part(native) {
+    transform: translateY(1px) scale(0.997);
+  }
+}
+
+.primary-action {
+  --color: #ffffff;
+  --background: linear-gradient(145deg, #79a8ff, #2e6ef5);
+  --background-hover: linear-gradient(145deg, #8eb6ff, #4a83f8);
+  --background-activated: linear-gradient(145deg, #4f88f5, #1f55cb);
+}
+
+.secondary-action {
+  --color: $atlas-accent;
+  --background: linear-gradient(145deg, #eef3fb, #e2eaf7);
+  --background-hover: linear-gradient(145deg, #f5f8fd, #e8eef8);
+  --background-activated: linear-gradient(145deg, #e0e8f4, #d5deed);
+}
+
+.ghost-action {
+  --color: $atlas-muted;
+  --background: transparent;
+  --box-shadow: none;
+}
+
+.notes-well {
+  margin-top: 14px;
+  padding: 12px;
+  @include neo-inset(18px);
+
+  p {
+    margin: 0;
+    color: #4d5f78;
+    font-size: 0.88rem;
+    line-height: 1.5;
+  }
+}
+
+@media (max-width: 768px) {
+  .summary-page {
+    padding: 14px;
+    padding-top: 10px;
   }
 }

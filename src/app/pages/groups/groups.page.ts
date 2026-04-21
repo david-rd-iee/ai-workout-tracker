@@ -4,7 +4,7 @@ import { AlertController, IonicModule, NavController, ToastController } from '@i
 import { FormsModule } from '@angular/forms';
 import { Subscription } from 'rxjs';
 import { addIcons } from 'ionicons';
-import { arrowBackOutline, addOutline, closeOutline } from 'ionicons/icons';
+import { addOutline, closeOutline } from 'ionicons/icons';
 
 import { Group } from '../../models/groups.model';
 import { GroupWar } from '../../models/group-war.model';
@@ -29,13 +29,14 @@ import {
   buildLeaderboardDistributionChart,
   emptyLeaderboardDistributionChart,
 } from '../../components/leaderboard-shell/leaderboard-distribution.util';
+import { HeaderComponent } from '../../components/header/header.component';
 
 @Component({
   selector: 'app-groups',
   standalone: true,
   templateUrl: './groups.page.html',
   styleUrls: ['./groups.page.scss'],
-  imports: [CommonModule, IonicModule, FormsModule, LeaderboardShellComponent],
+  imports: [CommonModule, IonicModule, FormsModule, LeaderboardShellComponent, HeaderComponent],
 })
 export class GroupsPage implements OnInit, OnDestroy {
   private static readonly SMALL_POPULATION_THRESHOLD = 10;
@@ -95,7 +96,7 @@ export class GroupsPage implements OnInit, OnDestroy {
   pendingWarActionIds = new Set<string>();
 
   constructor() {
-    addIcons({ arrowBackOutline, addOutline, closeOutline });
+    addIcons({ addOutline, closeOutline });
   }
 
   ngOnInit(): void {
@@ -123,6 +124,13 @@ export class GroupsPage implements OnInit, OnDestroy {
     this.navCtrl.navigateBack('/profile-user', {
       animated: true,
       animationDirection: 'back',
+    });
+  }
+
+  openWarsLeaderboard(): void {
+    this.navCtrl.navigateForward('/group-wars/leaderboard', {
+      animated: true,
+      animationDirection: 'forward',
     });
   }
 

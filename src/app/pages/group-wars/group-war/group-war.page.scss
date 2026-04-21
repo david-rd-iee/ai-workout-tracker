@@ -1,75 +1,155 @@
+:host {
+  display: block;
+  background: #dbe3f0;
+}
+
+$neo-page-bg: #dbe3f0;
+$neo-surface-high: #f1f5fc;
+$neo-surface: #e8eef8;
+$neo-shadow-dark: rgba(184, 196, 214, 0.88);
+$neo-shadow-light: rgba(249, 252, 255, 0.95);
+$neo-text: #5a6880;
+$neo-muted: #8b9ab0;
+$neo-accent: #2e6ef5;
+
+@mixin neo-raised($radius: 22px) {
+  background: linear-gradient(145deg, $neo-surface-high, $neo-surface);
+  border-radius: $radius;
+  border: 1px solid rgba(255, 255, 255, 0.78);
+  box-shadow:
+    14px 14px 28px -14px $neo-shadow-dark,
+    -12px -12px 24px -14px $neo-shadow-light;
+}
+
+@mixin neo-inset($radius: 18px) {
+  background: linear-gradient(145deg, #edf2fb, #e4ebf7);
+  border-radius: $radius;
+  border: 1px solid rgba(255, 255, 255, 0.56);
+  box-shadow:
+    inset 7px 7px 12px -10px rgba(184, 196, 214, 0.9),
+    inset -7px -7px 12px -10px rgba(249, 252, 255, 0.95);
+}
+
 .group-war-page {
-  --background: #f4efe2;
+  --background: $neo-page-bg;
+  --ion-background-color: $neo-page-bg;
+  background: $neo-page-bg;
+  position: relative;
+}
+
+.group-war-page::part(background),
+.group-war-page::part(scroll) {
+  background: $neo-page-bg;
+}
+
+.background-gradient {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 14% -4%, rgba(255, 255, 255, 0.84) 0, rgba(255, 255, 255, 0) 36%),
+    radial-gradient(circle at 86% 8%, rgba(160, 179, 219, 0.34) 0, rgba(160, 179, 219, 0) 42%),
+    linear-gradient(145deg, #d5deeb 0%, #e8eef8 48%, #dbe4f1 100%);
+  pointer-events: none;
+}
+
+.group-war-container {
+  position: relative;
+  z-index: 1;
   padding: 16px;
+  padding-top: 10px;
+  min-height: 100%;
+  max-width: 980px;
+  margin: 0 auto;
 }
 
 .state-message {
+  @include neo-raised(22px);
   text-align: center;
   padding: 24px 12px;
-  color: #21313f;
+  color: $neo-text;
+  font-weight: 600;
+  font-size: 0.92rem;
 }
 
 .state-message.error {
-  color: #a53024;
+  color: #9d5f67;
+}
+
+.panel-state {
+  @include neo-inset(16px);
+  margin: 0;
+  box-shadow:
+    inset 7px 7px 12px -10px rgba(184, 196, 214, 0.9),
+    inset -7px -7px 12px -10px rgba(249, 252, 255, 0.95);
 }
 
 .war-hero {
-  background: #1f5f9c;
-  color: #f8f5ef;
-  border-radius: 16px;
+  @include neo-raised(24px);
+  color: $neo-text;
   padding: 18px;
-  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.2);
 
   h1 {
     margin: 0 0 10px;
-    font-size: 24px;
+    font-size: clamp(1.3rem, 2.5vw, 1.8rem);
     line-height: 1.2;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    color: $neo-text;
   }
 }
 
 .countdown {
   margin: 0;
-  font-size: 14px;
-  opacity: 0.9;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: $neo-muted;
 }
 
 .live-score {
   margin-top: 14px;
+  @include neo-inset(18px);
   display: grid;
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
+  padding: 12px;
 
   .label {
     display: block;
-    font-size: 13px;
-    opacity: 0.85;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: $neo-muted;
   }
 
   .value {
     display: block;
-    font-size: 30px;
+    font-size: clamp(1.4rem, 4vw, 2rem);
+    line-height: 1.1;
     font-weight: 700;
+    color: $neo-accent;
   }
 
   .divider {
-    font-size: 24px;
+    font-size: 1.4rem;
     font-weight: 700;
+    color: rgba(90, 104, 128, 0.7);
     text-align: center;
   }
 }
 
 .war-panel {
   margin-top: 14px;
-  background: #ffffff;
-  border-radius: 14px;
-  border: 1px solid #d3c7af;
+  @include neo-raised(22px);
   padding: 14px;
 
   h2 {
     margin: 0 0 10px;
-    font-size: 20px;
-    color: #1e2f44;
+    font-size: 1.05rem;
+    color: $neo-text;
+    font-weight: 700;
+    letter-spacing: 0.01em;
   }
 }
 
@@ -79,18 +159,17 @@
 }
 
 .standing-row {
+  @include neo-inset(14px);
   display: grid;
   grid-template-columns: auto 38px 1fr auto;
   align-items: center;
   gap: 8px;
   padding: 8px;
-  border-radius: 10px;
-  background: #f6f9fc;
 
   img {
     width: 38px;
     height: 38px;
-    border-radius: 8px;
+    border-radius: 10px;
     object-fit: cover;
     background: #eef2f6;
   }
@@ -98,27 +177,35 @@
 
 .standing-rank {
   font-weight: 700;
-  color: #23435d;
-  min-width: 32px;
+  color: $neo-accent;
+  min-width: 38px;
+  text-align: center;
+  font-size: 0.82rem;
+  padding: 4px 6px;
+  border-radius: 999px;
+  background: rgba(111, 158, 255, 0.18);
 }
 
 .standing-meta {
   display: grid;
 
   strong {
-    font-size: 14px;
-    color: #1d2d3f;
+    font-size: 0.9rem;
+    color: $neo-text;
+    line-height: 1.2;
   }
 
   small {
-    color: #526372;
-    font-size: 12px;
+    color: $neo-muted;
+    font-size: 0.76rem;
+    font-weight: 600;
   }
 }
 
 .standing-score {
   font-weight: 700;
-  color: #1c5a2d;
+  color: $neo-accent;
+  font-size: 0.9rem;
 }
 
 .breakdown-grid {
@@ -126,21 +213,59 @@
   gap: 10px;
 
   article {
-    background: #f7f3ea;
-    border-radius: 10px;
+    @include neo-inset(14px);
     padding: 10px;
 
     h3 {
       margin: 0 0 6px;
-      font-size: 16px;
-      color: #223b56;
+      font-size: 0.95rem;
+      color: $neo-text;
+      font-weight: 700;
     }
 
     p {
       margin: 0;
-      font-size: 14px;
-      line-height: 1.45;
-      color: #33485f;
+      font-size: 0.82rem;
+      line-height: 1.5;
+      color: $neo-muted;
+      font-weight: 600;
+    }
+  }
+}
+
+@media (max-width: 768px) {
+  .group-war-container {
+    padding: 14px;
+    padding-top: 10px;
+  }
+}
+
+@media (max-width: 520px) {
+  .live-score {
+    grid-template-columns: 1fr;
+    gap: 6px;
+
+    .divider {
+      display: none;
+    }
+
+    .value {
+      font-size: 1.45rem;
+    }
+  }
+
+  .standing-row {
+    grid-template-columns: auto 34px 1fr;
+    grid-template-rows: auto auto;
+
+    .standing-score {
+      grid-column: 2 / span 2;
+      margin-left: 2px;
+    }
+
+    img {
+      width: 34px;
+      height: 34px;
     }
   }
 }

@@ -1,82 +1,173 @@
+:host {
+  display: block;
+  background: #dbe3f0;
+}
+
+$neo-page-bg: #dbe3f0;
+$neo-surface-high: #f1f5fc;
+$neo-surface: #e8eef8;
+$neo-shadow-dark: rgba(184, 196, 214, 0.88);
+$neo-shadow-light: rgba(249, 252, 255, 0.95);
+$neo-text: #5a6880;
+$neo-muted: #8b9ab0;
+$neo-accent: #2e6ef5;
+
+@mixin neo-raised($radius: 22px) {
+  background: linear-gradient(145deg, $neo-surface-high, $neo-surface);
+  border-radius: $radius;
+  border: 1px solid rgba(255, 255, 255, 0.78);
+  box-shadow:
+    14px 14px 28px -14px $neo-shadow-dark,
+    -12px -12px 24px -14px $neo-shadow-light;
+}
+
+@mixin neo-inset($radius: 18px) {
+  background: linear-gradient(145deg, #edf2fb, #e4ebf7);
+  border-radius: $radius;
+  border: 1px solid rgba(255, 255, 255, 0.56);
+  box-shadow:
+    inset 7px 7px 12px -10px rgba(184, 196, 214, 0.9),
+    inset -7px -7px 12px -10px rgba(249, 252, 255, 0.95);
+}
+
+.background-gradient {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 14% -4%, rgba(255, 255, 255, 0.84) 0, rgba(255, 255, 255, 0) 36%),
+    radial-gradient(circle at 86% 8%, rgba(160, 179, 219, 0.34) 0, rgba(160, 179, 219, 0) 42%),
+    linear-gradient(145deg, #d5deeb 0%, #e8eef8 48%, #dbe4f1 100%);
+  pointer-events: none;
+}
+
 .groups-page {
-  --background: #f2f2f2;
+  --background: $neo-page-bg;
+  --ion-background-color: $neo-page-bg;
+  position: relative;
+}
+
+.groups-page::part(background),
+.groups-page::part(scroll) {
+  background: $neo-page-bg;
+}
+
+.groups-page-container {
+  position: relative;
+  z-index: 1;
+  min-height: 100%;
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 16px;
+  padding-top: 10px;
 }
 
 .top-panel {
-  background: #e7dfd0;
-  border: 1px solid #b69152;
-  border-radius: 0 0 20px 20px;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
-  padding: 16px 18px 20px;
-  position: sticky;
-  top: 0;
-  z-index: 5;
+  @include neo-raised(26px);
+  display: grid;
+  gap: 14px;
+  padding: 18px;
 
   h1 {
-    margin: 6px 0 18px;
-    text-align: center;
-    font-size: 56px;
-    line-height: 1;
-    font-weight: 700;
-    color: #000;
+    margin: 0;
+    font-size: clamp(2rem, 5.1vw, 2.95rem);
+    line-height: 0.98;
+    font-weight: 680;
+    letter-spacing: -0.02em;
+    color: $neo-text;
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.7);
   }
 }
 
-.back-btn {
-  border: 0;
-  background: transparent;
-  color: #1c1c1c;
-  padding: 2px;
+.panel-actions {
   display: flex;
+  justify-content: flex-end;
+}
+
+.panel-eyebrow {
+  margin: 0;
+  color: $neo-accent;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.panel-copy {
+  margin: -4px 0 0;
+  color: $neo-muted;
+  font-size: 0.94rem;
+  line-height: 1.5;
+}
+
+.wars-leaderboard-btn {
+  border: 0;
+  border-radius: 999px;
+  background: linear-gradient(145deg, #eef3fb, #e2e9f5);
+  box-shadow:
+    8px 8px 16px -12px rgba(184, 196, 214, 0.92),
+    -8px -8px 16px -12px rgba(255, 255, 255, 0.92);
+  color: $neo-accent;
+  min-height: 42px;
+  min-width: 132px;
+  padding: 8px 14px;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  transition: transform 170ms ease, box-shadow 170ms ease;
 
-  ion-icon {
-    font-size: 42px;
+  &:active {
+    transform: translateY(1px) scale(0.997);
   }
 }
 
 .tab-toggle {
+  @include neo-inset(20px);
   display: grid;
   grid-template-columns: 1fr 1fr;
-  border-radius: 4px;
-  overflow: hidden;
+  gap: 8px;
+  padding: 6px;
 
   button {
     border: 0;
-    background: #7aa9d3;
-    color: #14253b;
-    font-size: 30px;
-    padding: 10px 0;
+    background: transparent;
+    color: $neo-muted;
+    font-size: 16px;
+    font-weight: 700;
+    border-radius: 16px;
+    min-height: 42px;
+    padding: 8px 10px;
+    transition: transform 170ms ease, box-shadow 170ms ease, background 170ms ease, color 170ms ease;
   }
 
   button.active {
-    background: #317fc9;
-    color: #0d1a2a;
+    background: linear-gradient(145deg, #79a8ff, #2e6ef5);
+    color: #f7fbff;
+    box-shadow:
+      7px 7px 16px -12px rgba(78, 122, 210, 0.52),
+      inset 1px 1px 1px rgba(255, 255, 255, 0.4);
   }
 
   button.disabled {
-    background: #c5ccd3;
-    color: #6a7178;
+    color: rgba(139, 154, 176, 0.62);
     cursor: not-allowed;
   }
 }
 
 .groups-content {
-  padding: 20px 18px 100px;
+  padding: 16px 0 96px;
 }
 
 .card-list {
   display: grid;
-  gap: 16px;
+  gap: 14px;
 }
 
 .group-card {
-  background: #317fc9;
-  border: 1px solid #c59855;
-  border-radius: 20px;
-  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.25);
-  color: #fff;
+  @include neo-raised(26px);
+  color: $neo-text;
   display: grid;
   gap: 12px;
   min-height: 124px;
@@ -85,18 +176,22 @@
   img {
     width: 72px;
     height: 72px;
-    border-radius: 12px;
+    border-radius: 14px;
     object-fit: cover;
-    border: 1px solid rgba(0, 0, 0, 0.2);
     background: #fff;
     flex: 0 0 auto;
+    @include neo-inset(14px);
+    padding: 4px;
   }
 
   p {
     margin: 0;
-    font-size: 38px;
-    line-height: 1.2;
+    font-size: 1.1rem;
+    font-weight: 680;
+    line-height: 1.3;
     text-align: left;
+    color: $neo-text;
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.7);
   }
 }
 
@@ -107,7 +202,7 @@
   color: inherit;
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 14px;
   min-height: 92px;
   padding: 4px;
   text-align: left;
@@ -115,33 +210,29 @@
 }
 
 .group-card.owner-highlight {
-  border: 3px solid #f5d25f;
+  border-color: rgba(46, 110, 245, 0.48);
+  border-width: 2px;
   box-shadow:
-    0 0 0 2px rgba(245, 210, 95, 0.28),
-    0 8px 18px rgba(0, 0, 0, 0.28);
-}
-
-.placeholder-card {
-  justify-content: center;
-  text-align: center;
-  font-size: 26px;
-  text-transform: lowercase;
+    14px 14px 28px -14px $neo-shadow-dark,
+    -12px -12px 24px -14px $neo-shadow-light,
+    0 0 0 2px rgba(46, 110, 245, 0.12);
 }
 
 .state-message {
-  color: #2b2b2b;
+  color: $neo-text;
   text-align: center;
-  font-size: 24px;
-  padding: 26px 12px;
+  font-size: 0.92rem;
+  font-weight: 600;
+  line-height: 1.5;
+  padding: 24px 12px;
 }
 
 .state-message.error {
-  color: #b42318;
+  color: #9d5f67;
 }
 
 .group-war-controls {
-  background: rgba(5, 23, 42, 0.24);
-  border-radius: 12px;
+  @include neo-inset(18px);
   padding: 10px 12px;
 }
 
@@ -152,40 +243,52 @@
   gap: 12px;
 
   span {
-    font-size: 16px;
-    font-weight: 600;
-    color: #f8f3e7;
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: $neo-text;
+  }
+
+  ion-toggle {
+    --track-background: rgba(143, 159, 184, 0.2);
+    --track-background-checked: rgba(46, 110, 245, 0.28);
+    --handle-background: linear-gradient(145deg, #f2f7ff, #dde7f6);
+    --handle-background-checked: #2e6ef5;
+    --border-color: rgba(255, 255, 255, 0.5);
   }
 }
 
 .war-status-card {
-  border-radius: 12px;
+  @include neo-inset(16px);
   padding: 10px 12px;
   display: grid;
   gap: 6px;
 
   h3 {
     margin: 0;
-    font-size: 16px;
+    font-size: 0.95rem;
     line-height: 1.2;
     font-weight: 700;
+    color: $neo-text;
   }
 
   p {
     margin: 0;
-    font-size: 14px;
+    font-size: 0.83rem;
     line-height: 1.35;
+    color: $neo-muted;
   }
 }
 
 .war-status-card.active {
-  background: rgba(34, 126, 63, 0.28);
-  border: 1px solid rgba(94, 216, 132, 0.5);
+  background:
+    linear-gradient(145deg, rgba(237, 243, 255, 0.96), rgba(224, 235, 252, 0.9));
+  border-color: rgba(111, 158, 255, 0.45);
 }
 
 .war-status-card.pending {
-  background: rgba(171, 129, 28, 0.28);
-  border: 1px solid rgba(255, 201, 95, 0.55);
+  background:
+    linear-gradient(145deg, rgba(242, 246, 253, 0.95), rgba(231, 238, 249, 0.9));
+  border-color: rgba(160, 177, 204, 0.45);
 }
 
 .pending-actions {
@@ -194,21 +297,38 @@
 }
 
 .war-action-btn {
-  border: 1px solid rgba(255, 255, 255, 0.45);
-  background: rgba(0, 0, 0, 0.2);
-  color: #fefcf8;
-  border-radius: 10px;
+  border: 0;
+  border-radius: 14px;
+  min-height: 36px;
   padding: 7px 12px;
-  font-size: 13px;
-  font-weight: 600;
-}
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  transition: transform 170ms ease, box-shadow 170ms ease, filter 170ms ease;
+  color: #f7fbff;
+  background: linear-gradient(145deg, #79a8ff, #2e6ef5);
+  box-shadow:
+    7px 7px 16px -12px rgba(78, 122, 210, 0.55),
+    inset 1px 1px 1px rgba(255, 255, 255, 0.4);
 
-.war-action-btn.accept {
-  background: #1a7a49;
+  &:active {
+    transform: translateY(1px) scale(0.997);
+    filter: brightness(0.95);
+  }
+
+  &:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+    filter: saturate(0.65);
+  }
 }
 
 .war-action-btn.decline {
-  background: #8e3f35;
+  color: #6f7d93;
+  background: linear-gradient(145deg, #edf2fb, #e1e8f5);
+  box-shadow:
+    8px 8px 14px -12px rgba(184, 196, 214, 0.9),
+    -8px -8px 14px -12px rgba(249, 252, 255, 0.92);
 }
 
 .add-group-btn {
@@ -219,76 +339,262 @@
   width: 62px;
   height: 62px;
   border-radius: 50%;
-  border: 1px solid #c59855;
-  background: #317fc9;
-  color: #fff;
+  border: 0;
+  background: linear-gradient(145deg, #79a8ff, #2e6ef5);
+  color: #f6faff;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
   z-index: 8;
+  box-shadow:
+    14px 14px 28px -14px rgba(78, 122, 210, 0.6),
+    -12px -12px 24px -14px rgba(255, 255, 255, 0.9);
+  transition: transform 170ms ease, box-shadow 170ms ease;
 
   ion-icon {
-    font-size: 38px;
+    font-size: 36px;
+  }
+
+  &:active {
+    transform: translateX(-50%) translateY(1px) scale(0.997);
+  }
+}
+
+:host ::ng-deep .groups-search-modal {
+  --width: min(680px, calc(100% - 24px));
+  --height: min(86vh, 760px);
+  --border-radius: 28px;
+  --backdrop-opacity: 0.28;
+}
+
+:host ::ng-deep .groups-search-modal::part(content) {
+  border-radius: 28px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.78);
+  background: $neo-page-bg;
+  box-shadow:
+    16px 16px 30px -14px rgba(184, 196, 214, 0.85),
+    -12px -12px 24px -14px rgba(249, 252, 255, 0.9);
+}
+
+.search-modal-header {
+  box-shadow: none;
+  backdrop-filter: saturate(112%) blur(4px);
+  -webkit-backdrop-filter: saturate(112%) blur(4px);
+  background: rgba(231, 237, 245, 0.44);
+}
+
+.search-modal-toolbar {
+  --background: rgba(231, 237, 245, 0.82);
+  --min-height: 66px;
+  --padding-start: 10px;
+  --padding-end: 10px;
+  --padding-top: 0;
+  --padding-bottom: 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.68);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.84),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.72);
+
+  ion-title {
+    color: #30415b;
+    font-size: 1.18rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+  }
+}
+
+.search-modal-close-btn {
+  --background: linear-gradient(145deg, #eef3fb, #e2e9f5);
+  --background-hover: linear-gradient(145deg, #f5f8fd, #e8eef8);
+  --background-activated: linear-gradient(145deg, #e0e8f4, #d5deed);
+  --color: $neo-accent;
+  --border-radius: 14px;
+  --box-shadow: none;
+  width: 42px;
+  height: 42px;
+  margin: 0;
+  box-shadow:
+    7px 7px 14px -12px rgba(153, 171, 198, 0.85),
+    -7px -7px 14px -11px rgba(255, 255, 255, 0.9);
+
+  &::part(native) {
+    border-radius: 14px;
+    overflow: hidden;
   }
 }
 
 .search-modal-content {
-  --background: #f2f2f2;
+  --background: $neo-page-bg;
+  position: relative;
+}
+
+.search-modal-gradient {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 14% -4%, rgba(255, 255, 255, 0.84) 0, rgba(255, 255, 255, 0) 36%),
+    radial-gradient(circle at 86% 8%, rgba(160, 179, 219, 0.34) 0, rgba(160, 179, 219, 0) 42%),
+    linear-gradient(145deg, #d5deeb 0%, #e8eef8 48%, #dbe4f1 100%);
+  pointer-events: none;
+}
+
+.search-modal-shell {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+}
+
+.search-modal-actions {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.create-group-btn {
+  --background: linear-gradient(145deg, #79a8ff, #2e6ef5);
+  --background-hover: linear-gradient(145deg, #8eb6ff, #4a83f8);
+  --background-activated: linear-gradient(145deg, #4f88f5, #1f55cb);
+  --color: #f7fbff;
+  --border-radius: 16px;
+  min-height: 44px;
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  box-shadow:
+    8px 8px 16px -12px rgba(78, 122, 210, 0.55),
+    inset 1px 1px 1px rgba(255, 255, 255, 0.4);
+
+  &::part(native) {
+    border-radius: 16px;
+    overflow: hidden;
+    padding: 0 16px;
+  }
+}
+
+.searchbar-shell {
+  @include neo-inset(20px);
+  padding: 4px 8px;
+}
+
+.group-searchbar {
+  --background: transparent;
+  --box-shadow: none;
+  --color: $neo-text;
+  --icon-color: $neo-accent;
+  --placeholder-color: $neo-muted;
+  --clear-button-color: $neo-muted;
+  --cancel-button-color: $neo-accent;
+  --border-radius: 16px;
+  padding: 0;
+}
+
+.search-modal-shell .state-message {
+  @include neo-inset(16px);
+  color: $neo-text;
+  padding: 16px 14px;
+}
+
+.search-modal-shell .state-message.error {
+  color: #9d5f67;
 }
 
 .search-results {
   display: grid;
-  gap: 10px;
-  margin-top: 8px;
+  gap: 12px;
 }
 
 .search-result-item {
+  @include neo-raised(22px);
   width: 100%;
   display: flex;
   align-items: center;
-  gap: 10px;
-  border: 1px solid rgba(0, 0, 0, 0.12);
-  border-radius: 12px;
-  background: #fff;
-  color: #1e1e1e;
+  gap: 12px;
+  border: 0;
+  color: $neo-text;
   padding: 10px 12px;
   text-align: left;
+  transition: transform 170ms ease, box-shadow 170ms ease;
+
+  &:active {
+    transform: translateY(1px) scale(0.997);
+    box-shadow:
+      9px 9px 18px -14px rgba(184, 196, 214, 0.9),
+      -6px -6px 14px -12px rgba(249, 252, 255, 0.86);
+  }
 
   img {
-    width: 38px;
-    height: 38px;
-    border-radius: 8px;
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
     object-fit: cover;
     background: #f4f4f4;
     flex: 0 0 auto;
+    @include neo-inset(12px);
+    padding: 3px;
   }
 
   span {
-    font-size: 16px;
+    font-size: 0.95rem;
     line-height: 1.3;
+    font-weight: 600;
+  }
+}
+
+:host ::ng-deep app-header .header-button {
+  --background: linear-gradient(145deg, #eef3fb, #e2e9f5);
+  --background-hover: linear-gradient(145deg, #f5f8fd, #e8eef8);
+  --background-activated: linear-gradient(145deg, #e0e8f4, #d5deed);
+  --color: #2e6ef5;
+  border-radius: 50%;
+  box-shadow:
+    8px 8px 16px -12px rgba(184, 196, 214, 0.92),
+    -8px -8px 16px -12px rgba(249, 252, 255, 0.96);
+}
+
+@media (max-width: 768px) {
+  .groups-page-container {
+    padding: 14px;
+    padding-top: 10px;
+  }
+
+  :host ::ng-deep .groups-search-modal {
+    --width: calc(100% - 12px);
+    --height: min(90vh, 760px);
+    --border-radius: 24px;
+  }
+
+  .search-modal-shell {
+    padding: 14px;
+    gap: 12px;
   }
 }
 
 @media (max-width: 480px) {
-  .top-panel h1 {
-    font-size: 34px;
+  .top-panel {
+    padding: 16px;
+
+    h1 {
+      font-size: 2.25rem;
+    }
+  }
+
+  .wars-leaderboard-btn {
+    min-height: 40px;
+    min-width: 116px;
+    padding: 7px 12px;
+    font-size: 0.88rem;
   }
 
   .tab-toggle button {
-    font-size: 22px;
+    font-size: 0.9rem;
+    min-height: 38px;
   }
 
   .group-card p {
-    font-size: 20px;
-  }
-
-  .placeholder-card {
-    font-size: 18px;
-  }
-
-  .state-message {
-    font-size: 16px;
+    font-size: 1rem;
   }
 
   .add-group-btn {
@@ -296,7 +602,26 @@
     height: 56px;
 
     ion-icon {
-      font-size: 34px;
+      font-size: 32px;
     }
+  }
+
+  :host ::ng-deep .groups-search-modal {
+    --width: 100%;
+    --height: 100%;
+    --border-radius: 0;
+  }
+
+  :host ::ng-deep .groups-search-modal::part(content) {
+    border-radius: 0;
+  }
+
+  .search-modal-toolbar {
+    --min-height: 62px;
+  }
+
+  .create-group-btn {
+    min-height: 42px;
+    font-size: 0.9rem;
   }
 }

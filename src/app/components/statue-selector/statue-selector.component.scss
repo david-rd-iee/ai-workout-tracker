@@ -1,33 +1,147 @@
+:host {
+  display: block;
+}
+
+$neo-bg: #dbe3f0;
+$neo-surface-high: #f1f5fc;
+$neo-surface: #e8eef8;
+$neo-shadow-dark: rgba(184, 196, 214, 0.88);
+$neo-shadow-light: rgba(249, 252, 255, 0.95);
+$neo-text: #5a6880;
+$neo-muted: #8b9ab0;
+
+$gold-accent-light: #f0cf68;
+$gold-accent: #d4af37;
+$gold-accent-dark: #b8941a;
+$gold-text: #8b7355;
+
+@mixin neo-raised($radius: 22px) {
+  background: linear-gradient(145deg, $neo-surface-high, $neo-surface);
+  border-radius: $radius;
+  border: 1px solid rgba(255, 255, 255, 0.78);
+  box-shadow:
+    14px 14px 28px -14px $neo-shadow-dark,
+    -12px -12px 24px -14px $neo-shadow-light;
+}
+
+@mixin neo-inset($radius: 18px) {
+  background: linear-gradient(145deg, #edf2fb, #e4ebf7);
+  border-radius: $radius;
+  border: 1px solid rgba(255, 255, 255, 0.56);
+  box-shadow:
+    inset 7px 7px 12px -10px rgba(184, 196, 214, 0.9),
+    inset -7px -7px 12px -10px rgba(249, 252, 255, 0.95);
+}
+
+ion-header.selector-header-bar {
+  backdrop-filter: saturate(112%) blur(4px);
+  -webkit-backdrop-filter: saturate(112%) blur(4px);
+  background: rgba(231, 237, 245, 0.44);
+  box-shadow: none;
+}
+
+ion-toolbar.selector-toolbar {
+  --background: rgba(231, 237, 245, 0.82);
+  --min-height: 62px;
+  --padding-start: 10px;
+  --padding-end: 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.68);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.84),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.72);
+
+  ion-title {
+    color: $neo-text;
+    font-size: 1.02rem;
+    font-weight: 680;
+    letter-spacing: 0.02em;
+  }
+}
+
+.close-button {
+  --color: $gold-accent-dark;
+  --background: linear-gradient(145deg, #f6ecd5, #ead6ac);
+  --background-hover: linear-gradient(145deg, #f9f0dd, #efdfbc);
+  --background-activated: linear-gradient(145deg, #ecd9b3, #d8be87);
+  --padding-start: 0;
+  --padding-end: 0;
+  width: 40px;
+  min-width: 40px;
+  height: 40px;
+  min-height: 40px;
+  margin: 0;
+  border-radius: 50%;
+  box-shadow:
+    8px 8px 16px -12px $neo-shadow-dark,
+    -8px -8px 16px -12px $neo-shadow-light;
+}
+
+.close-button::part(native) {
+  border-radius: 50%;
+  overflow: hidden;
+}
+
+ion-content.selector-content {
+  --background:
+    radial-gradient(circle at 14% -4%, rgba(255, 255, 255, 0.84) 0, rgba(255, 255, 255, 0) 36%),
+    radial-gradient(circle at 84% 10%, rgba(212, 175, 55, 0.16) 0, rgba(212, 175, 55, 0) 46%),
+    linear-gradient(145deg, #d5deeb 0%, #e8eef8 48%, #dbe4f1 100%);
+}
+
+.selector-shell {
+  position: relative;
+  z-index: 1;
+  padding: 16px 16px 22px;
+}
+
 .selector-header {
   margin-bottom: 20px;
 
   p {
-    margin: 0 0 12px 0;
-    color: #8B7355;
+    margin: 0;
+    color: $neo-muted;
     font-size: 0.9rem;
-    line-height: 1.5;
-    font-style: italic;
+    line-height: 1.45;
   }
+}
 
-  .selection-actions {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-top: 12px;
-    padding: 12px;
-    background: linear-gradient(135deg, rgba(245, 230, 211, 0.4), rgba(218, 200, 180, 0.3));
-    border-radius: 8px;
-    border: 1px solid rgba(212, 175, 55, 0.3);
-    border-left: 4px solid #D4AF37;
+.selection-actions {
+  margin-top: 12px;
+  padding: 12px 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  @include neo-inset(16px);
+  border-color: rgba(212, 175, 55, 0.24);
+}
 
-    .selection-count {
-      margin: 0;
-      font-weight: 700;
-      color: #8B6F47;
-      font-size: 1rem;
-      letter-spacing: 0.5px;
-    }
-  }
+.selection-count {
+  margin: 0;
+  color: $gold-text;
+  font-size: 0.94rem;
+  font-weight: 680;
+  letter-spacing: 0.02em;
+}
+
+.clear-btn {
+  --background: linear-gradient(145deg, #f6ecd5, #ead6ac);
+  --background-hover: linear-gradient(145deg, #f9f0dd, #efdfbc);
+  --background-activated: linear-gradient(145deg, #ecd9b3, #d8be87);
+  --color: $gold-accent-dark;
+  --padding-top: 7px;
+  --padding-bottom: 7px;
+  --padding-start: 12px;
+  --padding-end: 12px;
+  --border-radius: 12px;
+  min-height: 34px;
+  font-weight: 680;
+  letter-spacing: 0.02em;
+}
+
+.clear-btn::part(native) {
+  border-radius: 12px;
+  overflow: hidden;
 }
 
 .filters-section {
@@ -35,39 +149,51 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
 
-  .filter-group {
-    .filter-label {
-      display: block;
-      font-size: 0.85rem;
-      font-weight: 600;
-      color: var(--ion-color-step-700);
-      margin-bottom: 8px;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
+.filter-label {
+  display: block;
+  margin-bottom: 8px;
+  color: $neo-muted;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
 
-    ion-segment {
-      &.category-filter {
-        ion-segment-button {
-          min-width: 100px;
+ion-segment {
+  padding: 4px;
+  @include neo-inset(14px);
+}
 
-          .category-label {
-            font-size: 0.85rem;
-            font-weight: 500;
-          }
-        }
-      }
+ion-segment-button {
+  --indicator-color: transparent;
+  --background-checked: linear-gradient(145deg, #f6ecd5, #ead6ac);
+  --color: #7f8ea5;
+  --color-checked: $gold-accent-dark;
+  min-height: 36px;
+}
 
-      &.sort-filter {
-        ion-segment-button {
-          ion-label {
-            font-size: 0.85rem;
-          }
-        }
-      }
-    }
-  }
+ion-segment-button::part(native) {
+  border-radius: 10px;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+}
+
+ion-segment-button::part(indicator-background) {
+  border-radius: 10px;
+  box-shadow:
+    6px 6px 12px -11px rgba(184, 196, 214, 0.9),
+    -6px -6px 12px -11px rgba(249, 252, 255, 0.95);
+}
+
+.category-filter ion-segment-button {
+  min-width: 100px;
+}
+
+.sort-filter ion-segment-button ion-label,
+.category-label {
+  font-size: 0.82rem;
 }
 
 .statues-list {
@@ -75,74 +201,193 @@
   flex-direction: column;
   gap: 12px;
   margin-bottom: 20px;
+}
 
-  .statue-wrapper {
-    position: relative;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    border-radius: 16px;
-    overflow: hidden;
+.statue-wrapper {
+  position: relative;
+  cursor: pointer;
+  padding: 10px 12px 14px;
+  @include neo-raised(20px);
+  transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
 
-    &:hover:not(.disabled) {
-      transform: scale(1.02);
-      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
-    }
+  &:hover:not(.disabled) {
+    transform: translateY(-1px);
+    box-shadow:
+      16px 16px 30px -16px $neo-shadow-dark,
+      -12px -12px 24px -14px $neo-shadow-light;
+  }
 
-    &.selected {
-      outline: 3px solid #D4AF37;
-      outline-offset: 2px;
-      box-shadow: 0 0 0 1px #D4AF37, 
-                  0 4px 20px rgba(212, 175, 55, 0.4),
-                  0 0 30px rgba(212, 175, 55, 0.2);
-      border-radius: 16px;
+  &.selected {
+    border-color: rgba(212, 175, 55, 0.56);
+    box-shadow:
+      0 0 0 1px rgba(212, 175, 55, 0.28),
+      14px 14px 28px -14px $neo-shadow-dark,
+      -12px -12px 24px -14px $neo-shadow-light;
+  }
 
-      // Add golden glow effect
-      &::after {
-        content: '';
-        position: absolute;
-        inset: -3px;
-        border-radius: 18px;
-        background: linear-gradient(135deg, 
-          rgba(212, 175, 55, 0.1), 
-          rgba(255, 215, 0, 0.05));
-        pointer-events: none;
-        z-index: -1;
-      }
-    }
-
-    &.disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-      filter: grayscale(0.5);
-    }
-
-    .selection-indicator {
-      position: absolute;
-      top: 12px;
-      right: 12px;
-      z-index: 10;
-      background: white;
-      border-radius: 50%;
-      padding: 2px;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-
-      ion-icon {
-        font-size: 32px;
-        display: block;
-      }
-    }
+  &.disabled {
+    opacity: 0.56;
+    cursor: not-allowed;
+    filter: grayscale(0.2);
   }
 }
 
+.selection-indicator {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 5;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  @include neo-inset(999px);
+  border-color: rgba(212, 175, 55, 0.42);
+
+  ion-icon {
+    font-size: 23px;
+    color: $gold-accent !important;
+  }
+}
+
+.statue-wrapper ::ng-deep .greek-statue {
+  margin: 0;
+}
+
+.statue-wrapper ::ng-deep .greek-statue .statue-container {
+  padding: 0;
+  gap: 0;
+  background: transparent;
+  border: 0;
+  border-left: 0;
+  box-shadow: none;
+}
+
+.statue-wrapper ::ng-deep .greek-statue .statue-container::before {
+  display: none;
+}
+
+.statue-wrapper ::ng-deep .greek-statue .statue-icon {
+  width: 122px;
+  height: 122px;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent !important;
+}
+
+.statue-wrapper ::ng-deep .greek-statue .stage-img,
+.statue-wrapper ::ng-deep .greek-statue .uncarved-stone-img,
+.statue-wrapper ::ng-deep .greek-statue .custom-icon-img {
+  object-fit: contain;
+  background: transparent !important;
+}
+
+.statue-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 8px 6px 0;
+}
+
+.statue-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.statue-name-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+
+  h3 {
+    margin: 0;
+    color: $gold-text;
+    font-size: 1.03rem;
+    font-weight: 680;
+    letter-spacing: 0.01em;
+  }
+}
+
+.stage-pill {
+  flex-shrink: 0;
+  padding: 4px 10px;
+  border-radius: 999px;
+  color: $gold-accent-dark;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  background: linear-gradient(145deg, rgba(245, 230, 211, 0.58), rgba(234, 214, 172, 0.46));
+  border: 1px solid rgba(212, 175, 55, 0.34);
+  box-shadow:
+    inset 5px 5px 10px -9px rgba(184, 196, 214, 0.76),
+    inset -5px -5px 10px -9px rgba(249, 252, 255, 0.88);
+}
+
+.statue-title {
+  margin: 0;
+  color: $gold-text;
+  font-size: 0.82rem;
+}
+
+.statue-description {
+  margin: 0;
+  color: $neo-muted;
+  font-size: 0.82rem;
+  line-height: 1.42;
+}
+
+.statue-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.stat-chip {
+  min-width: 92px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  display: inline-flex;
+  flex-direction: column;
+  gap: 2px;
+  background: linear-gradient(145deg, rgba(245, 230, 211, 0.58), rgba(234, 214, 172, 0.46));
+  border: 1px solid rgba(212, 175, 55, 0.26);
+  box-shadow:
+    inset 5px 5px 10px -9px rgba(184, 196, 214, 0.76),
+    inset -5px -5px 10px -9px rgba(249, 252, 255, 0.88);
+
+  strong {
+    color: $gold-text;
+    font-size: 0.84rem;
+    font-weight: 700;
+  }
+}
+
+.chip-label {
+  color: $gold-text;
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
 .empty-state {
+  margin-bottom: 18px;
   text-align: center;
-  padding: 40px 20px;
-  color: var(--ion-color-step-500);
-  font-style: italic;
+  padding: 22px 16px;
+  @include neo-inset(16px);
+  border-color: rgba(212, 175, 55, 0.22);
 
   p {
     margin: 0;
-    font-size: 1rem;
+    color: $neo-muted;
+    font-size: 0.9rem;
+    line-height: 1.45;
   }
 }
 
@@ -150,28 +395,62 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
-  margin-top: 20px;
-  padding-bottom: 20px;
-
-  ion-button {
-    margin: 0;
-    font-weight: 600;
-    text-transform: none;
-    letter-spacing: 0.3px;
-  }
+  margin-top: 6px;
+  padding-bottom: 10px;
 }
 
-// Responsive adjustments
+.button-container ion-button {
+  margin: 0;
+  min-height: 44px;
+  font-weight: 680;
+  text-transform: none;
+  letter-spacing: 0.02em;
+}
+
+.confirm-btn {
+  --background: linear-gradient(145deg, #f0cf68, #d4af37);
+  --background-hover: linear-gradient(145deg, #f5d779, #dfbc4c);
+  --background-activated: linear-gradient(145deg, #d8b446, #b8941a);
+  --color: #ffffff;
+  --border-radius: 16px;
+  --box-shadow:
+    8px 8px 18px -10px rgba(160, 139, 87, 0.5),
+    -4px -4px 10px -8px rgba(255, 255, 255, 0.82);
+}
+
+.confirm-btn::part(native) {
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.cancel-btn {
+  --background: linear-gradient(145deg, #f1f5fc, #e8eef8);
+  --background-hover: linear-gradient(145deg, #f7f9fd, #edf2fa);
+  --background-activated: linear-gradient(145deg, #e8eef8, #dee7f3);
+  --color: #6a7c98;
+  --border-radius: 16px;
+  --border-color: rgba(255, 255, 255, 0.78);
+}
+
+.cancel-btn::part(native) {
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow:
+    10px 10px 20px -14px $neo-shadow-dark,
+    -10px -10px 20px -14px $neo-shadow-light;
+}
+
 @media (max-width: 768px) {
-  .filters-section {
-    .filter-group {
-      ion-segment {
-        &.category-filter {
-          ion-segment-button {
-            min-width: 80px;
-          }
-        }
-      }
-    }
+  .selector-shell {
+    padding: 14px 14px 22px;
+  }
+
+  .category-filter ion-segment-button {
+    min-width: 84px;
+  }
+
+  .statue-name-row {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }

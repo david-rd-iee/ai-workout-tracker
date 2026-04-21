@@ -3,6 +3,12 @@ export interface Region {
   country: string;
   state: string;
   city: string;
+  countryCode?: string;
+  stateCode?: string;
+  cityId?: string;
+  countryName?: string;
+  stateName?: string;
+  cityName?: string;
 }
 
 export interface CardioScoreMap {

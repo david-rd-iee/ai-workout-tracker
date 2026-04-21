@@ -1,60 +1,208 @@
+$atlas-surface-high: #f1f5fc;
+$atlas-surface: #e8eef8;
+$atlas-shadow-dark: rgba(184, 196, 214, 0.88);
+$atlas-shadow-light: rgba(249, 252, 255, 0.95);
+$atlas-text: #5a6880;
+$atlas-muted: #8b9ab0;
+$atlas-blue-strong: #2e6ef5;
+
+@mixin atlas-neu($radius: 22px) {
+  background: linear-gradient(145deg, $atlas-surface-high, $atlas-surface);
+  border-radius: $radius;
+  border: 1px solid rgba(255, 255, 255, 0.78);
+  box-shadow:
+    14px 14px 28px -14px $atlas-shadow-dark,
+    -12px -12px 24px -14px $atlas-shadow-light;
+}
+
+@mixin atlas-inset($radius: 18px) {
+  background: linear-gradient(145deg, #edf2fb, #e4ebf7);
+  border-radius: $radius;
+  border: 1px solid rgba(255, 255, 255, 0.56);
+  box-shadow:
+    inset 7px 7px 12px -10px rgba(184, 196, 214, 0.9),
+    inset -7px -7px 12px -10px rgba(249, 252, 255, 0.95);
+}
+
 .analyzed-videos-content {
-  --background: linear-gradient(180deg, #f6f7f3 0%, #eef1ea 100%);
+  --background: #dbe3f0;
+  position: relative;
+}
+
+.background-gradient {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 14% -4%, rgba(255, 255, 255, 0.84) 0, rgba(255, 255, 255, 0) 36%),
+    radial-gradient(circle at 86% 8%, rgba(160, 179, 219, 0.34) 0, rgba(160, 179, 219, 0) 42%),
+    linear-gradient(145deg, #d5deeb 0%, #e8eef8 48%, #dbe4f1 100%);
 }
 
 .analyzed-videos-page {
-  display: flex;
-  flex-direction: column;
+  position: relative;
+  z-index: 1;
+  display: grid;
+  align-content: start;
   gap: 16px;
   min-height: 100%;
+  max-width: 980px;
+  margin: 0 auto;
   padding: 16px;
+  padding-top: 10px;
+  padding-bottom: 28px;
+}
+
+.videos-hero,
+.videos-shell,
+.loading-state {
+  @include atlas-neu(26px);
+}
+
+.videos-hero {
+  padding: 20px;
+}
+
+.hero-eyebrow {
+  margin: 0 0 8px;
+  color: $atlas-blue-strong;
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.videos-hero h1 {
+  margin: 0;
+  color: $atlas-text;
+  font-size: clamp(1.85rem, 4.2vw, 2.5rem);
+  line-height: 1.05;
+  font-weight: 680;
+  letter-spacing: -0.02em;
+}
+
+.hero-copy {
+  margin: 12px 0 0;
+  max-width: 40rem;
+  color: $atlas-muted;
+  line-height: 1.55;
+  font-size: 0.95rem;
+}
+
+.videos-shell {
+  display: grid;
+  gap: 12px;
+  padding: 18px;
+}
+
+.videos-shell h2 {
+  margin: 0;
+  color: $atlas-text;
+  font-size: 1.1rem;
+  font-weight: 680;
+}
+
+.videos-list {
+  display: grid;
+  gap: 12px;
+}
+
+.video-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px;
+  border: 0;
+  text-align: left;
+  @include atlas-neu(22px);
+  transition: transform 170ms ease, box-shadow 170ms ease;
+}
+
+.video-item:active {
+  transform: translateY(1px) scale(0.997);
+}
+
+.video-copy {
+  color: $atlas-text;
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.video-item-icon {
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  @include atlas-neu(50%);
+}
+
+.video-item-icon ion-icon {
+  color: $atlas-blue-strong;
+  font-size: 1.05rem;
 }
 
 .loading-state,
 .message-card,
-.videos-list {
-  border-radius: 22px;
-  background: rgba(255, 255, 255, 0.92);
-  box-shadow:
-    0 18px 34px rgba(17, 33, 32, 0.12),
-    inset 0 0 0 1px rgba(31, 71, 58, 0.06);
-}
-
-.loading-state,
-.message-card {
+.empty-state {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 12px;
   min-height: 180px;
-  padding: 24px;
-  color: #546361;
+  padding: 18px;
+  color: $atlas-muted;
   text-align: center;
 }
 
+.message-card,
+.empty-state {
+  @include atlas-inset(20px);
+}
+
 .loading-state p,
-.message-card p {
+.message-card p,
+.empty-state p {
   margin: 0;
   line-height: 1.5;
 }
 
-.videos-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 16px;
+.empty-state ion-icon,
+.loading-state ion-spinner {
+  color: $atlas-blue-strong;
 }
 
-.video-item {
-  width: 100%;
-  padding: 14px 16px;
-  border: 0;
-  border-radius: 16px;
-  background: rgba(19, 38, 36, 0.06);
-  color: #132624;
-  font-size: 0.95rem;
-  font-weight: 600;
-  line-height: 1.4;
-  text-align: left;
+.empty-state ion-icon {
+  font-size: 2rem;
+}
+
+:host ::ng-deep app-header .header-button {
+  --background: linear-gradient(145deg, #eef3fb, #e2e9f5);
+  --background-hover: linear-gradient(145deg, #f5f8fd, #e8eef8);
+  --background-activated: linear-gradient(145deg, #e0e8f4, #d5deed);
+  --color: #2e6ef5;
+  border-radius: 50%;
+  box-shadow:
+    8px 8px 16px -12px rgba(184, 196, 214, 0.92),
+    -8px -8px 16px -12px rgba(249, 252, 255, 0.96);
+}
+
+@media (max-width: 768px) {
+  .analyzed-videos-page {
+    padding: 14px;
+    padding-top: 10px;
+  }
+
+  .videos-hero,
+  .videos-shell,
+  .loading-state {
+    padding: 16px;
+  }
 }

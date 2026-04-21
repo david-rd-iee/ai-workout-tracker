@@ -1,9 +1,9 @@
-import { Component, Input, inject, OnInit, effect } from '@angular/core';
+import { Component, EventEmitter, Input, Output, inject, OnInit, effect } from '@angular/core';
 import { IonHeader, IonToolbar, IonButton, IonIcon, IonTitle, IonAvatar, NavController } from '@ionic/angular/standalone';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { addIcons } from 'ionicons';
-import { chevronBackOutline, personOutline, personCircleOutline } from 'ionicons/icons';
+import { chevronBackOutline, personOutline, personCircleOutline, settingsOutline } from 'ionicons/icons';
 import type { AppUser } from '../../models/user.model';
 import { UserService } from '../../services/account/user.service';
 
@@ -18,12 +18,18 @@ export class HeaderComponent implements OnInit {
   @Input() title: string = 'ATLAS';
   @Input() showBack: boolean = false;
   @Input() transparent: boolean = true;
+  @Input() neoBlend: boolean = true;
   @Input() backHref?: string; // Optional: if provided, navigate to this route instead of using history
   @Input() currentUser: AppUser | null = null;
   @Input() showProfileButtonWithBack: boolean = false;
   @Input() profileHref: string = '/profile-user';
   @Input() profileNavigationDirection: 'forward' | 'back' = 'forward';
   @Input() pinProfileButtonTopRight: boolean = false;
+  @Input() showEndActionButton: boolean = false;
+  @Input() endActionIconName: string = 'settings-outline';
+  @Input() endActionAriaLabel: string = 'Header action';
+
+  @Output() endAction = new EventEmitter<void>();
 
   private navCtrl = inject(NavController);
   private router = inject(Router);
@@ -34,7 +40,8 @@ export class HeaderComponent implements OnInit {
     addIcons({
       chevronBackOutline,
       personOutline,
-      personCircleOutline
+      personCircleOutline,
+      settingsOutline
     });
 
     // Keep fallback user data in sync from UserService.
@@ -114,7 +121,9 @@ export class HeaderComponent implements OnInit {
   }
 
   goBack() {
-    // If backHref is provided, use it instead of browser history
+    this.blurActiveElement();
+
+    // If backHref is provided, use Ionic back navigation so transition reverses naturally.
     if (this.backHref) {
       this.navCtrl.navigateBack(this.backHref, {
         animated: true,
@@ -124,5 +133,10 @@ export class HeaderComponent implements OnInit {
       // Otherwise use browser history
       this.navCtrl.back({ animated: false });
     }
+  }
+
+  onEndActionClick(): void {
+    this.blurActiveElement();
+    this.endAction.emit();
   }
 }

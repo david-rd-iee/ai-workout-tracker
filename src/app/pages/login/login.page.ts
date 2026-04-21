@@ -2,7 +2,6 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {
   IonContent,
-  IonHeader,
   IonItem,
   IonInput,
   IonButton,
@@ -30,7 +29,6 @@ import {
     FormsModule,
     RouterLink,
     IonContent,
-    IonHeader,
     IonItem,
     IonInput,
     IonButton,

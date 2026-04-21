@@ -1,42 +1,98 @@
-<ion-content class="ion-padding ion-safe-area">
-  <div class="logo">
-    <img src="assets/loginsignin.png" alt="Atlas Logo" width="400">
+<ion-content [fullscreen]="true" class="auth-page-content">
+  <div class="background-gradient"></div>
+
+  <div class="auth-page-container">
+    <section class="auth-hero-card">
+      <div class="hero-media-shell">
+        <img
+          class="hero-runner-image"
+          src="assets/auth/runner-figure.webp"
+          alt="Running figure"
+        />
+      </div>
+
+      <div class="hero-copy">
+        <p class="hero-eyebrow">ATLAS</p>
+        <h1>Create Profile</h1>
+        <p>Build your account and start logging your training.</p>
+      </div>
+    </section>
+
+    <section class="auth-form-card">
+      <h2>Sign Up</h2>
+
+      <form class="auth-form" (ngSubmit)="onSignupSubmit()">
+        <ion-item class="auth-input-item" lines="none">
+          <ion-input
+            label="Email"
+            label-placement="floating"
+            type="email"
+            [(ngModel)]="email"
+            name="email"
+            placeholder="you@example.com"
+            autocomplete="email"
+            required
+          ></ion-input>
+        </ion-item>
+
+        <ion-item class="auth-input-item" lines="none">
+          <ion-input
+            label="Password"
+            label-placement="floating"
+            type="password"
+            [(ngModel)]="password"
+            name="password"
+            placeholder="Create password"
+            autocomplete="new-password"
+            required
+          ></ion-input>
+        </ion-item>
+
+        <ion-item class="auth-input-item" lines="none">
+          <ion-input
+            label="Confirm Password"
+            label-placement="floating"
+            type="password"
+            [(ngModel)]="confirmPassword"
+            name="confirmPassword"
+            placeholder="Repeat password"
+            autocomplete="new-password"
+            required
+          ></ion-input>
+        </ion-item>
+
+        <p *ngIf="passwordMismatch" class="error-message">Passwords do not match.</p>
+
+        <ion-text class="auth-error" *ngIf="errorMessage">
+          <p>{{ errorMessage }}</p>
+        </ion-text>
+
+        <ion-button
+          class="primary-auth-btn"
+          expand="block"
+          type="submit"
+          [disabled]="passwordMismatch || isSubmitting"
+        >
+          Sign Up
+        </ion-button>
+      </form>
+
+      <ion-button
+        *ngIf="isIOS"
+        class="apple-auth-btn"
+        expand="block"
+        fill="clear"
+        (click)="signUpWithApple()"
+        [disabled]="isSubmitting"
+      >
+        <ion-icon name="logo-apple" slot="start"></ion-icon>
+        Sign up with Apple
+      </ion-button>
+
+      <p class="auth-switch-copy">
+        Already have an account?
+        <a routerLink="/login">Login</a>
+      </p>
+    </section>
   </div>
-  <h1>ATLAS</h1>
-  <form (ngSubmit)="onSignupSubmit()">
-    <ion-item lines="none">
-      <ion-input label="Email" label-placement="floating" type="email" [(ngModel)]="email" name="email" placeholder="EMAIL" required></ion-input>
-    </ion-item>
-    <ion-item lines="none">
-      <ion-input label="Password" label-placement="floating" type="password" [(ngModel)]="password" name="password" placeholder="PASSWORD" required></ion-input>
-    </ion-item>
-    <ion-item lines="none">
-      <ion-input label="Confirm Password" label-placement="floating" type="password" [(ngModel)]="confirmPassword" name="confirmPassword" placeholder="CONFIRM PASSWORD" required></ion-input>
-    </ion-item>
-    
-    <!-- Password mismatch error message -->
-    <p *ngIf="passwordMismatch" class="error-message">Passwords do not match</p>
-
-    <ion-text color="danger" *ngIf="errorMessage">
-      <p style="margin: 8px 4px 0;">{{ errorMessage }}</p>
-    </ion-text>
-
-    <ion-button expand="block" color="primary" type="submit"
-      [disabled]="passwordMismatch || isSubmitting">
-      Sign Up
-    </ion-button>
-  </form>
-
-  <!-- <ion-button expand="block" fill="outline" (click)="signUpWithGoogle()">
-    Sign up with Google
-  </ion-button> -->
-  
-  <ion-button *ngIf="isIOS" expand="block" fill="outline" (click)="signUpWithApple()" class="apple-button">
-    <ion-icon name="logo-apple" slot="start"></ion-icon>
-    Sign up with Apple
-  </ion-button>
-  
-  <p class="login">
-    <a routerLink="/login">Login</a> 
-  </p>
 </ion-content>

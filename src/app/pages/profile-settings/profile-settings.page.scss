@@ -1,9 +1,79 @@
-@use '../../../theme/settings-page.shared' as *;
+.settings-content {
+  --background: #dbe3f0;
+  position: relative;
+}
+
+$atlas-surface-high: #f1f5fc;
+$atlas-surface: #e8eef8;
+$atlas-blue: #6f9eff;
+$atlas-blue-strong: #2e6ef5;
+$atlas-shadow-dark: #b8c4d6;
+$atlas-shadow-light: #f9fcff;
+$atlas-text: #5a6880;
+$atlas-muted: #8b9ab0;
+
+@mixin atlas-neu($radius: 22px) {
+  background: linear-gradient(145deg, $atlas-surface-high, $atlas-surface);
+  border-radius: $radius;
+  border: 1px solid rgba(255, 255, 255, 0.78);
+  box-shadow:
+    14px 14px 28px -14px rgba($atlas-shadow-dark, 0.88),
+    -12px -12px 24px -14px rgba($atlas-shadow-light, 0.95);
+}
+
+@mixin atlas-inset($radius: 18px) {
+  background: linear-gradient(145deg, #edf2fb, #e4ebf7);
+  border-radius: $radius;
+  border: 1px solid rgba(255, 255, 255, 0.56);
+  box-shadow:
+    inset 7px 7px 12px -10px rgba($atlas-shadow-dark, 0.9),
+    inset -7px -7px 12px -10px rgba($atlas-shadow-light, 0.95);
+}
+
+.background-gradient {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 14% -4%, rgba(255, 255, 255, 0.84) 0, rgba(255, 255, 255, 0) 36%),
+    radial-gradient(circle at 86% 8%, rgba(160, 179, 219, 0.34) 0, rgba(160, 179, 219, 0) 42%),
+    linear-gradient(145deg, #d5deeb 0%, #e8eef8 48%, #dbe4f1 100%);
+  pointer-events: none;
+}
+
+.settings-page {
+  position: relative;
+  z-index: 1;
+  padding: 16px;
+  padding-top: 10px;
+  max-width: 980px;
+  margin: 0 auto;
+}
+
+.settings-shell {
+  display: grid;
+  gap: 16px;
+}
+
+.settings-panel {
+  @include atlas-neu(26px);
+  padding: 18px;
+}
+
+.settings-panel h2 {
+  margin: 0;
+  color: $atlas-text;
+  font-size: 1.1rem;
+  font-weight: 680;
+  letter-spacing: 0;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.7);
+  font-family: 'Roboto Flex', 'Inter', sans-serif;
+}
 
 .page-copy {
-  margin: 0;
-  color: #4b5563;
+  margin: 8px 0 0;
+  color: $atlas-muted;
   line-height: 1.5;
+  font-size: 0.92rem;
 }
 
 .settings-form {
@@ -17,28 +87,137 @@
   gap: 10px;
 }
 
+.unit-helper {
+  margin: 0 2px 2px;
+  color: $atlas-muted;
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.settings-field {
+  --background: transparent;
+  --border-color: transparent;
+  --inner-border-width: 0;
+  --padding-top: 0;
+  --padding-bottom: 0;
+  --padding-start: 0;
+  --inner-padding-end: 0;
+  --min-height: auto;
+  padding: 0;
+}
+
+.imperial-height-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
 .settings-input {
-  --background: #ffffff;
-  --color: #111827;
-  --placeholder-color: #6b7280;
-  border: 1px solid #d1d5db;
-  border-radius: 10px;
-  --padding-start: 12px;
-  --padding-end: 12px;
+  @include atlas-inset(18px);
+  --background: transparent;
+  --color: #4f5e77;
+  --placeholder-color: #90a0b6;
+  --highlight-height: 0;
+  --highlight-color-focused: transparent;
+  --padding-top: 12px;
+  --padding-bottom: 12px;
+  --padding-start: 14px;
+  --padding-end: 14px;
+  --border-width: 0;
+  --inner-padding-end: 0;
+  width: 100%;
+}
+
+.settings-input::part(label) {
+  color: #8697af;
+  font-weight: 620;
+  letter-spacing: 0.01em;
+  margin-bottom: 8px;
+}
+
+.settings-input::part(native),
+.settings-input::part(text),
+.settings-input::part(placeholder) {
+  color: #4f5e77;
+}
+
+.settings-input::part(icon) {
+  color: $atlas-blue-strong;
+  opacity: 0.86;
 }
 
 .form-message {
   margin: 0;
-  font-size: 14px;
+  font-size: 0.84rem;
+}
+
+.save-settings-btn,
+.logout-settings-btn {
+  width: fit-content;
+  min-height: 42px;
+  --padding-top: 8px;
+  --padding-bottom: 8px;
+  --padding-start: 18px;
+  --padding-end: 18px;
+  --border-radius: 16px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  text-transform: none;
+  transition: transform 170ms ease, box-shadow 170ms ease;
+
+  &::part(native) {
+    border-radius: 16px;
+    overflow: hidden;
+    line-height: 1.2;
+  }
+
+  &:active {
+    transform: translateY(1px) scale(0.997);
+  }
 }
 
 .save-settings-btn {
-  width: fit-content;
-  --background: #2563eb;
-  --background-hover: #1d4ed8;
+  --background: linear-gradient(145deg, #79a8ff, #2e6ef5);
+  --background-hover: linear-gradient(145deg, #8eb6ff, #4a83f8);
+  --background-activated: linear-gradient(145deg, #4f88f5, #1f55cb);
   --color: #ffffff;
+  --box-shadow:
+    8px 8px 18px -10px rgba(107, 128, 199, 0.6),
+    -4px -4px 10px -8px rgba(255, 255, 255, 0.82);
 }
 
 .logout-settings-btn {
-  width: fit-content;
+  --background: linear-gradient(145deg, #eef3fb, #e1e8f4);
+  --background-hover: linear-gradient(145deg, #f5f8fd, #e8eef8);
+  --background-activated: linear-gradient(145deg, #e0e8f4, #d5deed);
+  --color: #5a6880;
+  --box-shadow:
+    8px 8px 16px -12px rgba($atlas-shadow-dark, 0.9),
+    -8px -8px 16px -11px rgba($atlas-shadow-light, 0.95);
+}
+
+:host ::ng-deep app-header .header-button {
+  --background: linear-gradient(145deg, #eef3fb, #e2e9f5);
+  --background-hover: linear-gradient(145deg, #f5f8fd, #e8eef8);
+  --background-activated: linear-gradient(145deg, #e0e8f4, #d5deed);
+  --color: #2e6ef5;
+  border-radius: 50%;
+  box-shadow:
+    8px 8px 16px -12px rgba($atlas-shadow-dark, 0.92),
+    -8px -8px 16px -12px rgba($atlas-shadow-light, 0.96);
+}
+
+@media (max-width: 768px) {
+  .settings-page {
+    padding: 14px;
+    padding-top: 10px;
+  }
+
+  .settings-panel {
+    padding: 16px;
+  }
+
+  .imperial-height-grid {
+    grid-template-columns: 1fr;
+  }
 }

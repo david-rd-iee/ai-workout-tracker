@@ -1,602 +1,698 @@
+:host {
+  --home-header-space: 68px;
+  display: block;
+}
+
+app-header.home-header-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 60;
+}
+
 ion-content {
-  --background: transparent;
+  --background: #dbe3f0;
+}
+
+$neo-surface: #e8eef8;
+$neo-surface-high: #f1f5fc;
+$neo-shadow-dark: rgba(184, 196, 214, 0.88);
+$neo-shadow-light: rgba(249, 252, 255, 0.95);
+$neo-text: #5a6880;
+$neo-muted: #8b9ab0;
+$neo-accent: #2e6ef5;
+
+@mixin neo-raised($radius: 24px) {
+  background: linear-gradient(145deg, $neo-surface-high, $neo-surface);
+  border-radius: $radius;
+  border: 1px solid rgba(255, 255, 255, 0.78);
+  box-shadow:
+    14px 14px 28px -14px $neo-shadow-dark,
+    -12px -12px 24px -14px $neo-shadow-light;
+}
+
+@mixin neo-inset($radius: 18px) {
+  background: linear-gradient(145deg, #edf2fb, #e4ebf7);
+  border-radius: $radius;
+  border: 1px solid rgba(255, 255, 255, 0.56);
+  box-shadow:
+    inset 7px 7px 12px -10px rgba(184, 196, 214, 0.9),
+    inset -7px -7px 12px -10px rgba(249, 252, 255, 0.95);
+}
+
+@mixin neo-icon-well($size: 54px, $radius: 16px) {
+  width: $size;
+  height: $size;
+  border-radius: $radius;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  @include neo-raised($radius);
+}
+
+.background-gradient {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 14% -4%, rgba(255, 255, 255, 0.84) 0, rgba(255, 255, 255, 0) 36%),
+    radial-gradient(circle at 86% 8%, rgba(160, 179, 219, 0.34) 0, rgba(160, 179, 219, 0) 42%),
+    linear-gradient(145deg, #d5deeb 0%, #e8eef8 48%, #dbe4f1 100%);
+  pointer-events: none;
 }
 
 .home-container {
-  padding: 20px;
+  position: relative;
+  z-index: 1;
+  padding: 0 16px 20px;
   max-width: 1200px;
   margin: 0 auto;
+  color: $neo-text;
 }
 
-.top-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 8px;
-}
-
-.profile-button {
-  --border-width: 2px;
-  --border-style: solid;
-  --border-color: #D49A3B;
-
-  --border-radius: 50%;
-  --background: transparent;
-
-  width: 48px;
-  height: 48px;
-
-  padding: 0;
-
-  /* IMPORTANT */
-  --padding-start: 0;
-  --padding-end: 0;
-  --padding-top: 0;
-  --padding-bottom: 0;
-}
-
-
-
-.profile-avatar {
-  width: 40px;
-  height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.profile-avatar img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.avatar-fallback {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  background: #0D5EAF;   // your Greek blue theme
-  color: white;
-  font-weight: 600;
-  font-size: 16px;
-
-  border-radius: 50%;
-}
-
-.greeting {
-  flex: 1;
-}
-
-.greeting-line {
-  display: flex;
-  align-items: center;
-  min-height: 40px;
-}
-
-.greeting h1 {
-  margin: 0;
-  font-size: 22px;
-  font-weight: 800;
-}
-
-.welcome-card {
-  margin-bottom: 0px;
-
-  ion-card-content {
-    padding: 30px;
-    display: flex;
-    justify-content: center;
-  }
+.home-header-space {
+  height: var(--home-header-space);
 }
 
 .welcome-section {
-  margin-bottom: 24px;
-  text-align: center;
-  
+  margin-bottom: 22px;
+
   h1 {
-    font-size: 28px;
-    font-weight: 700;
-    margin: 0 0 4px 0;
-    color: var(--ion-color-dark);
-  }
-  
-  .date {
-    font-size: 14px;
-    font-weight: 700;
-    color: var(--ion-color-dark);
     margin: 0;
+    color: $neo-text;
+    font-size: clamp(1.8rem, 2.6vw, 2.45rem);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.12;
   }
-}
 
-// Start Workout Widget (Main Action)
-.start-workout-widget {
-  margin-bottom: 20px;
-  background: linear-gradient(135deg, var(--ion-color-primary), var(--ion-color-primary-shade));
-  box-shadow: 0 4px 12px rgba(var(--ion-color-primary-rgb), 0.3);
-  
-  ion-card-content {
-    padding: 20px;
-  }
-  
-  .widget-content {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-  }
-  
-  .icon-container {
-    width: 56px;
-    height: 56px;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.2);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    
-    ion-icon {
-      font-size: 32px;
-      color: white;
-    }
-  }
-  
-  .widget-text {
-    flex: 1;
-    
-    h2 {
-      font-size: 20px;
-      font-weight: 600;
-      margin: 0 0 4px 0;
-      color: white;
-    }
-    
-    p {
-      font-size: 14px;
-      margin: 0;
-      color: rgba(255, 255, 255, 0.8);
-    }
-  }
-  
-  .chevron {
-    font-size: 24px;
-    color: rgba(255, 255, 255, 0.6);
-  }
-}
-
-// Widgets Grid
-.widgets-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: 16px;
-  margin-bottom: 24px;
-}
-
-// Streak Widget
-.streak-widget {
-  margin: 0;
-  background: linear-gradient(135deg, #FF6B35, #FF8C42);
-  box-shadow: 0 2px 8px rgba(255, 107, 53, 0.3);
-  
-  ion-card-content {
-    padding: 20px;
-  }
-  
-  .streak-content {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
-  
-  .streak-icon {
-    width: 48px;
-    height: 48px;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.2);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    
-    ion-icon {
-      font-size: 28px;
-      color: white;
-    }
-  }
-  
-  .streak-info {
-    h3 {
-      font-size: 32px;
-      font-weight: 700;
-      margin: 0;
-      color: white;
-      line-height: 1;
-    }
-    
-    p {
-      font-size: 13px;
-      margin: 4px 0 0 0;
-      color: rgba(255, 255, 255, 0.9);
-    }
-  }
-}
-
-// Next Workout Widget
-.next-workout-widget {
-  margin: 0;
-  background: white;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  
-  ion-card-content {
-    padding: 20px;
-  }
-  
-  .next-workout-content {
-    .workout-header {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      margin-bottom: 12px;
-      
-      ion-icon {
-        font-size: 18px;
-        color: var(--ion-color-primary);
-      }
-      
-      span {
-        font-size: 13px;
-        font-weight: 500;
-        color: var(--ion-color-medium);
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-      }
-    }
-    
-    .workout-details {
-      h3 {
-        font-size: 16px;
-        font-weight: 600;
-        margin: 0 0 4px 0;
-        color: var(--ion-color-dark);
-      }
-      
-      p {
-        font-size: 13px;
-        margin: 0;
-        color: var(--ion-color-medium);
-      }
-    }
-    
-    .no-workout {
-      p {
-        font-size: 14px;
-        color: var(--ion-color-medium);
-        margin: 0;
-        font-style: italic;
-      }
-    }
-  }
-}
-
-// Upcoming Sessions Section
-.upcoming-sessions {
-  margin-bottom: 24px;
-  
-  h2 {
-    font-size: 20px;
+  .date {
+    margin: 12px 0 0;
+    width: fit-content;
+    padding: 8px 14px;
+    color: $neo-muted;
+    font-size: 0.8rem;
     font-weight: 600;
-    margin: 0 0 16px 0;
-    color: var(--ion-color-dark);
-  }
-
-  .session-card {
-    margin-bottom: 12px;
-    
-    &:active {
-      transform: scale(0.99);
-    }
-
-    ion-card-content {
-      padding: 16px;
-    }
-
-    .session-content {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-    }
-
-    .session-icon {
-      width: 48px;
-      height: 48px;
-      border-radius: 50%;
-      overflow: hidden;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: rgba(var(--ion-color-primary-rgb), 0.1);
-
-      ion-icon {
-        font-size: 32px;
-        color: var(--ion-color-primary);
-      }
-
-      img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-        display: block;
-      }
-    }
-
-    .session-info {
-      flex: 1;
-
-      h3 {
-        font-size: 16px;
-        font-weight: 600;
-        margin: 0 0 4px 0;
-        color: var(--ion-color-dark);
-      }
-
-      .session-date {
-        font-size: 14px;
-        color: var(--ion-color-primary);
-        margin: 0 0 4px 0;
-        font-weight: 500;
-      }
-
-      .session-notes {
-        font-size: 13px;
-        color: var(--ion-color-medium);
-        margin: 0;
-      }
-    }
-
-    .chevron {
-      font-size: 24px;
-      color: var(--ion-color-medium);
-    }
-  }
-
-  .no-sessions-card {
-    ion-card-content {
-      padding: 24px;
-    }
-
-    .no-sessions-content {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 12px;
-      text-align: center;
-
-      ion-icon {
-        font-size: 48px;
-        color: var(--ion-color-medium);
-        opacity: 0.5;
-      }
-
-      p {
-        margin: 0;
-        font-size: 15px;
-        color: var(--ion-color-medium);
-      }
-    }
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    @include neo-inset(999px);
   }
 }
 
-// Custom message widget
 .custom-message {
-  margin-bottom: 20px;
-  padding: 16px;
-  background: rgba(var(--ion-color-primary-rgb), 0.1);
-  border-radius: 12px;
-  border-left: 4px solid var(--ion-color-primary);
+  margin-bottom: 18px;
+  padding: 14px 16px;
+  @include neo-inset(18px);
 
   p {
     margin: 0;
-    font-size: 15px;
-    color: var(--ion-color-dark);
-    line-height: 1.5;
+    color: $neo-muted;
+    font-size: 0.94rem;
+    line-height: 1.45;
   }
 }
 
-// Trainer Home - Clients Section
-.clients-section {
-  h2 {
-    font-size: 20px;
-    font-weight: 600;
-    margin: 0 0 16px 0;
-    color: var(--ion-color-dark);
-  }
-
-  .client-card {
-    margin-bottom: 12px;
-    
-    &:active {
-      transform: scale(0.99);
-    }
-
-    ion-card-content {
-      padding: 16px;
-    }
-
-    .client-content {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-    }
-
-    .client-avatar {
-      width: 56px;
-      height: 56px;
-      border-radius: 50%;
-      overflow: hidden;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: rgba(var(--ion-color-primary-rgb), 0.1);
-
-      ion-icon {
-        font-size: 56px;
-        color: var(--ion-color-primary);
-      }
-
-      img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-      }
-    }
-
-    .client-info {
-      flex: 1;
-
-      h3 {
-        font-size: 18px;
-        font-weight: 600;
-        margin: 0 0 4px 0;
-        color: var(--ion-color-dark);
-      }
-
-      .next-session {
-        font-size: 14px;
-        color: var(--ion-color-primary);
-        margin: 0 0 6px 0;
-        font-weight: 500;
-      }
-
-      .client-stats {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        font-size: 13px;
-        color: var(--ion-color-medium);
-
-        .stat-divider {
-          color: var(--ion-color-light-shade);
-        }
-      }
-    }
-
-    .chevron {
-      font-size: 24px;
-      color: var(--ion-color-medium);
-    }
-  }
+.welcome-card,
+.start-workout-widget,
+.streak-widget,
+.next-workout-widget,
+.session-card,
+.no-sessions-card,
+.revenue-card,
+.total-revenue-card,
+.client-card,
+.dynamic-placeholder,
+.secondary-action-card,
+ion-card {
+  --background: transparent;
+  background: transparent;
+  box-shadow: none;
+  border: 0;
+  margin: 0;
 }
 
-// Trainer Revenue Cards
+.start-workout-widget,
+.secondary-action-card,
+.streak-widget,
+.next-workout-widget,
+.session-card,
+.no-sessions-card,
+.client-card,
+.revenue-card,
+.total-revenue-card,
+.dynamic-placeholder,
+.welcome-card {
+  @include neo-raised(24px);
+}
+
+.start-workout-widget,
+.secondary-action-card,
+.streak-widget,
+.next-workout-widget,
+.session-card,
+.client-card,
 .revenue-card {
+  transition: transform 180ms ease, box-shadow 180ms ease;
+
+  &:active {
+    transform: translateY(1px) scale(0.997);
+    box-shadow:
+      10px 10px 20px -14px rgba(163, 177, 198, 0.6),
+      -8px -8px 18px -12px rgba(255, 255, 255, 0.8);
+  }
+}
+
+.start-workout-widget {
   margin-bottom: 16px;
-  background: linear-gradient(135deg, var(--ion-color-success), var(--ion-color-success-shade));
-  color: white;
 
   ion-card-content {
     padding: 20px;
   }
 
-  .revenue-header {
+  .widget-content {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    margin-bottom: 20px;
-
-    ion-button {
-      --color: white;
-      --padding-start: 8px;
-      --padding-end: 8px;
-
-      &:disabled {
-        opacity: 0.3;
-      }
-    }
-
-    .month-info {
-      text-align: center;
-      flex: 1;
-
-      h3 {
-        font-size: 18px;
-        font-weight: 600;
-        margin: 0 0 4px 0;
-      }
-
-      .current-badge {
-        font-size: 12px;
-        margin: 0;
-        opacity: 0.8;
-      }
-    }
+    gap: 14px;
   }
 
-  .revenue-amount {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 12px;
-    margin-bottom: 8px;
+  .icon-container {
+    @include neo-icon-well(58px, 18px);
 
     ion-icon {
-      font-size: 40px;
+      font-size: 32px;
+      color: $neo-accent;
     }
 
-    h2 {
-      font-size: 48px;
-      font-weight: 700;
-      margin: 0;
+    &.primary {
+      background: linear-gradient(145deg, rgba(255, 255, 255, 0.95), rgba(223, 235, 255, 0.92));
+      box-shadow:
+        10px 10px 20px -16px $neo-shadow-dark,
+        -10px -10px 18px -14px $neo-shadow-light,
+        inset 1px 1px 2px rgba(255, 255, 255, 0.9);
     }
   }
 
-  .revenue-sessions {
-    text-align: center;
-    font-size: 14px;
-    margin: 0;
-    opacity: 0.9;
+  .widget-text {
+    flex: 1;
+
+    h2 {
+      margin: 0;
+      color: $neo-text;
+      font-size: 1.18rem;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+    }
+
+    p {
+      margin: 5px 0 0;
+      color: $neo-muted;
+      font-size: 0.84rem;
+    }
+  }
+
+  .chevron {
+    color: $neo-accent;
+    font-size: 20px;
+    padding: 8px;
+    border-radius: 999px;
+    @include neo-inset(999px);
   }
 }
 
-.total-revenue-card {
-  margin-bottom: 20px;
+.secondary-actions-grid {
+  margin-bottom: 18px;
+}
 
-  .total-revenue-content {
-    display: flex;
-    align-items: center;
-    gap: 16px;
+.secondary-action-card {
+  ion-card-content {
+    padding: 16px;
+  }
+}
+
+.secondary-action-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.secondary-action-icon {
+  @include neo-icon-well(44px, 14px);
+
+  ion-icon {
+    font-size: 22px;
+    color: $neo-accent;
+  }
+}
+
+.secondary-action-copy {
+  h2 {
+    margin: 0;
+    color: $neo-text;
+    font-size: 1rem;
+    font-weight: 700;
   }
 
-  .total-icon {
-    width: 56px;
-    height: 56px;
-    border-radius: 50%;
-    background: rgba(var(--ion-color-primary-rgb), 0.1);
-    display: flex;
-    align-items: center;
-    justify-content: center;
+  p {
+    margin: 4px 0 0;
+    color: $neo-muted;
+    font-size: 0.78rem;
+    line-height: 1.4;
+    max-width: 42ch;
+  }
+}
 
-    ion-icon {
-      font-size: 32px;
-      color: var(--ion-color-primary);
+.widgets-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.streak-widget,
+.next-workout-widget {
+  ion-card-content {
+    padding: 16px;
+  }
+}
+
+.streak-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.streak-icon {
+  @include neo-icon-well(48px, 15px);
+
+  ion-icon {
+    font-size: 24px;
+    color: $neo-accent;
+  }
+}
+
+.streak-info {
+  h3 {
+    margin: 0;
+    color: $neo-text;
+    font-size: 1.75rem;
+    font-weight: 700;
+    line-height: 1;
+  }
+
+  p {
+    margin: 4px 0 0;
+    color: $neo-muted;
+    font-size: 0.77rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+}
+
+.workout-header {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding: 7px 12px;
+  @include neo-inset(999px);
+
+  ion-icon {
+    font-size: 16px;
+    color: $neo-accent;
+  }
+
+  span {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: $neo-muted;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+}
+
+.workout-details,
+.no-workout {
+  h3 {
+    margin: 0;
+    color: $neo-text;
+    font-size: 1.03rem;
+    font-weight: 700;
+  }
+
+  p {
+    margin: 5px 0 0;
+    color: $neo-muted;
+    font-size: 0.82rem;
+  }
+}
+
+.upcoming-sessions,
+.clients-section {
+  margin-bottom: 22px;
+
+  h2,
+  .section-title {
+    margin: 0 0 14px;
+    color: $neo-text;
+    font-size: 1.05rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+}
+
+.session-card {
+  margin-bottom: 10px;
+
+  ion-card-content {
+    padding: 14px;
+  }
+}
+
+.session-content,
+.client-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.session-icon,
+.client-avatar {
+  border-radius: 999px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  @include neo-inset(999px);
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  ion-icon {
+    color: $neo-accent;
+  }
+}
+
+.session-icon {
+  width: 46px;
+  height: 46px;
+
+  ion-icon {
+    font-size: 28px;
+  }
+}
+
+.client-avatar {
+  width: 54px;
+  height: 54px;
+
+  ion-icon {
+    font-size: 54px;
+  }
+}
+
+.session-info,
+.client-info {
+  flex: 1;
+
+  h3 {
+    margin: 0;
+    color: $neo-text;
+    font-size: 1rem;
+    font-weight: 700;
+  }
+}
+
+.session-date,
+.next-session {
+  margin: 4px 0 0;
+  color: $neo-accent;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.session-notes {
+  margin: 4px 0 0;
+  color: $neo-muted;
+  font-size: 0.78rem;
+}
+
+.client-stats {
+  margin-top: 5px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: $neo-muted;
+  font-size: 0.76rem;
+
+  .stat-divider {
+    opacity: 0.7;
+  }
+}
+
+.chevron {
+  color: $neo-accent;
+  font-size: 18px;
+}
+
+.no-sessions-card {
+  ion-card-content {
+    padding: 24px 16px;
+  }
+}
+
+.no-sessions-content,
+.placeholder-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  text-align: center;
+
+  ion-icon {
+    color: $neo-accent;
+    font-size: 2rem;
+  }
+
+  p {
+    margin: 0;
+    color: $neo-muted;
+    font-size: 0.87rem;
+    max-width: 52ch;
+    line-height: 1.45;
+  }
+}
+
+.revenue-card {
+  margin-bottom: 14px;
+
+  ion-card-content {
+    padding: 18px;
+  }
+}
+
+.revenue-header {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+
+  ion-button {
+    width: 40px;
+    min-height: 40px;
+    margin: 0;
+    --padding-top: 0;
+    --padding-bottom: 0;
+    --padding-start: 0;
+    --padding-end: 0;
+    --border-radius: 12px;
+    --background: transparent;
+    --background-activated: transparent;
+    --background-hover: transparent;
+    --background-focused: transparent;
+    --color: #2e6ef5;
+    --box-shadow:
+      8px 8px 16px -13px rgba(163, 177, 198, 0.88),
+      -8px -8px 14px -12px rgba(255, 255, 255, 0.95),
+      inset 5px 5px 9px -8px rgba(163, 177, 198, 0.62),
+      inset -5px -5px 9px -8px rgba(255, 255, 255, 0.9);
+
+    &:disabled {
+      opacity: 0.4;
     }
   }
 
-  .total-info {
-    flex: 1;
+  .month-info {
+    text-align: center;
 
     h3 {
-      font-size: 14px;
-      font-weight: 600;
-      margin: 0 0 4px 0;
-      color: var(--ion-color-medium);
+      margin: 0;
+      color: $neo-text;
+      font-size: 1rem;
+      font-weight: 700;
+      letter-spacing: 0.01em;
     }
 
-    h2 {
-      font-size: 32px;
-      font-weight: 700;
+    .current-badge {
+      margin: 6px auto 0;
+      width: fit-content;
+      padding: 4px 10px;
+      color: $neo-muted;
+      font-size: 0.68rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      @include neo-inset(999px);
+    }
+  }
+}
+
+.revenue-amount {
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+
+  ion-icon {
+    color: $neo-accent;
+    font-size: 1.75rem;
+  }
+
+  h2 {
+    margin: 0;
+    color: $neo-text;
+    font-size: clamp(1.8rem, 4vw, 2.45rem);
+    line-height: 1;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+}
+
+.revenue-sessions {
+  margin: 0;
+  color: $neo-muted;
+  text-align: center;
+  font-size: 0.82rem;
+}
+
+.total-revenue-card {
+  margin-bottom: 18px;
+
+  ion-card-content {
+    padding: 16px;
+  }
+}
+
+.total-revenue-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.total-icon {
+  @include neo-icon-well(52px, 16px);
+
+  ion-icon {
+    color: $neo-accent;
+    font-size: 1.55rem;
+  }
+}
+
+.total-info {
+  h3 {
+    margin: 0;
+    color: $neo-muted;
+    text-transform: uppercase;
+    letter-spacing: 0.09em;
+    font-size: 0.68rem;
+    font-weight: 700;
+  }
+
+  h2 {
+    margin: 4px 0 0;
+    color: $neo-text;
+    font-size: clamp(1.5rem, 3.8vw, 2rem);
+    font-weight: 700;
+    line-height: 1.05;
+  }
+}
+
+.empty-state,
+.clients-section > p {
+  margin: 0 0 12px;
+  color: $neo-muted;
+  font-size: 0.85rem;
+  padding: 10px 12px;
+  @include neo-inset(14px);
+}
+
+.welcome-card {
+  margin-bottom: 14px;
+
+  ion-card-content {
+    padding: 16px;
+  }
+
+  .welcome-section {
+    margin: 0;
+
+    p {
       margin: 0;
-      color: var(--ion-color-dark);
+      color: $neo-muted;
+      font-size: 0.93rem;
+      text-align: center;
+      letter-spacing: 0.02em;
+    }
+  }
+}
+
+.placeholder-section {
+  .dynamic-placeholder {
+    ion-card-header {
+      padding: 16px 16px 6px;
+    }
+
+    ion-card-title {
+      color: $neo-text;
+      font-size: 1rem;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+    }
+
+    ion-card-content {
+      padding: 8px 16px 16px;
+    }
+  }
+}
+
+@media (max-width: 768px) {
+  .home-container {
+    padding: 0 14px 24px;
+  }
+
+  .widgets-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .welcome-section .date {
+    margin-top: 10px;
+    font-size: 0.72rem;
+  }
+
+  .start-workout-widget {
+    .widget-content {
+      gap: 10px;
+    }
+
+    .widget-text h2 {
+      font-size: 1.04rem;
     }
   }
 }

@@ -1,27 +1,38 @@
-<ion-content class="lb-content">
-  <app-leaderboard-shell
-    [title]="'Regional Leaderboard'"
-    [graphLabel]="graphRegionTitle()"
-    [loading]="loading"
-    [errorMsg]="errorMsg"
-    [metric]="metric"
-    [scope]="scope"
-    [showScopeSelect]="true"
-    [chartMode]="chartMode"
-    [availableChartModes]="availableChartModes"
-    [entries]="entries"
-    [trendSeries]="trendSeries"
-    [distributionCurvePath]="distributionCurvePath"
-    [distributionPoints]="distributionPoints"
-    [medianMarkerXPercent]="distributionMedianXPercent"
-    [medianMarkerLabel]="distributionMedianLabel"
-    [selectedPointBin]="selectedPointBin"
-    [highlightedUserIds]="selectedPointUserIds"
-    (back)="goBack()"
-    (metricChange)="onMetricChanged($event)"
-    (scopeChange)="onScopeChanged($event)"
-    (chartModeChange)="onChartModeChanged($event)"
-    (distributionPointClick)="onDistributionPointClick($event)"
-    (memberClick)="onMemberClick($event)"
-  ></app-leaderboard-shell>
+<app-header
+  [transparent]="true"
+  [neoBlend]="true"
+  [showBack]="true"
+  backHref="/profile-user"
+  title="Regional Leaderboard"
+></app-header>
+
+<ion-content [fullscreen]="true" class="lb-content">
+  <div class="background-gradient"></div>
+  <div class="lb-container">
+    <app-leaderboard-shell
+      [showTopbar]="false"
+      [title]="'Regional Leaderboard'"
+      [graphLabel]="graphRegionTitle()"
+      [loading]="loading"
+      [errorMsg]="errorMsg"
+      [metric]="metric"
+      [scope]="scope"
+      [showScopeSelect]="true"
+      [chartMode]="chartMode"
+      [availableChartModes]="availableChartModes"
+      [entries]="entries"
+      [trendSeries]="trendSeries"
+      [distributionCurvePath]="distributionCurvePath"
+      [distributionPoints]="distributionPoints"
+      [medianMarkerXPercent]="distributionMedianXPercent"
+      [medianMarkerLabel]="distributionMedianLabel"
+      [selectedPointBin]="selectedPointBin"
+      [highlightedUserIds]="selectedPointUserIds"
+      (metricChange)="onMetricChanged($event)"
+      (scopeChange)="onScopeChanged($event)"
+      (chartModeChange)="onChartModeChanged($event)"
+      (distributionPointClick)="onDistributionPointClick($event)"
+      (memberClick)="onMemberClick($event)"
+    ></app-leaderboard-shell>
+  </div>
 </ion-content>

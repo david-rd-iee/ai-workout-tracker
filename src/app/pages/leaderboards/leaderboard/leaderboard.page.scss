@@ -1,3 +1,58 @@
+:host {
+  display: block;
+  background: #dbe3f0;
+}
+
 .lb-content {
-  --background: #f5ead7;
+  --background: #dbe3f0;
+  --ion-background-color: #dbe3f0;
+  position: relative;
+}
+
+.lb-content::part(background),
+.lb-content::part(scroll) {
+  background: #dbe3f0;
+}
+
+.background-gradient {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 14% -4%, rgba(255, 255, 255, 0.84) 0, rgba(255, 255, 255, 0) 36%),
+    radial-gradient(circle at 86% 8%, rgba(160, 179, 219, 0.34) 0, rgba(160, 179, 219, 0) 42%),
+    linear-gradient(145deg, #d5deeb 0%, #e8eef8 48%, #dbe4f1 100%);
+  pointer-events: none;
+}
+
+.lb-container {
+  position: relative;
+  z-index: 1;
+  padding: 16px;
+  padding-top: 10px;
+  min-height: 100%;
+}
+
+:host ::ng-deep app-header ion-title {
+  padding-inline: 56px;
+}
+
+:host ::ng-deep app-header h2 {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 768px) {
+  .lb-container {
+    padding: 14px;
+    padding-top: 10px;
+  }
+
+  :host ::ng-deep app-header ion-title {
+    padding-inline: 52px;
+  }
+
+  :host ::ng-deep app-header h2 {
+    font-size: 1.2rem;
+  }
 }

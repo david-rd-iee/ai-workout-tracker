@@ -1,23 +1,23 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
-import { IonicModule, NavController } from '@ionic/angular';
+import { IonicModule } from '@ionic/angular';
 import { Subscription } from 'rxjs';
 
 import { GroupWar, GroupWarMemberStanding } from '../../../models/group-war.model';
 import { GroupService } from '../../../services/group.service';
 import { GroupWarService } from '../../../services/group-war.service';
+import { HeaderComponent } from '../../../components/header/header.component';
 
 @Component({
   selector: 'app-group-war',
   standalone: true,
   templateUrl: './group-war.page.html',
   styleUrls: ['./group-war.page.scss'],
-  imports: [CommonModule, IonicModule],
+  imports: [CommonModule, IonicModule, HeaderComponent],
 })
 export class GroupWarPage implements OnInit, OnDestroy {
   private route = inject(ActivatedRoute);
-  private navCtrl = inject(NavController);
   private groupService = inject(GroupService);
   private groupWarService = inject(GroupWarService);
 
@@ -80,13 +80,6 @@ export class GroupWarPage implements OnInit, OnDestroy {
         this.loading = false;
         this.errorMessage = 'Could not load active war.';
       },
-    });
-  }
-
-  goBack(): void {
-    this.navCtrl.navigateBack('/groups', {
-      animated: true,
-      animationDirection: 'back',
     });
   }
 

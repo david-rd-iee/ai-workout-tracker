@@ -1,18 +1,17 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {
-  IonBackButton,
-  IonButtons,
   IonContent,
-  IonHeader,
+  IonIcon,
   IonSpinner,
-  IonTitle,
-  IonToolbar,
   NavController,
 } from '@ionic/angular/standalone';
 import { Firestore } from '@angular/fire/firestore';
 import { collection, getDocs } from 'firebase/firestore';
 import { UserService } from '../../services/account/user.service';
+import { addIcons } from 'ionicons';
+import { analyticsOutline, chevronForwardOutline } from 'ionicons/icons';
+import { HeaderComponent } from 'src/app/components/header/header.component';
 
 type ClientAnalyzedVideoItem = {
   id: string;
@@ -28,13 +27,10 @@ type ClientAnalyzedVideoItem = {
   styleUrls: ['./analyzed-videos.page.scss'],
   imports: [
     CommonModule,
-    IonBackButton,
-    IonButtons,
     IonContent,
-    IonHeader,
+    IonIcon,
     IonSpinner,
-    IonTitle,
-    IonToolbar,
+    HeaderComponent,
   ],
 })
 export class AnalyzedVideosPage implements OnInit {
@@ -45,6 +41,13 @@ export class AnalyzedVideosPage implements OnInit {
   isLoading = true;
   errorMessage = '';
   analyzedVideos: ClientAnalyzedVideoItem[] = [];
+
+  constructor() {
+    addIcons({
+      analyticsOutline,
+      chevronForwardOutline,
+    });
+  }
 
   async ngOnInit(): Promise<void> {
     await this.loadAnalyzedVideos();

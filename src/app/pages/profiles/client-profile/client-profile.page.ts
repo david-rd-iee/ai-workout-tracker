@@ -2,7 +2,7 @@ import { Component, OnInit, Signal, computed, effect, signal, CUSTOM_ELEMENTS_SC
 import { DEFAULT_ASSETS } from '../../../../assets/exports/assets.constants';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RouterLink, ActivatedRoute } from '@angular/router';
+import { Router, RouterLink, ActivatedRoute } from '@angular/router';
 import {
   IonContent,
   IonButton,
@@ -125,6 +125,12 @@ export class ClientProfilePage implements OnInit {
     this.currentSlideIndex = event.detail[0].activeIndex;
   }
 
+  openStatueDetails(statue: GreekStatue): void {
+    this.router.navigate(['/statues', statue.id], {
+      state: { statue },
+    });
+  }
+
   isAuthReady = this.accountService.isAuthReady();
   userId = computed(() => this.accountService.getCredentials()().uid);
   isLoading = signal(true);
@@ -135,6 +141,7 @@ export class ClientProfilePage implements OnInit {
     private toastCtrl: ToastController,
     private accountService: AccountService,
     private modalCtrl: ModalController,
+    private router: Router,
     private route: ActivatedRoute,
     private firestore: Firestore,
     private userBadgesService: UserBadgesService,

@@ -2,19 +2,15 @@ import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute } from '@angular/router';
 import {
-  IonBackButton,
-  IonButtons,
   IonContent,
-  IonHeader,
   IonSpinner,
-  IonTitle,
-  IonToolbar,
 } from '@ionic/angular/standalone';
 import { Firestore } from '@angular/fire/firestore';
 import { doc, getDoc } from 'firebase/firestore';
 import { UserService } from '../../services/account/user.service';
 import { VideoAnalysisViewerComponent } from '../../components/video-analysis-viewer/video-analysis-viewer.component';
 import { VideoAnalysisViewerAnalysis, normalizePoseFrames } from '../../components/video-analysis-viewer/video-analysis-viewer.types';
+import { HeaderComponent } from 'src/app/components/header/header.component';
 
 @Component({
   selector: 'app-client-analyzed-video',
@@ -23,13 +19,9 @@ import { VideoAnalysisViewerAnalysis, normalizePoseFrames } from '../../componen
   styleUrls: ['./client-analyzed-video.page.scss'],
   imports: [
     CommonModule,
-    IonBackButton,
-    IonButtons,
     IonContent,
-    IonHeader,
     IonSpinner,
-    IonTitle,
-    IonToolbar,
+    HeaderComponent,
     VideoAnalysisViewerComponent,
   ],
 })

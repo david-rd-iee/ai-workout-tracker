@@ -54,6 +54,8 @@ export class WorkoutChatbotPage implements OnInit, OnDestroy {
   savedWorkoutLoggedAt: string | null = null;
 
   private isIPhone = false;
+  private isIPadLike = false;
+  private supportsOnScreenKeyboard = false;
   private removeKeyboardListeners: Array<() => void> = [];
   private readonly workoutWorkflowService = inject(WorkoutWorkflowService);
   private screenState: WorkoutChatScreenState = this.workoutWorkflowService.createInitialState();
@@ -78,6 +80,8 @@ export class WorkoutChatbotPage implements OnInit, OnDestroy {
     );
 
     this.isIPhone = this.platform.is('iphone');
+    this.isIPadLike = this.platform.is('ipad') || (this.platform.is('tablet') && this.platform.is('ios'));
+    this.supportsOnScreenKeyboard = this.detectOnScreenKeyboardSupport();
     this.initKeyboardBehavior();
   }
 
@@ -92,6 +96,10 @@ export class WorkoutChatbotPage implements OnInit, OnDestroy {
 
   get showSummaryPanel(): boolean {
     return this.showLiveSummary || this.hasSavedWorkout;
+  }
+
+  get hasUserMessages(): boolean {
+    return this.messages.some((message) => message.from === 'user');
   }
 
   addBotMessage(text: string): void {
@@ -316,6 +324,11 @@ export class WorkoutChatbotPage implements OnInit, OnDestroy {
   }
 
   private initKeyboardBehavior(): void {
+    if (!this.supportsOnScreenKeyboard) {
+      this.keyboardOffset = 0;
+      return;
+    }
+
     if (this.isIPhone) {
       this.keyboardOffset = 0;
       return;
@@ -323,6 +336,7 @@ export class WorkoutChatbotPage implements OnInit, OnDestroy {
 
     if (Capacitor.isNativePlatform()) {
       void this.bindNativeKeyboardListeners();
+      this.bindWebViewportKeyboardListeners();
       return;
     }
 
@@ -331,7 +345,17 @@ export class WorkoutChatbotPage implements OnInit, OnDestroy {
 
   private async bindNativeKeyboardListeners(): Promise<void> {
     const showHandler = (info: { keyboardHeight: number }) => {
-      this.keyboardOffset = info?.keyboardHeight ?? 0;
+      const nativeOffset = this.normalizeKeyboardOffset(info?.keyboardHeight ?? 0);
+      const viewportOffset = this.getViewportKeyboardOffset();
+
+      if (this.isIPadLike) {
+        // External keyboards on iPad can trigger native keyboard events even when no software keyboard is shown.
+        // Only move the composer when the viewport actually shrinks.
+        this.keyboardOffset = viewportOffset;
+        return;
+      }
+
+      this.keyboardOffset = Math.max(nativeOffset, viewportOffset);
     };
 
     const hideHandler = () => {
@@ -357,16 +381,19 @@ export class WorkoutChatbotPage implements OnInit, OnDestroy {
     }
 
     const updateOffset = () => {
-      const viewport = window.visualViewport;
-      if (!viewport) {
+      const viewportOffset = this.getViewportKeyboardOffset();
+
+      if (this.isIPadLike) {
+        this.keyboardOffset = viewportOffset;
         return;
       }
 
-      const offset = Math.max(
-        0,
-        Math.round(window.innerHeight - viewport.height - viewport.offsetTop)
-      );
-      this.keyboardOffset = offset;
+      if (Capacitor.isNativePlatform()) {
+        this.keyboardOffset = Math.max(this.keyboardOffset, viewportOffset);
+        return;
+      }
+
+      this.keyboardOffset = viewportOffset;
     };
 
     window.visualViewport.addEventListener('resize', updateOffset);
@@ -377,5 +404,42 @@ export class WorkoutChatbotPage implements OnInit, OnDestroy {
     this.removeKeyboardListeners.push(() =>
       window.visualViewport?.removeEventListener('scroll', updateOffset)
     );
+  }
+
+  private normalizeKeyboardOffset(offset: number): number {
+    const roundedOffset = Math.max(0, Math.round(offset || 0));
+    // Ignore tiny viewport changes (browser chrome, window jiggle) that are not real software keyboards.
+    return roundedOffset >= 120 ? roundedOffset : 0;
+  }
+
+  private getViewportKeyboardOffset(): number {
+    if (typeof window === 'undefined' || !window.visualViewport) {
+      return 0;
+    }
+
+    return this.normalizeKeyboardOffset(
+      window.innerHeight - window.visualViewport.height - window.visualViewport.offsetTop
+    );
+  }
+
+  private detectOnScreenKeyboardSupport(): boolean {
+    if (typeof window === 'undefined' || typeof navigator === 'undefined') {
+      return false;
+    }
+
+    if (this.platform.is('desktop')) {
+      return false;
+    }
+
+    const hasTouchPoints = (navigator.maxTouchPoints ?? 0) > 0;
+    const hasCoarsePointer = typeof window.matchMedia === 'function'
+      ? window.matchMedia('(pointer: coarse)').matches
+      : false;
+    const mobileLikePlatform = this.platform.is('mobile')
+      || this.platform.is('tablet')
+      || this.platform.is('hybrid')
+      || Capacitor.isNativePlatform();
+
+    return mobileLikePlatform || hasTouchPoints || hasCoarsePointer;
   }
 }

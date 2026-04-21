@@ -1,22 +1,14 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Params, Router } from '@angular/router';
 import { NavController } from '@ionic/angular';
 import {
   IonButton,
-  IonButtons,
   IonCard,
   IonCardContent,
   IonCardHeader,
   IonContent,
-  IonHeader,
-  IonIcon,
-  IonTitle,
-  IonToolbar,
 } from '@ionic/angular/standalone';
-import { addIcons } from 'ionicons';
-import { closeOutline } from 'ionicons/icons';
 import { Auth } from '@angular/fire/auth';
 import { onAuthStateChanged } from 'firebase/auth';
 import {
@@ -27,6 +19,7 @@ import {
 } from '../../models/workout-session.model';
 import { createEmptyWorkoutSessionPerformance } from '../../adapters/workout-event.adapters';
 import { WorkoutSummaryService } from '../../services/workout-summary.service';
+import { HeaderComponent } from '../../components/header/header.component';
 
 @Component({
   selector: 'app-workout-summary',
@@ -34,24 +27,20 @@ import { WorkoutSummaryService } from '../../services/workout-summary.service';
   styleUrls: ['./workout-summary.page.scss'],
   standalone: true,
   imports: [
+    HeaderComponent,
     IonContent,
-    IonHeader,
-    IonTitle,
-    IonToolbar,
     IonCard,
     IonCardHeader,
     IonCardContent,
     IonButton,
-    IonButtons,
-    IonIcon,
     CommonModule,
-    FormsModule,
   ],
 })
 export class WorkoutSummaryPage implements OnInit {
   loggedAt: Date | null = null;
   backHref = '/workout-chatbot';
   backQueryParams: Params | null = null;
+  headerBackHref = '/workout-chatbot';
   summary: WorkoutSessionPerformance = createEmptyWorkoutSessionPerformance();
 
   constructor(
@@ -59,10 +48,8 @@ export class WorkoutSummaryPage implements OnInit {
     private route: ActivatedRoute,
     private navCtrl: NavController,
     private auth: Auth,
-    private workoutSummaryService: WorkoutSummaryService
+  private workoutSummaryService: WorkoutSummaryService
   ) {
-    addIcons({ closeOutline });
-
     const navigation = this.router.getCurrentNavigation();
     const incomingSummary = navigation?.extras.state?.['summary'];
     const incomingLoggedAt = navigation?.extras.state?.['loggedAt'];
@@ -79,6 +66,7 @@ export class WorkoutSummaryPage implements OnInit {
       this.backQueryParams = incomingBackQueryParams as Params;
     }
     this.loggedAt = this.toLoggedAtDate(incomingLoggedAt);
+    this.updateHeaderBackHref();
   }
 
   async ngOnInit(): Promise<void> {
@@ -99,6 +87,7 @@ export class WorkoutSummaryPage implements OnInit {
         ...(requestedUserId ? { userId: requestedUserId } : {}),
         ...(clientName ? { clientName } : {}),
       };
+      this.updateHeaderBackHref();
     }
 
     const targetUserId = requestedUserId || await this.resolveCurrentUserId();
@@ -117,20 +106,6 @@ export class WorkoutSummaryPage implements OnInit {
     } catch (error) {
       console.error('Failed to load workout summary:', error);
     }
-  }
-
-  goBackToChat(): void {
-    if (this.backQueryParams) {
-      void this.router.navigate([this.backHref], {
-        queryParams: this.backQueryParams,
-      });
-      return;
-    }
-
-    this.navCtrl.navigateBack(this.backHref, {
-      animated: true,
-      animationDirection: 'back',
-    });
   }
 
   navigateToGroups(): void {
@@ -315,6 +290,32 @@ export class WorkoutSummaryPage implements OnInit {
     }
 
     return null;
+  }
+
+  private updateHeaderBackHref(): void {
+    if (!this.backQueryParams || Object.keys(this.backQueryParams).length === 0) {
+      this.headerBackHref = this.backHref;
+      return;
+    }
+
+    const params = new URLSearchParams();
+    Object.entries(this.backQueryParams).forEach(([key, rawValue]) => {
+      if (Array.isArray(rawValue)) {
+        rawValue
+          .map((value) => String(value).trim())
+          .filter((value) => value.length > 0)
+          .forEach((value) => params.append(key, value));
+        return;
+      }
+
+      const value = String(rawValue ?? '').trim();
+      if (value.length > 0) {
+        params.set(key, value);
+      }
+    });
+
+    const query = params.toString();
+    this.headerBackHref = query ? `${this.backHref}?${query}` : this.backHref;
   }
 
   private toRoundedNonNegative(value: unknown): number {

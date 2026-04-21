@@ -4,13 +4,8 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 
 import {
-  IonContent,
-  IonHeader,
-  IonTitle,
-  IonToolbar,
-  IonButtons,
-  IonBackButton,
   IonButton,
+  IonContent,
   IonItem,
   IonLabel,
   IonSelect,
@@ -22,6 +17,7 @@ import type {
   StrengthHistoryEntry,
   WorkoutHistoryDateGroup,
 } from '../../models/workout-history.model';
+import { HeaderComponent } from '../../components/header/header.component';
 
 type CsvTableType = 'Strength' | 'Cardio' | 'Other';
 
@@ -33,12 +29,8 @@ type CsvTableType = 'Strength' | 'Cardio' | 'Other';
   imports: [
     CommonModule,
     FormsModule,
+    HeaderComponent,
     IonContent,
-    IonHeader,
-    IonTitle,
-    IonToolbar,
-    IonButtons,
-    IonBackButton,
     IonButton,
     IonItem,
     IonLabel,
@@ -49,6 +41,7 @@ type CsvTableType = 'Strength' | 'Cardio' | 'Other';
 export class WorkoutHistoryCsvPage implements OnInit {
   isLoading = false;
   pageTitle = 'Workout CSV View';
+  backHref = '/workout-history';
   selectedType: CsvTableType = 'Strength';
   historyGroups: WorkoutHistoryDateGroup[] = [];
   tableHeaders: string[] = [];
@@ -57,13 +50,28 @@ export class WorkoutHistoryCsvPage implements OnInit {
   constructor(private route: ActivatedRoute) {}
 
   ngOnInit(): void {
+    const requestedUserId = (this.route.snapshot.queryParamMap.get('userId') || '').trim();
     const clientName = (this.route.snapshot.queryParamMap.get('clientName') || '').trim();
     this.pageTitle = clientName ? `${clientName} Workout CSV` : 'Workout CSV View';
+    this.backHref = this.buildBackHref(requestedUserId, clientName);
 
     const state = window.history.state as Record<string, unknown> | undefined;
     const candidate = state?.['historyGroups'];
     this.historyGroups = this.normalizeHistoryGroups(candidate);
     this.refreshPreview();
+  }
+
+  private buildBackHref(userId: string, clientName: string): string {
+    const params = new URLSearchParams();
+    if (userId) {
+      params.set('userId', userId);
+    }
+    if (clientName) {
+      params.set('clientName', clientName);
+    }
+
+    const query = params.toString();
+    return query ? `/workout-history?${query}` : '/workout-history';
   }
 
   refreshPreview(): void {

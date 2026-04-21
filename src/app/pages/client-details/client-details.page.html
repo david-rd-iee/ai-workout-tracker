@@ -1,14 +1,33 @@
-<ion-header>
-  <ion-toolbar>
-    <ion-buttons slot="start">
-      <ion-back-button defaultHref="/tabs/home" text=""></ion-back-button>
-    </ion-buttons>
-  </ion-toolbar>
-</ion-header>
+<app-header
+  [title]="'Client Details'"
+  [showBack]="true"
+  [backHref]="'/tabs/home'"
+></app-header>
 
-<ion-content [fullscreen]="true">
+<ion-content [fullscreen]="true" class="client-details-content">
+  <div class="background-gradient"></div>
   <div class="client-details-container">
-    <!-- Client Header Card -->
+    <section class="client-hero-shell">
+      <div class="client-overview-card">
+        <p class="section-eyebrow">Trainer View</p>
+        <h1>Support {{ client?.name || 'client' }} with confidence.</h1>
+        <p class="hero-copy">
+          Review progress, upcoming sessions, and coaching actions in one place while keeping the trainer workflow clean and quick.
+        </p>
+
+        <div class="hero-summary">
+          <div class="summary-chip">
+            <span class="summary-label">Sessions</span>
+            <strong>{{ client?.totalSessions || 0 }} completed</strong>
+          </div>
+          <div class="summary-chip">
+            <span class="summary-label">Next Session</span>
+            <strong>{{ client?.nextSession ? (client.nextSession | date:'MMM d, h:mm a') : 'Not scheduled' }}</strong>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <ion-card class="client-header-card">
       <ion-card-content>
         <div class="client-header">
@@ -35,21 +54,22 @@
       </ion-card-content>
     </ion-card>
 
-    <!-- Segmented Navigation -->
-    <ion-segment [(ngModel)]="selectedTab" (ionChange)="segmentChanged($event)" mode="md" scrollable="true">
-      <ion-segment-button value="overview">
-        <ion-label>Overview</ion-label>
-      </ion-segment-button>
-      <ion-segment-button value="progress">
-        <ion-label>Progress</ion-label>
-      </ion-segment-button>
-      <ion-segment-button value="sessions">
-        <ion-label>Sessions</ion-label>
-      </ion-segment-button>
-      <ion-segment-button value="payments">
-        <ion-label>Payments</ion-label>
-      </ion-segment-button>
-    </ion-segment>
+    <section class="segment-shell">
+      <ion-segment [(ngModel)]="selectedTab" (ionChange)="segmentChanged($event)" mode="md">
+        <ion-segment-button value="overview">
+          <ion-label>Overview</ion-label>
+        </ion-segment-button>
+        <ion-segment-button value="progress">
+          <ion-label>Progress</ion-label>
+        </ion-segment-button>
+        <ion-segment-button value="sessions">
+          <ion-label>Sessions</ion-label>
+        </ion-segment-button>
+        <ion-segment-button value="payments">
+          <ion-label>Payments</ion-label>
+        </ion-segment-button>
+      </ion-segment>
+    </section>
 
     <!-- Overview Tab -->
     <div *ngIf="selectedTab === 'overview'" class="tab-content">
@@ -94,8 +114,7 @@
         </ion-card>
       </div>
 
-      <!-- Quick Actions -->
-      <ion-card>
+      <ion-card class="panel-card">
         <ion-card-header>
           <ion-card-title>Quick Actions</ion-card-title>
         </ion-card-header>
@@ -117,8 +136,7 @@
         </ion-card-content>
       </ion-card>
 
-      <!-- Recent Activity -->
-      <ion-card>
+      <ion-card class="panel-card">
         <ion-card-header>
           <ion-card-title>Recent Activity</ion-card-title>
         </ion-card-header>
@@ -141,8 +159,7 @@
 
     <!-- Progress Tab -->
     <div *ngIf="selectedTab === 'progress'" class="tab-content">
-      <!-- Progress Overview -->
-      <ion-card>
+      <ion-card class="panel-card">
         <ion-card-header>
           <ion-card-title>Progress Overview</ion-card-title>
         </ion-card-header>
@@ -188,8 +205,7 @@
         </ion-card-content>
       </ion-card>
 
-      <!-- Goals -->
-      <ion-card>
+      <ion-card class="panel-card">
         <ion-card-header>
           <ion-card-title>Active Goals</ion-card-title>
         </ion-card-header>
@@ -211,8 +227,7 @@
         </ion-card-content>
       </ion-card>
 
-      <!-- Personal Records -->
-      <ion-card>
+      <ion-card class="panel-card">
         <ion-card-header>
           <ion-card-title>Personal Records</ion-card-title>
         </ion-card-header>
@@ -244,7 +259,7 @@
     <!-- Sessions Tab -->
     <div *ngIf="selectedTab === 'sessions'" class="tab-content">
       <!-- Upcoming Sessions -->
-      <h2>Upcoming</h2>
+      <h2 class="section-title">Upcoming</h2>
       <p *ngIf="upcomingAppointments.length === 0" style="text-align: center; color: var(--ion-color-medium); padding: 20px;">No upcoming sessions</p>
       <ion-card *ngFor="let appointment of upcomingAppointments" class="appointment-card">
         <ion-card-content>
@@ -265,7 +280,7 @@
       </ion-card>
 
       <!-- Past Sessions -->
-      <h2>Past Sessions</h2>
+      <h2 class="section-title">Past Sessions</h2>
       <p *ngIf="pastAppointments.length === 0" style="text-align: center; color: var(--ion-color-medium); padding: 20px;">No past sessions</p>
       <ion-card *ngFor="let appointment of pastAppointments" class="appointment-card past">
         <ion-card-content>
@@ -286,7 +301,7 @@
 
     <!-- Payments Tab -->
     <div *ngIf="selectedTab === 'payments'" class="tab-content">
-      <h2>Payment History</h2>
+      <h2 class="section-title">Payment History</h2>
       <p *ngIf="payments.length === 0" style="text-align: center; color: var(--ion-color-medium); padding: 20px;">No payment history</p>
       <ion-card *ngFor="let payment of payments" class="payment-card">
         <ion-card-content>

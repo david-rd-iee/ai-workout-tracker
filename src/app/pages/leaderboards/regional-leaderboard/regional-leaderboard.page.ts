@@ -1,7 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnDestroy, OnInit, inject } from '@angular/core';
 import {
-  NavController,
   IonContent,
 } from '@ionic/angular/standalone';
 
@@ -26,13 +25,14 @@ import {
   buildLeaderboardDistributionChart,
   emptyLeaderboardDistributionChart,
 } from '../../../components/leaderboard-shell/leaderboard-distribution.util';
+import { HeaderComponent } from '../../../components/header/header.component';
 
 @Component({
   selector: 'app-regional-leaderboard',
   standalone: true,
   templateUrl: './regional-leaderboard.page.html',
   styleUrls: ['./regional-leaderboard.page.scss'],
-  imports: [CommonModule, IonContent, LeaderboardShellComponent],
+  imports: [CommonModule, IonContent, LeaderboardShellComponent, HeaderComponent],
 })
 export class RegionalLeaderboardPage implements OnInit, OnDestroy {
   private static readonly SMALL_POPULATION_THRESHOLD = 10;
@@ -40,7 +40,6 @@ export class RegionalLeaderboardPage implements OnInit, OnDestroy {
   private auth = inject(Auth);
   private firestore = inject(Firestore);
   private leaderboard = inject(LeaderboardService);
-  private navCtrl = inject(NavController);
 
   private sub?: Subscription;
   private leaderboardSub?: Subscription;
@@ -152,10 +151,6 @@ export class RegionalLeaderboardPage implements OnInit, OnDestroy {
           this.loading = false;
         },
       });
-  }
-
-  goBack() {
-    this.navCtrl.navigateBack('/profile-user');
   }
 
   onMetricChanged(metric: Metric): void {
