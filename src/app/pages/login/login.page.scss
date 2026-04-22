@@ -36,6 +36,11 @@ $neo-accent: #2e6ef5;
   position: relative;
 }
 
+.auth-page-content.keyboard-open::part(scroll) {
+  overflow-y: hidden;
+  overscroll-behavior-y: none;
+}
+
 .background-gradient {
   position: absolute;
   inset: 0;
@@ -58,6 +63,16 @@ $neo-accent: #2e6ef5;
   display: grid;
   align-content: center;
   gap: 16px;
+}
+
+.auth-page-content.keyboard-open .auth-page-container {
+  align-content: start;
+  padding-top: calc(env(safe-area-inset-top, 0px) + 10px);
+  padding-bottom: calc(var(--ios-keyboard-height, 0px) + env(safe-area-inset-bottom, 0px) + 12px);
+}
+
+.auth-page-content.keyboard-open .auth-hero-card {
+  display: none;
 }
 
 .auth-hero-card {

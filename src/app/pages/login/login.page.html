@@ -1,4 +1,11 @@
-<ion-content [fullscreen]="true" class="auth-page-content">
+<ion-content
+  [fullscreen]="true"
+  class="auth-page-content"
+  [scrollY]="!isIOSKeyboardOpen"
+  [forceOverscroll]="!isIOSKeyboardOpen"
+  [class.keyboard-open]="isIOSKeyboardOpen"
+  [style.--ios-keyboard-height.px]="iosKeyboardHeight"
+>
   <div class="background-gradient"></div>
 
   <div class="auth-page-container">

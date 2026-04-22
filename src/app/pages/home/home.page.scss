@@ -1,5 +1,5 @@
 :host {
-  --home-header-space: 68px;
+  --home-header-space: calc(68px + env(safe-area-inset-top, 0px));
   display: block;
 }
 

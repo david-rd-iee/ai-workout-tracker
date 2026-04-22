@@ -157,11 +157,11 @@ h2.atlas-title {
 }
 
 ion-header.neo-header {
-  --ion-safe-area-top: 0px;
+  --ion-safe-area-top: env(safe-area-inset-top, 0px);
   backdrop-filter: saturate(112%) blur(4px);
   -webkit-backdrop-filter: saturate(112%) blur(4px);
   background: rgba(231, 237, 245, 0.44);
-  padding-top: 0 !important;
+  padding-top: var(--ion-safe-area-top) !important;
   box-shadow: none !important;
 }
 
