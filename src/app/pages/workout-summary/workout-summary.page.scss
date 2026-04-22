@@ -190,6 +190,114 @@ $atlas-accent: #2e6ef5;
   }
 }
 
+:host ::ng-deep .summary-share-modal {
+  --width: min(640px, calc(100% - 24px));
+  --height: min(84vh, 720px);
+  --border-radius: 26px;
+  --backdrop-opacity: 0.28;
+}
+
+:host ::ng-deep .summary-share-modal::part(content) {
+  border-radius: 26px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.78);
+  background: #dbe3f0;
+  box-shadow:
+    16px 16px 30px -14px rgba(184, 196, 214, 0.85),
+    -12px -12px 24px -14px rgba(249, 252, 255, 0.9);
+}
+
+.share-modal-header {
+  background: rgba(231, 237, 245, 0.44);
+}
+
+.share-modal-toolbar {
+  --background: rgba(231, 237, 245, 0.82);
+  --min-height: 62px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.68);
+
+  ion-title {
+    color: #30415b;
+    font-size: 1.05rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+  }
+}
+
+.share-modal-content {
+  --background: #dbe3f0;
+}
+
+.share-modal-shell {
+  padding: 14px;
+}
+
+.share-modal-copy {
+  margin: 0 0 10px;
+  color: $atlas-text;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.share-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 8px;
+}
+
+.select-all-btn {
+  --color: $atlas-accent;
+  --background: transparent;
+  --box-shadow: none;
+  margin: 0;
+}
+
+.share-modal-loading {
+  min-height: 120px;
+  display: grid;
+  place-items: center;
+}
+
+.share-group-list {
+  background: transparent;
+  max-height: 46vh;
+  overflow-y: auto;
+  margin-bottom: 12px;
+}
+
+.share-group-item {
+  --background: transparent;
+  --inner-border-width: 0;
+  --padding-start: 10px;
+  --inner-padding-end: 10px;
+  margin-bottom: 8px;
+  border-radius: 16px;
+  @include neo-inset(16px);
+
+  &::part(native) {
+    border-radius: 16px;
+    background: transparent;
+  }
+
+  img {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    object-fit: cover;
+    margin-right: 10px;
+    background: #ffffff;
+  }
+
+  ion-label {
+    color: #33445d;
+    font-weight: 600;
+  }
+}
+
+.share-submit-btn {
+  margin-top: 6px;
+}
+
 @media (max-width: 768px) {
   .summary-page {
     padding: 14px;

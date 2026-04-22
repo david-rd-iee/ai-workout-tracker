@@ -21,6 +21,10 @@ export { proposeGroupWarMatches } from "./groupWarMatchmaking";
 export { onGroupWarProposalUpdated } from "./groupWarProposalLifecycle";
 export { finalizeExpiredGroupWars } from "./groupWarFinalization";
 export {
+  ensureGroupChatForGroup,
+  onGroupDocumentWrittenSyncChat,
+} from "./groupChatSync";
+export {
   onWorkoutEventCreated,
 } from "./workoutEventPostWriteHandlers";
 

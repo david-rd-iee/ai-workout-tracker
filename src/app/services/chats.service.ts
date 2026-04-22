@@ -4,6 +4,16 @@ import { Observable, BehaviorSubject } from 'rxjs';
 import { Chat, Message } from '../Interfaces/Chats';
 import { UserService } from './account/user.service';
 import { NotificationService } from './notification.service';
+import { getFunctions, httpsCallable } from 'firebase/functions';
+
+type EnsureGroupChatForGroupRequest = {
+  groupId: string;
+};
+
+type EnsureGroupChatForGroupResponse = {
+  chatId: string;
+  created: boolean;
+};
 
 @Injectable({
   providedIn: 'root'
@@ -35,7 +45,8 @@ export class ChatsService {
       participants: [userId1, userId2],
       lastMessage: '',
       lastMessageTime: new Date().toISOString(),
-      messages: {}
+      messages: {},
+      type: 'direct',
     };
 
     await set(newChatRef, chat);
@@ -44,6 +55,24 @@ export class ChatsService {
     await set(ref(this.db, `userChats/${userId1}/${chatId}`), true);
     await set(ref(this.db, `userChats/${userId2}/${chatId}`), true);
 
+    return chatId;
+  }
+
+  async ensureGroupChatForGroup(groupId: string): Promise<string> {
+    const normalizedGroupId = this.normalizeString(groupId);
+    if (!normalizedGroupId) {
+      throw new Error('groupId is required.');
+    }
+
+    const callable = httpsCallable<
+      EnsureGroupChatForGroupRequest,
+      EnsureGroupChatForGroupResponse
+    >(getFunctions(undefined, 'us-central1'), 'ensureGroupChatForGroup');
+    const response = await callable({ groupId: normalizedGroupId });
+    const chatId = this.normalizeString(response.data?.chatId);
+    if (!chatId) {
+      throw new Error('Group chat could not be created.');
+    }
     return chatId;
   }
 
@@ -97,68 +126,81 @@ export class ChatsService {
 
   // Send a message in a chat
   async sendMessage(chatId: string, senderId: string, text: string): Promise<void> {
+    await this.sendChatMessage(chatId, senderId, text, 'text');
+  }
+
+  async sendWorkoutSummaryMessage(chatId: string, senderId: string, text: string): Promise<void> {
+    await this.sendChatMessage(chatId, senderId, text, 'workout_summary');
+  }
+
+  private async sendChatMessage(
+    chatId: string,
+    senderId: string,
+    text: string,
+    type: 'text' | 'workout_summary'
+  ): Promise<void> {
     const messageRef = ref(this.db, `chats/${chatId}/messages`);
     const newMessageRef = push(messageRef);
+    const timestamp = new Date().toISOString();
 
     const message: Message = {
       senderId,
       text,
-      timestamp: new Date().toISOString(),
-      read: false
+      timestamp,
+      read: false,
+      type,
     };
 
     await set(newMessageRef, message);
 
     // Update last message
-    await set(ref(this.db, `chats/${chatId}/lastMessage`), text);
-    await set(ref(this.db, `chats/${chatId}/lastMessageTime`), message.timestamp);
+    const lastMessagePreview = type === 'workout_summary'
+      ? 'Workout summary shared'
+      : text;
+    await set(ref(this.db, `chats/${chatId}/lastMessage`), lastMessagePreview);
+    await set(ref(this.db, `chats/${chatId}/lastMessageTime`), timestamp);
     
-    // Send push notification to the recipient
+    // Send push notifications to all recipients in the chat.
     try {
-      // Get chat details to find the recipient
       const chatRef = ref(this.db, `chats/${chatId}`);
       const chatSnapshot = await get(chatRef);
       
       if (chatSnapshot.exists()) {
-        const chatData = chatSnapshot.val();
-        
-        // Find the recipient (the user who is not the sender)
-        const recipientId = chatData.participants.find((id: string) => id !== senderId);
-        
-        if (recipientId) {
-          // Get sender's name to include in the notification
-          const userProfile = this.userService.getUserInfo()();
-          
-          // Default sender name if we can't get the profile
-          let senderName = 'Atlas';
-          
-          // If we have the user profile, use their name
-          if (userProfile) {
-            senderName = userProfile.firstName + ' ' + userProfile.lastName || 'Atlas';
-          }
-          
-          // Determine recipient's account type (always opposite of sender)
-          const senderAccountType =
-            await this.userService.getResolvedAccountType(senderId, 'trainer') ?? 'client';
-          const recipientAccountType: 'trainer' | 'client' = senderAccountType === 'trainer' ? 'client' : 'trainer';
-          
-          // Increment unread message count and get the new count for badge
-          const unreadCount = await this.userService.incrementUnreadMessageCount(recipientId, recipientAccountType);
-          
-          // Send the notification with sender name as title and message as body
-          await this.notificationService.sendNotification(
-            recipientId,
-            senderName, // Just the sender's name as the title
-            text.length > 100 ? `${text.substring(0, 97)}...` : text, // Message content as body
-            {
-              type: 'chat',
-              chatId: chatId,
-              senderId: senderId,
-              timestamp: message.timestamp,
-              badge: unreadCount // Include the badge count
-            }
-          );
+        const chatData = chatSnapshot.val() as Partial<Chat>;
+        const participantIds = this.normalizeUserIds(chatData.participants);
+        const recipientIds = participantIds.filter((id) => id !== senderId);
+        if (recipientIds.length === 0) {
+          return;
         }
+
+        const userProfile = this.userService.getUserInfo()();
+        let senderName = 'Atlas';
+        if (userProfile) {
+          senderName = userProfile.firstName + ' ' + userProfile.lastName || 'Atlas';
+        }
+
+        await Promise.all(
+          recipientIds.map(async (recipientId) => {
+            const recipientAccountType =
+              await this.userService.getResolvedAccountType(recipientId, 'trainer') ?? 'client';
+            const unreadCount = await this.userService.incrementUnreadMessageCount(recipientId, recipientAccountType);
+
+            await this.notificationService.sendNotification(
+              recipientId,
+              senderName,
+              type === 'workout_summary'
+                ? 'Shared a workout summary'
+                : (text.length > 100 ? `${text.substring(0, 97)}...` : text),
+              {
+                type: 'chat',
+                chatId,
+                senderId,
+                timestamp,
+                badge: unreadCount,
+              }
+            );
+          })
+        );
       }   
 
     } catch (error) {
@@ -178,8 +220,9 @@ export class ChatsService {
         if (!chatSnapshot.exists()) continue;
 
         const chatData = chatSnapshot.val() as Chat;
-        const participants = Array.isArray(chatData.participants) ? chatData.participants : [];
-        if (participants.includes(userId1) && participants.includes(userId2)) {
+        const participants = this.normalizeUserIds(chatData.participants);
+        const isGroupChat = this.isGroupChat(chatData);
+        if (!isGroupChat && participants.length === 2 && participants.includes(userId1) && participants.includes(userId2)) {
           return chatId;
         }
       }
@@ -383,10 +426,16 @@ export class ChatsService {
         hasUnreadMessages?: boolean;
       };
 
-      const otherUserId = chatData.participants?.find((id: string) => id !== userId);
-      if (otherUserId) {
-        const otherUserType = userType === 'trainer' ? 'client' : 'trainer';
-        chatData.userProfile = this.getUserProfileSignal(otherUserId, otherUserType);
+      chatData.isGroupChat = this.isGroupChat(chatData);
+      if (chatData.isGroupChat) {
+        chatData.displayName = this.normalizeString(chatData.displayName) || 'Group Chat';
+        chatData.groupImage = this.normalizeString(chatData.groupImage);
+      } else {
+        const otherUserId = this.normalizeUserIds(chatData.participants).find((id: string) => id !== userId);
+        if (otherUserId) {
+          const otherUserType = userType === 'trainer' ? 'client' : 'trainer';
+          chatData.userProfile = this.getUserProfileSignal(otherUserId, otherUserType);
+        }
       }
 
       let hasUnreadMessages = false;
@@ -602,10 +651,11 @@ export class ChatsService {
     // Find a chat where both users are participants
     for (const chatSnapshot of chatSnapshots) {
       if (chatSnapshot.exists()) {
-        const chatData = chatSnapshot.val();
-        const participants = chatData.participants || [];
+        const chatData = chatSnapshot.val() as Chat;
+        const participants = this.normalizeUserIds(chatData.participants);
+        const isGroupChat = this.isGroupChat(chatData);
         
-        if (participants.includes(userId1) && participants.includes(userId2)) {
+        if (!isGroupChat && participants.length === 2 && participants.includes(userId1) && participants.includes(userId2)) {
           return chatSnapshot.key;
         }
       }
@@ -631,5 +681,37 @@ export class ChatsService {
       // Default to true in case of error to avoid unnecessary redirects
       return true;
     }
+  }
+
+  private isGroupChat(chat: Partial<Chat> | null | undefined): boolean {
+    if (!chat) {
+      return false;
+    }
+
+    const participants = this.normalizeUserIds(chat.participants);
+    return chat.type === 'group' || !!this.normalizeString(chat.groupId) || participants.length > 2;
+  }
+
+  private normalizeUserIds(value: unknown): string[] {
+    if (!Array.isArray(value)) {
+      return [];
+    }
+
+    const uniqueIds = new Set<string>();
+    for (const entry of value) {
+      const normalized = this.normalizeString(entry);
+      if (normalized) {
+        uniqueIds.add(normalized);
+      }
+    }
+
+    return Array.from(uniqueIds);
+  }
+
+  private normalizeString(value: unknown): string {
+    if (typeof value !== 'string') {
+      return '';
+    }
+    return value.trim();
   }
 }

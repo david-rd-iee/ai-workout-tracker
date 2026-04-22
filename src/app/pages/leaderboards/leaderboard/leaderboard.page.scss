@@ -32,6 +32,18 @@
   min-height: 100%;
 }
 
+.group-chat-cta {
+  margin-bottom: 12px;
+}
+
+.group-chat-btn {
+  --background: linear-gradient(145deg, #2d43ff, #1d34ff);
+  --background-activated: linear-gradient(145deg, #2338df, #1626bb);
+  --border-radius: 14px;
+  --color: #ffffff;
+  font-weight: 600;
+}
+
 :host ::ng-deep app-header ion-title {
   padding-inline: 56px;
 }

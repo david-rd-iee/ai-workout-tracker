@@ -453,7 +453,9 @@ export class BookingService {
           
           if (chatSnapshot.exists()) {
             const chatData = chatSnapshot.val();
-            if (chatData.participants && chatData.participants.includes(userId2)) {
+            const participants = Array.isArray(chatData?.participants) ? chatData.participants : [];
+            const isGroupChat = chatData?.type === 'group' || !!chatData?.groupId || participants.length > 2;
+            if (!isGroupChat && participants.includes(userId2)) {
               return chatId;
             }
           }

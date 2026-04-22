@@ -18,14 +18,14 @@ import { Chat } from 'src/app/Interfaces/Chats';
           class="chat-item"
           *ngFor="let chat of chats$ | async" 
           button 
-          (click)="loadChat(chat.chatId, chat.participants)"
+          (click)="loadChat(chat)"
           detail="true"
         >
           <ion-avatar slot="start">
-            <img [src]="chat.userProfile?.()?.profilepic || 'assets/icon/favicon.png'" alt="Profile" />
+            <img [src]="getChatAvatar(chat)" alt="Profile" />
           </ion-avatar>
           <ion-label>
-            <h2>{{ chat.userProfile?.()?.firstName || 'Loading...' }} {{ chat.userProfile?.()?.lastName || '' }}</h2>
+            <h2>{{ getChatTitle(chat) }}</h2>
             <ion-note>{{ chat.lastMessage || 'No messages yet' }}</ion-note>
           </ion-label>
           <ion-note slot="end" *ngIf="chat.hasUnreadMessages" color="primary">
@@ -206,17 +206,45 @@ export class ClientChatsPage implements OnInit {
     this.chats$ = this.chatsService.chats$;
   }
 
-  loadChat(chatId: string, participants: string[]) {
+  getChatTitle(chat: Chat): string {
+    if (this.isGroupChat(chat)) {
+      return chat.displayName || 'Group Chat';
+    }
+
+    const profile = chat.userProfile?.();
+    if (!profile) {
+      return 'Loading...';
+    }
+
+    const fullName = `${profile.firstName || ''} ${profile.lastName || ''}`.trim();
+    return fullName || 'User';
+  }
+
+  getChatAvatar(chat: Chat): string {
+    if (this.isGroupChat(chat)) {
+      return chat.groupImage || 'assets/icons/Icon.png';
+    }
+
+    return chat.userProfile?.()?.profilepic || 'assets/icon/favicon.png';
+  }
+
+  loadChat(chat: Chat) {
     const currentUserId = this.accountService.getCredentials()().uid;
     const userProfile = this.userService.getUserInfo()();
-    const otherUserId = participants.find(participant => participant !== currentUserId);
-    
-    if (otherUserId && userProfile?.accountType) {
-      // Navigate to standalone chat detail page (outside tabs)
-      this.router.navigate(['/chat', chatId], {
-        state: { 
-          otherUserId,
-          userType: userProfile.accountType
+    const participants = Array.isArray(chat.participants) ? chat.participants : [];
+    const otherUserId = participants.find((participant) => participant !== currentUserId);
+    const isGroupChat = this.isGroupChat(chat);
+
+    if (!userProfile?.accountType) {
+      return;
+    }
+
+    if (isGroupChat || otherUserId) {
+      this.router.navigate(['/chat', chat.chatId], {
+        state: {
+          ...(otherUserId ? { otherUserId } : {}),
+          userType: userProfile.accountType,
+          ...(isGroupChat ? { isGroupChat: true, groupId: chat.groupId || '' } : {}),
         }
       });
     }
@@ -224,6 +252,11 @@ export class ClientChatsPage implements OnInit {
 
   navigateToWorkoutSummary() {
     this.router.navigate(['/workout-summary']);
+  }
+
+  private isGroupChat(chat: Chat): boolean {
+    const participants = Array.isArray(chat.participants) ? chat.participants : [];
+    return chat.type === 'group' || !!chat.groupId || participants.length > 2;
   }
 
 }

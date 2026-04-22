@@ -30,6 +30,13 @@ ion-header {
     --icon-font-size: 20px;
     min-height: 36px;
   }
+
+  .group-members-btn {
+    --color: #5d8df6;
+    --background: rgba(93, 141, 246, 0.14);
+    --border-radius: 12px;
+    margin-inline-end: 4px;
+  }
 }
 
 .chat-header-brand {

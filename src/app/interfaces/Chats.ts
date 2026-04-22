@@ -34,6 +34,11 @@ export interface Chat {
     lastMessage: string;
     lastMessageTime: string;
     messages: { [key: string]: Message };
+    type?: 'direct' | 'group';
+    groupId?: string;
+    displayName?: string;
+    groupImage?: string;
+    isGroupChat?: boolean;
     userProfile?: Signal<any>;
     hasUnreadMessages?: boolean;
     twilioChatId?: string;

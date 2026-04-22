@@ -1,12 +1,17 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnDestroy, OnInit, inject } from '@angular/core';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import {
   NavController,
   IonContent,
+  IonButton,
+  IonIcon,
+  ToastController,
 } from '@ionic/angular/standalone';
 import { Firestore, doc, onSnapshot } from '@angular/fire/firestore';
 import { Subscription } from 'rxjs';
+import { addIcons } from 'ionicons';
+import { chatbubblesOutline } from 'ionicons/icons';
 
 import {
   LeaderboardService,
@@ -25,26 +30,32 @@ import {
   emptyLeaderboardDistributionChart,
 } from '../../../components/leaderboard-shell/leaderboard-distribution.util';
 import { HeaderComponent } from '../../../components/header/header.component';
+import { ChatsService } from '../../../services/chats.service';
 
 @Component({
   selector: 'app-leaderboard',
   standalone: true,
   templateUrl: './leaderboard.page.html',
   styleUrls: ['./leaderboard.page.scss'],
-  imports: [CommonModule, IonContent, LeaderboardShellComponent, HeaderComponent],
+  imports: [CommonModule, IonContent, IonButton, IonIcon, LeaderboardShellComponent, HeaderComponent],
 })
 export class LeaderboardPage implements OnInit, OnDestroy {
   private static readonly SMALL_POPULATION_THRESHOLD = 10;
 
   private route = inject(ActivatedRoute);
+  private router = inject(Router);
   private navCtrl = inject(NavController);
   private leaderboard = inject(LeaderboardService);
   private accountService = inject(AccountService);
   private firestore = inject(Firestore);
+  private chatsService = inject(ChatsService);
+  private toastCtrl = inject(ToastController);
 
   groupId = '';
   groupName = 'Group';
+  isPTGroup = false;
   showSettingsButton = false;
+  openingGroupChat = false;
 
   loading = true;
   errorMsg = '';
@@ -64,7 +75,9 @@ export class LeaderboardPage implements OnInit, OnDestroy {
   private leaderboardSub?: Subscription;
   private trendSub?: Subscription;
 
-  constructor() {}
+  constructor() {
+    addIcons({ chatbubblesOutline });
+  }
 
   async ngOnInit(): Promise<void> {
     const groupId = this.route.snapshot.paramMap.get('groupID');
@@ -166,6 +179,7 @@ export class LeaderboardPage implements OnInit, OnDestroy {
       (snap) => {
         if (!snap.exists()) {
           this.groupName = 'Group';
+          this.isPTGroup = false;
           this.showSettingsButton = false;
           this.entries = [];
           this.trendSeries = [];
@@ -178,6 +192,7 @@ export class LeaderboardPage implements OnInit, OnDestroy {
 
         const group = snap.data() as any;
         this.groupName = typeof group?.name === 'string' && group.name.trim() ? group.name : 'Group';
+        this.isPTGroup = group?.isPTGroup === true;
 
         const ownerUserId = typeof group?.ownerUserId === 'string' ? group.ownerUserId.trim() : '';
         const currentUserId = this.accountService.getCredentials()().uid;
@@ -185,9 +200,62 @@ export class LeaderboardPage implements OnInit, OnDestroy {
       },
       () => {
         this.groupName = 'Group';
+        this.isPTGroup = false;
         this.showSettingsButton = false;
       }
     );
+  }
+
+  async openGroupChat(): Promise<void> {
+    if (!this.groupId || this.openingGroupChat) {
+      return;
+    }
+
+    if (this.isPTGroup) {
+      await this.showToast('Group chat is unavailable for PT groups.');
+      return;
+    }
+
+    this.openingGroupChat = true;
+    try {
+      const currentUserId = this.accountService.getCredentials()().uid;
+      if (!currentUserId) {
+        await this.showToast('Please sign in again to open group chat.');
+        return;
+      }
+
+      const chatId = await this.chatsService.ensureGroupChatForGroup(this.groupId);
+
+      await this.router.navigate(['/chat', chatId], {
+        state: {
+          isGroupChat: true,
+          groupId: this.groupId,
+        },
+      });
+    } catch (error) {
+      console.error('[GroupLeaderboard] Failed to open group chat:', error);
+      const errorCode = typeof error === 'object' && error && 'code' in error
+        ? String((error as { code?: unknown }).code ?? '')
+        : '';
+      if (errorCode.includes('failed-precondition')) {
+        await this.showToast('Group chat is unavailable for this group.');
+        return;
+      }
+
+      if (errorCode.includes('permission-denied')) {
+        await this.showToast('You are not a member of this group chat.');
+        return;
+      }
+
+      if (errorCode.includes('not-found')) {
+        await this.showToast('This group no longer exists.');
+        return;
+      }
+
+      await this.showToast('Could not open group chat.');
+    } finally {
+      this.openingGroupChat = false;
+    }
   }
 
   openGroupSettings(): void {
@@ -269,5 +337,14 @@ export class LeaderboardPage implements OnInit, OnDestroy {
     this.distributionPoints = chart.points;
     this.distributionMedianXPercent = chart.medianXPercent;
     this.distributionMedianLabel = chart.medianLabel;
+  }
+
+  private async showToast(message: string): Promise<void> {
+    const toast = await this.toastCtrl.create({
+      message,
+      duration: 1800,
+      position: 'bottom',
+    });
+    await toast.present();
   }
 }

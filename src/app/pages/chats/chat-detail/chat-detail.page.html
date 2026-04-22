@@ -3,6 +3,16 @@
     <ion-buttons slot="start">
       <ion-back-button defaultHref="/tabs/chats" text=""></ion-back-button>
     </ion-buttons>
+    <ion-buttons slot="end" *ngIf="isGroupChat && !isPTGroupChat">
+      <ion-button
+        fill="clear"
+        class="group-members-btn"
+        (click)="openGroupMembersMenu()"
+        aria-label="Show group members"
+      >
+        <ion-icon slot="icon-only" name="menu-outline"></ion-icon>
+      </ion-button>
+    </ion-buttons>
     <ion-title>
       <div class="chat-header-brand">
         <div class="brand-badge">

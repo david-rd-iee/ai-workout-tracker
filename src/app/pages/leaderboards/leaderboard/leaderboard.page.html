@@ -13,6 +13,18 @@
 <ion-content [fullscreen]="true" class="lb-content">
   <div class="background-gradient"></div>
   <div class="lb-container">
+    <div class="group-chat-cta" *ngIf="!isPTGroup">
+      <ion-button
+        class="group-chat-btn"
+        expand="block"
+        (click)="openGroupChat()"
+        [disabled]="openingGroupChat"
+      >
+        <ion-icon slot="start" name="chatbubbles-outline"></ion-icon>
+        Group Chat
+      </ion-button>
+    </div>
+
     <app-leaderboard-shell
       [showTopbar]="false"
       [title]="groupName + ' Leaderboard'"
