@@ -7,38 +7,14 @@
 <ion-content [fullscreen]="true" class="settings-content">
   <div class="background-gradient"></div>
   <div class="settings-page">
-    <div class="settings-shell">
-      <section class="trainer-hero">
-        <p class="hero-eyebrow">Support Team</p>
-        <h1>Find your trainer match</h1>
-        <p class="hero-copy">
-          Choose one trainer to connect to your profile. You can switch later, but only one trainer can be active at a time.
-        </p>
-
-        <div class="hero-summary">
-          <div class="summary-chip">
-            <span class="summary-label">Status</span>
-            <strong>{{ selectedTrainerUid ? 'Trainer linked' : 'No trainer selected' }}</strong>
-          </div>
-          <div class="summary-chip">
-            <span class="summary-label">Available</span>
-            <strong>{{ trainers.length }}</strong>
-          </div>
+    <div class="client-find-trainer-page">
+      <section class="logger-hero">
+        <div class="hero-title-row">
+          <h1>Trainers:</h1>
         </div>
       </section>
 
-      <section class="settings-panel">
-        <div class="panel-heading">
-          <div>
-            <h2>Choose Your Trainer</h2>
-            <p class="page-copy">Review the available trainers and connect the one you want linked to your account.</p>
-          </div>
-
-          <div class="selection-badge" [class.selection-badge-active]="!!selectedTrainerUid">
-            {{ selectedTrainerUid ? '1 active trainer' : 'No active trainer' }}
-          </div>
-        </div>
-
+      <section class="hero-card">
         <ion-text color="danger" *ngIf="errorMessage">
           <p class="form-message form-message-error">{{ errorMessage }}</p>
         </ion-text>

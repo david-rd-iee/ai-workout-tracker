@@ -79,6 +79,39 @@ export class TreadmillLoggerPage {
     return this.cardioRows.length > 0;
   }
 
+  async showCaptureInstructions(): Promise<void> {
+    const alert = await this.alertController.create({
+      mode: 'ios',
+      header: 'Quick photo guide',
+      subHeader: 'Get the best workout read in under a minute',
+      cssClass: 'capture-instructions-alert',
+      message: this.buildCaptureInstructionsMessage(),
+      buttons: ['Got it'],
+      translucent: true,
+    });
+
+    await alert.present();
+  }
+
+  private buildCaptureInstructionsMessage(): string {
+    return [
+      'Before you take the photo:',
+      '• Pick your machine type.',
+      '• Make sure the display is bright and in focus.',
+      '',
+      'How to log your workout:',
+      '1. Tap "Take Treadmill Photo".',
+      '2. Capture the full display (time, distance, calories).',
+      '3. Tap "Analyze Photo" to generate your summary.',
+      '4. Review the details, then tap "Save Workout".',
+      '',
+      'If the results look off:',
+      '• Retake the photo with less glare.',
+      '• Keep your phone steady and centered on the screen.',
+      '• Ensure the numbers are clearly visible.',
+    ].join('\n');
+  }
+
   async captureTreadmillPhoto(): Promise<void> {
     if (this.isCapturing || this.isAnalyzing || this.isSavingWorkout) {
       return;

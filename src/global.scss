@@ -557,6 +557,14 @@ app-profile-create-trainer {
   }
 }
 
+.capture-instructions-alert {
+  .alert-message {
+    white-space: pre-line;
+    text-align: left;
+    line-height: 1.45;
+  }
+}
+
 @media (max-width: 768px) {
   app-profile-create-client .form-container,
   app-profile-create-trainer .form-container {

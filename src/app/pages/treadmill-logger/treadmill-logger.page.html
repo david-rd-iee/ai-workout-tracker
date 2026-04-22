@@ -9,36 +9,22 @@
 
   <div class="treadmill-logger-page">
     <section class="logger-hero">
-      <p class="hero-eyebrow">Cardio Capture</p>
-      <h1>Snap your treadmill screen</h1>
-      <p class="hero-copy">
-        Take a clear photo of the treadmill display and we&apos;ll pull out the cardio workout details for review before saving.
-      </p>
-
-      <div class="hero-summary">
-        <div class="summary-chip">
-          <span class="summary-label">Machine</span>
-          <strong>{{ selectedMachineType | titlecase }}</strong>
-        </div>
-        <div class="summary-chip">
-          <span class="summary-label">Capture</span>
-          <strong>{{ photoDataUrl ? 'Ready to analyze' : 'Waiting for photo' }}</strong>
-        </div>
+      <div class="hero-title-row">
+        <h1>Snap your treadmill screen</h1>
+        <ion-button
+          fill="clear"
+          size="small"
+          class="hero-info-button"
+          [disabled]="isAnalyzing || isSavingWorkout"
+          (click)="showCaptureInstructions()"
+          aria-label="Show treadmill capture instructions"
+        >
+          Info
+        </ion-button>
       </div>
     </section>
 
     <section class="hero-card">
-      <div class="panel-heading">
-        <div>
-          <h2>Machine + photo</h2>
-          <p class="panel-copy">Pick the machine, capture the display, then run analysis before saving the workout.</p>
-        </div>
-
-        <div class="capture-badge" [class.capture-badge-active]="!!photoDataUrl">
-          {{ photoDataUrl ? 'Photo captured' : 'No photo yet' }}
-        </div>
-      </div>
-
       <div class="machine-selector">
         <p class="selector-label">Machine Used</p>
         <div class="machine-options">
@@ -90,10 +76,6 @@
           Analyze Photo
         </ion-button>
       </div>
-
-      <ion-text color="medium" *ngIf="statusMessage && !errorMessage">
-        <p class="status-text status-text-info">{{ statusMessage }}</p>
-      </ion-text>
 
       <ion-text color="danger" *ngIf="errorMessage">
         <p class="status-text status-text-error">{{ errorMessage }}</p>

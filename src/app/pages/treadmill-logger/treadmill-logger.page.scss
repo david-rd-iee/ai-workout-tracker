@@ -41,15 +41,20 @@ ion-content.treadmill-logger-content {
   padding: 20px;
 }
 
-.hero-eyebrow,
 .eyebrow,
-.selector-label,
-.summary-label {
+.selector-label {
   color: #2e6ef5;
   font-size: 0.8rem;
   font-weight: 800;
   letter-spacing: 0.1em;
   text-transform: uppercase;
+}
+
+.hero-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .logger-hero h1 {
@@ -62,7 +67,19 @@ ion-content.treadmill-logger-content {
   text-shadow: 0 1px 0 rgba(255, 255, 255, 0.7);
 }
 
-.hero-copy,
+.hero-info-button {
+  --background: linear-gradient(145deg, #eef3fb, #e1e8f4);
+  --color: #5a6880;
+  --border-radius: 999px;
+  --box-shadow:
+    8px 8px 16px -12px rgba(184, 196, 214, 0.9),
+    -8px -8px 16px -11px rgba(249, 252, 255, 0.95);
+  min-height: 34px;
+  margin: 0;
+  font-weight: 700;
+  text-transform: none;
+}
+
 .panel-copy,
 .summary-row p,
 .summary-total,
@@ -71,20 +88,6 @@ ion-content.treadmill-logger-content {
   line-height: 1.5;
 }
 
-.hero-copy {
-  margin: 12px 0 0;
-  max-width: 38rem;
-  font-size: 0.96rem;
-}
-
-.hero-summary {
-  margin-top: 18px;
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-}
-
-.summary-chip,
 .capture-badge,
 .machine-option-button::part(native),
 .placeholder-card,
@@ -97,14 +100,6 @@ ion-content.treadmill-logger-content {
     inset -7px -7px 12px -10px rgba(249, 252, 255, 0.95);
 }
 
-.summary-chip {
-  border-radius: 18px;
-  padding: 14px 16px;
-  display: grid;
-  gap: 4px;
-}
-
-.summary-chip strong,
 .placeholder-title,
 .summary-row h3,
 .panel-heading h2 {
@@ -325,11 +320,5 @@ ion-content.treadmill-logger-content {
 
   .panel-heading {
     display: grid;
-  }
-}
-
-@media (max-width: 520px) {
-  .hero-summary {
-    grid-template-columns: 1fr;
   }
 }

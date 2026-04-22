@@ -6,7 +6,6 @@ $atlas-shadow-dark: rgba(184, 196, 214, 0.88);
 $atlas-shadow-light: rgba(249, 252, 255, 0.95);
 $atlas-text: #5a6880;
 $atlas-muted: #8b9ab0;
-$atlas-blue: #6f9eff;
 $atlas-blue-strong: #2e6ef5;
 
 @mixin atlas-neu($radius: 22px) {
@@ -45,122 +44,48 @@ $atlas-blue-strong: #2e6ef5;
 .settings-page {
   position: relative;
   z-index: 1;
-  padding: 16px;
-  padding-top: 10px;
-  max-width: 980px;
-  margin: 0 auto;
 }
 
-.settings-shell {
-  display: grid;
+.client-find-trainer-page {
+  min-height: 100%;
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 16px;
+  padding-top: 10px;
+  display: flex;
+  flex-direction: column;
   gap: 16px;
 }
 
-.trainer-hero,
-.settings-panel {
+.logger-hero,
+.hero-card {
   @include atlas-neu(26px);
 }
 
-.trainer-hero {
+.logger-hero {
   padding: 20px;
 }
 
-.hero-eyebrow {
-  margin: 0 0 8px;
-  color: $atlas-blue-strong;
-  font-size: 0.8rem;
-  font-weight: 800;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+.hero-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
 }
 
-.trainer-hero h1 {
+.logger-hero h1 {
   margin: 0;
+  text-align: center;
   color: $atlas-text;
-  font-size: clamp(2rem, 4.6vw, 2.8rem);
+  font-size: clamp(2rem, 4.8vw, 2.8rem);
   line-height: 0.98;
   font-weight: 680;
   letter-spacing: -0.03em;
   text-shadow: 0 1px 0 rgba(255, 255, 255, 0.7);
 }
 
-.hero-copy {
-  margin: 12px 0 0;
-  max-width: 38rem;
-  color: $atlas-muted;
-  line-height: 1.55;
-  font-size: 0.96rem;
-}
-
-.hero-summary {
-  margin-top: 18px;
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-}
-
-.summary-chip {
-  @include atlas-inset(18px);
-  padding: 14px 16px;
-  display: grid;
-  gap: 4px;
-}
-
-.summary-label {
-  color: $atlas-muted;
-  font-size: 0.76rem;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.summary-chip strong {
-  color: $atlas-text;
-  font-size: 1rem;
-  line-height: 1.25;
-}
-
-.settings-panel {
+.hero-card {
   padding: 18px;
-}
-
-.panel-heading {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.settings-panel h2 {
-  margin: 0;
-  color: $atlas-text;
-  font-size: 1.1rem;
-  font-weight: 680;
-  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.7);
-}
-
-.page-copy {
-  margin: 8px 0 0;
-  max-width: 38rem;
-  color: $atlas-muted;
-  line-height: 1.5;
-  font-size: 0.92rem;
-}
-
-.selection-badge {
-  @include atlas-inset(999px);
-  min-height: 38px;
-  padding: 8px 14px;
-  display: inline-flex;
-  align-items: center;
-  white-space: nowrap;
-  color: $atlas-muted;
-  font-size: 0.82rem;
-  font-weight: 700;
-}
-
-.selection-badge-active {
-  color: $atlas-blue-strong;
 }
 
 .form-message {
@@ -337,7 +262,7 @@ $atlas-blue-strong: #2e6ef5;
   --box-shadow:
     8px 8px 18px -10px rgba(107, 128, 199, 0.6),
     -4px -4px 10px -8px rgba(255, 255, 255, 0.82);
-  min-height: 48px;
+  min-height: 52px;
   font-weight: 700;
   text-transform: none;
   letter-spacing: 0.01em;
@@ -386,27 +311,18 @@ $atlas-blue-strong: #2e6ef5;
 }
 
 @media (max-width: 768px) {
-  .settings-page {
+  .client-find-trainer-page {
     padding: 14px;
     padding-top: 10px;
   }
 
-  .trainer-hero,
-  .settings-panel {
+  .logger-hero,
+  .hero-card {
     padding: 16px;
-  }
-
-  .panel-heading {
-    grid-template-columns: 1fr;
-    display: grid;
   }
 }
 
 @media (max-width: 520px) {
-  .hero-summary {
-    grid-template-columns: 1fr;
-  }
-
   .trainer-row {
     align-items: flex-start;
   }

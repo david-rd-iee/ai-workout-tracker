@@ -8,33 +8,13 @@
   <div class="background-gradient"></div>
 
   <div class="map-tracking-page">
-    <section class="tracking-hero">
-      <p class="hero-eyebrow">Outdoor Logger</p>
-      <h1>Track your route live</h1>
-      <p class="hero-copy">
-        Start the tracker, head out for your workout, and this page will build your route, distance, time, pace or speed, and calories locally in the app.
-      </p>
-
-      <div class="hero-summary">
-        <div class="summary-chip">
-          <span class="summary-label">State</span>
-          <strong>{{ isTracking ? 'Tracking live' : trackingState === 'finished' ? 'Workout finished' : 'Ready to start' }}</strong>
-        </div>
-        <div class="summary-chip">
-          <span class="summary-label">Activity</span>
-          <strong>{{ detectedActivityHeadline }}</strong>
-        </div>
+    <section class="logger-hero">
+      <div class="hero-title-row">
+        <h1>Track your route live</h1>
       </div>
     </section>
 
     <section class="hero-card">
-      <div class="panel-heading">
-        <div>
-          <h2>Live route + stats</h2>
-          <p class="panel-copy">Use GPS to map the session, monitor distance and movement, then save the workout when you finish.</p>
-        </div>
-      </div>
-
       <div class="map-shell">
         <div class="map-stage" *ngIf="hasRoute; else emptyMap">
           <div class="map-tile-layer">
@@ -136,10 +116,6 @@
         </ion-button>
       </div>
 
-      <ion-text color="medium" *ngIf="statusMessage && !errorMessage">
-        <p class="status-text status-text-info">{{ statusMessage }}</p>
-      </ion-text>
-
       <ion-text color="danger" *ngIf="errorMessage">
         <p class="status-text status-text-error">{{ errorMessage }}</p>
       </ion-text>
@@ -148,11 +124,13 @@
     <section class="summary-card" *ngIf="canLogWorkout">
       <div class="summary-card-inner">
         <p class="eyebrow">Ready To Log</p>
-        <h3>{{ detectedActivityHeadline }}</h3>
-        <p *ngIf="hasReliableActivityDetection">Auto-detected from speed and GPS smoothness.</p>
-        <p>{{ displayDistance }} in {{ displayDuration }}</p>
-        <p>Average {{ displayMovementMetricLabel }}: {{ displayMovementMetricValue }}</p>
-        <p>Estimated Calories: {{ displayCalories }} kcal</p>
+        <div class="summary-row">
+          <h3>{{ detectedActivityHeadline }}</h3>
+          <p *ngIf="hasReliableActivityDetection">Auto-detected from speed and GPS smoothness.</p>
+          <p>{{ displayDistance }} in {{ displayDuration }}</p>
+          <p>Average {{ displayMovementMetricLabel }}: {{ displayMovementMetricValue }}</p>
+          <p>Estimated Calories: {{ displayCalories }} kcal</p>
+        </div>
 
         <ion-button
           expand="block"
