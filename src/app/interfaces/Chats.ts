@@ -33,7 +33,15 @@ export interface Chat {
     participants: string[];
     lastMessage: string;
     lastMessageTime: string;
-    messages: { [key: string]: Message };
+    messages?: { [key: string]: Message };
+    type?: 'direct' | 'group';
+    groupId?: string;
+    displayName?: string;
+    groupImage?: string;
+    isGroupChat?: boolean;
+    unreadByUser?: { [userId: string]: boolean };
+    unreadCountByUser?: { [userId: string]: number };
+    lastReadAtByUser?: { [userId: string]: string };
     userProfile?: Signal<any>;
     hasUnreadMessages?: boolean;
     twilioChatId?: string;

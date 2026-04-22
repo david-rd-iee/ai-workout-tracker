@@ -67,17 +67,12 @@ iframe[src*=".pdf"] {
 
 /* Transparent header page styling */
 .background-gradient {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 100%;
-  min-height: 100vh;
-  background-image: url('/assets/backgrounds/BlurryGradientLight.svg');
-  background-size: cover;
-  background-position: center;
-  opacity: 1;
-  z-index: -1;
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 14% -4%, rgba(255, 255, 255, 0.84) 0, rgba(255, 255, 255, 0) 36%),
+    radial-gradient(circle at 86% 8%, rgba(160, 179, 219, 0.34) 0, rgba(160, 179, 219, 0) 42%),
+    linear-gradient(145deg, #d5deeb 0%, #e8eef8 48%, #dbe4f1 100%);
   pointer-events: none;
 }
 
@@ -109,6 +104,139 @@ ion-input, ion-textarea {
   -ms-user-select: text;
   user-select: text;
   cursor: text;
+}
+
+:root {
+  --atlas-page-bg: #dbe3f0;
+  --atlas-surface-high: #f1f5fc;
+  --atlas-surface: #e8eef8;
+  --atlas-text: #5a6880;
+  --atlas-muted: #8b9ab0;
+  --atlas-accent-blue-light: #6f9eff;
+  --atlas-accent-blue: #2e6ef5;
+  --atlas-accent-gold: #d4af37;
+  --atlas-accent-gold-deep: #b8941a;
+  --atlas-accent-gold-text: #8b7355;
+  --atlas-header-shell: rgba(231, 237, 245, 0.44);
+  --atlas-header-toolbar: rgba(231, 237, 245, 0.82);
+  --atlas-shadow-dark: rgba(184, 196, 214, 0.88);
+  --atlas-shadow-light: rgba(249, 252, 255, 0.95);
+  --atlas-radius-lg: 26px;
+  --atlas-radius-md: 22px;
+  --atlas-radius-sm: 18px;
+}
+
+html,
+body,
+ion-app {
+  background: var(--atlas-page-bg);
+}
+
+ion-content {
+  --background: var(--atlas-page-bg);
+  position: relative;
+}
+
+ion-content > *:not(.background-gradient) {
+  position: relative;
+  z-index: 1;
+}
+
+ion-card:not(.no-neu),
+.neo-surface {
+  --background: transparent;
+  background: linear-gradient(145deg, var(--atlas-surface-high), var(--atlas-surface));
+  border-radius: var(--atlas-radius-md);
+  border: 1px solid rgba(255, 255, 255, 0.78);
+  box-shadow:
+    14px 14px 28px -14px var(--atlas-shadow-dark),
+    -12px -12px 24px -14px var(--atlas-shadow-light);
+}
+
+.neo-surface-lg {
+  border-radius: var(--atlas-radius-lg);
+}
+
+.neo-inset {
+  background: linear-gradient(145deg, #edf2fb, #e4ebf7);
+  border-radius: var(--atlas-radius-sm);
+  border: 1px solid rgba(255, 255, 255, 0.56);
+  box-shadow:
+    inset 7px 7px 12px -10px rgba(184, 196, 214, 0.9),
+    inset -7px -7px 12px -10px rgba(249, 252, 255, 0.95);
+}
+
+ion-card:not(.no-neu) ion-card-header,
+ion-card:not(.no-neu) ion-card-content {
+  background: transparent;
+}
+
+ion-toolbar:not(.no-neu) {
+  --background: var(--atlas-header-toolbar);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.68);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.84),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.72);
+}
+
+ion-button:not(.button-clear):not(.no-neu) {
+  --border-radius: 16px;
+  --background: linear-gradient(145deg, #79a8ff, #2e6ef5);
+  --background-hover: linear-gradient(145deg, #8eb6ff, #4a83f8);
+  --background-activated: linear-gradient(145deg, #4f88f5, #1f55cb);
+  --color: #ffffff;
+  --box-shadow:
+    8px 8px 18px -10px rgba(107, 128, 199, 0.6),
+    -4px -4px 10px -8px rgba(255, 255, 255, 0.82);
+  text-transform: none;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  transition: transform 170ms ease, box-shadow 170ms ease;
+
+  &::part(native) {
+    border-radius: 16px;
+    overflow: hidden;
+    line-height: 1.2;
+  }
+
+  &:active {
+    transform: translateY(1px) scale(0.997);
+  }
+}
+
+ion-button.button-outline:not(.button-clear):not(.no-neu) {
+  --background: linear-gradient(145deg, #eef3fb, #e1e8f4);
+  --background-hover: linear-gradient(145deg, #f5f8fd, #e8eef8);
+  --background-activated: linear-gradient(145deg, #e0e8f4, #d5deed);
+  --color: var(--atlas-text);
+  --box-shadow:
+    8px 8px 16px -12px rgba(184, 196, 214, 0.9),
+    -8px -8px 16px -11px rgba(249, 252, 255, 0.95);
+  --border-width: 0;
+}
+
+ion-item.item-neu,
+ion-item.neu-item {
+  --background: transparent;
+  --border-color: transparent;
+  --inner-border-width: 0;
+  --padding-top: 0;
+  --padding-bottom: 0;
+  --padding-start: 0;
+  --inner-padding-end: 0;
+  --min-height: auto;
+  padding: 0;
+}
+
+ion-input.neu-input,
+ion-select.neu-input,
+ion-textarea.neu-input {
+  background: linear-gradient(145deg, #edf2fb, #e4ebf7);
+  border-radius: var(--atlas-radius-sm);
+  border: 1px solid rgba(255, 255, 255, 0.56);
+  box-shadow:
+    inset 7px 7px 12px -10px rgba(184, 196, 214, 0.9),
+    inset -7px -7px 12px -10px rgba(249, 252, 255, 0.95);
 }
 
 /* Make text selectable globally */
@@ -426,6 +554,14 @@ app-profile-create-trainer {
 .score-update-alert {
   .alert-message {
     white-space: pre-line;
+  }
+}
+
+.capture-instructions-alert {
+  .alert-message {
+    white-space: pre-line;
+    text-align: left;
+    line-height: 1.45;
   }
 }
 

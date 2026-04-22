@@ -21,7 +21,6 @@ import {
   IonToolbar,
   IonCard,
   IonCardContent,
-  IonProgressBar,
   IonList,
   IonItem,
   IonLabel,
@@ -62,6 +61,7 @@ import {
   people,
   school,
   cash,
+  checkmarkCircle,
 } from 'ionicons/icons';
 import {
   GreekStatue,
@@ -85,7 +85,6 @@ import { AccountService } from '../../services/account/account.service';
     IonContent,
     IonCard,
     IonCardContent,
-    IonProgressBar,
     IonList,
     IonItem,
     IonLabel,
@@ -173,6 +172,10 @@ export class ProfileUserPage implements OnInit, OnDestroy {
     return Math.min(1, Math.max(0, rawPercentage * 0.01));
   }
 
+  get isTrainerVerified(): boolean {
+    return this.currentUserStats?.trainerVerified === true;
+  }
+
   constructor() {
     addIcons({
       settingsOutline,
@@ -189,6 +192,7 @@ export class ProfileUserPage implements OnInit, OnDestroy {
       people,
       school,
       cash,
+      checkmarkCircle,
     });
 
     // Use the UserService's signal to get user data
@@ -402,17 +406,17 @@ export class ProfileUserPage implements OnInit, OnDestroy {
       animationDirection: 'forward',
     });
   }
-  goToAnalyzeClientWorkouts(): void {
-    this.navCtrl.navigateForward('/client-workout-analysis', {
-      animated: true,
-      animationDirection: 'forward',
-    });
-  }
 
   // Statue management methods
 
   onSlideChange(event: any): void {
-    this.currentSlideIndex = event.detail[0].activeIndex;
+    this.currentSlideIndex = event?.detail?.[0]?.activeIndex ?? 0;
+  }
+
+  openStatueDetails(statue: GreekStatue): void {
+    this.router.navigate(['/statues', statue.id], {
+      state: { statue },
+    });
   }
 
   private resetTrainerStats(): void {
@@ -603,6 +607,7 @@ export class ProfileUserPage implements OnInit, OnDestroy {
             slidesPerView?: number;
             centeredSlides?: boolean;
             spaceBetween?: number;
+            breakpoints?: Record<number, { slidesPerView: number; spaceBetween?: number }>;
             pagination?: boolean;
             allowTouchMove?: boolean;
           })
@@ -613,9 +618,15 @@ export class ProfileUserPage implements OnInit, OnDestroy {
       }
 
       if (!swiperElement.swiper) {
-        swiperElement.slidesPerView = 1;
+        swiperElement.slidesPerView = 1.18;
         swiperElement.centeredSlides = true;
-        swiperElement.spaceBetween = 20;
+        swiperElement.spaceBetween = 14;
+        swiperElement.breakpoints = {
+          768: {
+            slidesPerView: 1.45,
+            spaceBetween: 18,
+          },
+        };
         swiperElement.pagination = false;
         swiperElement.allowTouchMove = this.displayStatues.length > 1;
         swiperElement.initialize?.();
@@ -629,11 +640,19 @@ export class ProfileUserPage implements OnInit, OnDestroy {
   }
 
   async openBadgeSelector() {
+    const carvedStatues = this.allStatues.filter((statue) =>
+      isCarvedStatueLevel(statue.currentLevel)
+    );
+    const carvedStatueIdSet = new Set(carvedStatues.map((statue) => statue.id));
+    const selectedCarvedIds = this.displayStatueIds.filter((id) =>
+      carvedStatueIdSet.has(id)
+    );
+
     const modal = await this.modalCtrl.create({
       component: StatueSelectorComponent,
       componentProps: {
-        carvedStatues: this.allStatues,
-        selectedStatueIds: this.displayStatueIds
+        carvedStatues,
+        selectedStatueIds: selectedCarvedIds
       }
     });
 
@@ -641,8 +660,14 @@ export class ProfileUserPage implements OnInit, OnDestroy {
 
     const { data, role } = await modal.onWillDismiss();
 
-    if (role === 'confirm' && data) {
-      this.displayStatueIds = data;
+    if (role === 'confirm') {
+      const nextDisplayIds = Array.isArray(data)
+        ? data
+            .map((id) => String(id ?? '').trim())
+            .filter((id): id is string => id.length > 0 && carvedStatueIdSet.has(id))
+        : [];
+
+      this.displayStatueIds = Array.from(new Set(nextDisplayIds));
       this.updateDisplayStatues();
       await this.saveDisplayStatues();
     }

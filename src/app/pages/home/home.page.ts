@@ -134,7 +134,6 @@ export class HomePage implements OnInit, OnDestroy {
   
   // Display properties
   currentDate = new Date();
-
   userName(): string {
     return this.currentUser?.firstName || 'User';
   }
@@ -822,6 +821,20 @@ export class HomePage implements OnInit, OnDestroy {
   viewClientDetails(client: any) {
     this.router.navigate(['/client-details'], { 
       state: { client } 
+    });
+  }
+
+  viewClientWorkoutVideos(client: any, event?: Event): void {
+    event?.stopPropagation();
+
+    const clientId = String(client?.id || client?.userId || '').trim();
+    if (!clientId) {
+      return;
+    }
+
+    const clientName = String(client?.name || '').trim();
+    this.router.navigate([`/trainer-client-videos/${clientId}`], {
+      queryParams: clientName ? { clientName } : {},
     });
   }
   

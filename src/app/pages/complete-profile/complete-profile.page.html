@@ -1,107 +1,184 @@
-<ion-content class="ion-padding ion-safe-area">
-  <div class="logo">
-    <img src="assets/loginsignin.png" alt="Atlas Logo" width="280" />
+<ion-content [fullscreen]="true" class="auth-page-content">
+  <div class="background-gradient"></div>
+
+  <div class="auth-page-container">
+    <section class="auth-hero-card">
+      <div class="hero-media-shell">
+        <img
+          class="hero-runner-image"
+          src="assets/auth/runner-figure.webp"
+          alt="Running figure"
+        />
+      </div>
+
+      <div class="hero-copy">
+        <p class="hero-eyebrow">ATLAS</p>
+        <h1>Complete Profile</h1>
+        <p *ngIf="!isTrainerNameOnly">Add your details before entering the app.</p>
+        <p *ngIf="isTrainerNameOnly">Please add your first and last name to continue.</p>
+      </div>
+    </section>
+
+    <section class="auth-form-card">
+      <h2>Profile Details</h2>
+
+      <form class="auth-form" (ngSubmit)="onSubmit()">
+        <ion-item class="auth-input-item" lines="none">
+          <ion-input
+            label="First Name"
+            label-placement="floating"
+            [(ngModel)]="firstName"
+            name="firstName"
+            placeholder="First name"
+            autocomplete="given-name"
+            required
+          ></ion-input>
+        </ion-item>
+
+        <ion-item class="auth-input-item" lines="none">
+          <ion-input
+            label="Last Name"
+            label-placement="floating"
+            [(ngModel)]="lastName"
+            name="lastName"
+            placeholder="Last name"
+            autocomplete="family-name"
+            required
+          ></ion-input>
+        </ion-item>
+
+        <ion-item class="auth-input-item" lines="none" *ngIf="!isTrainerNameOnly">
+          <ion-input
+            label="Username"
+            label-placement="floating"
+            [(ngModel)]="username"
+            name="username"
+            placeholder="Username"
+            autocomplete="username"
+            required
+          ></ion-input>
+        </ion-item>
+
+        <ion-item class="auth-input-item" lines="none" *ngIf="!isTrainerNameOnly">
+          <ion-input
+            label="Age"
+            label-placement="floating"
+            type="number"
+            inputmode="numeric"
+            [(ngModel)]="age"
+            name="age"
+            placeholder="Age"
+            required
+          ></ion-input>
+        </ion-item>
+
+        <ion-item class="auth-input-item" lines="none" *ngIf="!isTrainerNameOnly">
+          <ion-select
+            label="Units"
+            label-placement="floating"
+            [(ngModel)]="unitSystem"
+            name="unitSystem"
+            interface="popover"
+            (ionChange)="onUnitSystemChange()"
+          >
+            <ion-select-option value="metric">Metric (m, kg)</ion-select-option>
+            <ion-select-option value="imperial">Imperial (ft/in, lb)</ion-select-option>
+          </ion-select>
+        </ion-item>
+
+        <p class="unit-helper" *ngIf="!isTrainerNameOnly">
+          Height and weight are always stored in meters and kilograms.
+        </p>
+
+        <ion-item class="auth-input-item" lines="none" *ngIf="!isTrainerNameOnly && unitSystem === 'metric'">
+          <ion-input
+            label="Height (m)"
+            label-placement="floating"
+            type="number"
+            inputmode="decimal"
+            [(ngModel)]="heightMeters"
+            name="heightMeters"
+            placeholder="e.g. 1.78"
+            required
+          ></ion-input>
+        </ion-item>
+
+        <div class="imperial-height-grid" *ngIf="!isTrainerNameOnly && unitSystem === 'imperial'">
+          <ion-item class="auth-input-item" lines="none">
+            <ion-input
+              label="Height (ft)"
+              label-placement="floating"
+              type="number"
+              inputmode="numeric"
+              [(ngModel)]="heightFeet"
+              name="heightFeet"
+              placeholder="e.g. 5"
+            ></ion-input>
+          </ion-item>
+
+          <ion-item class="auth-input-item" lines="none">
+            <ion-input
+              label="Height (in)"
+              label-placement="floating"
+              type="number"
+              inputmode="decimal"
+              [(ngModel)]="heightInches"
+              name="heightInches"
+              placeholder="e.g. 10"
+            ></ion-input>
+          </ion-item>
+        </div>
+
+        <ion-item class="auth-input-item" lines="none" *ngIf="!isTrainerNameOnly && unitSystem === 'metric'">
+          <ion-input
+            label="Weight (kg)"
+            label-placement="floating"
+            type="number"
+            inputmode="decimal"
+            [(ngModel)]="weightKg"
+            name="weightKg"
+            placeholder="e.g. 72"
+            required
+          ></ion-input>
+        </ion-item>
+
+        <ion-item class="auth-input-item" lines="none" *ngIf="!isTrainerNameOnly && unitSystem === 'imperial'">
+          <ion-input
+            label="Weight (lb)"
+            label-placement="floating"
+            type="number"
+            inputmode="decimal"
+            [(ngModel)]="weightPounds"
+            name="weightPounds"
+            placeholder="e.g. 165"
+            required
+          ></ion-input>
+        </ion-item>
+
+        <ion-item class="auth-input-item" lines="none" *ngIf="!isTrainerNameOnly">
+          <ion-select
+            label="Sex"
+            label-placement="floating"
+            [(ngModel)]="sex"
+            name="sex"
+            placeholder="Select sex"
+            interface="popover"
+            required
+          >
+            <ion-select-option [value]="1">Male</ion-select-option>
+            <ion-select-option [value]="2">Female</ion-select-option>
+            <ion-select-option [value]="1.5">Other</ion-select-option>
+          </ion-select>
+        </ion-item>
+
+        <ion-text class="auth-error" *ngIf="errorMessage">
+          <p>{{ errorMessage }}</p>
+        </ion-text>
+
+        <ion-button class="primary-auth-btn" expand="block" type="submit" [disabled]="isSubmitting">
+          {{ isSubmitting ? 'Saving...' : 'Continue' }}
+        </ion-button>
+      </form>
+    </section>
   </div>
-
-  <h1>Complete Your Profile</h1>
-  <p class="subtitle" *ngIf="!isTrainerNameOnly">Add your details before entering the app.</p>
-  <p class="subtitle" *ngIf="isTrainerNameOnly">Please add your first and last name to continue.</p>
-
-  <form (ngSubmit)="onSubmit()">
-    <ion-item lines="none">
-      <ion-input
-        label="First Name"
-        label-placement="floating"
-        [(ngModel)]="firstName"
-        name="firstName"
-        placeholder="FIRST NAME"
-        required
-      ></ion-input>
-    </ion-item>
-
-    <ion-item lines="none">
-      <ion-input
-        label="Last Name"
-        label-placement="floating"
-        [(ngModel)]="lastName"
-        name="lastName"
-        placeholder="LAST NAME"
-        required
-      ></ion-input>
-    </ion-item>
-
-    <ion-item lines="none" *ngIf="!isTrainerNameOnly">
-      <ion-input
-        label="Username"
-        label-placement="floating"
-        [(ngModel)]="username"
-        name="username"
-        placeholder="USERNAME"
-        required
-      ></ion-input>
-    </ion-item>
-
-    <ion-item lines="none" *ngIf="!isTrainerNameOnly">
-      <ion-input
-        label="Age"
-        label-placement="floating"
-        type="number"
-        inputmode="numeric"
-        [(ngModel)]="age"
-        name="age"
-        placeholder="AGE"
-        required
-      ></ion-input>
-    </ion-item>
-
-    <ion-item lines="none" *ngIf="!isTrainerNameOnly">
-      <ion-input
-        label="Height (m)"
-        label-placement="floating"
-        type="number"
-        inputmode="decimal"
-        [(ngModel)]="heightMeters"
-        name="heightMeters"
-        placeholder="e.g. 1.78"
-        required
-      ></ion-input>
-    </ion-item>
-
-    <ion-item lines="none" *ngIf="!isTrainerNameOnly">
-      <ion-input
-        label="Weight (kg)"
-        label-placement="floating"
-        type="number"
-        inputmode="decimal"
-        [(ngModel)]="weightKg"
-        name="weightKg"
-        placeholder="e.g. 72"
-        required
-      ></ion-input>
-    </ion-item>
-
-    <ion-item lines="none" *ngIf="!isTrainerNameOnly">
-      <ion-select
-        label="Sex"
-        label-placement="floating"
-        [(ngModel)]="sex"
-        name="sex"
-        placeholder="Select sex"
-        interface="popover"
-        required
-      >
-        <ion-select-option [value]="1">Male</ion-select-option>
-        <ion-select-option [value]="2">Female</ion-select-option>
-        <ion-select-option [value]="1.5">Other</ion-select-option>
-      </ion-select>
-    </ion-item>
-
-    <ion-text color="danger" *ngIf="errorMessage">
-      <p class="error">{{ errorMessage }}</p>
-    </ion-text>
-
-    <ion-button expand="block" type="submit" [disabled]="isSubmitting">
-      {{ isSubmitting ? 'Saving...' : 'Continue' }}
-    </ion-button>
-  </form>
 </ion-content>

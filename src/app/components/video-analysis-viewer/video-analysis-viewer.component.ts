@@ -1,14 +1,5 @@
 import { CommonModule } from '@angular/common';
-import {
-  AlertController,
-  IonButton,
-  IonButtons,
-  IonHeader,
-  IonIcon,
-  IonSpinner,
-  IonTitle,
-  IonToolbar,
-} from '@ionic/angular/standalone';
+import { AlertController, IonIcon } from '@ionic/angular/standalone';
 import {
   AfterViewChecked,
   ElementRef,
@@ -38,10 +29,19 @@ import {
   VideoAnalysisViewerDrawing,
   VideoAnalysisViewerNote,
 } from './video-analysis-viewer.types';
+import {
+  POSE_CONNECTIONS,
+  VideoAnalysisFrame,
+  VideoAnalysisPoint,
+  VideoLandmarkName,
+} from '../../models/video-analysis.model';
+
+// ─── Module-level constants ───────────────────────────────────────────────────
 
 type CanvasPoint = { x: number; y: number };
 
 type AngleMeasurementResult = {
+  jointName: VideoLandmarkName;
   vertex: CanvasPoint;
   firstEnd: CanvasPoint;
   secondEnd: CanvasPoint;
@@ -65,6 +65,26 @@ type WorkoutAnalysisEvent =
       createdAtIso: string;
     };
 
+/**
+ * Maps each measurable joint to the pair of connected landmarks that define its
+ * anatomically meaningful angle. Joints not listed here (nose, wrists, ankles)
+ * are not measurable because they have only one connection in the skeleton graph.
+ */
+const JOINT_ANGLE_MEASUREMENT_PAIRS: Partial<Record<VideoLandmarkName, [VideoLandmarkName, VideoLandmarkName]>> = {
+  leftElbow: ['leftShoulder', 'leftWrist'],
+  rightElbow: ['rightShoulder', 'rightWrist'],
+  leftShoulder: ['leftHip', 'leftElbow'],
+  rightShoulder: ['rightHip', 'rightElbow'],
+  leftHip: ['leftShoulder', 'leftKnee'],
+  rightHip: ['rightShoulder', 'rightKnee'],
+  leftKnee: ['leftHip', 'leftAnkle'],
+  rightKnee: ['rightHip', 'rightAnkle'],
+};
+
+const LANDMARK_VISIBILITY_THRESHOLD = 0.4;
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 @Component({
   selector: 'app-video-analysis-viewer',
   standalone: true,
@@ -72,13 +92,7 @@ type WorkoutAnalysisEvent =
   styleUrls: ['./video-analysis-viewer.component.scss'],
   imports: [
     CommonModule,
-    IonButton,
-    IonButtons,
-    IonHeader,
     IonIcon,
-    IonSpinner,
-    IonTitle,
-    IonToolbar,
   ],
 })
 export class VideoAnalysisViewerComponent implements OnChanges, AfterViewChecked {
@@ -120,8 +134,10 @@ export class VideoAnalysisViewerComponent implements OnChanges, AfterViewChecked
   drawMode: 'freehand' | 'line' = 'freehand';
   activeCanvasTool: 'draw' | 'measure' | null = null;
   measureInstruction = '';
-  isMeasureSelectionReady = false;
   hasMeasuredAngle = false;
+  inlineNoteOpen = false;
+  inlineNoteText = '';
+  inlineNoteTimestampSeconds = 0;
   portraitPlayerFrameHeightPx: number | null = null;
 
   private pendingVideoSelectionSync = false;
@@ -131,8 +147,9 @@ export class VideoAnalysisViewerComponent implements OnChanges, AfterViewChecked
   private lineStartPoint: CanvasPoint | null = null;
   private lineSnapshot: ImageData | null = null;
   private measurementBaseImageData: ImageData | null = null;
+  private measureResults: AngleMeasurementResult[] = [];
   private measureSelectionPath: CanvasPoint[] = [];
-  private measureResult: AngleMeasurementResult | null = null;
+  private activePoseFrame: VideoAnalysisFrame | null = null;
   private readonly portraitPlayerGutterPx = 84;
 
   constructor() {
@@ -268,11 +285,11 @@ export class VideoAnalysisViewerComponent implements OnChanges, AfterViewChecked
     this.drawMode = 'freehand';
     this.activeCanvasTool = null;
     this.measureInstruction = '';
-    this.isMeasureSelectionReady = false;
     this.hasMeasuredAngle = false;
+    this.measureResults = [];
     this.measureSelectionPath = [];
-    this.measureResult = null;
     this.measurementBaseImageData = null;
+    this.activePoseFrame = null;
     this.pendingVideoSelectionSync = !!analysis;
   }
 
@@ -337,6 +354,15 @@ export class VideoAnalysisViewerComponent implements OnChanges, AfterViewChecked
       activeVideo.pause();
     }
 
+    this.toolsOpen = false;
+
+    if (!this.isLandscapeMode) {
+      this.inlineNoteTimestampSeconds = this.currentTimeSeconds;
+      this.inlineNoteText = '';
+      this.inlineNoteOpen = true;
+      return;
+    }
+
     const timestampSeconds = this.currentTimeSeconds;
     const noteText = await this.promptForNote();
     if (noteText === null) {
@@ -348,9 +374,33 @@ export class VideoAnalysisViewerComponent implements OnChanges, AfterViewChecked
       return;
     }
 
+    await this.saveNote(trimmedNote, timestampSeconds, analysis);
+  }
+
+  async submitInlineNote(): Promise<void> {
+    const trimmedNote = this.inlineNoteText.trim();
+    const analysis = this.analysisState;
+    const timestampSeconds = this.inlineNoteTimestampSeconds;
+
+    this.cancelInlineNote();
+
+    if (!trimmedNote || !analysis) {
+      return;
+    }
+
+    await this.saveNote(trimmedNote, timestampSeconds, analysis);
+  }
+
+  cancelInlineNote(): void {
+    this.inlineNoteOpen = false;
+    this.inlineNoteText = '';
+    this.inlineNoteTimestampSeconds = 0;
+  }
+
+  private async saveNote(note: string, timestampSeconds: number, analysis: VideoAnalysisViewerAnalysis): Promise<void> {
     const nextNote: VideoAnalysisViewerNote = {
       timestampSeconds,
-      note: trimmedNote,
+      note,
       createdAtIso: new Date().toISOString(),
     };
 
@@ -360,7 +410,6 @@ export class VideoAnalysisViewerComponent implements OnChanges, AfterViewChecked
 
     await this.persistNotes(analysis.id, nextNotes);
     this.updateAnalysisState({ notes: nextNotes });
-    this.toolsOpen = false;
   }
 
   async openDrawingTool(): Promise<void> {
@@ -386,11 +435,11 @@ export class VideoAnalysisViewerComponent implements OnChanges, AfterViewChecked
     this.drawingTimestampSeconds = Number.isFinite(activeVideo.currentTime) ? activeVideo.currentTime : this.currentTimeSeconds;
     this.drawMode = 'freehand';
     this.measureInstruction = '';
-    this.isMeasureSelectionReady = false;
     this.hasMeasuredAngle = false;
+    this.measureResults = [];
     this.measureSelectionPath = [];
-    this.measureResult = null;
     this.measurementBaseImageData = null;
+    this.activePoseFrame = null;
     this.resetDrawingGestureState();
     this.pendingVideoSelectionSync = true;
   }
@@ -400,16 +449,20 @@ export class VideoAnalysisViewerComponent implements OnChanges, AfterViewChecked
       return;
     }
 
-    if (!this.canToggleOverlay) {
-      await this.showInfoAlert('Overlay unavailable', 'This workout does not have an overlay video to measure.');
+    if (!this.analysisState.poseFrames?.length) {
+      await this.showInfoAlert(
+        'Pose data unavailable',
+        'Angle measurement requires pose data captured during recording. Re-record this workout to enable this tool.'
+      );
       return;
     }
 
-    if (this.videoMode !== 'overlay') {
+    // Prefer the overlay video as canvas background when available; fall back to recording.
+    if (this.canToggleOverlay && this.videoMode !== 'overlay') {
       await this.switchVideoMode('overlay');
     }
 
-    const activeVideo = this.getVideoElement('overlay');
+    const activeVideo = this.getVideoElement(this.videoMode);
     if (!activeVideo) {
       return;
     }
@@ -428,12 +481,12 @@ export class VideoAnalysisViewerComponent implements OnChanges, AfterViewChecked
     this.hasDrawingInk = false;
     this.drawingTimestampSeconds = Number.isFinite(activeVideo.currentTime) ? activeVideo.currentTime : this.currentTimeSeconds;
     this.drawMode = 'freehand';
-    this.measureInstruction = 'Circle the two skeleton lines you want to measure.';
-    this.isMeasureSelectionReady = false;
+    this.measureInstruction = 'Draw around joints or tap a joint to measure.';
     this.hasMeasuredAngle = false;
+    this.measureResults = [];
     this.measureSelectionPath = [];
-    this.measureResult = null;
     this.measurementBaseImageData = null;
+    this.activePoseFrame = null;
     this.resetDrawingGestureState();
     this.pendingVideoSelectionSync = true;
   }
@@ -444,11 +497,11 @@ export class VideoAnalysisViewerComponent implements OnChanges, AfterViewChecked
     this.hasDrawingInk = false;
     this.drawingTimestampSeconds = 0;
     this.measureInstruction = '';
-    this.isMeasureSelectionReady = false;
     this.hasMeasuredAngle = false;
+    this.measureResults = [];
     this.measureSelectionPath = [];
-    this.measureResult = null;
     this.measurementBaseImageData = null;
+    this.activePoseFrame = null;
     this.resetDrawingGestureState();
   }
 
@@ -541,19 +594,20 @@ export class VideoAnalysisViewerComponent implements OnChanges, AfterViewChecked
   }
 
   async togglePlayback(): Promise<void> {
-    const activeVideo = this.getVideoElement(this.videoMode);
-    if (!activeVideo) {
+    const lead = this.getVideoElement(this.videoMode);
+    if (!lead) {
       return;
     }
 
-    this.applySilentVideoConfig(activeVideo);
+    this.applySilentVideoConfig(lead);
+    const videos = this.getAllVideoElements();
 
-    if (activeVideo.paused || activeVideo.ended) {
-      await activeVideo.play().catch(() => undefined);
+    if (lead.paused || lead.ended) {
+      await Promise.all(videos.map(v => { this.applySilentVideoConfig(v); return v.play().catch(() => undefined); }));
       return;
     }
 
-    activeVideo.pause();
+    videos.forEach(v => v.pause());
   }
 
   async onVideoSurfaceTap(event?: Event): Promise<void> {
@@ -568,17 +622,12 @@ export class VideoAnalysisViewerComponent implements OnChanges, AfterViewChecked
 
   onSeekInput(value: string | number): void {
     const nextPercent = Number(value);
-    if (!Number.isFinite(nextPercent)) {
-      return;
-    }
-
-    const activeVideo = this.getVideoElement(this.videoMode);
-    if (!activeVideo || !this.durationSeconds) {
+    if (!Number.isFinite(nextPercent) || !this.durationSeconds) {
       return;
     }
 
     const nextTime = Math.max(0, Math.min((nextPercent / 100) * this.durationSeconds, this.durationSeconds));
-    activeVideo.currentTime = nextTime;
+    this.getAllVideoElements().forEach(v => { v.currentTime = nextTime; });
     this.currentTimeSeconds = nextTime;
   }
 
@@ -624,7 +673,14 @@ export class VideoAnalysisViewerComponent implements OnChanges, AfterViewChecked
     }
 
     if (this.activeCanvasTool === 'measure') {
-      this.beginMeasureSelection(canvas, event);
+      const point = this.getCanvasPoint(canvas, event);
+      this.measureSelectionPath = [point];
+      this.drawing = true;
+      canvas.setPointerCapture(event.pointerId);
+      // Reset visual to base + skeleton, clearing any previous results
+      if (this.measurementBaseImageData) {
+        context.putImageData(this.measurementBaseImageData, 0, 0);
+      }
       return;
     }
 
@@ -654,7 +710,15 @@ export class VideoAnalysisViewerComponent implements OnChanges, AfterViewChecked
     }
 
     if (this.activeCanvasTool === 'measure') {
-      this.extendMeasureSelection(canvas, event);
+      if (this.measureSelectionPath.length === 0) {
+        return;
+      }
+      const point = this.getCanvasPoint(canvas, event);
+      this.measureSelectionPath.push(point);
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        this.renderLassoPreview(ctx, canvas);
+      }
       return;
     }
 
@@ -686,8 +750,30 @@ export class VideoAnalysisViewerComponent implements OnChanges, AfterViewChecked
     }
 
     const canvas = this.drawingCanvasRef?.nativeElement;
+
     if (this.activeCanvasTool === 'measure') {
-      this.finishMeasureSelection(canvas ?? null, event);
+      if (canvas?.hasPointerCapture(event.pointerId)) {
+        canvas.releasePointerCapture(event.pointerId);
+      }
+      this.drawing = false;
+
+      const path = this.measureSelectionPath;
+      this.measureSelectionPath = [];
+
+      if (!canvas || !this.activePoseFrame || !this.measurementBaseImageData || path.length === 0) {
+        return;
+      }
+
+      const context = canvas.getContext('2d');
+      if (!context) {
+        return;
+      }
+
+      if (this.isMeasureTap(canvas, path)) {
+        this.handleMeasureTap(canvas, path[0], context);
+      } else {
+        this.handleLassoMeasure(canvas, context, path);
+      }
       return;
     }
 
@@ -793,7 +879,7 @@ export class VideoAnalysisViewerComponent implements OnChanges, AfterViewChecked
     this.durationSeconds = Number.isFinite(recordingVideo.duration) ? recordingVideo.duration : 0;
     this.currentTimeSeconds = 0;
     this.schedulePortraitFrameHeightSync(recordingVideo);
-    void recordingVideo.play().catch(() => undefined);
+    void Promise.all(this.getAllVideoElements().map(v => v.play().catch(() => undefined)));
   }
 
   private async switchVideoMode(targetMode: 'recording' | 'overlay'): Promise<void> {
@@ -801,7 +887,7 @@ export class VideoAnalysisViewerComponent implements OnChanges, AfterViewChecked
       return;
     }
 
-    const currentVideo = this.getVideoElement(this.videoMode);
+    const lead = this.getVideoElement(this.videoMode);
     const targetVideo = this.getVideoElement(targetMode);
     if (!targetVideo) {
       return;
@@ -810,32 +896,18 @@ export class VideoAnalysisViewerComponent implements OnChanges, AfterViewChecked
     this.isSwitchingVideo = true;
 
     try {
-      const currentTime = currentVideo?.currentTime ?? 0;
-      const wasPlaying = !!currentVideo && !currentVideo.paused && !currentVideo.ended;
-
       await this.waitForMetadata(targetVideo);
       this.applySilentVideoConfig(targetVideo);
 
-      const safeTime = Math.max(
-        0,
-        Math.min(currentTime, Math.max((targetVideo.duration || currentTime) - 0.05, 0))
-      );
-      targetVideo.currentTime = safeTime;
-      this.currentTimeSeconds = safeTime;
-      this.durationSeconds = Number.isFinite(targetVideo.duration) ? targetVideo.duration : this.durationSeconds;
-
-      if (wasPlaying) {
-        await targetVideo.play().catch(() => undefined);
-      } else {
-        targetVideo.pause();
+      // One-time sync in case the target video loaded at a different position.
+      if (lead && Number.isFinite(lead.currentTime)) {
+        const safeTime = Math.max(0, Math.min(lead.currentTime, Math.max((targetVideo.duration || lead.currentTime) - 0.05, 0)));
+        if (Math.abs(targetVideo.currentTime - safeTime) > 0.1) {
+          targetVideo.currentTime = safeTime;
+        }
       }
 
       this.videoMode = targetMode;
-
-      if (currentVideo && currentVideo !== targetVideo) {
-        currentVideo.pause();
-      }
-
       this.schedulePortraitFrameHeightSync(targetVideo);
     } finally {
       this.isSwitchingVideo = false;
@@ -848,6 +920,13 @@ export class VideoAnalysisViewerComponent implements OnChanges, AfterViewChecked
     }
 
     return this.recordingVideoRef?.nativeElement ?? null;
+  }
+
+  private getAllVideoElements(): HTMLVideoElement[] {
+    return [
+      this.recordingVideoRef?.nativeElement,
+      this.overlayVideoRef?.nativeElement,
+    ].filter((v): v is HTMLVideoElement => v != null);
   }
 
   private applySilentVideoConfig(video: HTMLVideoElement): void {
@@ -876,11 +955,70 @@ export class VideoAnalysisViewerComponent implements OnChanges, AfterViewChecked
 
     context.clearRect(0, 0, width, height);
     context.drawImage(activeVideo, 0, 0, width, height);
+
+    // Position the canvas to exactly cover the video's rendered content area so
+    // that canvas pixel coordinates align with the video's visible skeleton.
+    this.alignCanvasToVideoContent(canvas, activeVideo);
+
     if (this.activeCanvasTool === 'measure') {
+      // Snapshot the clean video frame — used to restore canvas before each re-render.
       this.measurementBaseImageData = context.getImageData(0, 0, width, height);
+      // Find and cache the nearest pose frame for this timestamp.
+      const timeMs = this.drawingTimestampSeconds * 1000;
+      const poseFrame = this.findNearestPoseFrame(timeMs);
+      this.activePoseFrame = poseFrame;
+      // No skeleton overlay — the video already renders one.
     } else {
       this.measurementBaseImageData = null;
     }
+  }
+
+  /**
+   * Positions the canvas element so it exactly covers the video's rendered
+   * content area, accounting for `object-fit: contain` letterboxing.
+   * CSS layout rules alone cannot guarantee sub-pixel alignment across all
+   * aspect ratios and orientations, so we measure the real positions with
+   * getBoundingClientRect and apply explicit inline styles.
+   */
+  private alignCanvasToVideoContent(canvas: HTMLCanvasElement, video: HTMLVideoElement): void {
+    const frame = this.playerFrameRef?.nativeElement;
+    if (!frame) {
+      return;
+    }
+
+    const frameRect = frame.getBoundingClientRect();
+    const videoRect = video.getBoundingClientRect();
+    const videoWidth = video.videoWidth || video.clientWidth;
+    const videoHeight = video.videoHeight || video.clientHeight;
+    const elementWidth = videoRect.width;
+    const elementHeight = videoRect.height;
+
+    if (!videoWidth || !videoHeight || !elementWidth || !elementHeight) {
+      return;
+    }
+
+    // Scale that object-fit: contain applies to the video content.
+    const scale = Math.min(elementWidth / videoWidth, elementHeight / videoHeight);
+    const contentWidth = videoWidth * scale;
+    const contentHeight = videoHeight * scale;
+
+    // object-position: top center (portrait) → no vertical offset
+    //                  center center (landscape) → centered vertically
+    const offsetX = (elementWidth - contentWidth) / 2;
+    const offsetY = this.isPortraitViewport() ? 0 : (elementHeight - contentHeight) / 2;
+
+    // Coordinates relative to the player-frame (canvas's containing block).
+    const top = videoRect.top - frameRect.top + offsetY;
+    const left = videoRect.left - frameRect.left + offsetX;
+
+    canvas.style.position = 'absolute';
+    canvas.style.top = `${top}px`;
+    canvas.style.left = `${left}px`;
+    canvas.style.width = `${contentWidth}px`;
+    canvas.style.height = `${contentHeight}px`;
+    canvas.style.transform = 'none';
+    canvas.style.maxWidth = 'none';
+    canvas.style.maxHeight = 'none';
   }
 
   private async promptForNote(): Promise<string | null> {
@@ -995,16 +1133,16 @@ export class VideoAnalysisViewerComponent implements OnChanges, AfterViewChecked
   }
 
   private async jumpToTimestamp(timestampSeconds: number): Promise<void> {
-    const activeVideo = this.getVideoElement(this.videoMode);
-    if (!activeVideo) {
+    const lead = this.getVideoElement(this.videoMode);
+    if (!lead) {
       return;
     }
 
-    await this.waitForMetadata(activeVideo).catch(() => undefined);
-    const safeTime = Math.max(0, Math.min(timestampSeconds, Math.max((activeVideo.duration || timestampSeconds) - 0.05, 0)));
-    activeVideo.currentTime = safeTime;
+    await this.waitForMetadata(lead).catch(() => undefined);
+    const safeTime = Math.max(0, Math.min(timestampSeconds, Math.max((lead.duration || timestampSeconds) - 0.05, 0)));
+    this.getAllVideoElements().forEach(v => { v.currentTime = safeTime; });
     this.currentTimeSeconds = safeTime;
-    await activeVideo.play().catch(() => undefined);
+    await Promise.all(this.getAllVideoElements().map(v => v.play().catch(() => undefined)));
   }
 
   private async scrollToPlayerTopIfPortrait(): Promise<void> {
@@ -1074,196 +1212,406 @@ export class VideoAnalysisViewerComponent implements OnChanges, AfterViewChecked
     }
   }
 
-  async measureSelectedAngle(): Promise<void> {
-    if (this.activeCanvasTool !== 'measure' || !this.isMeasureSelectionReady) {
+  // ─── Pose-based angle measurement ────────────────────────────────────────────
+
+  /**
+   * Main handler for a tap in measure mode.
+   * Finds the nearest measurable joint, computes its angle from stored pose data,
+   * and renders the result. Replaces any previously measured results.
+   */
+  private handleMeasureTap(canvas: HTMLCanvasElement, tapPoint: CanvasPoint, context: CanvasRenderingContext2D): void {
+    const poseFrame = this.activePoseFrame;
+    if (!poseFrame) {
+      this.measureInstruction = 'Pose data unavailable for this frame.';
       return;
     }
 
-    const result = this.detectAngleWithinSelection();
+    const normX = tapPoint.x / canvas.width;
+    const normY = tapPoint.y / canvas.height;
+
+    const nearestJoint = this.findNearestLandmark(normX, normY, poseFrame);
+    if (!nearestJoint) {
+      this.measureInstruction = 'No joint found near tap. Try tapping closer to a highlighted joint.';
+      return;
+    }
+
+    const result = this.computePoseJointAngle(nearestJoint, poseFrame, canvas);
     if (!result) {
-      await this.showInfoAlert('Angle not found', 'Try circling a smaller area around one visible joint and the two connecting skeleton lines.');
+      this.measureInstruction = `Cannot measure ${this.formatJointName(nearestJoint)} — one or more connected landmarks are not visible.`;
       return;
     }
 
-    this.measureResult = result;
+    this.measureResults = [result];
     this.hasMeasuredAngle = true;
-    this.measureInstruction = `${result.angleDegrees.toFixed(1)} deg measured. Save when ready.`;
-    this.renderMeasuredAngle(result);
     this.hasDrawingInk = true;
+    this.measureInstruction = `${this.formatJointName(nearestJoint)}: ${result.angleDegrees.toFixed(1)}°. Draw or tap again.`;
+
+    this.renderPoseAngleResults([result], poseFrame, canvas, context);
   }
 
-  private beginMeasureSelection(canvas: HTMLCanvasElement, event: PointerEvent): void {
-    this.drawing = true;
-    canvas.setPointerCapture(event.pointerId);
-    this.measureSelectionPath = [this.getCanvasPoint(canvas, event)];
-    this.isMeasureSelectionReady = false;
-    this.hasMeasuredAngle = false;
-    this.measureResult = null;
-    this.restoreMeasurementBase();
-    this.renderMeasureSelectionPreview(true);
-  }
-
-  private extendMeasureSelection(canvas: HTMLCanvasElement, event: PointerEvent): void {
-    const point = this.getCanvasPoint(canvas, event);
-    this.measureSelectionPath = [...this.measureSelectionPath, point];
-    this.renderMeasureSelectionPreview();
-  }
-
-  private finishMeasureSelection(canvas: HTMLCanvasElement | null, event: PointerEvent): void {
-    if (!canvas) {
-      return;
-    }
-
-    if (canvas.hasPointerCapture(event.pointerId)) {
-      canvas.releasePointerCapture(event.pointerId);
-    }
-
-    this.drawing = false;
-
-    if (this.measureSelectionPath.length < 3) {
-      this.measureSelectionPath = [];
-      this.isMeasureSelectionReady = false;
-      this.restoreMeasurementBase();
-      return;
-    }
-
-    this.renderMeasureSelectionPreview(true);
-    this.isMeasureSelectionReady = true;
-    this.measureInstruction = 'Selection ready. Press Measure Angle.';
-    this.resetDrawingGestureState();
-  }
-
-  private detectAngleWithinSelection(): AngleMeasurementResult | null {
-    const canvas = this.drawingCanvasRef?.nativeElement;
-    const context = canvas?.getContext('2d');
-    const baseImage = this.measurementBaseImageData;
-    if (!canvas || !context || !baseImage || this.measureSelectionPath.length < 3) {
+  /**
+   * Binary search for the stored pose frame closest in time to `timeMs`.
+   * Assumes frames are ordered by ascending timeMs (guaranteed by analyzeVideo).
+   */
+  private findNearestPoseFrame(timeMs: number): VideoAnalysisFrame | null {
+    const frames = this.analysisState?.poseFrames;
+    if (!frames?.length) {
       return null;
     }
 
-    const maskCanvas = document.createElement('canvas');
-    maskCanvas.width = canvas.width;
-    maskCanvas.height = canvas.height;
-    const maskContext = maskCanvas.getContext('2d');
-    if (!maskContext) {
-      return null;
-    }
+    let low = 0;
+    let high = frames.length - 1;
 
-    const path = new Path2D();
-    path.moveTo(this.measureSelectionPath[0].x, this.measureSelectionPath[0].y);
-    for (let index = 1; index < this.measureSelectionPath.length; index += 1) {
-      const point = this.measureSelectionPath[index];
-      path.lineTo(point.x, point.y);
-    }
-    path.closePath();
-
-    const sampleStep = Math.max(2, Math.round(canvas.width / 220));
-    const selectedPoints: CanvasPoint[] = [];
-    const data = baseImage.data;
-
-    for (let y = 0; y < canvas.height; y += sampleStep) {
-      for (let x = 0; x < canvas.width; x += sampleStep) {
-        if (!maskContext.isPointInPath(path, x, y)) {
-          continue;
-        }
-
-        const offset = ((y * canvas.width) + x) * 4;
-        const red = data[offset];
-        const green = data[offset + 1];
-        const blue = data[offset + 2];
-        const alpha = data[offset + 3];
-        if (alpha < 120) {
-          continue;
-        }
-
-        const isOverlayPixel = green > 150 && blue > 150 && red < 120 && blue - red > 60;
-        if (isOverlayPixel) {
-          selectedPoints.push({ x, y });
-        }
+    while (low < high) {
+      const mid = Math.floor((low + high) / 2);
+      if (frames[mid].timeMs < timeMs) {
+        low = mid + 1;
+      } else {
+        high = mid;
       }
     }
 
-    if (selectedPoints.length < 12) {
+    // low is the first frame with timeMs >= target; compare with low-1 to pick closer.
+    if (low > 0 && Math.abs(frames[low - 1].timeMs - timeMs) <= Math.abs(frames[low].timeMs - timeMs)) {
+      return frames[low - 1];
+    }
+
+    return frames[low];
+  }
+
+  /**
+   * Returns the nearest measurable joint within a generous tap radius.
+   * Only joints that have a defined angle pair are candidates.
+   * Returns null when no joint is close enough.
+   */
+  private findNearestLandmark(
+    normX: number,
+    normY: number,
+    frame: VideoAnalysisFrame,
+  ): VideoLandmarkName | null {
+    const maxRadius = 0.1; // normalized — approximately 10% of the frame dimension
+    let nearestName: VideoLandmarkName | null = null;
+    let minDist = maxRadius;
+
+    for (const [name, point] of Object.entries(frame.landmarks) as [VideoLandmarkName, VideoAnalysisPoint | undefined][]) {
+      if (!point || (point.visibility ?? 1) < LANDMARK_VISIBILITY_THRESHOLD) {
+        continue;
+      }
+
+      if (!(name in JOINT_ANGLE_MEASUREMENT_PAIRS)) {
+        continue;
+      }
+
+      const dist = Math.hypot(point.x - normX, point.y - normY);
+      if (dist < minDist) {
+        minDist = dist;
+        nearestName = name;
+      }
+    }
+
+    return nearestName;
+  }
+
+  /**
+   * Computes the angle at `joint` using real pose landmark positions.
+   * Uses the anatomically defined pair from JOINT_ANGLE_MEASUREMENT_PAIRS.
+   * Returns null when any of the three required landmarks are not visible.
+   */
+  private computePoseJointAngle(
+    joint: VideoLandmarkName,
+    frame: VideoAnalysisFrame,
+    canvas: HTMLCanvasElement,
+  ): AngleMeasurementResult | null {
+    const pair = JOINT_ANGLE_MEASUREMENT_PAIRS[joint];
+    if (!pair) {
       return null;
     }
 
-    const centroid = {
-      x: selectedPoints.reduce((sum, point) => sum + point.x, 0) / selectedPoints.length,
-      y: selectedPoints.reduce((sum, point) => sum + point.y, 0) / selectedPoints.length,
+    const jointPoint = frame.landmarks[joint];
+    const pointA = frame.landmarks[pair[0]];
+    const pointB = frame.landmarks[pair[1]];
+
+    if (!jointPoint || !pointA || !pointB) {
+      return null;
+    }
+
+    if (
+      (jointPoint.visibility ?? 1) < LANDMARK_VISIBILITY_THRESHOLD ||
+      (pointA.visibility ?? 1) < LANDMARK_VISIBILITY_THRESHOLD ||
+      (pointB.visibility ?? 1) < LANDMARK_VISIBILITY_THRESHOLD
+    ) {
+      return null;
+    }
+
+    const vertex: CanvasPoint = {
+      x: jointPoint.x * canvas.width,
+      y: jointPoint.y * canvas.height,
+    };
+    const firstEnd: CanvasPoint = {
+      x: pointA.x * canvas.width,
+      y: pointA.y * canvas.height,
+    };
+    const secondEnd: CanvasPoint = {
+      x: pointB.x * canvas.width,
+      y: pointB.y * canvas.height,
     };
 
-    const partitionA: CanvasPoint[] = [];
-    const partitionB: CanvasPoint[] = [];
-
-    for (const point of selectedPoints) {
-      if (point.x <= centroid.x) {
-        partitionA.push(point);
-      } else {
-        partitionB.push(point);
-      }
-    }
-
-    const leftPoints = partitionA.length >= 6 ? partitionA : selectedPoints.filter((point) => point.y <= centroid.y);
-    const rightPoints = partitionB.length >= 6 ? partitionB : selectedPoints.filter((point) => point.y > centroid.y);
-
-    if (leftPoints.length < 6 || rightPoints.length < 6) {
-      return null;
-    }
-
-    const firstLine = this.fitLine(leftPoints);
-    const secondLine = this.fitLine(rightPoints);
-    if (!firstLine || !secondLine) {
-      return null;
-    }
-
-    const vertex = centroid;
-    const firstEnd = this.extendLinePoint(vertex, firstLine.direction, 120);
-    const secondEnd = this.extendLinePoint(vertex, secondLine.direction, 120);
-    const angleDegrees = this.computeSmallerAngle(firstLine.direction, secondLine.direction);
+    const dirA = { x: firstEnd.x - vertex.x, y: firstEnd.y - vertex.y };
+    const dirB = { x: secondEnd.x - vertex.x, y: secondEnd.y - vertex.y };
 
     return {
+      jointName: joint,
       vertex,
       firstEnd,
       secondEnd,
-      angleDegrees,
+      angleDegrees: this.computeSmallerAngle(dirA, dirB),
     };
   }
 
-  private fitLine(points: CanvasPoint[]): { direction: CanvasPoint } | null {
-    if (points.length < 2) {
-      return null;
+  /**
+   * Draws the full pose skeleton on the canvas as a semi-transparent overlay.
+   * Measurable joints are highlighted with a larger, brighter dot so users know
+   * where to tap.
+   */
+  private drawSkeletonOnCanvas(
+    context: CanvasRenderingContext2D,
+    canvas: HTMLCanvasElement,
+    frame: VideoAnalysisFrame,
+  ): void {
+    context.save();
+    context.lineCap = 'round';
+    context.lineJoin = 'round';
+    context.lineWidth = Math.max(2, canvas.width * 0.0035);
+
+    // Connections
+    context.strokeStyle = 'rgba(27, 232, 183, 0.55)';
+    for (const [from, to] of POSE_CONNECTIONS) {
+      const startPoint = frame.landmarks[from];
+      const endPoint = frame.landmarks[to];
+      if (
+        !startPoint || !endPoint ||
+        (startPoint.visibility ?? 1) < LANDMARK_VISIBILITY_THRESHOLD ||
+        (endPoint.visibility ?? 1) < LANDMARK_VISIBILITY_THRESHOLD
+      ) {
+        continue;
+      }
+
+      context.beginPath();
+      context.moveTo(startPoint.x * canvas.width, startPoint.y * canvas.height);
+      context.lineTo(endPoint.x * canvas.width, endPoint.y * canvas.height);
+      context.stroke();
     }
 
-    let meanX = 0;
-    let meanY = 0;
-    for (const point of points) {
-      meanX += point.x;
-      meanY += point.y;
-    }
-    meanX /= points.length;
-    meanY /= points.length;
+    // Joint dots — measurable joints are brighter and larger
+    for (const [name, point] of Object.entries(frame.landmarks) as [VideoLandmarkName, VideoAnalysisPoint | undefined][]) {
+      if (!point || (point.visibility ?? 1) < LANDMARK_VISIBILITY_THRESHOLD) {
+        continue;
+      }
 
-    let sxx = 0;
-    let syy = 0;
-    let sxy = 0;
-    for (const point of points) {
-      const dx = point.x - meanX;
-      const dy = point.y - meanY;
-      sxx += dx * dx;
-      syy += dy * dy;
-      sxy += dx * dy;
+      const isMeasurable = name in JOINT_ANGLE_MEASUREMENT_PAIRS;
+      context.fillStyle = isMeasurable
+        ? 'rgba(27, 232, 183, 0.92)'
+        : 'rgba(27, 232, 183, 0.35)';
+      context.beginPath();
+      context.arc(
+        point.x * canvas.width,
+        point.y * canvas.height,
+        isMeasurable ? Math.max(6, canvas.width * 0.009) : Math.max(3, canvas.width * 0.005),
+        0,
+        Math.PI * 2,
+      );
+      context.fill();
     }
 
-    const theta = 0.5 * Math.atan2(2 * sxy, sxx - syy);
-    const direction = { x: Math.cos(theta), y: Math.sin(theta) };
-    return direction.x || direction.y ? { direction } : null;
+    context.restore();
   }
 
-  private extendLinePoint(origin: CanvasPoint, direction: CanvasPoint, distance: number): CanvasPoint {
-    return {
-      x: origin.x + direction.x * distance,
-      y: origin.y + direction.y * distance,
-    };
+  /**
+   * Renders all measured angle results:
+   *   1. Restores the clean video frame (base snapshot).
+   *   2. Redraws the skeleton overlay so joints remain visible.
+   *   3. For each result, draws the two limb lines (orange → A, cyan → B).
+   *   4. Then draws all dots and labels on top so they are never occluded by lines.
+   */
+  private renderPoseAngleResults(
+    results: AngleMeasurementResult[],
+    frame: VideoAnalysisFrame,
+    canvas: HTMLCanvasElement,
+    context: CanvasRenderingContext2D,
+  ): void {
+    this.restoreMeasurementBase();
+
+    const lineWidth = Math.max(5, canvas.width * 0.005);
+    const fontSize = Math.max(20, canvas.width * 0.028);
+    const dotRadius = Math.max(7, canvas.width * 0.011);
+
+    context.save();
+    context.lineWidth = lineWidth;
+    context.lineCap = 'round';
+
+    // Pass 1: draw all limb lines
+    for (const result of results) {
+      context.strokeStyle = '#ff8a00';
+      context.beginPath();
+      context.moveTo(result.vertex.x, result.vertex.y);
+      context.lineTo(result.firstEnd.x, result.firstEnd.y);
+      context.stroke();
+
+      context.strokeStyle = '#4cc9f0';
+      context.beginPath();
+      context.moveTo(result.vertex.x, result.vertex.y);
+      context.lineTo(result.secondEnd.x, result.secondEnd.y);
+      context.stroke();
+    }
+
+    // Pass 2: draw all dots and labels so they sit on top of the lines
+    context.font = `bold ${fontSize}px sans-serif`;
+    context.textAlign = 'center';
+    context.textBaseline = 'bottom';
+    context.shadowColor = 'rgba(0, 0, 0, 0.85)';
+    context.shadowBlur = 5;
+
+    for (const result of results) {
+      context.fillStyle = '#ffffff';
+      context.shadowColor = 'rgba(0, 0, 0, 0.85)';
+      context.shadowBlur = 5;
+      context.beginPath();
+      context.arc(result.vertex.x, result.vertex.y, dotRadius, 0, Math.PI * 2);
+      context.fill();
+
+      context.fillStyle = '#ffffff';
+      context.fillText(
+        `${result.angleDegrees.toFixed(1)}°`,
+        result.vertex.x,
+        result.vertex.y - dotRadius - 4,
+      );
+    }
+
+    context.restore();
+  }
+
+  /**
+   * Handles a lasso gesture: finds all measurable joints whose canvas positions
+   * fall inside the drawn path and renders all their angles simultaneously.
+   */
+  private handleLassoMeasure(
+    canvas: HTMLCanvasElement,
+    context: CanvasRenderingContext2D,
+    path: CanvasPoint[],
+  ): void {
+    const poseFrame = this.activePoseFrame;
+    if (!poseFrame) {
+      return;
+    }
+
+    const lassoPath = new Path2D();
+    lassoPath.moveTo(path[0].x, path[0].y);
+    for (const pt of path.slice(1)) {
+      lassoPath.lineTo(pt.x, pt.y);
+    }
+    lassoPath.closePath();
+
+    const results: AngleMeasurementResult[] = [];
+    const labels: string[] = [];
+
+    for (const jointName of Object.keys(JOINT_ANGLE_MEASUREMENT_PAIRS) as VideoLandmarkName[]) {
+      const point = poseFrame.landmarks[jointName];
+      if (!point || (point.visibility ?? 1) < LANDMARK_VISIBILITY_THRESHOLD) {
+        continue;
+      }
+
+      const cx = point.x * canvas.width;
+      const cy = point.y * canvas.height;
+      if (!context.isPointInPath(lassoPath, cx, cy)) {
+        continue;
+      }
+
+      const result = this.computePoseJointAngle(jointName, poseFrame, canvas);
+      if (result) {
+        results.push(result);
+        labels.push(`${this.formatJointName(jointName)}: ${result.angleDegrees.toFixed(1)}°`);
+      }
+    }
+
+    if (results.length === 0) {
+      // Nothing inside — restore clean display and prompt again
+      this.restoreMeasurementBase();
+      this.measureInstruction = 'No joints found inside the selection. Try drawing around a highlighted joint.';
+      return;
+    }
+
+    this.measureResults = results;
+    this.hasMeasuredAngle = true;
+    this.hasDrawingInk = true;
+    this.measureInstruction = labels.join('  ·  ') + '. Draw or tap again.';
+    this.renderPoseAngleResults(results, poseFrame, canvas, context);
+  }
+
+  /**
+   * Renders a live preview of the lasso being drawn: restores base + skeleton,
+   * then draws a dashed outline of the current selection path.
+   */
+  private renderLassoPreview(context: CanvasRenderingContext2D, canvas: HTMLCanvasElement): void {
+    if (!this.measurementBaseImageData) {
+      return;
+    }
+
+    this.restoreMeasurementBase();
+
+    const path = this.measureSelectionPath;
+    if (path.length < 2) {
+      return;
+    }
+
+    context.save();
+    context.strokeStyle = 'rgba(255, 255, 255, 0.85)';
+    context.lineWidth = Math.max(2, canvas.width * 0.002);
+    context.setLineDash([Math.max(6, canvas.width * 0.01), Math.max(4, canvas.width * 0.007)]);
+    context.lineJoin = 'round';
+    context.lineCap = 'round';
+    context.beginPath();
+    context.moveTo(path[0].x, path[0].y);
+    for (const pt of path.slice(1)) {
+      context.lineTo(pt.x, pt.y);
+    }
+    context.stroke();
+    context.restore();
+  }
+
+  /**
+   * Returns true when the gesture looks like a tap rather than a lasso —
+   * i.e. all recorded points stayed within ~3% of the canvas width from the start.
+   */
+  private isMeasureTap(canvas: HTMLCanvasElement, path: CanvasPoint[]): boolean {
+    if (path.length < 2) {
+      return true;
+    }
+
+    const start = path[0];
+    const threshold = canvas.width * 0.03;
+    for (const pt of path) {
+      if (Math.hypot(pt.x - start.x, pt.y - start.y) > threshold) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  private formatJointName(name: VideoLandmarkName): string {
+    return name.replace(/([A-Z])/g, ' $1').replace(/^./, c => c.toUpperCase()).trim();
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  private restoreMeasurementBase(): void {
+    const canvas = this.drawingCanvasRef?.nativeElement;
+    const context = canvas?.getContext('2d');
+    if (!canvas || !context || !this.measurementBaseImageData) {
+      return;
+    }
+
+    context.putImageData(this.measurementBaseImageData, 0, 0);
   }
 
   private computeSmallerAngle(first: CanvasPoint, second: CanvasPoint): number {
@@ -1277,84 +1625,6 @@ export class VideoAnalysisViewerComponent implements OnChanges, AfterViewChecked
     const normalized = Math.max(-1, Math.min(1, dot / (firstMagnitude * secondMagnitude)));
     const angle = Math.acos(normalized) * (180 / Math.PI);
     return angle > 180 ? 360 - angle : angle;
-  }
-
-  private renderMeasuredAngle(result: AngleMeasurementResult): void {
-    const canvas = this.drawingCanvasRef?.nativeElement;
-    const context = canvas?.getContext('2d');
-    if (!canvas || !context) {
-      return;
-    }
-
-    this.restoreMeasurementBase();
-    this.renderMeasureSelectionPreview(true);
-
-    context.save();
-    context.lineWidth = Math.max(5, canvas.width * 0.005);
-    context.lineCap = 'round';
-    context.strokeStyle = '#ff8a00';
-    context.beginPath();
-    context.moveTo(result.vertex.x, result.vertex.y);
-    context.lineTo(result.firstEnd.x, result.firstEnd.y);
-    context.stroke();
-
-    context.strokeStyle = '#4cc9f0';
-    context.beginPath();
-    context.moveTo(result.vertex.x, result.vertex.y);
-    context.lineTo(result.secondEnd.x, result.secondEnd.y);
-    context.stroke();
-
-    context.fillStyle = '#ffffff';
-    context.font = `${Math.max(20, canvas.width * 0.028)}px sans-serif`;
-    context.textAlign = 'center';
-    context.fillText(`${result.angleDegrees.toFixed(1)} deg`, result.vertex.x, result.vertex.y - 18);
-    context.restore();
-  }
-
-  private renderMeasureSelectionPreview(finalize = false): void {
-    const canvas = this.drawingCanvasRef?.nativeElement;
-    const context = canvas?.getContext('2d');
-    if (!canvas || !context || !this.measurementBaseImageData || this.measureSelectionPath.length < 2) {
-      return;
-    }
-
-    this.restoreMeasurementBase();
-
-    context.save();
-    context.fillStyle = 'rgba(0, 0, 0, 0.36)';
-    context.fillRect(0, 0, canvas.width, canvas.height);
-
-    const path = new Path2D();
-    path.moveTo(this.measureSelectionPath[0].x, this.measureSelectionPath[0].y);
-    for (let index = 1; index < this.measureSelectionPath.length; index += 1) {
-      const point = this.measureSelectionPath[index];
-      path.lineTo(point.x, point.y);
-    }
-    if (finalize) {
-      path.closePath();
-    }
-
-    context.save();
-    context.clip(path);
-    context.putImageData(this.measurementBaseImageData, 0, 0);
-    context.restore();
-
-    context.strokeStyle = '#f4f7f1';
-    context.lineWidth = Math.max(3, canvas.width * 0.0032);
-    context.lineJoin = 'round';
-    context.lineCap = 'round';
-    context.stroke(path);
-    context.restore();
-  }
-
-  private restoreMeasurementBase(): void {
-    const canvas = this.drawingCanvasRef?.nativeElement;
-    const context = canvas?.getContext('2d');
-    if (!canvas || !context || !this.measurementBaseImageData) {
-      return;
-    }
-
-    context.putImageData(this.measurementBaseImageData, 0, 0);
   }
 
   private resetDrawingGestureState(): void {

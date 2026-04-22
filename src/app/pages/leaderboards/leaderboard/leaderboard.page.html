@@ -1,25 +1,52 @@
-<ion-content class="lb-content">
-  <app-leaderboard-shell
-    [title]="groupName + ' Leaderboard'"
-    [graphLabel]="groupName"
-    [loading]="loading"
-    [errorMsg]="errorMsg"
-    [metric]="metric"
-    [showScopeSelect]="false"
-    [entries]="entries"
-    [distributionCurvePath]="distributionCurvePath"
-    [distributionPoints]="distributionPoints"
-    [medianMarkerXPercent]="distributionMedianXPercent"
-    [medianMarkerLabel]="distributionMedianLabel"
-    [selectedPointBin]="selectedPointBin"
-    [highlightedUserIds]="selectedPointUserIds"
-    [showActionButton]="showSettingsButton"
-    [actionIconName]="'settings-outline'"
-    [actionAriaLabel]="'Open group settings'"
-    (back)="goBack()"
-    (actionClick)="openGroupSettings()"
-    (metricChange)="onMetricChanged($event)"
-    (distributionPointClick)="onDistributionPointClick($event)"
-    (memberClick)="onMemberClick($event)"
-  ></app-leaderboard-shell>
+<app-header
+  [transparent]="true"
+  [neoBlend]="true"
+  [showBack]="true"
+  backHref="/groups"
+  [title]="groupName + ' Leaderboard'"
+  [showEndActionButton]="showSettingsButton"
+  [endActionIconName]="'settings-outline'"
+  [endActionAriaLabel]="'Open group settings'"
+  (endAction)="openGroupSettings()"
+></app-header>
+
+<ion-content [fullscreen]="true" class="lb-content">
+  <div class="background-gradient"></div>
+  <div class="lb-container">
+    <div class="group-chat-cta" *ngIf="!isPTGroup">
+      <ion-button
+        class="group-chat-btn"
+        expand="block"
+        (click)="openGroupChat()"
+        [disabled]="openingGroupChat"
+      >
+        <ion-icon slot="start" name="chatbubbles-outline"></ion-icon>
+        Group Chat
+      </ion-button>
+    </div>
+
+    <app-leaderboard-shell
+      [showTopbar]="false"
+      [title]="groupName + ' Leaderboard'"
+      [graphLabel]="groupName"
+      [loading]="loading"
+      [errorMsg]="errorMsg"
+      [metric]="metric"
+      [showScopeSelect]="false"
+      [chartMode]="chartMode"
+      [availableChartModes]="availableChartModes"
+      [entries]="entries"
+      [trendSeries]="trendSeries"
+      [distributionCurvePath]="distributionCurvePath"
+      [distributionPoints]="distributionPoints"
+      [medianMarkerXPercent]="distributionMedianXPercent"
+      [medianMarkerLabel]="distributionMedianLabel"
+      [selectedPointBin]="selectedPointBin"
+      [highlightedUserIds]="selectedPointUserIds"
+      (metricChange)="onMetricChanged($event)"
+      (chartModeChange)="onChartModeChanged($event)"
+      (distributionPointClick)="onDistributionPointClick($event)"
+      (memberClick)="onMemberClick($event)"
+    ></app-leaderboard-shell>
+  </div>
 </ion-content>

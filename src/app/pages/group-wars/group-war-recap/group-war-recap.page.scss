@@ -1,0 +1,78 @@
+.war-recap-page {
+  --background: #f5ecdd;
+  padding: 14px;
+}
+
+.state-message {
+  text-align: center;
+  color: #304454;
+  padding: 24px 12px;
+}
+
+.state-message.error {
+  color: #ad3228;
+}
+
+.winner-banner {
+  background: linear-gradient(135deg, #255f95, #3f9b7f);
+  color: #fff;
+  border-radius: 16px;
+  padding: 18px;
+
+  h1 {
+    margin: 0;
+    font-size: 28px;
+    line-height: 1.1;
+  }
+
+  p {
+    margin: 8px 0 0;
+    font-size: 14px;
+  }
+}
+
+.recap-panel {
+  margin-top: 12px;
+  background: #fff;
+  border: 1px solid #d5c4a8;
+  border-radius: 14px;
+  padding: 14px;
+
+  h2 {
+    margin: 0 0 10px;
+    font-size: 20px;
+    color: #1f344a;
+  }
+
+  ul {
+    margin: 0;
+    padding-left: 20px;
+    color: #33485d;
+    display: grid;
+    gap: 6px;
+  }
+}
+
+.warrior-grid {
+  display: grid;
+  gap: 10px;
+
+  article {
+    border-radius: 10px;
+    background: #f8f5ec;
+    padding: 10px;
+
+    h3 {
+      margin: 0 0 6px;
+      font-size: 16px;
+      color: #233f58;
+    }
+
+    p {
+      margin: 0;
+      color: #3b5167;
+      font-size: 14px;
+      line-height: 1.35;
+    }
+  }
+}

@@ -22,7 +22,7 @@
     </ion-card>
      
     <!-- Greek Statues Section (Hidden for trainers) -->
-    <ion-card *ngIf="accountType() !== 'trainer'">
+    <ion-card *ngIf="accountType() !== 'trainer'" class="opal-statues-card">
       <ion-list lines="full">
         <ion-item>
           <ion-icon slot="start" name="fitness" color="primary"></ion-icon>
@@ -42,36 +42,50 @@
       </ion-list>
       <ion-card-content>
         @if (displayStatues.length > 0) {
-          <div class="display-statues-carousel">
+          <div class="opal-shell">
+            <div class="opal-aura"></div>
             <swiper-container
-              slides-per-view="1"
+              slides-per-view="1.22"
               centered-slides="true"
-              space-between="20"
+              space-between="10"
               pagination="false"
               class="statue-swiper"
               (swiperslidechange)="onSlideChange($event)"
             >
-              @for (statue of displayStatues; track statue.id) {
+              @for (statue of displayStatues; track statue.id; let i = $index) {
                 <swiper-slide>
-                  <div class="podium-container">
-                    <div class="statue-showcase">
-                      <app-greek-statue 
-                        [statue]="statue" 
-                        [showProgress]="true"
-                        size="large"
-                      ></app-greek-statue>
-                    </div>
-                    <div class="podium">
-                      <div class="podium-top"></div>
-                      <div class="podium-body">
-                        <div class="podium-inscription">{{ statue.godName }}</div>
+                  <button
+                    type="button"
+                    class="opal-slide"
+                    [class.active]="i === currentSlideIndex"
+                    (click)="openStatueDetails(statue)"
+                    [attr.aria-label]="'Open details for ' + statue.godName"
+                  >
+                    <div class="podium-container">
+                      <div class="statue-showcase opal-statue-showcase">
+                        <app-greek-statue 
+                          [statue]="statue" 
+                          [showProgress]="false"
+                          layout="showcase"
+                          size="large"
+                        ></app-greek-statue>
+                      </div>
+                      <div class="podium">
+                        <div class="podium-top"></div>
+                        <div class="podium-body">
+                          <div class="podium-inscription">{{ statue.godName }}</div>
+                        </div>
                       </div>
                     </div>
-                  </div>
+                    <div class="opal-label">
+                      <span class="opal-name">{{ statue.godName }}</span>
+                      <span class="opal-title">{{ statue.title }}</span>
+                    </div>
+                  </button>
                 </swiper-slide>
               }
             </swiper-container>
-            <div class="custom-pagination">
+            <div class="custom-pagination opal-pagination">
               @for (statue of displayStatues; track statue.id; let i = $index) {
                 <span 
                   class="pagination-dot" 
@@ -79,6 +93,7 @@
                 ></span>
               }
             </div>
+            <div class="opal-hint">Tap a statue to open its details</div>
           </div>
         } @else {
           <p class="no-badges-text" *ngIf="carvedStatuesCount === 0">

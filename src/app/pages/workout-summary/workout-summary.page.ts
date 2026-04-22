@@ -1,6 +1,5 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Params, Router } from '@angular/router';
 import { NavController } from '@ionic/angular';
 import {
@@ -9,16 +8,21 @@ import {
   IonCard,
   IonCardContent,
   IonCardHeader,
+  IonCheckbox,
   IonContent,
   IonHeader,
-  IonIcon,
+  IonItem,
+  IonLabel,
+  IonList,
+  IonModal,
+  IonSpinner,
   IonTitle,
   IonToolbar,
+  ToastController,
 } from '@ionic/angular/standalone';
-import { addIcons } from 'ionicons';
-import { closeOutline } from 'ionicons/icons';
 import { Auth } from '@angular/fire/auth';
 import { onAuthStateChanged } from 'firebase/auth';
+import { firstValueFrom } from 'rxjs';
 import {
   CardioTrainingRow,
   OtherTrainingRow,
@@ -27,6 +31,11 @@ import {
 } from '../../models/workout-session.model';
 import { createEmptyWorkoutSessionPerformance } from '../../adapters/workout-event.adapters';
 import { WorkoutSummaryService } from '../../services/workout-summary.service';
+import { HeaderComponent } from '../../components/header/header.component';
+import { Group } from '../../models/groups.model';
+import { GroupService } from '../../services/group.service';
+import { ChatsService } from '../../services/chats.service';
+import { UserService } from '../../services/account/user.service';
 
 @Component({
   selector: 'app-workout-summary',
@@ -34,35 +43,48 @@ import { WorkoutSummaryService } from '../../services/workout-summary.service';
   styleUrls: ['./workout-summary.page.scss'],
   standalone: true,
   imports: [
+    HeaderComponent,
     IonContent,
-    IonHeader,
-    IonTitle,
-    IonToolbar,
     IonCard,
     IonCardHeader,
     IonCardContent,
     IonButton,
+    IonModal,
+    IonHeader,
+    IonToolbar,
+    IonTitle,
     IonButtons,
-    IonIcon,
+    IonList,
+    IonItem,
+    IonLabel,
+    IonCheckbox,
+    IonSpinner,
     CommonModule,
-    FormsModule,
   ],
 })
 export class WorkoutSummaryPage implements OnInit {
   loggedAt: Date | null = null;
   backHref = '/workout-chatbot';
   backQueryParams: Params | null = null;
+  headerBackHref = '/workout-chatbot';
   summary: WorkoutSessionPerformance = createEmptyWorkoutSessionPerformance();
+  shareGroupModalOpen = false;
+  loadingShareableGroups = false;
+  sendingWorkoutSummaryToGroups = false;
+  shareableGroups: Group[] = [];
+  selectedShareGroupIds = new Set<string>();
 
   constructor(
     private router: Router,
     private route: ActivatedRoute,
     private navCtrl: NavController,
     private auth: Auth,
-    private workoutSummaryService: WorkoutSummaryService
+    private workoutSummaryService: WorkoutSummaryService,
+    private groupService: GroupService,
+    private chatsService: ChatsService,
+    private userService: UserService,
+    private toastCtrl: ToastController
   ) {
-    addIcons({ closeOutline });
-
     const navigation = this.router.getCurrentNavigation();
     const incomingSummary = navigation?.extras.state?.['summary'];
     const incomingLoggedAt = navigation?.extras.state?.['loggedAt'];
@@ -79,6 +101,7 @@ export class WorkoutSummaryPage implements OnInit {
       this.backQueryParams = incomingBackQueryParams as Params;
     }
     this.loggedAt = this.toLoggedAtDate(incomingLoggedAt);
+    this.updateHeaderBackHref();
   }
 
   async ngOnInit(): Promise<void> {
@@ -99,6 +122,7 @@ export class WorkoutSummaryPage implements OnInit {
         ...(requestedUserId ? { userId: requestedUserId } : {}),
         ...(clientName ? { clientName } : {}),
       };
+      this.updateHeaderBackHref();
     }
 
     const targetUserId = requestedUserId || await this.resolveCurrentUserId();
@@ -119,22 +143,132 @@ export class WorkoutSummaryPage implements OnInit {
     }
   }
 
-  goBackToChat(): void {
-    if (this.backQueryParams) {
-      void this.router.navigate([this.backHref], {
-        queryParams: this.backQueryParams,
-      });
+  get allShareableGroupsSelected(): boolean {
+    return this.shareableGroups.length > 0 && this.selectedShareGroupIds.size === this.shareableGroups.length;
+  }
+
+  async openShareToGroupModal(): Promise<void> {
+    if (this.loadingShareableGroups || this.sendingWorkoutSummaryToGroups) {
       return;
     }
 
-    this.navCtrl.navigateBack(this.backHref, {
-      animated: true,
-      animationDirection: 'back',
-    });
+    const currentUserId = await this.resolveCurrentUserId();
+    if (!currentUserId) {
+      await this.showToast('Please sign in again to share this workout.');
+      return;
+    }
+
+    this.loadingShareableGroups = true;
+    try {
+      const groups = await this.loadShareableGroupsForUser(currentUserId);
+      if (groups.length === 0) {
+        await this.showToast('You are not in any non-PT groups yet.');
+        return;
+      }
+
+      this.shareableGroups = groups;
+      this.selectedShareGroupIds.clear();
+      this.shareGroupModalOpen = true;
+    } catch (error) {
+      console.error('Failed to load shareable groups:', error);
+      await this.showToast('Could not load your groups.');
+    } finally {
+      this.loadingShareableGroups = false;
+    }
   }
 
-  navigateToGroups(): void {
-    void this.router.navigate(['/tabs/groups']);
+  closeShareGroupModal(force = false): void {
+    if (this.sendingWorkoutSummaryToGroups && !force) {
+      return;
+    }
+
+    this.shareGroupModalOpen = false;
+    this.selectedShareGroupIds.clear();
+  }
+
+  isShareGroupSelected(groupId: string): boolean {
+    return this.selectedShareGroupIds.has(groupId);
+  }
+
+  toggleShareGroupSelection(groupId: string, nextChecked?: boolean): void {
+    const normalizedGroupId = this.readText(groupId);
+    if (!normalizedGroupId) {
+      return;
+    }
+
+    const shouldSelect = typeof nextChecked === 'boolean'
+      ? nextChecked
+      : !this.selectedShareGroupIds.has(normalizedGroupId);
+
+    if (shouldSelect) {
+      this.selectedShareGroupIds.add(normalizedGroupId);
+      return;
+    }
+
+    this.selectedShareGroupIds.delete(normalizedGroupId);
+  }
+
+  toggleSelectAllShareGroups(): void {
+    if (this.shareableGroups.length === 0) {
+      return;
+    }
+
+    if (this.allShareableGroupsSelected) {
+      this.selectedShareGroupIds.clear();
+      return;
+    }
+
+    this.selectedShareGroupIds = new Set(this.shareableGroups.map((group) => group.groupId));
+  }
+
+  async shareWorkoutSummaryToSelectedGroups(): Promise<void> {
+    if (this.sendingWorkoutSummaryToGroups || this.selectedShareGroupIds.size === 0) {
+      return;
+    }
+
+    const senderId = await this.resolveCurrentUserId();
+    if (!senderId) {
+      await this.showToast('Please sign in again to share this workout.');
+      return;
+    }
+
+    const groupIds = Array.from(this.selectedShareGroupIds);
+    const summaryMessage = this.buildWorkoutSummaryChatMessage();
+    this.sendingWorkoutSummaryToGroups = true;
+
+    try {
+      const results = await Promise.all(
+        groupIds.map(async (groupId) => {
+          try {
+            const chatId = await this.chatsService.ensureGroupChatForGroup(groupId);
+            await this.chatsService.sendWorkoutSummaryMessage(chatId, senderId, summaryMessage);
+            return { groupId, success: true };
+          } catch (error) {
+            console.error('Failed sharing workout summary to group chat:', groupId, error);
+            return { groupId, success: false };
+          }
+        })
+      );
+
+      const successCount = results.filter((result) => result.success).length;
+      const failureCount = results.length - successCount;
+
+      if (successCount > 0 && failureCount === 0) {
+        this.closeShareGroupModal(true);
+        await this.showToast(`Shared workout summary to ${successCount} group chat${successCount === 1 ? '' : 's'}.`);
+        return;
+      }
+
+      if (successCount > 0) {
+        this.closeShareGroupModal(true);
+        await this.showToast(`Shared to ${successCount} group chat${successCount === 1 ? '' : 's'}. ${failureCount} failed.`);
+        return;
+      }
+
+      await this.showToast('Could not share workout summary.');
+    } finally {
+      this.sendingWorkoutSummaryToGroups = false;
+    }
   }
 
   navigateToLeaderboard(): void {
@@ -306,6 +440,95 @@ export class WorkoutSummaryPage implements OnInit {
     return authUser?.uid?.trim() || '';
   }
 
+  private async loadShareableGroupsForUser(userId: string): Promise<Group[]> {
+    const payload = await firstValueFrom(this.groupService.getUserGroups(userId));
+    const groups = Array.isArray(payload?.groups) ? payload.groups : [];
+
+    const dedupedGroups = new Map<string, Group>();
+    groups.forEach((group) => {
+      const groupId = this.readText(group.groupId);
+      if (!groupId || group.isPTGroup) {
+        return;
+      }
+      dedupedGroups.set(groupId, group);
+    });
+
+    return Array.from(dedupedGroups.values()).sort((a, b) => {
+      const aName = this.readText(a.name).toLowerCase();
+      const bName = this.readText(b.name).toLowerCase();
+      return aName.localeCompare(bName);
+    });
+  }
+
+  private buildWorkoutSummaryChatMessage(): string {
+    const totalCalories = this.toRoundedNonNegative(this.summary.estimated_calories ?? this.summary.calories);
+    const lines: string[] = [
+      this.loggedDateLabel || this.readText(this.summary.date),
+      this.resolveSummaryOwnerName(),
+      `Estimated Total Calories: ${totalCalories} kcal`,
+    ];
+
+    if (this.strengthRows.length > 0) {
+      lines.push('Strength:');
+      this.strengthRows.forEach((row) => {
+        lines.push(this.formatExerciseName(String(row.exercise_type ?? 'strength_exercise')));
+        lines.push(`Sets: ${this.toRoundedNonNegative(row.sets)}`);
+        lines.push(`Reps: ${this.toRoundedNonNegative(row.reps)}`);
+        lines.push(`Weights: ${this.formatWeight(row)}`);
+        lines.push(`Calories Burned: ${this.toRoundedNonNegative(row.estimated_calories)}`);
+      });
+    }
+
+    if (this.cardioRows.length > 0) {
+      lines.push('Cardio:');
+      this.cardioRows.forEach((row) => {
+        lines.push(this.formatExerciseName(String(row.cardio_type ?? row['exercise_type'] ?? 'cardio_activity')));
+        lines.push(`Distance: ${this.formatCardioDistance(row)}`);
+        lines.push(`Time: ${this.formatCardioTime(row)}`);
+        lines.push(`Calories Burned: ${this.toRoundedNonNegative(row.estimated_calories)}`);
+      });
+    }
+
+    if (this.otherRows.length > 0) {
+      lines.push('Other:');
+      this.otherRows.forEach((row) => {
+        lines.push(this.formatOtherExerciseName(row));
+        lines.push(`Details: ${this.formatOtherDetails(row)}`);
+        lines.push(`Calories Burned: ${this.toRoundedNonNegative(row.estimated_calories)}`);
+      });
+    }
+
+    const notes = this.readText(this.summary.trainer_notes);
+    if (notes) {
+      lines.push('Notes for Trainer:');
+      lines.push(notes);
+    }
+
+    return lines.filter((line) => line.length > 0).join('\n');
+  }
+
+  private resolveSummaryOwnerName(): string {
+    const clientName = this.readText(this.route.snapshot.queryParamMap.get('clientName'));
+    if (clientName) {
+      return clientName;
+    }
+
+    const profile = this.userService.getUserInfo()() as Record<string, unknown> | null;
+    if (profile) {
+      const fullName = `${this.readText(profile['firstName'])} ${this.readText(profile['lastName'])}`.trim();
+      if (fullName) {
+        return fullName;
+      }
+
+      const username = this.readText(profile['username']);
+      if (username) {
+        return `@${username}`;
+      }
+    }
+
+    return 'Workout Summary';
+  }
+
   private toLoggedAtDate(value: unknown): Date | null {
     if (typeof value === 'string') {
       const parsed = new Date(value);
@@ -315,6 +538,32 @@ export class WorkoutSummaryPage implements OnInit {
     }
 
     return null;
+  }
+
+  private updateHeaderBackHref(): void {
+    if (!this.backQueryParams || Object.keys(this.backQueryParams).length === 0) {
+      this.headerBackHref = this.backHref;
+      return;
+    }
+
+    const params = new URLSearchParams();
+    Object.entries(this.backQueryParams).forEach(([key, rawValue]) => {
+      if (Array.isArray(rawValue)) {
+        rawValue
+          .map((value) => String(value).trim())
+          .filter((value) => value.length > 0)
+          .forEach((value) => params.append(key, value));
+        return;
+      }
+
+      const value = String(rawValue ?? '').trim();
+      if (value.length > 0) {
+        params.set(key, value);
+      }
+    });
+
+    const query = params.toString();
+    this.headerBackHref = query ? `${this.backHref}?${query}` : this.backHref;
   }
 
   private toRoundedNonNegative(value: unknown): number {
@@ -332,5 +581,14 @@ export class WorkoutSummaryPage implements OnInit {
     }
 
     return value.trim();
+  }
+
+  private async showToast(message: string): Promise<void> {
+    const toast = await this.toastCtrl.create({
+      message,
+      duration: 1800,
+      position: 'bottom',
+    });
+    await toast.present();
   }
 }

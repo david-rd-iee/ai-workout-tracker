@@ -16,6 +16,8 @@ import { Firestore, doc, getDoc, setDoc, serverTimestamp } from '@angular/fire/f
 import { ProfileRepositoryService } from '../../services/account/profile-repository.service';
 import { UserService } from '../../services/account/user.service';
 
+type UnitSystem = 'metric' | 'imperial';
+
 @Component({
   selector: 'app-complete-profile',
   templateUrl: './complete-profile.page.html',
@@ -46,6 +48,10 @@ export class CompleteProfilePage implements OnInit {
   age: string | number = '';
   heightMeters: string | number = '';
   weightKg: string | number = '';
+  heightFeet: string | number = '';
+  heightInches: string | number = '';
+  weightPounds: string | number = '';
+  unitSystem: UnitSystem = 'metric';
   sex: string | number | null = null;
   isTrainerNameOnly = false;
 
@@ -64,9 +70,23 @@ export class CompleteProfilePage implements OnInit {
     const username = this.username.trim();
     const requiresExtendedProfile = !this.isTrainerNameOnly;
     const age = requiresExtendedProfile ? this.parsePositiveInteger(this.age) : null;
-    const heightMeters = requiresExtendedProfile ? this.parsePositiveNumber(this.heightMeters) : null;
-    const weightKg = requiresExtendedProfile ? this.parsePositiveNumber(this.weightKg) : null;
+    let heightMeters = requiresExtendedProfile ? this.parsePositiveNumber(this.heightMeters) : null;
+    let weightKg = requiresExtendedProfile ? this.parsePositiveNumber(this.weightKg) : null;
     const sex = requiresExtendedProfile ? this.parseSexValue(this.sex) : null;
+
+    if (requiresExtendedProfile && this.unitSystem === 'imperial') {
+      const metricValues = this.getMetricValuesFromImperial();
+      heightMeters = metricValues.heightMeters;
+      weightKg = metricValues.weightKg;
+
+      if (heightMeters !== null) {
+        this.heightMeters = this.formatDecimal(heightMeters, 4);
+      }
+      if (weightKg !== null) {
+        this.weightKg = this.formatDecimal(weightKg, 3);
+      }
+    }
+
     const bmi =
       requiresExtendedProfile && heightMeters !== null && weightKg !== null
         ? this.calculateBmi(heightMeters, weightKg)
@@ -78,13 +98,29 @@ export class CompleteProfilePage implements OnInit {
       (requiresExtendedProfile &&
         (!username ||
           age === null ||
-          heightMeters === null ||
-          weightKg === null ||
-          bmi === null ||
           sex === null));
 
     if (missingRequiredFields) {
       this.errorMessage = 'Please fill out all fields.';
+      return;
+    }
+
+    if (requiresExtendedProfile && (heightMeters === null || heightMeters <= 0)) {
+      this.errorMessage = this.unitSystem === 'imperial'
+        ? 'Enter a valid height in feet and inches (inches must be less than 12).'
+        : 'Height (m) must be greater than 0.';
+      return;
+    }
+
+    if (requiresExtendedProfile && (weightKg === null || weightKg <= 0)) {
+      this.errorMessage = this.unitSystem === 'imperial'
+        ? 'Weight (lb) must be greater than 0.'
+        : 'Weight (kg) must be greater than 0.';
+      return;
+    }
+
+    if (requiresExtendedProfile && bmi === null) {
+      this.errorMessage = 'BMI could not be calculated from height and weight.';
       return;
     }
 
@@ -181,6 +217,8 @@ export class CompleteProfilePage implements OnInit {
         this.heightMeters = heightMeters === null ? '' : String(heightMeters);
         this.weightKg = weightKg === null ? '' : String(weightKg);
         this.sex = sex;
+
+        this.syncImperialFromMetric();
       }
     } catch (error) {
       console.error('[CompleteProfilePage] Failed to load existing profile fields:', error);
@@ -221,6 +259,110 @@ export class CompleteProfilePage implements OnInit {
     }
 
     return Number.isInteger(parsed) ? parsed : null;
+  }
+
+  onUnitSystemChange(): void {
+    if (this.unitSystem === 'imperial') {
+      this.syncImperialFromMetric();
+      return;
+    }
+
+    const metricValues = this.getMetricValuesFromImperial();
+    if (metricValues.heightMeters !== null) {
+      this.heightMeters = this.formatDecimal(metricValues.heightMeters, 4);
+    }
+    if (metricValues.weightKg !== null) {
+      this.weightKg = this.formatDecimal(metricValues.weightKg, 3);
+    }
+  }
+
+  private syncImperialFromMetric(): void {
+    const heightMeters = this.parseNumber(this.heightMeters);
+    if (heightMeters === null || heightMeters <= 0) {
+      this.heightFeet = '';
+      this.heightInches = '';
+    } else {
+      const totalInches = heightMeters / 0.0254;
+      let feet = Math.floor(totalInches / 12);
+      let inches = Number((totalInches - feet * 12).toFixed(1));
+
+      if (inches >= 12) {
+        feet += 1;
+        inches = 0;
+      }
+
+      this.heightFeet = String(feet);
+      this.heightInches = this.formatDecimal(inches, 1);
+    }
+
+    const weightKg = this.parseNumber(this.weightKg);
+    if (weightKg === null || weightKg <= 0) {
+      this.weightPounds = '';
+      return;
+    }
+
+    const pounds = weightKg / 0.45359237;
+    this.weightPounds = this.formatDecimal(pounds, 1);
+  }
+
+  private getMetricValuesFromImperial(): { heightMeters: number | null; weightKg: number | null } {
+    return {
+      heightMeters: this.convertImperialHeightToMeters(this.heightFeet, this.heightInches),
+      weightKg: this.convertPoundsToKilograms(this.weightPounds),
+    };
+  }
+
+  private convertImperialHeightToMeters(feetValue: unknown, inchesValue: unknown): number | null {
+    const feet = this.parseNumber(feetValue);
+    const inches = this.parseNumber(inchesValue);
+
+    if (feet === null && inches === null) {
+      return null;
+    }
+
+    const safeFeet = feet ?? 0;
+    const safeInches = inches ?? 0;
+    if (!Number.isInteger(safeFeet) || safeFeet < 0 || safeInches < 0 || safeInches >= 12) {
+      return null;
+    }
+
+    const totalInches = safeFeet * 12 + safeInches;
+    if (totalInches <= 0) {
+      return null;
+    }
+
+    return Number((totalInches * 0.0254).toFixed(4));
+  }
+
+  private convertPoundsToKilograms(poundsValue: unknown): number | null {
+    const pounds = this.parseNumber(poundsValue);
+    if (pounds === null || pounds <= 0) {
+      return null;
+    }
+
+    return Number((pounds * 0.45359237).toFixed(3));
+  }
+
+  private formatDecimal(value: number, decimalPlaces: number): string {
+    return value.toFixed(decimalPlaces).replace(/\.?0+$/, '');
+  }
+
+  private parseNumber(value: unknown): number | null {
+    if (value === null || value === undefined) {
+      return null;
+    }
+
+    if (typeof value === 'number') {
+      return Number.isFinite(value) ? value : null;
+    }
+
+    const trimmed = String(value).trim();
+    if (!trimmed) {
+      return null;
+    }
+
+    const parsed = Number(trimmed);
+    return Number.isFinite(parsed) ? parsed : null;
   }
 
   private calculateBmi(heightMeters: number, weightKg: number): number | null {

@@ -1,7 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnDestroy, OnInit, inject } from '@angular/core';
 import {
-  NavController,
   IonContent,
 } from '@ionic/angular/standalone';
 
@@ -12,11 +11,13 @@ import { Subscription } from 'rxjs';
 import {
   LeaderboardService,
   LeaderboardEntry,
+  LeaderboardTrendSeries,
   Metric,
   RegionalQuery,
 } from '../../../services/leaderboard.service';
 import {
   DistributionPoint,
+  LeaderboardChartMode,
   LeaderboardScope,
   LeaderboardShellComponent,
 } from '../../../components/leaderboard-shell/leaderboard-shell.component';
@@ -24,22 +25,25 @@ import {
   buildLeaderboardDistributionChart,
   emptyLeaderboardDistributionChart,
 } from '../../../components/leaderboard-shell/leaderboard-distribution.util';
+import { HeaderComponent } from '../../../components/header/header.component';
 
 @Component({
   selector: 'app-regional-leaderboard',
   standalone: true,
   templateUrl: './regional-leaderboard.page.html',
   styleUrls: ['./regional-leaderboard.page.scss'],
-  imports: [CommonModule, IonContent, LeaderboardShellComponent],
+  imports: [CommonModule, IonContent, LeaderboardShellComponent, HeaderComponent],
 })
 export class RegionalLeaderboardPage implements OnInit, OnDestroy {
+  private static readonly SMALL_POPULATION_THRESHOLD = 10;
+
   private auth = inject(Auth);
   private firestore = inject(Firestore);
   private leaderboard = inject(LeaderboardService);
-  private navCtrl = inject(NavController);
 
   private sub?: Subscription;
   private leaderboardSub?: Subscription;
+  private trendSub?: Subscription;
 
   loading = true;
   errorMsg = '';
@@ -52,9 +56,12 @@ export class RegionalLeaderboardPage implements OnInit, OnDestroy {
   // UI controls
   scope: LeaderboardScope = 'city';
   metric: Metric = 'total';
+  chartMode: LeaderboardChartMode = 'distribution';
+  availableChartModes: LeaderboardChartMode[] = ['distribution'];
 
   // Data
   entries: LeaderboardEntry[] = [];
+  trendSeries: LeaderboardTrendSeries[] = [];
   distributionCurvePath = '';
   distributionPoints: DistributionPoint[] = [];
   distributionMedianXPercent: number | null = null;
@@ -71,7 +78,10 @@ export class RegionalLeaderboardPage implements OnInit, OnDestroy {
         this.sub = undefined;
         this.leaderboardSub?.unsubscribe();
         this.leaderboardSub = undefined;
+        this.trendSub?.unsubscribe();
+        this.trendSub = undefined;
         this.entries = [];
+        this.trendSeries = [];
         this.resetChartSelection();
         this.clearDistributionChart();
         this.loading = false;
@@ -99,6 +109,7 @@ export class RegionalLeaderboardPage implements OnInit, OnDestroy {
   ngOnDestroy() {
     this.sub?.unsubscribe();
     this.leaderboardSub?.unsubscribe();
+    this.trendSub?.unsubscribe();
   }
 
   private subscribeToRegionalLeaderboard(): void {
@@ -123,7 +134,8 @@ export class RegionalLeaderboardPage implements OnInit, OnDestroy {
           this.entries = entries;
           this.errorMsg = '';
           this.loading = false;
-          this.buildDistributionChart();
+          this.syncChartOptionsByPopulation();
+          this.syncChartForCurrentMode();
         },
         error: (err: any) => {
           console.warn('[RegionalLeaderboard] subscription failed', err);
@@ -131,15 +143,14 @@ export class RegionalLeaderboardPage implements OnInit, OnDestroy {
             err?.message ??
             'Failed to load regional leaderboard (check indexes + region fields).';
           this.entries = [];
+          this.trendSeries = [];
+          this.trendSub?.unsubscribe();
+          this.trendSub = undefined;
           this.resetChartSelection();
           this.clearDistributionChart();
           this.loading = false;
         },
       });
-  }
-
-  goBack() {
-    this.navCtrl.navigateBack('/profile-user');
   }
 
   onMetricChanged(metric: Metric): void {
@@ -150,6 +161,15 @@ export class RegionalLeaderboardPage implements OnInit, OnDestroy {
   onScopeChanged(scope: LeaderboardScope): void {
     this.scope = scope;
     this.subscribeToRegionalLeaderboard();
+  }
+
+  onChartModeChanged(mode: LeaderboardChartMode): void {
+    if (!this.availableChartModes.includes(mode) || this.chartMode === mode) {
+      return;
+    }
+
+    this.chartMode = mode;
+    this.syncChartForCurrentMode();
   }
 
   regionLabel(): string {
@@ -223,6 +243,9 @@ export class RegionalLeaderboardPage implements OnInit, OnDestroy {
   private resolveRegionalQuery(): RegionalQuery | null {
     if (!this.userRegion?.countryCode) {
       this.entries = [];
+      this.trendSeries = [];
+      this.trendSub?.unsubscribe();
+      this.trendSub = undefined;
       this.resetChartSelection();
       this.clearDistributionChart();
       this.errorMsg = 'Your userStats.region is missing (countryCode).';
@@ -238,6 +261,9 @@ export class RegionalLeaderboardPage implements OnInit, OnDestroy {
 
     if (!this.userRegion.stateCode) {
       this.entries = [];
+      this.trendSeries = [];
+      this.trendSub?.unsubscribe();
+      this.trendSub = undefined;
       this.resetChartSelection();
       this.clearDistributionChart();
       this.errorMsg = 'Your userStats.region is missing (stateCode).';
@@ -254,6 +280,9 @@ export class RegionalLeaderboardPage implements OnInit, OnDestroy {
 
     if (!this.userRegion.cityId) {
       this.entries = [];
+      this.trendSeries = [];
+      this.trendSub?.unsubscribe();
+      this.trendSub = undefined;
       this.resetChartSelection();
       this.clearDistributionChart();
       this.errorMsg = 'Your userStats.region is missing (cityId).';
@@ -275,6 +304,51 @@ export class RegionalLeaderboardPage implements OnInit, OnDestroy {
     this.distributionPoints = chart.points;
     this.distributionMedianXPercent = chart.medianXPercent;
     this.distributionMedianLabel = chart.medianLabel;
+  }
+
+  private syncChartOptionsByPopulation(): void {
+    if (this.entries.length <= RegionalLeaderboardPage.SMALL_POPULATION_THRESHOLD) {
+      this.availableChartModes = ['trend'];
+      this.chartMode = 'trend';
+      return;
+    }
+
+    this.availableChartModes = ['distribution', 'trend'];
+    this.chartMode = 'distribution';
+  }
+
+  private syncChartForCurrentMode(): void {
+    if (this.chartMode === 'trend') {
+      this.resetChartSelection();
+      this.clearDistributionChart();
+      this.subscribeToTrendSeries();
+      return;
+    }
+
+    this.trendSub?.unsubscribe();
+    this.trendSub = undefined;
+    this.trendSeries = [];
+    this.buildDistributionChart();
+  }
+
+  private subscribeToTrendSeries(): void {
+    this.trendSub?.unsubscribe();
+    this.trendSub = undefined;
+
+    if (this.entries.length === 0) {
+      this.trendSeries = [];
+      return;
+    }
+
+    this.trendSub = this.leaderboard.watchAddedScoreTrend(this.entries, this.metric).subscribe({
+      next: (series) => {
+        this.trendSeries = series;
+      },
+      error: (error) => {
+        console.warn('[RegionalLeaderboard] Failed to load trend chart data', error);
+        this.trendSeries = [];
+      },
+    });
   }
 
   private clearDistributionChart(): void {

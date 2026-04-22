@@ -3,6 +3,12 @@ export interface Region {
   country: string;
   state: string;
   city: string;
+  countryCode?: string;
+  stateCode?: string;
+  cityId?: string;
+  countryName?: string;
+  stateName?: string;
+  cityName?: string;
 }
 
 export interface CardioScoreMap {
@@ -69,6 +75,7 @@ export interface UserStats {
 
   region?: Region;
   displayName?: string; // optional but nice for UI
+  trainerVerified?: boolean;
 }
 
 export interface UserLevelProgress {

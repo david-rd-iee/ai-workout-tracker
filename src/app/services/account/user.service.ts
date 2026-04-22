@@ -743,6 +743,41 @@ export class UserService {
   }
 
   /**
+   * Adjust unread message count for a user by a delta and clamp at 0.
+   * @param userId The user ID to update
+   * @param accountType The account type (trainer or client)
+   * @param delta Positive to increment, negative to decrement
+   */
+  async adjustUnreadMessageCount(
+    userId: string,
+    accountType: 'trainer' | 'client',
+    delta: number
+  ): Promise<number> {
+    try {
+      const collection = accountType === 'trainer' ? this.TRAINERS_COLLECTION : this.CLIENTS_COLLECTION;
+      const docRef = doc(this.firestore, `${collection}/${userId}`);
+      const docSnap = await getDoc(docRef);
+      if (!docSnap.exists()) {
+        console.error('User profile not found for adjusting unread count');
+        return 0;
+      }
+
+      const currentProfile = docSnap.data() as trainerProfile | clientProfile;
+      const currentCount = currentProfile.unreadMessageCount || 0;
+      const normalizedDelta = Number.isFinite(delta) ? Math.trunc(delta) : 0;
+      const nextCount = Math.max(0, currentCount + normalizedDelta);
+
+      await updateDoc(docRef, { unreadMessageCount: nextCount });
+      this.profileRepository.applyProfilePatch(userId, accountType, { unreadMessageCount: nextCount });
+      this.syncCurrentUserProfilePatch(userId, accountType, { unreadMessageCount: nextCount });
+      return nextCount;
+    } catch (error) {
+      console.error('Error adjusting unread message count:', error);
+      return 0;
+    }
+  }
+
+  /**
    * Reset unread message count for a user to 0
    * @param userId The user ID to reset count for
    * @param accountType The account type (trainer or client)

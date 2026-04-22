@@ -8,129 +8,129 @@
   <div class="background-gradient"></div>
 
   <div class="map-tracking-page">
-    <ion-card class="hero-card">
-      <ion-card-content>
-        <h2>Track your route live</h2>
-        <p>
-          Start the tracker, head out for your workout, and this page will build your route,
-          distance, time, pace or speed, and calories locally in the app.
-        </p>
+    <section class="logger-hero">
+      <div class="hero-title-row">
+        <h1>Track your route live</h1>
+      </div>
+    </section>
 
-        <div class="map-shell">
-          <div class="map-stage" *ngIf="hasRoute; else emptyMap">
-            <div class="map-tile-layer">
-              <img
-                *ngFor="let tile of mapTiles"
-                [src]="tile.url"
-                alt=""
-                class="map-tile"
-                [style.left.%]="tile.leftPercent"
-                [style.top.%]="tile.topPercent"
-                [style.width.%]="tile.sizePercentX"
-                [style.height.%]="tile.sizePercentY"
-              />
+    <section class="hero-card">
+      <div class="map-shell">
+        <div class="map-stage" *ngIf="hasRoute; else emptyMap">
+          <div class="map-tile-layer">
+            <img
+              *ngFor="let tile of mapTiles"
+              [src]="tile.url"
+              alt=""
+              class="map-tile"
+              [style.left.%]="tile.leftPercent"
+              [style.top.%]="tile.topPercent"
+              [style.width.%]="tile.sizePercentX"
+              [style.height.%]="tile.sizePercentY"
+            />
+          </div>
+
+          <svg
+            class="route-overlay"
+            [attr.viewBox]="'0 0 640 400'"
+            preserveAspectRatio="none"
+          >
+            <polyline
+              *ngIf="routePoints.length > 1"
+              [attr.points]="routePolylinePoints"
+            ></polyline>
+          </svg>
+
+          <div
+            class="current-marker"
+            [style.left.%]="markerLeftPercent"
+            [style.top.%]="markerTopPercent"
+          ></div>
+        </div>
+
+        <ng-template #emptyMap>
+          <div class="map-empty-state">
+            <div class="empty-map-card">
+              <p class="empty-map-title">Route preview waiting</p>
+              <p class="empty-map-copy">Your GPS route will appear here once tracking starts.</p>
             </div>
-
-            <svg
-              class="route-overlay"
-              [attr.viewBox]="'0 0 640 400'"
-              preserveAspectRatio="none"
-            >
-              <polyline
-                *ngIf="routePoints.length > 1"
-                [attr.points]="routePolylinePoints"
-              ></polyline>
-            </svg>
-
-            <div
-              class="current-marker"
-              [style.left.%]="markerLeftPercent"
-              [style.top.%]="markerTopPercent"
-            ></div>
           </div>
+        </ng-template>
+      </div>
 
-          <ng-template #emptyMap>
-            <div class="map-empty-state">
-              <p>Your GPS route will appear here once tracking starts.</p>
-            </div>
-          </ng-template>
+      <div class="stats-grid">
+        <div class="stat-card">
+          <span class="stat-label">Distance</span>
+          <strong>{{ displayDistance }}</strong>
         </div>
-
-        <div class="stats-grid">
-          <div class="stat-card">
-            <span class="stat-label">Distance</span>
-            <strong>{{ displayDistance }}</strong>
-          </div>
-          <div class="stat-card">
-            <span class="stat-label">Time</span>
-            <strong>{{ displayDuration }}</strong>
-          </div>
-          <div class="stat-card">
-            <span class="stat-label">{{ displayMovementMetricLabel }}</span>
-            <strong>{{ displayMovementMetricValue }}</strong>
-          </div>
-          <div class="stat-card">
-            <span class="stat-label">Calories</span>
-            <strong>{{ displayCalories }} kcal</strong>
-          </div>
-          <div class="stat-card">
-            <span class="stat-label">Started</span>
-            <strong>{{ startTimeLabel }}</strong>
-          </div>
-          <div class="stat-card">
-            <span class="stat-label">{{ trackingState === 'finished' ? 'Finished' : 'Current Time' }}</span>
-            <strong>{{ currentTimeLabel }}</strong>
-          </div>
+        <div class="stat-card">
+          <span class="stat-label">Time</span>
+          <strong>{{ displayDuration }}</strong>
         </div>
-
-        <div class="button-stack">
-          <ion-button
-            expand="block"
-            class="primary-button"
-            [disabled]="isTracking || isSavingWorkout"
-            (click)="startRun()"
-          >
-            {{ trackingState === 'finished' ? 'Track Another Workout' : 'Start Map Tracking' }}
-          </ion-button>
-
-          <ion-button
-            expand="block"
-            fill="outline"
-            [disabled]="!canFinishRun || isSavingWorkout"
-            (click)="finishRun()"
-          >
-            Finish Workout
-          </ion-button>
-
-          <ion-button
-            expand="block"
-            fill="outline"
-            color="medium"
-            [disabled]="isTracking || isSavingWorkout"
-            (click)="resetRun()"
-          >
-            Reset
-          </ion-button>
+        <div class="stat-card">
+          <span class="stat-label">{{ displayMovementMetricLabel }}</span>
+          <strong>{{ displayMovementMetricValue }}</strong>
         </div>
+        <div class="stat-card">
+          <span class="stat-label">Calories</span>
+          <strong>{{ displayCalories }} kcal</strong>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Started</span>
+          <strong>{{ startTimeLabel }}</strong>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">{{ trackingState === 'finished' ? 'Finished' : 'Current Time' }}</span>
+          <strong>{{ currentTimeLabel }}</strong>
+        </div>
+      </div>
 
-        <ion-text color="medium" *ngIf="statusMessage && !errorMessage">
-          <p class="status-text">{{ statusMessage }}</p>
-        </ion-text>
+      <div class="button-stack">
+        <ion-button
+          expand="block"
+          class="primary-button"
+          [disabled]="isTracking || isSavingWorkout"
+          (click)="startRun()"
+        >
+          {{ trackingState === 'finished' ? 'Track Another Workout' : 'Start Map Tracking' }}
+        </ion-button>
 
-        <ion-text color="danger" *ngIf="errorMessage">
-          <p class="status-text">{{ errorMessage }}</p>
-        </ion-text>
-      </ion-card-content>
-    </ion-card>
+        <ion-button
+          expand="block"
+          fill="outline"
+          class="secondary-button"
+          [disabled]="!canFinishRun || isSavingWorkout"
+          (click)="finishRun()"
+        >
+          Finish Workout
+        </ion-button>
 
-    <ion-card class="summary-card" *ngIf="canLogWorkout">
-      <ion-card-content>
+        <ion-button
+          expand="block"
+          fill="outline"
+          class="secondary-button muted-button"
+          [disabled]="isTracking || isSavingWorkout"
+          (click)="resetRun()"
+        >
+          Reset
+        </ion-button>
+      </div>
+
+      <ion-text color="danger" *ngIf="errorMessage">
+        <p class="status-text status-text-error">{{ errorMessage }}</p>
+      </ion-text>
+    </section>
+
+    <section class="summary-card" *ngIf="canLogWorkout">
+      <div class="summary-card-inner">
         <p class="eyebrow">Ready To Log</p>
-        <h3>{{ detectedActivityHeadline }}</h3>
-        <p *ngIf="hasReliableActivityDetection">Auto-detected from speed and GPS smoothness.</p>
-        <p>{{ displayDistance }} in {{ displayDuration }}</p>
-        <p>Average {{ displayMovementMetricLabel }}: {{ displayMovementMetricValue }}</p>
-        <p>Estimated Calories: {{ displayCalories }} kcal</p>
+        <div class="summary-row">
+          <h3>{{ detectedActivityHeadline }}</h3>
+          <p *ngIf="hasReliableActivityDetection">Auto-detected from speed and GPS smoothness.</p>
+          <p>{{ displayDistance }} in {{ displayDuration }}</p>
+          <p>Average {{ displayMovementMetricLabel }}: {{ displayMovementMetricValue }}</p>
+          <p>Estimated Calories: {{ displayCalories }} kcal</p>
+        </div>
 
         <ion-button
           expand="block"
@@ -140,7 +140,7 @@
         >
           Log Workout
         </ion-button>
-      </ion-card-content>
-    </ion-card>
+      </div>
+    </section>
   </div>
 </ion-content>

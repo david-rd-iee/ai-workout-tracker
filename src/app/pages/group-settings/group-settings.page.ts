@@ -85,6 +85,7 @@ export class GroupSettingsPage implements OnInit {
   groupName = 'Group';
   groupNameDraft = '';
   ownerUserId = '';
+  isPTGroup = false;
   groupImageUrl = '';
   canEditGroup = false;
   groupUserIds: string[] = [];
@@ -173,6 +174,7 @@ export class GroupSettingsPage implements OnInit {
       this.groupName = typeof groupData?.name === 'string' ? groupData.name : 'Group';
       this.groupNameDraft = this.groupName;
       this.ownerUserId = ownerUserId;
+      this.isPTGroup = groupData?.isPTGroup === true;
       this.canEditGroup = !!currentUserId && ownerUserId === currentUserId;
       this.groupImageUrl = typeof groupData?.groupImage === 'string' ? groupData.groupImage : '';
       this.groupUserIds = Array.isArray(groupData?.userIDs) ? groupData.userIDs : [];
@@ -181,6 +183,7 @@ export class GroupSettingsPage implements OnInit {
     } catch (error) {
       console.error('[GroupSettingsPage] Failed to load group:', error);
       this.canEditGroup = false;
+      this.isPTGroup = false;
       this.groupImageUrl = '';
       this.groupUserIds = [];
       this.memberUsers = [];

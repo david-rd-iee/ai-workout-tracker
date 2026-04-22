@@ -8,6 +8,8 @@ import {
   ElbowFlareSummary,
   JointRangeSummary,
   KneeValgusSummary,
+  PoseAnalysis,
+  POSE_CONNECTIONS,
   RepCountSummary,
   SavedVideoAnalysisRecord,
   SymmetryPairSummary,
@@ -86,22 +88,6 @@ const LANDMARK_INDEX_MAP: Record<VideoLandmarkName, number> = {
   rightAnkle: 28,
 };
 
-const OVERLAY_CONNECTIONS: Array<[VideoLandmarkName, VideoLandmarkName]> = [
-  ['nose', 'leftShoulder'],
-  ['nose', 'rightShoulder'],
-  ['leftShoulder', 'rightShoulder'],
-  ['leftShoulder', 'leftElbow'],
-  ['leftElbow', 'leftWrist'],
-  ['rightShoulder', 'rightElbow'],
-  ['rightElbow', 'rightWrist'],
-  ['leftShoulder', 'leftHip'],
-  ['rightShoulder', 'rightHip'],
-  ['leftHip', 'rightHip'],
-  ['leftHip', 'leftKnee'],
-  ['leftKnee', 'leftAnkle'],
-  ['rightHip', 'rightKnee'],
-  ['rightKnee', 'rightAnkle'],
-];
 
 @Injectable({
   providedIn: 'root',
@@ -134,6 +120,13 @@ export class VideoAnalysisService {
     analysisVideo.preload = 'auto';
     analysisVideo.muted = true;
     analysisVideo.playsInline = true;
+    // Capture and immediately reset the singleton so the next analyzeVideo call
+    // gets a fresh PoseLandmarker instance with a clean timestamp counter.
+    // MediaPipe VIDEO mode requires monotonically increasing timestamps for the
+    // lifetime of each instance; recycling avoids INVALID_ARGUMENT on re-recording.
+    const landmarker = this.poseLandmarker;
+    this.poseLandmarker = null;
+
     const objectUrl = URL.createObjectURL(recordedVideo);
 
     try {
@@ -141,6 +134,8 @@ export class VideoAnalysisService {
       analysisVideo.load();
       await this.waitForVideoMetadata(analysisVideo);
 
+      const captureWidth = analysisVideo.videoWidth || 0;
+      const captureHeight = analysisVideo.videoHeight || 0;
       const durationMs = Math.max(0, Math.round((analysisVideo.duration || 0) * 1000));
       const sampleTimes = this.buildSampleTimes(durationMs, this.sampleRateHz);
       const bodyLandmarks: VideoAnalysisFrame[] = [];
@@ -159,7 +154,7 @@ export class VideoAnalysisService {
         }
 
         await this.seekVideo(analysisVideo, timeMs / 1000);
-        const result = this.poseLandmarker.detectForVideo(analysisVideo, timeMs);
+        const result = landmarker.detectForVideo(analysisVideo, timeMs);
         const pose = result.landmarks?.[0] ?? [];
         if (pose.length === 0) {
           continue;
@@ -207,6 +202,8 @@ export class VideoAnalysisService {
         sampleRateHz: this.sampleRateHz,
         framesRequested: sampleTimes.length,
         framesAnalyzed: bodyLandmarks.length,
+        captureWidth,
+        captureHeight,
         bodyLandmarks,
         jointAnglesOverTime: jointAngles,
         dominantMovement,
@@ -222,6 +219,7 @@ export class VideoAnalysisService {
         },
       };
     } finally {
+      landmarker.close?.();
       URL.revokeObjectURL(objectUrl);
       analysisVideo.pause();
       analysisVideo.removeAttribute('src');
@@ -1228,6 +1226,11 @@ export class VideoAnalysisService {
     const includeJointAnglesInline =
       new Blob([jointAnglesJson]).size <= this.inlineJointAnglesLimitBytes;
 
+    const poseAnalysis = this.buildPoseAnalysis(analysis);
+    const poseAnalysisJson = JSON.stringify(poseAnalysis);
+    const includePoseAnalysisInline =
+      new Blob([poseAnalysisJson]).size <= this.inlineLandmarksLimitBytes;
+
     return {
       analyzedAtIso: analysis.analyzedAtIso,
       durationMs: analysis.durationMs,
@@ -1244,6 +1247,30 @@ export class VideoAnalysisService {
       bodyLandmarksStoredInline: includeBodyLandmarksInline,
       jointAnglesOverTime: includeJointAnglesInline ? analysis.jointAnglesOverTime : null,
       bodyLandmarks: includeBodyLandmarksInline ? analysis.bodyLandmarks : null,
+      poseAnalysisStoredInline: includePoseAnalysisInline,
+      poseAnalysis: includePoseAnalysisInline ? poseAnalysis : null,
+    };
+  }
+
+  private buildPoseAnalysis(analysis: VideoAnalysisResult): PoseAnalysis {
+    return {
+      model: `MediaPipe PoseLandmarker v${this.mediapipeVersion}`,
+      frameRate: this.sampleRateHz,
+      connections: POSE_CONNECTIONS.map(([from, to]) => ({ from, to })),
+      frames: analysis.bodyLandmarks.map(frame => ({
+        timestampMs: frame.timeMs,
+        frameWidth: analysis.captureWidth ?? 0,
+        frameHeight: analysis.captureHeight ?? 0,
+        poseScore: null,
+        landmarks: (Object.entries(frame.landmarks) as [VideoLandmarkName, VideoAnalysisPoint][])
+          .map(([name, point]) => ({
+            name,
+            x: point.x,
+            y: point.y,
+            z: point.z,
+            visibility: point.visibility,
+          })),
+      })),
     };
   }
 
@@ -1624,7 +1651,7 @@ export class VideoAnalysisService {
     context.shadowColor = 'rgba(27, 232, 183, 0.45)';
     context.lineWidth = Math.max(2, Math.round(width * 0.0045));
 
-    for (const [startName, endName] of OVERLAY_CONNECTIONS) {
+    for (const [startName, endName] of POSE_CONNECTIONS) {
       const startPoint = landmarks[startName];
       const endPoint = landmarks[endName];
       if (!this.isVisiblePoint(startPoint) || !this.isVisiblePoint(endPoint)) {

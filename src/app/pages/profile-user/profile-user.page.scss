@@ -1,5 +1,34 @@
 .profile-content {
-  --background: transparent;
+  --background: #dbe3f0;
+  position: relative;
+}
+
+$atlas-bg: #dfe6f3;
+$atlas-surface-high: #f1f5fc;
+$atlas-surface: #e8eef8;
+$atlas-blue: #6f9eff;
+$atlas-blue-strong: #2e6ef5;
+$atlas-shadow-dark: #b8c4d6;
+$atlas-shadow-light: #f9fcff;
+$atlas-text: #5a6880;
+$atlas-muted: #8b9ab0;
+
+@mixin atlas-neu($radius: 22px) {
+  background: linear-gradient(145deg, $atlas-surface-high, $atlas-surface);
+  border-radius: $radius;
+  border: 1px solid rgba(255, 255, 255, 0.78);
+  box-shadow:
+    14px 14px 28px -14px rgba($atlas-shadow-dark, 0.88),
+    -12px -12px 24px -14px rgba($atlas-shadow-light, 0.95);
+}
+
+@mixin atlas-inset($radius: 18px) {
+  background: linear-gradient(145deg, #edf2fb, #e4ebf7);
+  border-radius: $radius;
+  border: 1px solid rgba(255, 255, 255, 0.56);
+  box-shadow:
+    inset 7px 7px 12px -10px rgba($atlas-shadow-dark, 0.9),
+    inset -7px -7px 12px -10px rgba($atlas-shadow-light, 0.95);
 }
 
 ion-header {
@@ -7,58 +36,57 @@ ion-header {
     --background: transparent;
   }
 
-  ion-button {
-    --color: var(--ion-color-primary);
-  }
-
+  ion-button,
   ion-back-button {
-    --color: var(--ion-color-primary);
+    --color: $atlas-blue-strong;
   }
+}
+
+:host ::ng-deep app-header .header-button {
+  --background: linear-gradient(145deg, #eef3fb, #e2e9f5);
+  --background-hover: linear-gradient(145deg, #f5f8fd, #e8eef8);
+  --background-activated: linear-gradient(145deg, #e0e8f4, #d5deed);
+  --color: #2e6ef5;
+  border-radius: 50%;
+  box-shadow:
+    8px 8px 16px -12px rgba($atlas-shadow-dark, 0.92),
+    -8px -8px 16px -12px rgba($atlas-shadow-light, 0.96);
+}
+
+.background-gradient {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 14% -4%, rgba(255, 255, 255, 0.84) 0, rgba(255, 255, 255, 0) 36%),
+    radial-gradient(circle at 86% 8%, rgba(160, 179, 219, 0.34) 0, rgba(160, 179, 219, 0) 42%),
+    linear-gradient(145deg, #d5deeb 0%, #e8eef8 48%, #dbe4f1 100%);
+  pointer-events: none;
 }
 
 .profile-page {
+  position: relative;
+  z-index: 1;
   padding: 16px;
   padding-top: 10px;
+  max-width: 980px;
+  margin: 0 auto;
 }
 
-.top-actions {
-  display: flex;
-  justify-content: flex-end;
-  margin-bottom: 10px;
+.profile-hero,
+.statues-card,
+.trainer-stats-card,
+.action-row {
+  --background: transparent;
+  background: transparent;
+  box-shadow: none;
 }
 
-.settings-button {
-  width: 40px;
-  height: 40px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: 2px solid var(--ion-color-primary);
-  border-radius: 10px;
-  background: #ffffff;
-  color: var(--ion-color-primary);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-.settings-button ion-icon {
-  font-size: 22px;
-}
-
-.settings-button:focus-visible {
-  outline: 2px solid var(--ion-color-primary);
-  outline-offset: 2px;
-}
-
-/* Top hero area */
 .profile-hero {
   display: flex;
-  gap: 14px;
+  gap: 18px;
   align-items: center;
-  padding: 14px;
-  border-radius: 8px;
-  background: #FFFFFF;
-  border: 1px solid rgba(0, 0, 0, 0.1);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  padding: 18px;
+  @include atlas-neu(26px);
 }
 
 .avatar-button {
@@ -71,26 +99,31 @@ ion-header {
 }
 
 .avatar-button:focus-visible {
-  outline: 2px solid var(--ion-color-primary);
-  outline-offset: 2px;
-  border-radius: 10px;
+  outline: 2px solid $atlas-blue;
+  outline-offset: 3px;
+  border-radius: 18px;
 }
 
 .avatar-wrap {
   width: 110px;
   height: 150px;
-  border-radius: 8px;
   overflow: hidden;
   flex-shrink: 0;
-  background: rgba(255, 255, 255, 0.6);
-  border: 2px solid var(--ion-color-primary);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  padding: 6px;
+  @include atlas-inset(20px);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.46),
+    8px 8px 16px -12px rgba($atlas-shadow-dark, 0.85),
+    -8px -8px 16px -12px rgba($atlas-shadow-light, 0.95),
+    inset 8px 8px 14px -11px rgba($atlas-shadow-dark, 0.8),
+    inset -8px -8px 14px -11px rgba($atlas-shadow-light, 0.95);
 }
 
 .avatar-img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  border-radius: 16px;
 }
 
 .identity {
@@ -100,29 +133,43 @@ ion-header {
 
 .full-name {
   font-size: 44px;
-  font-weight: 700;
+  font-weight: 680;
   line-height: 0.95;
-  letter-spacing: 0.5px;
-  color: var(--ion-color-dark);
+  letter-spacing: 0.4px;
+  color: $atlas-text;
+  font-family: 'Roboto Flex', 'Inter', sans-serif;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.72);
+}
+
+.full-name-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.verified-checkmark {
+  font-size: 28px;
+  color: $atlas-blue-strong;
+  flex-shrink: 0;
+  filter: drop-shadow(0 0 10px rgba(46, 110, 245, 0.28));
 }
 
 .username {
   margin-top: 10px;
   font-size: 18px;
   font-weight: 600;
-  color: var(--ion-color-medium);
+  color: $atlas-muted;
   text-decoration: none;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-/* Stacked action rows */
 .action-stack {
   margin-top: 18px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
 }
 
 .action-row {
@@ -130,50 +177,60 @@ ion-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 16px;
-  border-radius: 8px;
-  border: 1px solid rgba(0, 0, 0, 0.1);
-  background: linear-gradient(135deg, var(--ion-color-primary), var(--ion-color-primary-shade));
-  color: #fff;
+  gap: 16px;
+  padding: 18px 18px;
+  border: 0;
+  color: $atlas-text;
   font-size: 16px;
   font-weight: 700;
-  letter-spacing: 0.3px;
-  box-shadow: 0 4px 12px rgba(var(--ion-color-primary-rgb), 0.3);
+  letter-spacing: 0.2px;
+  text-align: left;
+  @include atlas-neu(22px);
+  transition: transform 160ms ease, box-shadow 160ms ease;
 }
 
+.action-row span {
+  font-family: 'Roboto Flex', 'Inter', sans-serif;
+}
 
 .action-row ion-icon {
-  font-size: 20px;
-  opacity: 0.95;
+  font-size: 18px;
+  width: 34px;
+  height: 34px;
+  min-width: 34px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: $atlas-blue-strong;
+  opacity: 1;
+  background: linear-gradient(145deg, #eef3fb, #e1e8f4);
+  box-shadow:
+    7px 7px 14px -11px rgba($atlas-shadow-dark, 0.9),
+    -7px -7px 14px -11px rgba($atlas-shadow-light, 0.95);
 }
 
-/* pressed feel */
 .action-row:active {
-  transform: translateY(1px);
-  box-shadow: 0 2px 6px rgba(var(--ion-color-primary-rgb), 0.2);
+  transform: translateY(1px) scale(0.997);
+  box-shadow:
+    9px 9px 18px -14px rgba($atlas-shadow-dark, 0.9),
+    -6px -6px 14px -12px rgba($atlas-shadow-light, 0.86);
 }
 
 .back-button {
-
   --border-radius: 12px;
   --background: transparent;
-  --color: #0D5EAF;
-
+  --color: $atlas-blue-strong;
   --padding-start: 8px;
   --padding-end: 8px;
   --padding-top: 8px;
   --padding-bottom: 8px;
 }
 
-// Greek Statues Section Styling
 .statues-card {
   margin-top: 18px;
-  background: #FFFFFF;
-  border-radius: 8px;
-  border: 2px solid rgba(184, 168, 152, 0.3);
-  box-shadow: 0 2px 8px rgba(139, 115, 85, 0.15);
   position: relative;
-  overflow: hidden;
+  overflow: visible;
+  @include atlas-neu(26px);
 
   ion-list {
     background: transparent;
@@ -183,198 +240,242 @@ ion-header {
 
   ion-item {
     --background: transparent;
-    --border-color: rgba(212, 175, 55, 0.2);
-    --padding-top: 8px;
-    --padding-bottom: 8px;
+    --border-color: transparent;
+    --inner-border-width: 0;
+    --padding-top: 0;
+    --padding-bottom: 0;
+    --padding-start: 0;
+    --inner-padding-end: 0;
+    --min-height: auto;
+    padding: 18px 18px 0;
 
     ion-label h2 {
-      color: #8B6F47;
-      font-weight: 700;
-      letter-spacing: 0.5px;
-      font-family: 'Georgia', serif;
+      color: $atlas-text;
+      font-weight: 680;
+      letter-spacing: 0;
+      font-family: 'Roboto Flex', 'Inter', sans-serif;
+      font-size: 1.1rem;
+      margin: 0;
+      text-shadow: 0 1px 0 rgba(255, 255, 255, 0.7);
     }
 
     ion-icon {
-      color: #D4AF37;
+      color: $atlas-blue-strong;
     }
   }
 
   ion-card-content {
     background: transparent;
-    padding: 12px 16px 8px 16px;
+    padding: 8px 18px 18px;
+    overflow: visible;
   }
 }
 
 .display-statues-carousel {
-  padding: 10px 0 0 0;
   position: relative;
+  overflow: visible;
+}
 
-  .statue-swiper {
-    width: 100%;
-    padding-bottom: 10px;
+.opal-shell {
+  position: relative;
+  padding-top: 8px;
+  overflow: visible;
+}
 
-    swiper-slide {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-    }
-  }
+.opal-aura {
+  display: none;
+}
 
-  .custom-pagination {
+.statue-swiper {
+  width: 100%;
+  overflow: visible;
+  padding: 18px 0 8px;
+  position: relative;
+  z-index: 1;
+
+  swiper-slide {
     display: flex;
     justify-content: center;
-    gap: 8px;
-    padding: 12px 0;
+    align-items: center;
+    transition: transform 0.25s ease;
+    overflow: visible;
+  }
+}
 
-    .pagination-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background-color: rgba(212, 175, 55, 0.4);
-      cursor: pointer;
-      transition: all 0.3s ease;
+.opal-slide {
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  border-radius: 18px;
+  text-align: left;
+  transform: scale(0.92);
+  opacity: 0.72;
+  transition: transform 0.25s ease, opacity 0.25s ease;
+  position: relative;
+  z-index: 2;
+  overflow: visible;
 
-      &.active {
-        background-color: #D4AF37;
-        width: 24px;
-        border-radius: 4px;
-      }
+  &.active {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.opal-slide:focus-visible {
+  outline: 2px solid $atlas-blue-strong;
+  outline-offset: 3px;
+}
+
+.opal-statue-showcase {
+  width: 100%;
+  padding: 0 8px;
+  margin-bottom: 10px;
+  position: relative;
+  z-index: 2;
+  filter: none;
+}
+
+.opal-statue-showcase app-greek-statue {
+  display: block;
+}
+
+.opal-label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 10px 10px 8px;
+}
+
+.opal-name {
+  color: $atlas-text;
+  font-family: 'Roboto Flex', 'Inter', sans-serif;
+  font-weight: 680;
+  font-size: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+}
+
+.opal-title {
+  color: $atlas-muted;
+  font-size: 0.8rem;
+  font-style: normal;
+  text-align: center;
+}
+
+.opal-hint {
+  text-align: center;
+  color: $atlas-muted;
+  font-size: 0.73rem;
+  margin-top: 2px;
+}
+
+.opal-pagination {
+  display: flex;
+  justify-content: center;
+  gap: 7px;
+  padding: 10px 0 8px;
+
+  .pagination-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 999px;
+    background-color: rgba(46, 110, 245, 0.28);
+    transition: all 0.25s ease;
+    box-shadow:
+      3px 3px 7px -5px rgba($atlas-shadow-dark, 0.92),
+      -3px -3px 7px -5px rgba($atlas-shadow-light, 0.95);
+
+    &.active {
+      width: 22px;
+      background-color: $atlas-blue;
     }
   }
 }
 
+.opal-statue-showcase ::ng-deep .greek-statue {
+  margin: 0;
+  display: flex;
+  justify-content: center;
+}
+
+.opal-statue-showcase ::ng-deep .greek-statue .statue-container {
+  padding: 0;
+  width: auto !important;
+  background: transparent;
+  border: 0;
+  border-left: 0;
+  box-shadow: none;
+  overflow: visible;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0;
+}
+
+.opal-statue-showcase ::ng-deep .greek-statue .statue-container::before {
+  display: none;
+}
+
+.opal-statue-showcase ::ng-deep .greek-statue .statue-icon {
+  border: 0;
+  box-shadow: none;
+  background: transparent !important;
+  width: 280px;
+  height: 280px;
+  min-width: 0;
+  min-height: 0;
+}
+
+.opal-statue-showcase ::ng-deep .greek-statue .stage-img,
+.opal-statue-showcase ::ng-deep .greek-statue .uncarved-stone-img,
+.opal-statue-showcase ::ng-deep .greek-statue .custom-icon-img {
+  object-fit: contain;
+  background: transparent !important;
+}
+
 .level-progress-shell {
-  padding: 4px 2px 10px;
+  padding: 4px 2px 14px;
 }
 
 .level-progress-label {
   margin-bottom: 8px;
-  color: #8B6F47;
-  font-family: 'Georgia', serif;
-  font-size: 0.98rem;
-  font-weight: 700;
-  letter-spacing: 0.4px;
+  color: $atlas-text;
+  font-family: 'Roboto Flex', 'Inter', sans-serif;
+  font-size: 0.95rem;
+  font-weight: 680;
+  letter-spacing: 0.2px;
 }
 
 .level-progress-bar {
-  --background: rgba(212, 175, 55, 0.18);
-  --progress-background: linear-gradient(90deg, #D4AF37 0%, #FFE55C 100%);
+  --background: rgba(143, 159, 184, 0.2);
+  --progress-background: linear-gradient(90deg, #79a8ff 0%, #2e6ef5 100%);
   height: 12px;
   border-radius: 999px;
   overflow: hidden;
   box-shadow:
-    inset 0 1px 2px rgba(139, 115, 85, 0.18),
-    0 1px 4px rgba(212, 175, 55, 0.18);
-}
-
-.podium-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  width: 100%;
-  margin: 0 auto;
-}
-
-.statue-showcase {
-  width: 100%;
-  padding: 3px 10px;
-  margin-bottom: -8px;
-  z-index: 2;
-}
-
-.podium {
-  width: 100%;
-  perspective: 800px;
-
-  .podium-top {
-    height: 12px;
-    background: linear-gradient(135deg, #F5E6D3, #E5D6C1);
-    border: 2px solid #D4AF37;
-    border-bottom: none;
-    box-shadow:
-      0 -2px 10px rgba(212, 175, 55, 0.3),
-      inset 0 1px 2px rgba(255, 255, 255, 0.5);
-    position: relative;
-
-    &::before {
-      content: '';
-      position: absolute;
-      top: -3px;
-      left: -3px;
-      right: -3px;
-      height: 3px;
-      background: linear-gradient(to right, #D4AF37, #FFE55C, #D4AF37);
-      border-radius: 2px 2px 0 0;
-    }
-  }
-
-  .podium-body {
-    background: linear-gradient(180deg,
-      #E5D6C1 0%,
-      #D4C5B0 50%,
-      #C9BCAC 100%);
-    padding: 16px 16px 12px;
-    border: 2px solid #D4AF37;
-    border-top: none;
-    box-shadow:
-      0 4px 15px rgba(139, 115, 85, 0.4),
-      inset 0 1px 3px rgba(0, 0, 0, 0.1);
-    position: relative;
-    transform: perspective(800px) rotateX(5deg);
-
-    // Greek column pattern
-    &::before {
-      content: '';
-      position: absolute;
-      left: 10px;
-      right: 10px;
-      top: 10px;
-      bottom: 10px;
-      border-left: 2px solid rgba(212, 175, 55, 0.3);
-      border-right: 2px solid rgba(212, 175, 55, 0.3);
-      background: repeating-linear-gradient(
-        0deg,
-        transparent,
-        transparent 8px,
-        rgba(212, 175, 55, 0.1) 8px,
-        rgba(212, 175, 55, 0.1) 10px
-      );
-    }
-  }
-
-  .podium-inscription {
-    text-align: center;
-    font-family: 'Georgia', serif;
-    font-size: 1.05em;
-    font-weight: 700;
-    color: #8B6F47;
-    text-transform: uppercase;
-    letter-spacing: 1.5px;
-    position: relative;
-    z-index: 1;
-    text-shadow: 0 1px 2px rgba(255, 255, 255, 0.5);
-  }
+    inset 6px 6px 10px -8px rgba($atlas-shadow-dark, 0.86),
+    inset -5px -5px 10px -8px rgba($atlas-shadow-light, 0.95);
 }
 
 .no-badges-text {
   text-align: center;
-  color: #8B7355;
-  font-style: italic;
-  padding: 20px;
+  color: $atlas-muted;
+  padding: 28px 12px 20px;
   margin: 0;
 
   small {
-    color: #A0937D;
+    color: $atlas-muted;
     font-size: 0.85em;
   }
 }
 
-/* Trainer Stats Styles */
 .trainer-stats-card {
   margin-top: 18px;
-  background: #FFFFFF;
-  border: 1px solid rgba(0, 0, 0, 0.1);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  @include atlas-neu(26px);
 
   ion-list {
     background: transparent;
@@ -382,33 +483,40 @@ ion-header {
 
   ion-item {
     --background: transparent;
-    --border-color: rgba(0, 0, 0, 0.1);
+    --border-color: transparent;
+    --inner-border-width: 0;
+    padding: 18px 18px 0;
+
+    ion-icon {
+      color: $atlas-blue-strong;
+    }
   }
 
   h2 {
-    font-weight: 700;
-    color: var(--ion-color-dark);
+    margin: 0;
+    font-weight: 680;
+    color: $atlas-text;
+    font-family: 'Roboto Flex', 'Inter', sans-serif;
+  }
+
+  ion-card-content {
+    padding: 16px 18px 18px;
   }
 
   .stats-grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
     gap: 16px;
-    padding: 8px;
   }
 
   .stat-item {
-    background: linear-gradient(135deg, #F5F5F5, #FFFFFF);
     padding: 20px;
-    border-radius: 12px;
-    border: 1px solid rgba(0, 0, 0, 0.1);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
     text-align: center;
     transition: transform 0.2s ease, box-shadow 0.2s ease;
+    @include atlas-inset(20px);
 
     &:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      transform: translateY(-1px);
     }
 
     &.highlight {
@@ -417,22 +525,22 @@ ion-header {
       align-items: center;
       gap: 16px;
       text-align: left;
-      background: linear-gradient(135deg, rgba(var(--ion-color-primary-rgb), 0.05), rgba(var(--ion-color-primary-rgb), 0.02));
-      border-color: rgba(var(--ion-color-primary-rgb), 0.2);
+      background: linear-gradient(145deg, #f7faff, #edf3fd);
     }
   }
 
   .stat-value {
     font-size: 2.5em;
-    font-weight: 700;
-    color: var(--ion-color-primary);
+    font-weight: 680;
+    color: $atlas-blue-strong;
     line-height: 1;
     margin-bottom: 8px;
+    font-family: 'Roboto Flex', 'Inter', sans-serif;
   }
 
   .stat-label {
-    font-size: 0.9em;
-    color: var(--ion-color-medium);
+    font-size: 0.82em;
+    color: $atlas-muted;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -441,16 +549,18 @@ ion-header {
   .stat-icon {
     width: 60px;
     height: 60px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, var(--ion-color-primary), var(--ion-color-primary-shade));
+    border-radius: 18px;
+    background: linear-gradient(145deg, #79a8ff, #2e6ef5);
     display: flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    box-shadow: 0 4px 12px rgba(var(--ion-color-primary-rgb), 0.3);
+    box-shadow:
+      9px 9px 18px -10px rgba(112, 133, 204, 0.6),
+      -6px -6px 14px -10px rgba(255, 255, 255, 0.82);
 
     ion-icon {
-      font-size: 32px;
+      font-size: 30px;
       color: #FFFFFF;
     }
   }
@@ -461,8 +571,94 @@ ion-header {
 
   .stat-value-small {
     font-size: 1.3em;
-    font-weight: 700;
-    color: var(--ion-color-dark);
+    font-weight: 680;
+    color: $atlas-text;
     margin-bottom: 4px;
+    font-family: 'Roboto Flex', 'Inter', sans-serif;
+  }
+}
+
+.statues-card ion-button[slot="end"] {
+  --padding-start: 0;
+  --padding-end: 0;
+  margin-inline-start: 12px;
+}
+
+.customize-statues-button {
+  --background: linear-gradient(145deg, #79a8ff, #2e6ef5);
+  --background-hover: linear-gradient(145deg, #8eb6ff, #4a83f8);
+  --background-activated: linear-gradient(145deg, #4f88f5, #1f55cb);
+  --color: #ffffff;
+  --border-radius: 16px;
+  --box-shadow:
+    8px 8px 18px -10px rgba(107, 128, 199, 0.6),
+    -4px -4px 10px -8px rgba(255, 255, 255, 0.82);
+  --padding-top: 8px;
+  --padding-bottom: 8px;
+  --padding-start: 18px;
+  --padding-end: 18px;
+  min-height: 42px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  text-transform: none;
+  overflow: visible;
+  white-space: nowrap;
+
+  ion-icon {
+    color: #ffffff !important;
+    font-size: 17px;
+    margin-right: 6px;
+  }
+
+  &::part(native) {
+    padding: 8px 18px;
+    border-radius: 16px;
+    overflow: hidden;
+    line-height: 1.2;
+  }
+}
+
+@media (max-width: 768px) {
+  .profile-page {
+    padding: 14px;
+    padding-top: 10px;
+  }
+
+  .profile-hero {
+    gap: 14px;
+    padding: 16px;
+  }
+
+  .full-name {
+    font-size: 36px;
+  }
+
+  .username {
+    font-size: 16px;
+  }
+
+  .statue-swiper {
+    padding-top: 14px;
+  }
+
+  .opal-statue-showcase ::ng-deep .greek-statue .statue-icon {
+    width: 250px;
+    height: 250px;
+  }
+
+  .opal-name {
+    font-size: 0.94rem;
+  }
+
+  .opal-title {
+    font-size: 0.74rem;
+  }
+
+  .trainer-stats-card .stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .trainer-stats-card .stat-item.highlight {
+    grid-column: span 1;
   }
 }

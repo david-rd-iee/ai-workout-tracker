@@ -46,6 +46,18 @@ export interface LeaderboardEntry {
   username?: string;
   profilePicUrl?: string;
   role?: 'USER' | 'TRAINER';
+  trainerVerified?: boolean;
+}
+
+export interface LeaderboardTrendPoint {
+  name: string;
+  value: number;
+}
+
+export interface LeaderboardTrendSeries {
+  userId: string;
+  name: string;
+  series: LeaderboardTrendPoint[];
 }
 
 type RegionScope = 'country' | 'state' | 'city';
@@ -92,9 +104,26 @@ export class LeaderboardService {
       : 'userScore.totalScore';
   }
 
+  private metricToAddedScoreField(metric: Metric): string {
+    return metric === 'cardio'
+      ? 'cardioScoreAddedToday'
+      : metric === 'strength'
+      ? 'strengthScoreAddedToday'
+      : 'totalScoreAddedToday';
+  }
+
   private toNumber(value: unknown): number {
     const parsed = Number(value);
     return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  private toBoolean(value: unknown): boolean {
+    if (typeof value === 'boolean') {
+      return value;
+    }
+
+    const normalized = String(value ?? '').trim().toLowerCase();
+    return normalized === 'true' || normalized === '1' || normalized === 'yes';
   }
 
   private extractScoreTotals(stats: any): {
@@ -320,6 +349,7 @@ export class LeaderboardService {
       username: stats?.username,
       profilePicUrl: this.readProfilePic(stats),
       role: stats?.role,
+      trainerVerified: this.toBoolean(stats?.trainerVerified),
     };
   }
 
@@ -335,6 +365,98 @@ export class LeaderboardService {
           .filter((value) => value.length > 0)
       )
     );
+  }
+
+  private scoreForMetric(entry: LeaderboardEntry, metric: Metric): number {
+    if (metric === 'cardio') return this.toNumber(entry.cardioWorkScore);
+    if (metric === 'strength') return this.toNumber(entry.strengthWorkScore);
+    return this.toNumber(entry.totalWorkScore);
+  }
+
+  private toLocalDateKey(date: Date): string {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  private shiftDateKey(dateKey: string, dayDelta: number): string {
+    if (!dateKey || !Number.isFinite(dayDelta)) {
+      return dateKey;
+    }
+
+    const parsed = new Date(`${dateKey}T00:00:00`);
+    if (Number.isNaN(parsed.getTime())) {
+      return dateKey;
+    }
+
+    parsed.setDate(parsed.getDate() + Math.trunc(dayDelta));
+    return this.toLocalDateKey(parsed);
+  }
+
+  private normalizeDateKey(value: unknown): string {
+    const candidate = String(value ?? '').trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(candidate)) {
+      return candidate;
+    }
+    return '';
+  }
+
+  private sortDateKeys(keys: Iterable<string>): string[] {
+    return Array.from(new Set(Array.from(keys).filter((key) => key.length > 0))).sort();
+  }
+
+  private buildTrendSeriesForEntries(
+    rows: Array<{
+      entry: LeaderboardEntry;
+      points: Array<{ dateKey: string; value: number }>;
+    }>,
+    metric: Metric
+  ): LeaderboardTrendSeries[] {
+    const allDateKeys = this.sortDateKeys(
+      rows.reduce<string[]>((accumulator, row) => {
+        row.points.forEach((point) => {
+          accumulator.push(point.dateKey);
+        });
+        return accumulator;
+      }, [])
+    );
+    const today = this.toLocalDateKey(new Date());
+    const baselineDateKeys = allDateKeys.length > 0 ? allDateKeys : [today];
+    const baselineStart = baselineDateKeys[0];
+    const baselineEnd = baselineDateKeys[baselineDateKeys.length - 1];
+    const fallbackStart = baselineStart === baselineEnd
+      ? this.shiftDateKey(baselineStart, -1)
+      : baselineStart;
+
+    return rows.map((row) => {
+      const label = this.readNonEmptyString(row.entry, 'username', 'displayName') ?? 'User';
+      if (row.points.length === 0) {
+        const currentScore = this.scoreForMetric(row.entry, metric);
+        return {
+          userId: row.entry.userId,
+          name: label,
+          series: [
+            { name: fallbackStart, value: currentScore },
+            { name: baselineEnd, value: currentScore },
+          ],
+        };
+      }
+
+      const valueByDate = new Map<string, number>();
+      row.points.forEach((point) => {
+        valueByDate.set(point.dateKey, this.toNumber(point.value));
+      });
+
+      return {
+        userId: row.entry.userId,
+        name: label,
+        series: baselineDateKeys.map((dateKey) => ({
+          name: dateKey,
+          value: valueByDate.get(dateKey) ?? 0,
+        })),
+      };
+    });
   }
 
   private finalizeEntries(
@@ -471,6 +593,48 @@ export class LeaderboardService {
           )
         )
       )
+    );
+  }
+
+  watchAddedScoreTrend(
+    entries: LeaderboardEntry[],
+    metric: Metric = 'total'
+  ): Observable<LeaderboardTrendSeries[]> {
+    const uniqueEntries = entries.reduce<LeaderboardEntry[]>((accumulator, entry) => {
+      if (!entry?.userId || accumulator.some((candidate) => candidate.userId === entry.userId)) {
+        return accumulator;
+      }
+      accumulator.push(entry);
+      return accumulator;
+    }, []);
+
+    if (uniqueEntries.length === 0) {
+      return of([]);
+    }
+
+    const addedScoreField = this.metricToAddedScoreField(metric);
+    const entryStreams = uniqueEntries.map((entry) => {
+      const addedScoreRef = collection(this.firestore, 'userStats', entry.userId, 'addedScore');
+      const addedScoreQuery = query(addedScoreRef, orderBy('date', 'asc'));
+
+      return watchQueryData<Record<string, unknown> & { docId?: string }>(
+        addedScoreQuery,
+        { idField: 'docId' }
+      ).pipe(
+        map((docs) => ({
+          entry,
+          points: docs
+            .map((docEntry) => ({
+              dateKey: this.normalizeDateKey(docEntry['date'] ?? docEntry['docId']),
+              value: this.toNumber(docEntry[addedScoreField]),
+            }))
+            .filter((point) => point.dateKey.length > 0),
+        }))
+      );
+    });
+
+    return combineLatest(entryStreams).pipe(
+      map((rows) => this.buildTrendSeriesForEntries(rows, metric))
     );
   }
 

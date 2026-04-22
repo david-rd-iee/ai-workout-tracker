@@ -4,8 +4,9 @@ direction LR
 namespace Frontend_Pages {
   class WorkoutChatbotPage
   class WorkoutHistoryPage
-  class WorkoutHistoryCsvPage
   class WorkoutSummaryPage
+  class LeaderboardPage
+  class ClientChatsPage
   class ChatDetailPage
 }
 
@@ -14,15 +15,20 @@ namespace Frontend_Services {
   class WorkoutLogService
   class WorkoutSummaryService
   class WorkoutChatService
-  class WorkoutSessionFormatterService
   class WorkoutWorkflowSummaryProjectionService
   class WorkoutWorkflowEstimatorPreparationService
+  class GroupService
   class ChatsService
+  class UserService
+  class NotificationService
 }
 
 namespace Backend_Functions {
-  class CompleteWorkoutEventCallable
-  class WorkoutEventPostWriteHandlers
+  class workoutChatCallable
+  class completeWorkoutEvent
+  class onWorkoutEventCreated
+  class onGroupDocumentWrittenSyncChat
+  class ensureGroupChatForGroup
 }
 
 namespace Shared_Domain {
@@ -32,37 +38,21 @@ namespace Shared_Domain {
     +summary: WorkoutEventSummary
     +source: WorkoutEventSource
   }
-
   class WorkoutEventSummary {
     +estimatedCalories: number
     +trainerNotes: string
     +isComplete: boolean
   }
-
   class WorkoutEventEntry {
     +kind: strength/cardio/other
     +estimatedCalories: number
   }
-
-  class WorkoutEventRecord {
-    +schemaVersion: 1
-    +event: WorkoutEvent
-    +submissionMetadata: localSubmittedDate + localSubmittedHour
-    +createdAt: timestamp
-    +updatedAt: timestamp
-  }
-
   class WorkoutSummary {
     +date: string
     +workoutEventIds: string[]
     +eventCount: number
     +aggregate: WorkoutEvent
-    +firstEventCreatedAt: ISO string
-    +lastEventCreatedAt: ISO string
   }
-}
-
-namespace Legacy_UI_View_Model {
   class WorkoutSessionPerformance {
     +date: string
     +trainingRows: WorkoutTrainingRow[]
@@ -71,26 +61,62 @@ namespace Legacy_UI_View_Model {
     +otherTrainingRow: OtherTrainingRow[]
     +estimated_calories: number
     +trainer_notes: string
-    +isComplete: boolean
   }
-
-  class WorkoutTrainingRow
-  class CardioTrainingRow
-  class OtherTrainingRow
+  class Group {
+    +groupId: string
+    +name: string
+    +isPTGroup: boolean
+    +ownerUserId: string
+    +userIDs: string[]
+    +groupImage: string
+  }
+  class Chat {
+    +chatId: string
+    +participants: string[]
+    +type: direct_or_group
+    +groupId: string
+    +displayName: string
+    +groupImage: string
+  }
+  class ChatSummary {
+    +chatId: string
+    +participants: string[]
+    +type: direct_or_group
+    +groupId: string
+    +displayName: string
+    +groupImage: string
+    +lastMessage: string
+    +lastMessageTime: string
+    +unreadCountByUser: map_user_to_count
+    +lastReadAtByUser: map_user_to_iso_time
+  }
+  class Message {
+    +type: message_kind
+    +senderId: string
+    +timestamp: string
+    +read: boolean
+  }
 }
 
 namespace Firebase_Data {
   class UserWorkoutEventsCollection {
-    +users/{uid}/workoutEvents/{eventId}
+    +path: users_uid_workoutEvents_eventId
   }
-
   class UserWorkoutSummariesCollection {
-    +users/{uid}/workoutSummaries/{YYYY-MM-DD}
+    +path: users_uid_workoutSummaries_date
   }
-
-  class DirectChatMessage {
-    +chats/{chatId}/messages/workout_summary_{YYYY-MM-DD}
-    +type: workout_summary
+  class GroupsCollection {
+    +path: groupID_groupId
+  }
+  class ChatsCollection {
+    +path: chats_chatId
+    +messagesPath: chats_chatId_messages_messageId
+  }
+  class ChatSummariesCollection {
+    +path: chatSummaries_chatId
+  }
+  class UserChatsIndex {
+    +path: userChats_uid_chatId_true
   }
 }
 
@@ -102,36 +128,55 @@ namespace Infrastructure {
 
 WorkoutEvent o-- WorkoutEventSummary
 WorkoutEvent o-- WorkoutEventEntry
-WorkoutEventRecord o-- WorkoutEvent
 WorkoutSummary o-- WorkoutEvent : aggregate
-WorkoutSessionPerformance o-- WorkoutTrainingRow
-WorkoutSessionPerformance o-- CardioTrainingRow
-WorkoutSessionPerformance o-- OtherTrainingRow
+Chat o-- Message
+ChatSummary ..> Chat : metadata projection
 
 WorkoutChatbotPage --> WorkoutWorkflowService : processWorkoutMessage()/submitWorkout()
 WorkoutHistoryPage --> WorkoutSummaryService : listRecentWorkoutSummaries()
-WorkoutHistoryCsvPage --> WorkoutHistoryPage : consumes grouped daily summaries
 WorkoutSummaryPage --> WorkoutSummaryService : getWorkoutSummary(date)
-ChatDetailPage --> ChatsService : subscribes to direct chat
+WorkoutSummaryPage --> GroupService : getUserGroups(uid)
+WorkoutSummaryPage --> ChatsService : ensureGroupChatForGroup() + sendWorkoutSummaryMessage()
+LeaderboardPage --> ChatsService : ensureGroupChatForGroup()
+ClientChatsPage --> ChatsService : initializeUserChats() summary-only inbox
+ChatDetailPage --> RealtimeDatabase : subscribe chats/{chatId}/messages only
+ChatDetailPage --> Firestore : read groupID metadata/member list
 
 WorkoutWorkflowService --> WorkoutChatService : sendMessage()
 WorkoutWorkflowService --> WorkoutLogService : saveCompletedWorkout()
-WorkoutWorkflowService --> WorkoutSessionFormatterService : normalize/apply notes
 WorkoutWorkflowService --> WorkoutWorkflowSummaryProjectionService : project workflow state
 WorkoutWorkflowService --> WorkoutWorkflowEstimatorPreparationService : prepare estimator ids
 
-WorkoutSummaryService --> WorkoutSummary : normalize/read daily summaries
-WorkoutSummaryService --> WorkoutSessionPerformance : project summary/history UI
+WorkoutChatService --> workoutChatCallable : httpsCallable
+workoutChatCallable --> OpenAI
 
-WorkoutLogService --> CompleteWorkoutEventCallable : completeWorkoutEvent()
-WorkoutLogService --> Firestore : wait for derivations/workout_summary
+WorkoutLogService --> completeWorkoutEvent : httpsCallable
+completeWorkoutEvent --> UserWorkoutEventsCollection : write canonical event record
+onWorkoutEventCreated --> UserWorkoutSummariesCollection : upsert daily WorkoutSummary
+onWorkoutEventCreated --> ChatsCollection : create/update trainer workout_summary message
+onWorkoutEventCreated --> ChatSummariesCollection : upsert lastMessage + unreadCountByUser
+onWorkoutEventCreated --> Firestore : user stats + score derivations + group war scoring
 
-CompleteWorkoutEventCallable --> UserWorkoutEventsCollection : write canonical WorkoutEventRecord
-WorkoutEventPostWriteHandlers --> UserWorkoutSummariesCollection : upsert daily WorkoutSummary
-WorkoutEventPostWriteHandlers --> RealtimeDatabase : create or update daily trainer chat message
-WorkoutEventPostWriteHandlers --> Firestore : resolve trainerId, user name, stats, scores
+onGroupDocumentWrittenSyncChat --> GroupsCollection : trigger on create/update
+onGroupDocumentWrittenSyncChat --> ChatsCollection : upsert group chat metadata + participants
+onGroupDocumentWrittenSyncChat --> ChatSummariesCollection : upsert summary + unread counters
+onGroupDocumentWrittenSyncChat --> UserChatsIndex : add/remove pointers only when membership changes
+
+ChatsService --> ensureGroupChatForGroup : httpsCallable(us-central1)
+ensureGroupChatForGroup --> GroupsCollection : validate group + membership + PT exclusion
+ensureGroupChatForGroup --> ChatsCollection : create or sync group chat
+ensureGroupChatForGroup --> ChatSummariesCollection : ensure summary record
+ensureGroupChatForGroup --> UserChatsIndex : ensure caller chat pointer
+
+ChatsService --> RealtimeDatabase : listen userChats + chatSummaries for list
+ChatsService --> RealtimeDatabase : write chats/{chatId}/messages on send
+ChatsService --> ChatSummariesCollection : increment unreadCountByUser + update lastReadAtByUser
+ChatsService --> UserService : resolve recipient account type + sender identity
+ChatsService --> NotificationService : push notifications
 
 UserWorkoutEventsCollection --> Firestore
 UserWorkoutSummariesCollection --> Firestore
-DirectChatMessage --> RealtimeDatabase
-WorkoutChatService --> OpenAI
+GroupsCollection --> Firestore
+ChatsCollection --> RealtimeDatabase
+ChatSummariesCollection --> RealtimeDatabase
+UserChatsIndex --> RealtimeDatabase

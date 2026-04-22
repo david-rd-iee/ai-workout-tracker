@@ -26,6 +26,34 @@ service cloud.firestore {
         exists(/databases/$(database)/documents/users/$(clientId)) &&
         get(/databases/$(database)/documents/users/$(clientId)).data.trainerId == trainerId;
     }
+
+    function isGroupOwner(groupId) {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/groupID/$(groupId)) &&
+        get(/databases/$(database)/documents/groupID/$(groupId)).data.ownerUserId == request.auth.uid;
+    }
+
+    function isWarParticipant(warData) {
+      return isSignedIn() && (
+        warData.challengerOwnerUid == request.auth.uid ||
+        warData.opponentOwnerUid == request.auth.uid
+      );
+    }
+
+    function isWarPubliclyReadableStatus(status) {
+      return status == 'active' || status == 'finalizing' || status == 'finalized';
+    }
+
+    function canReadWarById(warId) {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/groupWars/$(warId)) && (
+          isWarPubliclyReadableStatus(
+            get(/databases/$(database)/documents/groupWars/$(warId)).data.status
+          ) ||
+          get(/databases/$(database)/documents/groupWars/$(warId)).data.challengerOwnerUid == request.auth.uid ||
+          get(/databases/$(database)/documents/groupWars/$(warId)).data.opponentOwnerUid == request.auth.uid
+        );
+    }
     
     function isAgreementParticipant(agreementData) {
       return isSignedIn() && (request.auth.uid == agreementData.trainerId || request.auth.uid == agreementData.clientId);
@@ -417,6 +445,164 @@ service cloud.firestore {
       }
     }
 
+    // Primary groups collection (note the existing collection name is groupID)
+    match /groupID/{groupId} {
+      allow read: if isSignedIn();
+
+      // Group creator must be the owner.
+      allow create: if isSignedIn() &&
+        request.resource.data.ownerUserId == request.auth.uid;
+
+      // Owner can update any group fields (including war opt-in fields).
+      // Non-owner can only add themselves to userIDs (invite acceptance flow).
+      allow update: if isSignedIn() && (
+        resource.data.ownerUserId == request.auth.uid ||
+        (
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['userIDs', 'updatedAt']) &&
+          request.resource.data.userIDs is list &&
+          resource.data.userIDs is list &&
+          request.resource.data.userIDs.hasAll(resource.data.userIDs) &&
+          request.resource.data.userIDs.hasAny([request.auth.uid]) &&
+          request.resource.data.userIDs.size() == resource.data.userIDs.size() + 1
+        )
+      );
+
+      allow delete: if isSignedIn() &&
+        resource.data.ownerUserId == request.auth.uid;
+    }
+
+    // Group Wars master + derived docs
+    match /groupWars/{warId} {
+      // Any signed-in user can read active/finalizing/finalized wars.
+      // War participants can also read pending wars they are involved in.
+      allow read: if isSignedIn() && (
+        isWarPubliclyReadableStatus(resource.data.status) ||
+        isWarParticipant(resource.data)
+      );
+
+      // Only a group owner can create a challenge request.
+      // Clients cannot seed backend-owned score/result fields.
+      allow create: if isSignedIn() &&
+        request.resource.data.challengerOwnerUid == request.auth.uid &&
+        isGroupOwner(request.resource.data.challengerGroupId) &&
+        (
+          request.resource.data.status == 'pending_confirmation' ||
+          request.resource.data.status == 'pending_acceptance'
+        ) &&
+        request.resource.data.keys().hasOnly([
+          'groupAId',
+          'groupBId',
+          'challengerGroupId',
+          'opponentGroupId',
+          'challengerOwnerUid',
+          'opponentOwnerUid',
+          'groupAAccepted',
+          'groupBAccepted',
+          'status',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        (
+          request.resource.data.groupAAccepted == false ||
+          request.resource.data.groupAAccepted == null
+        ) &&
+        (
+          request.resource.data.groupBAccepted == false ||
+          request.resource.data.groupBAccepted == null
+        );
+
+      // Only group owners can accept a match (their own acceptance marker only).
+      // Backend-owned war totals/results/finalization fields are write-protected.
+      allow update: if isSignedIn() && (
+        (
+          resource.data.challengerOwnerUid == request.auth.uid &&
+          (
+            resource.data.status == 'pending_confirmation' ||
+            resource.data.status == 'pending_acceptance'
+          ) &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'groupAAccepted',
+            'updatedAt'
+          ]) &&
+          request.resource.data.groupAAccepted == true
+        ) ||
+        (
+          resource.data.opponentOwnerUid == request.auth.uid &&
+          (
+            resource.data.status == 'pending_confirmation' ||
+            resource.data.status == 'pending_acceptance'
+          ) &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'groupBAccepted',
+            'updatedAt'
+          ]) &&
+          request.resource.data.groupBAccepted == true
+        ) ||
+        (
+          resource.data.challengerOwnerUid == request.auth.uid &&
+          (
+            resource.data.status == 'pending_confirmation' ||
+            resource.data.status == 'pending_acceptance'
+          ) &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'groupAAccepted',
+            'declinedAt',
+            'declinedBy',
+            'updatedAt'
+          ]) &&
+          request.resource.data.groupAAccepted == false &&
+          request.resource.data.declinedBy == request.auth.uid
+        ) ||
+        (
+          resource.data.opponentOwnerUid == request.auth.uid &&
+          (
+            resource.data.status == 'pending_confirmation' ||
+            resource.data.status == 'pending_acceptance'
+          ) &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'groupBAccepted',
+            'declinedAt',
+            'declinedBy',
+            'updatedAt'
+          ]) &&
+          request.resource.data.groupBAccepted == false &&
+          request.resource.data.declinedBy == request.auth.uid
+        )
+      );
+
+      // Backend should own lifecycle cleanup/deletes.
+      allow delete: if false;
+
+      // One doc per counted workout contribution.
+      // Read allowed when parent war is readable; write is backend-only.
+      match /contributions/{contributionId} {
+        allow read: if canReadWarById(warId);
+        allow write, delete: if false;
+      }
+
+      // Aggregated member standings for a war.
+      // Read allowed when parent war is readable; write is backend-only.
+      match /members/{userId} {
+        allow read: if canReadWarById(warId);
+        allow write, delete: if false;
+      }
+
+      // Post-war recap summary.
+      // Read allowed when parent war is readable; write is backend-only.
+      match /recap/{docId} {
+        allow read: if canReadWarById(warId);
+        allow write, delete: if false;
+      }
+    }
+
+    // Persistent global group leaderboard
+    match /groupLeaderboards/{scopeId}/rankings/{groupId} {
+      // Normal users can read leaderboard docs.
+      allow read: if isSignedIn();
+      // Backend-owned projection docs: client write-protected.
+      allow write, delete: if false;
+    }
+
 
     
     // Groups collection (for group challenges and teams)
@@ -452,7 +638,7 @@ service cloud.firestore {
     
     // DEBUG ONLY
     match /{document=**} {
-      allow read, write: if true;
+      allow read, write: if false;
     }
   }
 }

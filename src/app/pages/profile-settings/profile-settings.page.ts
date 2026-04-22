@@ -1,23 +1,15 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { NavController } from '@ionic/angular';
 import {
   IonButton,
-  IonButtons,
   IonContent,
-  IonHeader,
-  IonIcon,
   IonInput,
   IonItem,
   IonSelect,
   IonSelectOption,
   IonText,
-  IonTitle,
-  IonToolbar,
 } from '@ionic/angular/standalone';
-import { addIcons } from 'ionicons';
-import { arrowBackOutline } from 'ionicons/icons';
 import { Auth, onAuthStateChanged } from '@angular/fire/auth';
 import { Firestore } from '@angular/fire/firestore';
 import { Router } from '@angular/router';
@@ -28,6 +20,9 @@ import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { AccountService } from '../../services/account/account.service';
 import { ProfileRepositoryService } from '../../services/account/profile-repository.service';
 import { UserService } from '../../services/account/user.service';
+import { HeaderComponent } from '../../components/header/header.component';
+
+type UnitSystem = 'metric' | 'imperial';
 
 @Component({
   selector: 'app-profile-settings',
@@ -38,21 +33,16 @@ import { UserService } from '../../services/account/user.service';
     CommonModule,
     FormsModule,
     IonContent,
-    IonHeader,
-    IonTitle,
-    IonToolbar,
-    IonButtons,
     IonButton,
-    IonIcon,
     IonItem,
     IonInput,
     IonSelect,
     IonSelectOption,
     IonText,
+    HeaderComponent,
   ],
 })
 export class ProfileSettingsPage implements OnInit {
-  private navCtrl = inject(NavController);
   private firestore = inject(Firestore);
   private auth = inject(Auth);
   private router = inject(Router);
@@ -68,6 +58,10 @@ export class ProfileSettingsPage implements OnInit {
   age: string | number | null = '';
   heightMeters: string | number | null = '';
   weightKg: string | number | null = '';
+  heightFeet: string | number | null = '';
+  heightInches: string | number | null = '';
+  weightPounds: string | number | null = '';
+  unitSystem: UnitSystem = 'metric';
   sex: string | number | null = null;
   isTrainer = false;
 
@@ -75,20 +69,20 @@ export class ProfileSettingsPage implements OnInit {
   isSaving = false;
   errorMessage = '';
   successMessage = '';
-
-  constructor() {
-    addIcons({ arrowBackOutline });
-  }
+  private initialClientStats: {
+    age: number | null;
+    heightMeters: number | null;
+    weightKg: number | null;
+    sex: number | null;
+  } = {
+    age: null,
+    heightMeters: null,
+    weightKg: null,
+    sex: null,
+  };
 
   ngOnInit(): void {
     void this.loadSettings();
-  }
-
-  goBack(): void {
-    this.navCtrl.navigateBack('/profile-user', {
-      animated: true,
-      animationDirection: 'back',
-    });
   }
 
   async logout(): Promise<void> {
@@ -118,9 +112,23 @@ export class ProfileSettingsPage implements OnInit {
 
     const shouldSaveStats = !this.isTrainer;
     const parsedAge = shouldSaveStats ? this.parseNumber(this.age) : null;
-    const parsedHeightMeters = shouldSaveStats ? this.parseNumber(this.heightMeters) : null;
-    const parsedWeightKg = shouldSaveStats ? this.parseNumber(this.weightKg) : null;
+    let parsedHeightMeters = shouldSaveStats ? this.parseNumber(this.heightMeters) : null;
+    let parsedWeightKg = shouldSaveStats ? this.parseNumber(this.weightKg) : null;
     const parsedSex = shouldSaveStats ? this.parseSexValue(this.sex) : null;
+
+    if (shouldSaveStats && this.unitSystem === 'imperial') {
+      const metricValues = this.getMetricValuesFromImperial();
+      parsedHeightMeters = metricValues.heightMeters;
+      parsedWeightKg = metricValues.weightKg;
+
+      if (parsedHeightMeters !== null) {
+        this.heightMeters = this.formatDecimal(parsedHeightMeters, 4);
+      }
+      if (parsedWeightKg !== null) {
+        this.weightKg = this.formatDecimal(parsedWeightKg, 3);
+      }
+    }
+
     const bmi =
       shouldSaveStats && parsedHeightMeters !== null && parsedWeightKg !== null
         ? this.calculateBmi(parsedHeightMeters, parsedWeightKg)
@@ -132,12 +140,16 @@ export class ProfileSettingsPage implements OnInit {
     }
 
     if (shouldSaveStats && (parsedHeightMeters === null || parsedHeightMeters <= 0)) {
-      this.errorMessage = 'Height (m) must be greater than 0.';
+      this.errorMessage = this.unitSystem === 'imperial'
+        ? 'Enter a valid height in feet and inches (inches must be less than 12).'
+        : 'Height (m) must be greater than 0.';
       return;
     }
 
     if (shouldSaveStats && (parsedWeightKg === null || parsedWeightKg <= 0)) {
-      this.errorMessage = 'Weight (kg) must be greater than 0.';
+      this.errorMessage = this.unitSystem === 'imperial'
+        ? 'Weight (lb) must be greater than 0.'
+        : 'Weight (kg) must be greater than 0.';
       return;
     }
 
@@ -150,6 +162,13 @@ export class ProfileSettingsPage implements OnInit {
       this.errorMessage = 'BMI could not be calculated from height and weight.';
       return;
     }
+
+    const didClientStatsChange = shouldSaveStats && this.haveClientStatsChanged(
+      parsedAge,
+      parsedHeightMeters,
+      parsedWeightKg,
+      parsedSex
+    );
 
     this.isSaving = true;
 
@@ -204,11 +223,19 @@ export class ProfileSettingsPage implements OnInit {
           weightKg: parsedWeightKg,
           sex: parsedSex,
           bmi,
+          ...(didClientStatsChange ? { trainerVerified: false } : {}),
           updatedAt: serverTimestamp(),
         };
 
         const userStatsRef = doc(this.firestore, 'userStats', uid);
         await setDoc(userStatsRef, userStatsPayload, { merge: true });
+
+        this.initialClientStats = {
+          age: parsedAge,
+          heightMeters: parsedHeightMeters,
+          weightKg: parsedWeightKg,
+          sex: parsedSex,
+        };
       }
 
       if (emailVerificationSent) {
@@ -279,8 +306,28 @@ export class ProfileSettingsPage implements OnInit {
         this.heightMeters =
           typeof heightMeters === 'number' && heightMeters > 0 ? String(heightMeters) : '';
         this.weightKg = typeof weightKg === 'number' && weightKg > 0 ? String(weightKg) : '';
-        this.sex = this.parseSexValue(sex);
+        const parsedSex = this.parseSexValue(sex);
+        this.sex = parsedSex;
+        this.initialClientStats = {
+          age: typeof age === 'number' && age > 0 ? age : null,
+          heightMeters: typeof heightMeters === 'number' && heightMeters > 0 ? heightMeters : null,
+          weightKg: typeof weightKg === 'number' && weightKg > 0 ? weightKg : null,
+          sex: parsedSex,
+        };
+      } else {
+        this.age = '';
+        this.heightMeters = '';
+        this.weightKg = '';
+        this.sex = null;
+        this.initialClientStats = {
+          age: null,
+          heightMeters: null,
+          weightKg: null,
+          sex: null,
+        };
       }
+
+      this.syncImperialFromMetric();
     } catch (error) {
       console.error('[ProfileSettingsPage] Failed to load settings:', error);
       this.errorMessage = 'Failed to load settings.';
@@ -307,6 +354,92 @@ export class ProfileSettingsPage implements OnInit {
     return Number.isFinite(parsed) ? parsed : null;
   }
 
+  onUnitSystemChange(): void {
+    if (this.unitSystem === 'imperial') {
+      this.syncImperialFromMetric();
+      return;
+    }
+
+    const metricValues = this.getMetricValuesFromImperial();
+    if (metricValues.heightMeters !== null) {
+      this.heightMeters = this.formatDecimal(metricValues.heightMeters, 4);
+    }
+    if (metricValues.weightKg !== null) {
+      this.weightKg = this.formatDecimal(metricValues.weightKg, 3);
+    }
+  }
+
+  private syncImperialFromMetric(): void {
+    const heightMeters = this.parseNumber(this.heightMeters);
+    if (heightMeters === null || heightMeters <= 0) {
+      this.heightFeet = '';
+      this.heightInches = '';
+    } else {
+      const totalInches = heightMeters / 0.0254;
+      let feet = Math.floor(totalInches / 12);
+      let inches = Number((totalInches - feet * 12).toFixed(1));
+
+      if (inches >= 12) {
+        feet += 1;
+        inches = 0;
+      }
+
+      this.heightFeet = String(feet);
+      this.heightInches = this.formatDecimal(inches, 1);
+    }
+
+    const weightKg = this.parseNumber(this.weightKg);
+    if (weightKg === null || weightKg <= 0) {
+      this.weightPounds = '';
+      return;
+    }
+
+    const pounds = weightKg / 0.45359237;
+    this.weightPounds = this.formatDecimal(pounds, 1);
+  }
+
+  private getMetricValuesFromImperial(): { heightMeters: number | null; weightKg: number | null } {
+    return {
+      heightMeters: this.convertImperialHeightToMeters(this.heightFeet, this.heightInches),
+      weightKg: this.convertPoundsToKilograms(this.weightPounds),
+    };
+  }
+
+  private convertImperialHeightToMeters(feetValue: unknown, inchesValue: unknown): number | null {
+    const feet = this.parseNumber(feetValue);
+    const inches = this.parseNumber(inchesValue);
+
+    if (feet === null && inches === null) {
+      return null;
+    }
+
+    const safeFeet = feet ?? 0;
+    const safeInches = inches ?? 0;
+    if (!Number.isInteger(safeFeet) || safeFeet < 0 || safeInches < 0 || safeInches >= 12) {
+      return null;
+    }
+
+    const totalInches = safeFeet * 12 + safeInches;
+    if (totalInches <= 0) {
+      return null;
+    }
+
+    return Number((totalInches * 0.0254).toFixed(4));
+  }
+
+  private convertPoundsToKilograms(poundsValue: unknown): number | null {
+    const pounds = this.parseNumber(poundsValue);
+    if (pounds === null || pounds <= 0) {
+      return null;
+    }
+
+    return Number((pounds * 0.45359237).toFixed(3));
+  }
+
+  private formatDecimal(value: number, decimalPlaces: number): string {
+    return value.toFixed(decimalPlaces).replace(/\.?0+$/, '');
+  }
+
   private calculateBmi(heightMeters: number, weightKg: number): number | null {
     if (!Number.isFinite(heightMeters) || !Number.isFinite(weightKg) || heightMeters <= 0 || weightKg <= 0) {
       return null;
@@ -322,6 +455,28 @@ export class ProfileSettingsPage implements OnInit {
       return parsed;
     }
     return null;
+  }
+
+  private haveClientStatsChanged(
+    age: number | null,
+    heightMeters: number | null,
+    weightKg: number | null,
+    sex: number | null
+  ): boolean {
+    return (
+      !this.areNumbersEqual(this.initialClientStats.age, age) ||
+      !this.areNumbersEqual(this.initialClientStats.heightMeters, heightMeters) ||
+      !this.areNumbersEqual(this.initialClientStats.weightKg, weightKg) ||
+      !this.areNumbersEqual(this.initialClientStats.sex, sex)
+    );
+  }
+
+  private areNumbersEqual(left: number | null, right: number | null): boolean {
+    if (left === null || right === null) {
+      return left === right;
+    }
+
+    return Math.abs(left - right) < 1e-9;
   }
 
   private async resolveCurrentUser(): Promise<User | null> {

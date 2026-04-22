@@ -1,28 +1,28 @@
-<ion-header>
-  <ion-toolbar color="primary">
+<ion-header class="trainer-modal-header">
+  <ion-toolbar class="trainer-modal-toolbar">
     <ion-title>Schedule Session</ion-title>
     <ion-buttons slot="end">
-      <ion-button (click)="dismiss()">
+      <ion-button class="modal-close-button" (click)="dismiss()">
         <ion-icon name="close"></ion-icon>
       </ion-button>
     </ion-buttons>
   </ion-toolbar>
 </ion-header>
 
-<ion-content class="ion-padding">
-  <div class="modal-content">
-    <!-- Client Header -->
-    <div class="client-header">
+<ion-content class="scheduler-content">
+  <div class="background-gradient"></div>
+  <div class="modal-page">
+    <section class="client-header">
       <div class="client-avatar">
         <ion-icon name="person-circle"></ion-icon>
       </div>
       <div class="client-info">
+        <p class="eyebrow">Trainer Session</p>
         <h2>{{ clientName }}</h2>
-        <p>Schedule a training session</p>
+        <p>Schedule a training session with a polished trainer-side workflow.</p>
       </div>
-    </div>
+    </section>
 
-    <!-- Date & Time Section -->
     <ion-card class="section-card">
       <ion-card-header>
         <div class="card-header-with-icon">
@@ -73,7 +73,6 @@
       </ion-card-content>
     </ion-card>
 
-    <!-- Session Type Section -->
     <ion-card class="section-card">
       <ion-card-header>
         <div class="card-header-with-icon">
@@ -96,7 +95,6 @@
       </ion-card-content>
     </ion-card>
 
-    <!-- Price Section -->
     <ion-card class="section-card">
       <ion-card-header>
         <div class="card-header-with-icon">
@@ -116,7 +114,6 @@
       </ion-card-content>
     </ion-card>
 
-    <!-- Notes Section -->
     <ion-card class="section-card">
       <ion-card-header>
         <div class="card-header-with-icon">
@@ -136,7 +133,6 @@
       </ion-card-content>
     </ion-card>
 
-    <!-- Summary Preview -->
     <div class="summary-preview">
       <h3>Session Summary</h3>
       <div class="summary-content">

@@ -1,31 +1,30 @@
-<ion-header>
-  <ion-toolbar>
-    <ion-buttons slot="start">
-      <ion-button (click)="goBackToChat()">
-        <ion-icon name="close-outline"></ion-icon>
-      </ion-button>
-    </ion-buttons>
-    <ion-title>Workout Summary</ion-title>
-  </ion-toolbar>
-</ion-header>
+<app-header
+  [title]="'Workout Summary'"
+  [showBack]="true"
+  [backHref]="headerBackHref"
+  [transparent]="true"
+  [neoBlend]="true"
+></app-header>
 
-<ion-content [fullscreen]="true">
+<ion-content [fullscreen]="true" class="summary-content">
   <div class="background-gradient"></div>
-  <div class="ion-padding">
+
+  <div class="summary-page">
     <ion-card class="summary-card">
       <ion-card-header>
         <div class="summary-meta">
           <p class="logged-date">{{ loggedDateLabel }}</p>
           <p class="logged-time" *ngIf="loggedTimeLabel">{{ loggedTimeLabel }}</p>
           <p class="calories-text">
-            Estimated Total Calories: <strong>{{ summary.estimated_calories || summary.calories }} kcal</strong>
+            Estimated Total Calories:
+            <strong>{{ summary.estimated_calories || summary.calories }} kcal</strong>
           </p>
         </div>
       </ion-card-header>
 
       <ion-card-content>
         <div class="summary-section" *ngIf="strengthRows.length > 0">
-          <h3 class="section-title">Strength:</h3>
+          <h3 class="section-title">Strength</h3>
           <div class="entry-card" *ngFor="let row of strengthRows">
             <p class="entry-title">{{ formatExerciseName(row.exercise_type) }}</p>
             <p>Sets: {{ row.sets }}</p>
@@ -36,7 +35,7 @@
         </div>
 
         <div class="summary-section" *ngIf="cardioRows.length > 0">
-          <h3 class="section-title">Cardio:</h3>
+          <h3 class="section-title">Cardio</h3>
           <div class="entry-card" *ngFor="let row of cardioRows">
             <p class="entry-title">{{ formatExerciseName(row.cardio_type) }}</p>
             <p>Distance: {{ formatCardioDistance(row) }}</p>
@@ -46,7 +45,7 @@
         </div>
 
         <div class="summary-section" *ngIf="otherRows.length > 0">
-          <h3 class="section-title">Other:</h3>
+          <h3 class="section-title">Other</h3>
           <div class="entry-card" *ngFor="let row of otherRows">
             <p class="entry-title">{{ formatOtherExerciseName(row) }}</p>
             <p>Details: {{ formatOtherDetails(row) }}</p>
@@ -56,33 +55,100 @@
 
         <div class="actions">
           <ion-button
-            fill="outline"
-            size="small"
+            class="secondary-action"
             expand="block"
-            (click)="navigateToGroups()"
+            (click)="openShareToGroupModal()"
+            [disabled]="loadingShareableGroups || sendingWorkoutSummaryToGroups"
           >
             Share to Group
           </ion-button>
-          <ion-button
-            size="small"
-            expand="block"
-            (click)="navigateToLeaderboard()"
-          >
+          <ion-button class="primary-action" expand="block" (click)="navigateToLeaderboard()">
             View Leaderboard
           </ion-button>
-          <ion-button
-            fill="clear"
-            size="small"
-            expand="block"
-            (click)="navigateToHome()"
-          >
+          <ion-button class="ghost-action" expand="block" (click)="navigateToHome()">
             Back to Home
           </ion-button>
         </div>
 
-        <h3 class="section-title" *ngIf="summary.trainer_notes">Notes for Trainer:</h3>
-        <p *ngIf="summary.trainer_notes">{{ summary.trainer_notes }}</p>
+        <div class="notes-well" *ngIf="summary.trainer_notes">
+          <h3 class="section-title">Notes for Trainer</h3>
+          <p>{{ summary.trainer_notes }}</p>
+        </div>
       </ion-card-content>
     </ion-card>
   </div>
 </ion-content>
+
+<ion-modal
+  cssClass="summary-share-modal"
+  [isOpen]="shareGroupModalOpen"
+  [backdropDismiss]="!sendingWorkoutSummaryToGroups"
+  (didDismiss)="closeShareGroupModal()"
+>
+  <ng-template>
+    <ion-header class="share-modal-header">
+      <ion-toolbar class="share-modal-toolbar">
+        <ion-title>Share to Groups</ion-title>
+        <ion-buttons slot="end">
+          <ion-button fill="clear" (click)="closeShareGroupModal()" [disabled]="sendingWorkoutSummaryToGroups">
+            Close
+          </ion-button>
+        </ion-buttons>
+      </ion-toolbar>
+    </ion-header>
+
+    <ion-content class="share-modal-content">
+      <div class="share-modal-shell">
+        <p class="share-modal-copy">Select the groups you want this workout summary sent to.</p>
+
+        <div class="share-modal-actions">
+          <ion-button
+            class="select-all-btn"
+            fill="clear"
+            (click)="toggleSelectAllShareGroups()"
+            [disabled]="shareableGroups.length === 0 || sendingWorkoutSummaryToGroups"
+          >
+            {{ allShareableGroupsSelected ? 'Clear All' : 'Select All' }}
+          </ion-button>
+        </div>
+
+        <div class="share-modal-loading" *ngIf="loadingShareableGroups">
+          <ion-spinner name="crescent"></ion-spinner>
+        </div>
+
+        <ion-list class="share-group-list" lines="none" *ngIf="!loadingShareableGroups">
+          <ion-item
+            class="share-group-item"
+            *ngFor="let group of shareableGroups"
+            button
+            (click)="toggleShareGroupSelection(group.groupId)"
+            [disabled]="sendingWorkoutSummaryToGroups"
+          >
+            <img
+              [src]="group.groupImage || 'assets/icons/Icon.png'"
+              (error)="$any($event.target).src = 'assets/icons/Icon.png'"
+              alt=""
+              aria-hidden="true"
+            />
+            <ion-label>{{ group.name }}</ion-label>
+            <ion-checkbox
+              slot="end"
+              [checked]="isShareGroupSelected(group.groupId)"
+              (click)="$event.stopPropagation()"
+              (ionChange)="toggleShareGroupSelection(group.groupId, $event.detail.checked)"
+            ></ion-checkbox>
+          </ion-item>
+        </ion-list>
+
+        <ion-button
+          class="primary-action share-submit-btn"
+          expand="block"
+          (click)="shareWorkoutSummaryToSelectedGroups()"
+          [disabled]="selectedShareGroupIds.size === 0 || sendingWorkoutSummaryToGroups"
+        >
+          {{ sendingWorkoutSummaryToGroups ? 'Sharing...' : 'Share to Selected (' + selectedShareGroupIds.size + ')' }}
+        </ion-button>
+      </div>
+    </ion-content>
+  </ng-template>
+</ion-modal>

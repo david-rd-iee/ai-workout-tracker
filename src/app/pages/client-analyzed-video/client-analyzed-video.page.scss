@@ -1,5 +1,54 @@
+$atlas-surface-high: #f1f5fc;
+$atlas-surface: #e8eef8;
+$atlas-shadow-dark: rgba(184, 196, 214, 0.88);
+$atlas-shadow-light: rgba(249, 252, 255, 0.95);
+$atlas-text: #5a6880;
+$atlas-muted: #8b9ab0;
+$atlas-blue-strong: #2e6ef5;
+
+@mixin atlas-neu($radius: 22px) {
+  background: linear-gradient(145deg, $atlas-surface-high, $atlas-surface);
+  border-radius: $radius;
+  border: 1px solid rgba(255, 255, 255, 0.78);
+  box-shadow:
+    14px 14px 28px -14px $atlas-shadow-dark,
+    -12px -12px 24px -14px $atlas-shadow-light;
+}
+
+@mixin atlas-inset($radius: 18px) {
+  background: linear-gradient(145deg, #edf2fb, #e4ebf7);
+  border-radius: $radius;
+  border: 1px solid rgba(255, 255, 255, 0.56);
+  box-shadow:
+    inset 7px 7px 12px -10px rgba(184, 196, 214, 0.9),
+    inset -7px -7px 12px -10px rgba(249, 252, 255, 0.95);
+}
+
 .client-analyzed-video-content {
-  --background: linear-gradient(180deg, #f6f7f3 0%, #eef1ea 100%);
+  --background: #dbe3f0;
+  position: relative;
+}
+
+.background-gradient {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 14% -4%, rgba(255, 255, 255, 0.84) 0, rgba(255, 255, 255, 0) 36%),
+    radial-gradient(circle at 86% 8%, rgba(160, 179, 219, 0.34) 0, rgba(160, 179, 219, 0) 42%),
+    linear-gradient(145deg, #d5deeb 0%, #e8eef8 48%, #dbe4f1 100%);
+}
+
+.client-analyzed-video-page {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  min-height: 100%;
+}
+
+:host ::ng-deep app-video-analysis-viewer {
+  display: block;
+  min-height: 100%;
 }
 
 .loading-state,
@@ -12,13 +61,9 @@
   align-items: center;
   justify-content: center;
   gap: 12px;
-  border-radius: 22px;
-  background: rgba(255, 255, 255, 0.92);
-  box-shadow:
-    0 18px 34px rgba(17, 33, 32, 0.12),
-    inset 0 0 0 1px rgba(31, 71, 58, 0.06);
-  color: #546361;
+  color: $atlas-muted;
   text-align: center;
+  @include atlas-neu(22px);
 }
 
 .loading-state p,
@@ -27,13 +72,32 @@
   line-height: 1.5;
 }
 
+.loading-state ion-spinner {
+  color: $atlas-blue-strong;
+}
+
+:host ::ng-deep app-header .header-button {
+  --background: linear-gradient(145deg, #eef3fb, #e2e9f5);
+  --background-hover: linear-gradient(145deg, #f5f8fd, #e8eef8);
+  --background-activated: linear-gradient(145deg, #e0e8f4, #d5deed);
+  --color: #2e6ef5;
+  border-radius: 50%;
+  box-shadow:
+    8px 8px 16px -12px rgba(184, 196, 214, 0.92),
+    -8px -8px 16px -12px rgba(249, 252, 255, 0.96);
+}
+
 @media (orientation: landscape) {
   .client-analyzed-video-content {
-    --background: #081010;
     --padding-top: 0;
     --padding-bottom: 0;
     --padding-start: 0;
     --padding-end: 0;
     --overflow: hidden;
+  }
+
+  .client-analyzed-video-page {
+    height: 100%;
+    min-height: 100%;
   }
 }

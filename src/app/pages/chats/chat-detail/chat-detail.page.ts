@@ -13,18 +13,19 @@ import {
   IonIcon,
   IonFooter,
   IonTextarea,
+  AlertController,
   LoadingController,
   ToastController,
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
-import { arrowUp } from 'ionicons/icons';
+import { arrowUp, menuOutline } from 'ionicons/icons';
 import { ChatsService } from 'src/app/services/chats.service';
 import { UserService } from 'src/app/services/account/user.service';
 import { AccountService } from 'src/app/services/account/account.service';
-import { Message } from 'src/app/Interfaces/Chats';
+import { Chat, Message } from 'src/app/Interfaces/Chats';
 import { ref, onValue, get } from '@angular/fire/database';
 import { Database } from '@angular/fire/database';
-import { Firestore, doc, updateDoc, arrayUnion, serverTimestamp } from '@angular/fire/firestore';
+import { Firestore, doc, getDoc, updateDoc, arrayUnion, serverTimestamp } from '@angular/fire/firestore';
 import { SessionRescheduleMessageComponent } from 'src/app/components/sessions/session-reschedule-message/session-reschedule-message.component';
 
 interface WorkoutSummaryCardEntry {
@@ -69,9 +70,15 @@ interface WorkoutSummaryCardModel {
 export class ChatDetailPage implements OnInit, OnDestroy {
   @ViewChild(IonContent) content!: IonContent;
   
+  readonly atlasLogoPath = 'assets/icons/atlas.svg';
   chatId: string = '';
   otherUserId: string = '';
   otherUserName: string = 'User';
+  otherUserProfilePic: string = '';
+  isGroupChat = false;
+  isPTGroupChat = false;
+  groupId: string = '';
+  groupMemberNames: string[] = [];
   currentUserId: string = '';
   messageText: string = '';
   messages: Message[] = [];
@@ -87,10 +94,11 @@ export class ChatDetailPage implements OnInit, OnDestroy {
     private accountService: AccountService,
     private db: Database,
     private firestore: Firestore,
+    private alertCtrl: AlertController,
     private loadingCtrl: LoadingController,
     private toastCtrl: ToastController
   ) {
-    addIcons({ arrowUp });
+    addIcons({ arrowUp, menuOutline });
   }
 
   async ngOnInit() {
@@ -108,30 +116,38 @@ export class ChatDetailPage implements OnInit, OnDestroy {
     }
     
     if (this.chatId) {
-      // If we don't have otherUserId, get it from the chat data
-      if (!this.otherUserId) {
-        await this.loadOtherUserIdFromChat();
-      }
-      
+      await this.loadChatContext();
       this.loadMessages();
-      this.loadOtherUserName();
+      if (!this.isGroupChat) {
+        await this.loadOtherUserName();
+      }
     }
   }
 
-  async loadOtherUserIdFromChat() {
+  private async loadChatContext(): Promise<void> {
     try {
       const chatRef = ref(this.db, `chats/${this.chatId}`);
       const snapshot = await get(chatRef);
       
       if (snapshot.exists()) {
-        const chatData = snapshot.val();
-        const participants = chatData.participants || [];
-        
-        // Find the other user (not current user)
-        this.otherUserId = participants.find((id: string) => id !== this.currentUserId) || '';
+        const chatData = snapshot.val() as Partial<Chat>;
+        const participants = this.normalizeUserIds(chatData.participants);
+
+        this.isGroupChat = this.isGroupChatRecord(chatData, participants);
+        if (this.isGroupChat) {
+          this.groupId = this.normalizeString(chatData.groupId);
+          this.otherUserName = this.normalizeString(chatData.displayName) || 'Group Chat';
+          this.otherUserProfilePic = this.normalizeString(chatData.groupImage);
+          await this.loadGroupMemberNames(participants);
+          return;
+        }
+
+        if (!this.otherUserId) {
+          this.otherUserId = participants.find((id) => id !== this.currentUserId) || '';
+        }
       }
     } catch (error) {
-      console.error('Error loading other user ID from chat:', error);
+      console.error('Error loading chat context:', error);
     }
   }
 
@@ -176,13 +192,107 @@ export class ChatDetailPage implements OnInit, OnDestroy {
     }
     
     try {
-      const profile = await this.userService.getResolvedUserProfileDirectly(this.otherUserId, 'trainer');
+      let profile = await this.userService.getResolvedUserProfileDirectly(this.otherUserId, 'trainer');
+      if (!profile) {
+        profile = await this.userService.getResolvedUserProfileDirectly(this.otherUserId, 'client');
+      }
+
       if (profile) {
         this.otherUserName = `${profile.firstName || ''} ${profile.lastName || ''}`.trim() || 'User';
+        this.otherUserProfilePic = String(profile.profilepic || '').trim();
       }
     } catch (error) {
       console.error('Error loading other user name:', error);
     }
+  }
+
+  async openGroupMembersMenu(): Promise<void> {
+    if (!this.isGroupChat || this.groupMemberNames.length === 0) {
+      return;
+    }
+
+    const membersHtml = this.groupMemberNames
+      .map((memberName) => `- ${this.escapeHtml(memberName)}`)
+      .join('<br/>');
+
+    const alert = await this.alertCtrl.create({
+      header: `${this.otherUserName} Members`,
+      message: membersHtml,
+      buttons: ['Close'],
+    });
+
+    await alert.present();
+  }
+
+  private async loadGroupMemberNames(fallbackParticipantIds: string[]): Promise<void> {
+    let memberIds = fallbackParticipantIds;
+
+    const normalizedGroupId = this.normalizeString(this.groupId);
+    if (normalizedGroupId) {
+      try {
+        const groupRef = doc(this.firestore, 'groupID', normalizedGroupId);
+        const groupSnapshot = await getDoc(groupRef);
+        if (groupSnapshot.exists()) {
+          const groupData = groupSnapshot.data() as Record<string, unknown>;
+          this.isPTGroupChat = groupData['isPTGroup'] === true;
+
+          const groupName = this.normalizeString(groupData['name']);
+          if (groupName) {
+            this.otherUserName = groupName;
+          }
+
+          const groupImage = this.normalizeString(groupData['groupImage']);
+          if (groupImage) {
+            this.otherUserProfilePic = groupImage;
+          }
+
+          memberIds = this.normalizeUserIds(groupData['userIDs']);
+        }
+      } catch (error) {
+        console.error('Error loading group details for chat:', error);
+      }
+    }
+
+    this.groupMemberNames = await this.resolveMemberNames(memberIds);
+  }
+
+  private async resolveMemberNames(memberIds: string[]): Promise<string[]> {
+    const uniqueIds = this.normalizeUserIds(memberIds);
+    if (uniqueIds.length === 0) {
+      return [];
+    }
+
+    const memberNames = await Promise.all(
+      uniqueIds.map(async (uid) => {
+        try {
+          const summary = await this.userService.getUserSummaryDirectly(uid);
+          const username = this.normalizeString(summary?.username);
+          const fullName = `${this.normalizeString(summary?.firstName)} ${this.normalizeString(summary?.lastName)}`.trim();
+
+          if (uid === this.currentUserId) {
+            if (username) {
+              return `You (@${username})`;
+            }
+            if (fullName) {
+              return `You (${fullName})`;
+            }
+            return 'You';
+          }
+
+          if (username) {
+            return `@${username}`;
+          }
+          if (fullName) {
+            return fullName;
+          }
+          return uid;
+        } catch {
+          return uid === this.currentUserId ? 'You' : uid;
+        }
+      })
+    );
+
+    return memberNames;
   }
 
   async sendMessage() {
@@ -452,5 +562,41 @@ export class ChatDetailPage implements OnInit, OnDestroy {
       'Calories Burned:',
       'Details:',
     ].some((prefix) => line.startsWith(prefix));
+  }
+
+  private isGroupChatRecord(chatData: Partial<Chat>, participants: string[]): boolean {
+    return chatData.type === 'group' || !!this.normalizeString(chatData.groupId) || participants.length > 2;
+  }
+
+  private normalizeUserIds(value: unknown): string[] {
+    if (!Array.isArray(value)) {
+      return [];
+    }
+
+    const uniqueIds = new Set<string>();
+    for (const entry of value) {
+      const normalized = this.normalizeString(entry);
+      if (normalized) {
+        uniqueIds.add(normalized);
+      }
+    }
+
+    return Array.from(uniqueIds);
+  }
+
+  private normalizeString(value: unknown): string {
+    if (typeof value !== 'string') {
+      return '';
+    }
+    return value.trim();
+  }
+
+  private escapeHtml(value: string): string {
+    return value
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
   }
 }

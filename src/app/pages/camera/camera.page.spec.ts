@@ -19,6 +19,9 @@ describe('CameraPage', () => {
     getCurrentUser: jasmine
       .createSpy('getCurrentUser')
       .and.returnValue(signal({ uid: 'test-user', email: 'user@example.com' })),
+    getUserInfo: jasmine
+      .createSpy('getUserInfo')
+      .and.returnValue(signal(null)),
     getUserSummaryDirectly: jasmine
       .createSpy('getUserSummaryDirectly')
       .and.resolveTo({ trainerId: '' }),

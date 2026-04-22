@@ -1,9 +1,11 @@
-<app-header [currentUser]="currentUser"></app-header>
+<app-header class="home-header-overlay" [currentUser]="currentUser" [neoBlend]="true"></app-header>
 
 <ion-content [fullscreen]="true">
   <div class="background-gradient"></div>
 
   <div class="home-container">
+    <div class="home-header-space" aria-hidden="true"></div>
+
     <!-- Welcome Section -->
     <div class="welcome-section">
       <h1>Welcome back, {{ userName() }}!</h1>
@@ -33,21 +35,21 @@
         </ion-card-content>
       </ion-card>
 
-      <!-- Live Session -->
-      <ion-card button="true" (click)="navigateTo('live-session')">
-        <ion-card-content>
-          <h2>Start Live Session</h2>
-          <p>Track heart rate live during your workout</p>
-        </ion-card-content>
-      </ion-card>
-
-      <!-- Workout Insights -->
-      <ion-card button="true" (click)="navigateTo('workout-insights')">
-        <ion-card-content>
-          <h2>Workout Insights</h2>
-          <p>View heart rate metrics and workout analytics</p>
-        </ion-card-content>
-      </ion-card>
+      <div class="secondary-actions-grid">
+        <ion-card class="secondary-action-card" button="true" (click)="navigateTo('live-session')">
+          <ion-card-content>
+            <div class="secondary-action-content">
+              <div class="secondary-action-icon">
+                <ion-icon name="fitness-outline"></ion-icon>
+              </div>
+              <div class="secondary-action-copy">
+                <h2>Live Session</h2>
+                <p>Track heart rate live during your workout</p>
+              </div>
+            </div>
+          </ion-card-content>
+        </ion-card>
+      </div>
 
       <!-- Widgets Grid -->
       <div class="widgets-grid">
@@ -90,7 +92,7 @@
 
       <!-- Upcoming Sessions -->
       <div class="upcoming-sessions" *ngIf="isWidgetEnabled('upcoming-session')">
-        <h2>Upcoming Sessions</h2>
+        <h2 class="section-title">Upcoming Sessions</h2>
         <ng-container *ngIf="upcomingSessions && upcomingSessions.length > 0; else noSessions">
           <ion-card class="session-card" *ngFor="let session of upcomingSessions" button="true" (click)="viewSessionDetails(session)">
             <ion-card-content>
@@ -170,8 +172,8 @@
 
       <!-- My Clients Section -->
       <div class="clients-section">
-        <h2>My Clients</h2>
-        <p *ngIf="clients.length === 0">No Clients, yet.</p>
+        <h2 class="section-title">My Clients</h2>
+        <p class="empty-state" *ngIf="clients.length === 0">No Clients, yet.</p>
         <ion-card class="client-card" *ngFor="let client of clients" button="true" (click)="viewClientDetails(client)">
           <ion-card-content>
             <div class="client-content">
@@ -193,6 +195,14 @@
                   <span class="stat-divider">·</span>
                   <span class="stat">Last: {{ client.lastWorkout | date:'MMM d' }}</span>
                 </div>
+                <ion-button
+                  class="view-videos-button"
+                  fill="outline"
+                  size="small"
+                  (click)="viewClientWorkoutVideos(client, $event)"
+                >
+                  View Workout Videos
+                </ion-button>
               </div>
               <ion-icon name="chevron-forward" class="chevron"></ion-icon>
             </div>

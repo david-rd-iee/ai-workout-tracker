@@ -1,10 +1,43 @@
-.lb-shell {}
+:host {
+  display: block;
+}
+
+$neo-surface-high: #f1f5fc;
+$neo-surface: #e8eef8;
+$neo-shadow-dark: rgba(184, 196, 214, 0.88);
+$neo-shadow-light: rgba(249, 252, 255, 0.95);
+$neo-text: #5a6880;
+$neo-muted: #8b9ab0;
+$neo-accent: #2e6ef5;
+
+@mixin neo-raised($radius: 22px) {
+  background: linear-gradient(145deg, $neo-surface-high, $neo-surface);
+  border-radius: $radius;
+  border: 1px solid rgba(255, 255, 255, 0.78);
+  box-shadow:
+    14px 14px 28px -14px $neo-shadow-dark,
+    -12px -12px 24px -14px $neo-shadow-light;
+}
+
+@mixin neo-inset($radius: 18px) {
+  background: linear-gradient(145deg, #edf2fb, #e4ebf7);
+  border-radius: $radius;
+  border: 1px solid rgba(255, 255, 255, 0.56);
+  box-shadow:
+    inset 7px 7px 12px -10px rgba(184, 196, 214, 0.9),
+    inset -7px -7px 12px -10px rgba(249, 252, 255, 0.95);
+}
+
+.lb-shell {
+  display: grid;
+  gap: 12px;
+}
 
 .topbar {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 14px 14px 8px 12px;
+  padding: 2px 2px 0;
 }
 
 .topbar-spacer {
@@ -12,68 +45,106 @@
   flex: 0 0 36px;
 }
 
-.back-btn {
-  --padding-start: 6px;
-  --padding-end: 6px;
-  --color: #000;
-  font-size: 20px;
-}
-
+.back-btn,
 .action-btn {
   --padding-start: 6px;
   --padding-end: 6px;
-  --color: #000;
-  font-size: 20px;
+  --background: transparent;
+  --background-hover: transparent;
+  --background-activated: transparent;
+  --background-focused: transparent;
+  --color: #2e6ef5;
+  width: 40px;
+  height: 40px;
+  margin: 0;
+  border-radius: 14px;
+  box-shadow:
+    7px 7px 14px -12px rgba(153, 171, 198, 0.85),
+    -7px -7px 14px -11px rgba(255, 255, 255, 0.9);
 }
 
 .title-pill {
+  @include neo-raised(18px);
   flex: 1;
-  background: rgba(255, 255, 255, 0.55);
-  border-radius: 14px;
   padding: 10px 14px;
-  font-size: 28px;
-  font-weight: 800;
+  color: $neo-text;
+  font-size: 1.08rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
   text-align: center;
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.12);
+}
+
+.stats-card,
+.members-card,
+ion-card {
+  --background: transparent;
+  background: transparent;
+  box-shadow: none;
+  border: 0;
+  margin: 0;
+}
+
+.stats-card,
+.members-card {
+  @include neo-raised(24px);
 }
 
 .stats-card {
-  margin: 8px 10px;
-  border-radius: 20px;
-  background: #2f7fce;
-  padding: 16px;
-  box-shadow: 0 10px 18px rgba(0, 0, 0, 0.14);
+  padding: 14px;
 }
 
 .stats-title {
-  color: #fff;
-  font-size: 38px;
-  font-weight: 900;
+  color: $neo-text;
+  font-size: 1.24rem;
+  font-weight: 700;
   text-align: center;
   margin-bottom: 10px;
+  letter-spacing: 0.01em;
 }
 
 .stats-graph {
-  background: rgba(255, 255, 255, 0.92);
-  border-radius: 16px;
+  @include neo-inset(18px);
   padding: 10px;
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08);
 }
 
 .graph-region-label {
-  font-size: 15px;
+  font-size: 0.8rem;
   font-weight: 700;
-  color: #184270;
+  color: $neo-muted;
   margin-bottom: 6px;
   text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.chart-mode-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 6px;
+}
+
+.chart-mode-select {
+  @include neo-inset(10px);
+  --padding-start: 8px;
+  --padding-end: 8px;
+  min-height: 30px;
+  color: $neo-text;
+  font-weight: 700;
+  font-size: 12px;
 }
 
 .graph-placeholder {
   position: relative;
   height: 264px;
   border-radius: 14px;
-  background: linear-gradient(to top, rgba(47, 127, 206, 0.25), rgba(47, 127, 206, 0.05));
+  background: linear-gradient(180deg, rgba(111, 158, 255, 0.2), rgba(111, 158, 255, 0.06));
   overflow: hidden;
+}
+
+.trend-ngx-chart {
+  position: absolute;
+  inset: 0;
+  display: block;
 }
 
 .distribution-ngx-chart {
@@ -98,6 +169,10 @@
   opacity: 0.68;
 }
 
+:host ::ng-deep .trend-ngx-chart .line-series .line {
+  stroke-width: 2.2px;
+}
+
 .distribution-point-overlay {
   position: absolute;
   inset: 0;
@@ -117,7 +192,7 @@
   top: 10px;
   bottom: 14px;
   width: 0;
-  border-left: 1px dashed rgba(24, 66, 112, 0.42);
+  border-left: 1px dashed rgba(46, 110, 245, 0.35);
   transform: translateX(-50%);
 }
 
@@ -127,8 +202,8 @@
   width: 10px;
   height: 10px;
   border-radius: 999px;
-  background: #fff7ec;
-  border: 2px solid #da811a;
+  background: #f3f8ff;
+  border: 2px solid #2e6ef5;
   box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.75);
 }
 
@@ -139,8 +214,8 @@
   min-width: 32px;
   padding: 1px 6px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.96);
-  color: #184270;
+  background: rgba(241, 246, 255, 0.96);
+  color: $neo-text;
   font-size: 11px;
   font-weight: 800;
   line-height: 1.2;
@@ -155,7 +230,7 @@
   height: 16px;
   border-radius: 999px;
   border: 1px solid #ffffff;
-  background: #2f7fce;
+  background: #2e6ef5;
   color: #ffffff;
   font-size: 8px;
   font-weight: 800;
@@ -182,19 +257,8 @@
 }
 
 .distribution-point.point-selected {
-  background: #e78b18;
-  border-color: #4b2b07;
-  animation: distribution-point-pulse 1.5s ease-in-out infinite;
-}
-
-@keyframes distribution-point-pulse {
-  0%,
-  100% {
-    box-shadow: 0 4px 10px rgba(94, 50, 4, 0.35);
-  }
-  50% {
-    box-shadow: 0 4px 16px rgba(94, 50, 4, 0.55);
-  }
+  background: #6f9eff;
+  border-color: #1f55cb;
 }
 
 .chart-empty-msg {
@@ -202,16 +266,12 @@
   inset: 0;
   display: grid;
   place-items: center;
-  color: rgba(0, 0, 0, 0.55);
+  color: rgba(90, 104, 128, 0.82);
   font-weight: 600;
 }
 
 .members-card {
-  margin: 10px 14px 18px;
-  border-radius: 18px;
-  background: #2f7fce;
-  padding: 12px 10px 14px;
-  box-shadow: 0 10px 18px rgba(0, 0, 0, 0.14);
+  padding: 12px;
 }
 
 .members-toolbar {
@@ -219,7 +279,7 @@
   grid-template-columns: 116px 1fr 126px;
   align-items: center;
   gap: 8px;
-  padding: 6px 6px 10px;
+  padding: 2px 2px 10px;
 }
 
 .members-toolbar.single-control {
@@ -231,23 +291,22 @@
 }
 
 .small-select {
-  background: rgba(0, 0, 0, 0.12);
-  border-radius: 8px;
+  @include neo-inset(10px);
   height: 30px;
   padding-left: 8px;
-  color: #fff;
+  color: $neo-text;
 }
 
 .members-title {
   text-align: center;
-  font-weight: 900;
-  color: #fff;
-  font-size: 18px;
+  font-weight: 700;
+  color: $neo-text;
+  font-size: 1rem;
+  letter-spacing: 0.01em;
 }
 
 .members-body {
-  background: rgba(255, 255, 255, 0.88);
-  border-radius: 14px;
+  @include neo-inset(16px);
   padding: 10px;
 }
 
@@ -257,7 +316,8 @@
   align-items: center;
   gap: 10px;
   padding: 10px 6px;
-  color: rgba(0, 0, 0, 0.75);
+  color: $neo-text;
+  font-size: 0.9rem;
 }
 
 .members-list {
@@ -266,15 +326,12 @@
 }
 
 .member-row {
+  @include neo-raised(14px);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: #eef6ff;
-  border-radius: 14px;
   padding: 10px 10px;
   margin-bottom: 10px;
-  box-shadow: 0 8px 14px rgba(0, 0, 0, 0.14);
-  border: 2px solid #2f7fce;
   cursor: pointer;
   transition: transform 0.15s ease;
 }
@@ -284,13 +341,13 @@
 }
 
 .member-row:focus-visible {
-  outline: 2px solid #2f7fce;
+  outline: 2px solid #2e6ef5;
   outline-offset: 2px;
 }
 
 .member-row.row-highlighted {
-  border-color: rgba(190, 140, 40, 0.7);
-  background: #f2ead9;
+  border-color: rgba(111, 158, 255, 0.52);
+  background: linear-gradient(145deg, #eef4ff, #e4edff);
 }
 
 .member-left {
@@ -302,7 +359,7 @@
 .avatar {
   width: 44px;
   height: 44px;
-  border: 2px solid rgba(190, 140, 40, 0.8);
+  border: 2px solid rgba(111, 158, 255, 0.6);
   overflow: hidden;
 }
 
@@ -312,7 +369,7 @@
   display: grid;
   place-items: center;
   border-radius: 50%;
-  background: #2f7fce;
+  background: #2e6ef5;
   color: #ffffff;
   font-weight: 800;
   font-size: 16px;
@@ -320,21 +377,100 @@
 }
 
 .member-name .name-main {
-  font-weight: 900;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 700;
+  color: $neo-text;
 }
 
 .member-name .name-sub {
   font-size: 12px;
   font-weight: 700;
-  opacity: 0.75;
+  color: $neo-muted;
+}
+
+.trainer-verified-btn {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #2e6ef5;
+  font-size: 16px;
+}
+
+.trainer-verified-label {
+  color: #2e6ef5;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
 }
 
 .member-right {
   text-align: right;
   font-size: 12px;
-  opacity: 0.85;
+  color: $neo-muted;
 }
 
 .rank {
   font-weight: 800;
+  color: $neo-text;
+}
+
+.score {
+  font-weight: 700;
+  color: $neo-accent;
+}
+
+@media (max-width: 768px) {
+  .stats-title {
+    font-size: 1.12rem;
+  }
+
+  .members-toolbar,
+  .members-toolbar.single-control {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .members-title {
+    order: -1;
+  }
+
+  .members-toolbar-spacer {
+    display: none;
+  }
+}
+
+@media (max-width: 540px) {
+  .topbar {
+    gap: 8px;
+  }
+
+  .title-pill {
+    font-size: 0.96rem;
+    padding: 8px 10px;
+  }
+
+  .stats-card,
+  .members-card {
+    border-radius: 20px;
+    padding: 10px;
+  }
+
+  .graph-placeholder {
+    height: 238px;
+  }
+
+  .member-row {
+    padding: 9px 8px;
+  }
+
+  .member-right {
+    font-size: 11px;
+  }
 }

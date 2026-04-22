@@ -29,19 +29,30 @@ export const appNavAnimation: AnimationBuilder = (_baseEl: any, opts: any): Anim
   const leavingIsLoggingMethodRoutes = containsSelector(leavingEl, 'app-logging-method-routes');
   const enteringIsWorkoutHistory = containsSelector(enteringEl, 'app-workout-history');
   const leavingIsWorkoutHistory = containsSelector(leavingEl, 'app-workout-history');
-  const enteringIsClientWorkoutAnalysis = containsSelector(enteringEl, 'app-client-workout-analysis');
-  const leavingIsClientWorkoutAnalysis = containsSelector(leavingEl, 'app-client-workout-analysis');
   const enteringIsHome = containsSelector(enteringEl, 'app-home');
   const leavingIsWorkoutSummary = containsSelector(leavingEl, 'app-workout-summary');
   const isProfileHorizontalTransition =
     (
       enteringIsProfile &&
-      (leavingIsGroups || leavingIsWorkoutChatbot || leavingIsLoggingMethodRoutes || leavingIsClientWorkoutAnalysis)
+      (
+        leavingIsGroups ||
+        leavingIsWorkoutChatbot ||
+        leavingIsLoggingMethodRoutes ||
+        leavingIsWorkoutHistory
+      )
     ) ||
     (
       leavingIsProfile &&
-      (enteringIsGroups || enteringIsWorkoutChatbot || enteringIsLoggingMethodRoutes || enteringIsClientWorkoutAnalysis)
+      (
+        enteringIsGroups ||
+        enteringIsWorkoutChatbot ||
+        enteringIsLoggingMethodRoutes ||
+        enteringIsWorkoutHistory
+      )
     );
+  const isProfileWorkoutHistoryTransition =
+    (enteringIsProfile && leavingIsWorkoutHistory) ||
+    (leavingIsProfile && enteringIsWorkoutHistory);
   const isSummaryToHomeTransition =
     !isBack && leavingIsWorkoutSummary && enteringIsHome;
 
@@ -49,7 +60,7 @@ export const appNavAnimation: AnimationBuilder = (_baseEl: any, opts: any): Anim
   const useProfileVerticalTransition =
     (enteringIsProfile || leavingIsProfile) && !isProfileHorizontalTransition;
   const useWorkoutHistoryVerticalTransition =
-    enteringIsWorkoutHistory || leavingIsWorkoutHistory;
+    (enteringIsWorkoutHistory || leavingIsWorkoutHistory) && !isProfileWorkoutHistoryTransition;
 
   const rootAnimation = createAnimation().duration(420).easing('cubic-bezier(0.32, 0.72, 0, 1)');
   const enteringAnimation = createAnimation().addElement(enteringEl);

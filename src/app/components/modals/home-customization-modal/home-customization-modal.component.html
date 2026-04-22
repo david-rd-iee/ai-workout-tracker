@@ -1,28 +1,28 @@
-<ion-header>
-  <ion-toolbar color="primary">
+<ion-header class="trainer-modal-header">
+  <ion-toolbar class="trainer-modal-toolbar">
     <ion-title>Customize Home Page</ion-title>
     <ion-buttons slot="end">
-      <ion-button (click)="dismiss()">
+      <ion-button class="modal-close-button" (click)="dismiss()">
         <ion-icon name="close"></ion-icon>
       </ion-button>
     </ion-buttons>
   </ion-toolbar>
 </ion-header>
 
-<ion-content class="ion-padding">
-  <div class="modal-content">
-    <!-- Client Header -->
-    <div class="client-header">
+<ion-content class="customization-content">
+  <div class="background-gradient"></div>
+  <div class="modal-page">
+    <section class="client-header">
       <div class="client-avatar">
         <ion-icon name="person-circle"></ion-icon>
       </div>
       <div class="client-info">
+        <p class="eyebrow">Home Setup</p>
         <h2>{{ clientName }}</h2>
-        <p>Personalize their home page experience</p>
+        <p>Personalize their home page experience with a cleaner trainer-side control panel.</p>
       </div>
-    </div>
+    </section>
 
-    <!-- Widgets Section -->
     <ion-card class="widgets-card">
       <ion-card-header>
         <div class="card-header-with-icon">
@@ -57,7 +57,6 @@
       </ion-card-content>
     </ion-card>
 
-    <!-- Preview Section -->
     <ion-card class="preview-card">
       <ion-card-header>
         <div class="card-header-with-icon">

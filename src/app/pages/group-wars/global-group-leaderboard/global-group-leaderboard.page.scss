@@ -1,0 +1,215 @@
+:host {
+  display: block;
+  background: #dbe3f0;
+}
+
+$neo-page-bg: #dbe3f0;
+$neo-surface-high: #f1f5fc;
+$neo-surface: #e8eef8;
+$neo-shadow-dark: rgba(184, 196, 214, 0.88);
+$neo-shadow-light: rgba(249, 252, 255, 0.95);
+$neo-text: #5a6880;
+$neo-muted: #8b9ab0;
+$neo-accent: #2e6ef5;
+$neo-gold: #d4af37;
+$neo-gold-deep: #b8941a;
+$neo-gold-light: #f0cf68;
+$neo-gold-text: #8b7355;
+
+@mixin neo-raised($radius: 22px) {
+  background: linear-gradient(145deg, $neo-surface-high, $neo-surface);
+  border-radius: $radius;
+  border: 1px solid rgba(255, 255, 255, 0.78);
+  box-shadow:
+    14px 14px 28px -14px $neo-shadow-dark,
+    -12px -12px 24px -14px $neo-shadow-light;
+}
+
+@mixin neo-inset($radius: 18px) {
+  background: linear-gradient(145deg, #edf2fb, #e4ebf7);
+  border-radius: $radius;
+  border: 1px solid rgba(255, 255, 255, 0.56);
+  box-shadow:
+    inset 7px 7px 12px -10px rgba(184, 196, 214, 0.9),
+    inset -7px -7px 12px -10px rgba(249, 252, 255, 0.95);
+}
+
+.global-wars-page {
+  --background: $neo-page-bg;
+  --ion-background-color: $neo-page-bg;
+  background: $neo-page-bg;
+  position: relative;
+}
+
+.global-wars-page::part(background),
+.global-wars-page::part(scroll) {
+  background: $neo-page-bg;
+}
+
+.background-gradient {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 14% -4%, rgba(255, 255, 255, 0.84) 0, rgba(255, 255, 255, 0) 36%),
+    radial-gradient(circle at 86% 8%, rgba(160, 179, 219, 0.34) 0, rgba(160, 179, 219, 0) 42%),
+    linear-gradient(145deg, #d5deeb 0%, #e8eef8 48%, #dbe4f1 100%);
+  pointer-events: none;
+}
+
+.global-wars-container {
+  position: relative;
+  z-index: 1;
+  padding: 16px;
+  padding-top: 10px;
+  max-width: 980px;
+  min-height: 100%;
+  margin: 0 auto;
+}
+
+.state-message {
+  @include neo-raised(22px);
+  text-align: center;
+  color: $neo-text;
+  font-weight: 600;
+  font-size: 0.92rem;
+  line-height: 1.45;
+  padding: 24px 16px;
+  display: grid;
+  place-items: center;
+  gap: 8px;
+}
+
+.state-message.error {
+  color: #9d5f67;
+}
+
+.leaderboard-list {
+  display: grid;
+  gap: 12px;
+}
+
+.leaderboard-row {
+  border: 1px solid rgba(255, 255, 255, 0.62);
+  border-radius: 22px;
+  background: linear-gradient(145deg, $neo-gold-light, $neo-gold);
+  box-shadow:
+    12px 12px 22px -14px rgba(161, 129, 36, 0.52),
+    -10px -10px 20px -14px rgba(255, 244, 209, 0.86);
+  display: grid;
+  grid-template-columns: auto 44px 1fr auto;
+  gap: 12px;
+  align-items: center;
+  width: 100%;
+  text-align: left;
+  padding: 12px;
+  transition: transform 170ms ease, box-shadow 170ms ease;
+
+  &:active {
+    transform: translateY(1px) scale(0.997);
+    box-shadow:
+      9px 9px 18px -14px rgba(136, 108, 28, 0.5),
+      -6px -6px 14px -12px rgba(255, 247, 221, 0.78);
+  }
+
+  img {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    object-fit: cover;
+    background: linear-gradient(145deg, rgba(255, 245, 219, 0.94), rgba(237, 206, 111, 0.84));
+    border: 1px solid rgba(255, 255, 255, 0.54);
+    box-shadow:
+      inset 6px 6px 10px -10px rgba(157, 125, 35, 0.6),
+      inset -6px -6px 10px -10px rgba(255, 248, 226, 0.9);
+    padding: 3px;
+  }
+}
+
+.rank {
+  min-width: 50px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  color: #fff8e8;
+  font-size: 0.9rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  background: linear-gradient(145deg, #d8b446, $neo-gold-deep);
+  box-shadow:
+    5px 5px 10px -8px rgba(117, 92, 21, 0.55),
+    -5px -5px 10px -8px rgba(255, 237, 182, 0.7);
+}
+
+.meta {
+  display: grid;
+  gap: 2px;
+
+  strong {
+    color: #5f4d28;
+    font-size: 1.02rem;
+    font-weight: 680;
+    line-height: 1.2;
+  }
+
+  small {
+    color: $neo-gold-text;
+    font-size: 0.8rem;
+    line-height: 1.2;
+    font-weight: 600;
+  }
+}
+
+.points {
+  color: #6b5526;
+  font-size: 0.92rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  justify-self: end;
+  white-space: nowrap;
+}
+
+@media (max-width: 768px) {
+  .global-wars-container {
+    padding: 14px;
+    padding-top: 10px;
+  }
+}
+
+@media (max-width: 520px) {
+  .leaderboard-row {
+    grid-template-columns: auto 40px 1fr;
+    grid-template-rows: auto auto;
+    gap: 8px 10px;
+
+    .points {
+      grid-column: 2 / span 2;
+      justify-self: start;
+      margin-left: 2px;
+    }
+
+    img {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+    }
+  }
+
+  .rank {
+    min-width: 44px;
+    font-size: 0.82rem;
+    padding: 5px 8px;
+  }
+
+  .meta {
+    strong {
+      font-size: 0.95rem;
+    }
+
+    small {
+      font-size: 0.76rem;
+    }
+  }
+
+  .points {
+    font-size: 0.82rem;
+  }
+}

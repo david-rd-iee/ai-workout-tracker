@@ -21,7 +21,8 @@ import { AccountService } from '../../services/account/account.service';
 import { addIcons } from 'ionicons';
 import { arrowBackOutline } from 'ionicons/icons';
 import { VideoAnalysisViewerComponent } from '../../components/video-analysis-viewer/video-analysis-viewer.component';
-import { VideoAnalysisViewerAnalysis } from '../../components/video-analysis-viewer/video-analysis-viewer.types';
+import { VideoAnalysisViewerAnalysis, normalizePoseFrames } from '../../components/video-analysis-viewer/video-analysis-viewer.types';
+import { VideoAnalysisFrame } from '../../models/video-analysis.model';
 
 @Component({
   selector: 'app-trainer-workout-analyzer',
@@ -56,6 +57,7 @@ export class TrainerWorkoutAnalyzerPage implements OnInit {
   errorMessage = '';
   clientId = '';
   clientName = '';
+  analysisId = '';
   workoutAnalyses: VideoAnalysisViewerAnalysis[] = [];
   selectedAnalysis: VideoAnalysisViewerAnalysis | null = null;
   isPublishingToClient = false;
@@ -67,13 +69,16 @@ export class TrainerWorkoutAnalyzerPage implements OnInit {
   async ngOnInit(): Promise<void> {
     this.clientId = String(this.route.snapshot.paramMap.get('clientId') || '').trim();
     this.clientName = String(this.route.snapshot.queryParamMap.get('clientName') || '').trim();
+    this.analysisId = String(this.route.snapshot.queryParamMap.get('analysisId') || '').trim();
     await this.loadWorkoutAnalyses();
   }
 
   goBack(): void {
-    this.navCtrl.navigateBack('/client-workout-analysis', {
+    const fallbackRoute = this.clientId ? `/trainer-client-videos/${this.clientId}` : '/tabs/home';
+    this.navCtrl.navigateBack(fallbackRoute, {
       animated: true,
       animationDirection: 'back',
+      queryParams: this.clientName ? { clientName: this.clientName } : undefined,
     });
   }
 
@@ -97,11 +102,27 @@ export class TrainerWorkoutAnalyzerPage implements OnInit {
     return String(this.accountService.getCredentials()().uid || '').trim();
   }
 
-  selectAnalysis(analysis: VideoAnalysisViewerAnalysis): void {
+  async selectAnalysis(analysis: VideoAnalysisViewerAnalysis): Promise<void> {
+    let resolved = analysis;
+
+    // Lazy-load pose frames from the artifact URL when inline data was not stored.
+    if (!resolved.poseFrames?.length && resolved.poseArtifactUrl) {
+      try {
+        const frames = await this.loadPoseFramesFromUrl(resolved.poseArtifactUrl);
+        resolved = { ...resolved, poseFrames: frames.length ? frames : undefined, poseArtifactUrl: undefined };
+        // Persist the loaded frames into the cached list so re-selection is instant.
+        this.workoutAnalyses = this.workoutAnalyses.map(a =>
+          a.id === resolved.id ? resolved : a
+        );
+      } catch {
+        // Non-critical — angle tool will show an unavailable message.
+      }
+    }
+
     this.selectedAnalysis = {
-      ...analysis,
-      notes: [...analysis.notes],
-      drawings: [...analysis.drawings],
+      ...resolved,
+      notes: [...resolved.notes],
+      drawings: [...resolved.drawings],
     };
   }
 
@@ -199,6 +220,15 @@ export class TrainerWorkoutAnalyzerPage implements OnInit {
             : '';
           const fallbackLabel = analyzedAtIso || String(data['recordedAt'] || '').trim() || docSnap.id;
 
+          const inlinePoseAnalysis = analysis?.['poseAnalysis'] ?? null;
+          const inlineBodyLandmarks = analysis?.['bodyLandmarks'] ?? null;
+          const poseFrames = normalizePoseFrames(inlineBodyLandmarks, inlinePoseAnalysis);
+          const bodyLandmarksArtifact = this.asRecord(this.asRecord(data['artifacts'])?.['bodyLandmarks']);
+          const poseArtifactUrl =
+            !poseFrames.length && typeof bodyLandmarksArtifact?.['downloadUrl'] === 'string'
+              ? bodyLandmarksArtifact['downloadUrl'].trim()
+              : undefined;
+
           return {
             id: docSnap.id,
             documentId: docSnap.id,
@@ -219,12 +249,18 @@ export class TrainerWorkoutAnalyzerPage implements OnInit {
               : null,
             notes: this.readNotes(data['notes']),
             drawings: this.readDrawings(data['drawings']),
+            poseFrames: poseFrames.length ? poseFrames : undefined,
+            poseArtifactUrl,
           } satisfies VideoAnalysisViewerAnalysis;
         })
         .filter((analysis) => !!analysis.recordingUrl)
         .sort((left, right) => right.analyzedAtIso.localeCompare(left.analyzedAtIso));
 
-      this.selectedAnalysis = this.workoutAnalyses[0] ?? null;
+      const initiallySelectedAnalysis = this.analysisId
+        ? this.workoutAnalyses.find((analysis) => analysis.id === this.analysisId) ?? null
+        : null;
+
+      this.selectedAnalysis = initiallySelectedAnalysis || this.workoutAnalyses[0] || null;
     } catch (error) {
       console.error('[TrainerWorkoutAnalyzerPage] Failed to load workout analyses:', error);
       this.errorMessage = 'Unable to load workout analyses right now.';
@@ -301,6 +337,16 @@ export class TrainerWorkoutAnalyzerPage implements OnInit {
       })
       .filter((note): note is VideoAnalysisViewerAnalysis['notes'][number] => note !== null)
       .sort((left, right) => left.timestampSeconds - right.timestampSeconds);
+  }
+
+  private async loadPoseFramesFromUrl(url: string): Promise<VideoAnalysisFrame[]> {
+    const response = await fetch(url);
+    if (!response.ok) {
+      return [];
+    }
+    const data: unknown = await response.json();
+    // The body-landmarks artifact stores a plain VideoAnalysisFrame[] in the legacy format.
+    return normalizePoseFrames(data, null);
   }
 
   private readDrawings(value: unknown): VideoAnalysisViewerAnalysis['drawings'] {

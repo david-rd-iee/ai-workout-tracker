@@ -8,72 +8,82 @@
   <div class="background-gradient"></div>
 
   <div class="treadmill-logger-page">
-    <ion-card class="hero-card">
-      <ion-card-content>
-        <h2>Snap your treadmill screen</h2>
-        <p>
-          Take a clear photo of the treadmill display and we&apos;ll pull out the cardio
-          workout details for review before saving.
-        </p>
+    <section class="logger-hero">
+      <div class="hero-title-row">
+        <h1>Snap your treadmill screen</h1>
+        <ion-button
+          fill="clear"
+          size="small"
+          class="hero-info-button"
+          [disabled]="isAnalyzing || isSavingWorkout"
+          (click)="showCaptureInstructions()"
+          aria-label="Show treadmill capture instructions"
+        >
+          Info
+        </ion-button>
+      </div>
+    </section>
 
-        <div class="machine-selector">
-          <p class="selector-label">Machine Used</p>
-          <div class="machine-options">
-            <ion-button
-              *ngFor="let option of machineTypeOptions"
-              size="small"
-              [fill]="selectedMachineType === option.value ? 'solid' : 'outline'"
-              [disabled]="isAnalyzing || isSavingWorkout"
-              (click)="selectMachineType(option.value)"
-            >
-              {{ option.label }}
-            </ion-button>
-          </div>
-        </div>
-
-        <div class="preview-shell" *ngIf="photoDataUrl; else emptyPreview">
-          <img [src]="photoDataUrl" alt="Treadmill photo preview" class="preview-image" />
-        </div>
-
-        <ng-template #emptyPreview>
-          <div class="preview-placeholder">
-            <p>No treadmill photo captured yet.</p>
-          </div>
-        </ng-template>
-
-        <div class="button-stack">
+    <section class="hero-card">
+      <div class="machine-selector">
+        <p class="selector-label">Machine Used</p>
+        <div class="machine-options">
           <ion-button
-            expand="block"
-            class="primary-button"
-            [disabled]="isCapturing || isAnalyzing || isSavingWorkout"
-            (click)="captureTreadmillPhoto()"
+            *ngFor="let option of machineTypeOptions"
+            size="small"
+            class="machine-option-button"
+            [class.machine-option-button-selected]="selectedMachineType === option.value"
+            [fill]="selectedMachineType === option.value ? 'solid' : 'outline'"
+            [disabled]="isAnalyzing || isSavingWorkout"
+            (click)="selectMachineType(option.value)"
           >
-            {{ photoDataUrl ? 'Retake Treadmill Photo' : 'Take Treadmill Photo' }}
-          </ion-button>
-
-          <ion-button
-            expand="block"
-            fill="outline"
-            [disabled]="!photoDataUrl || isAnalyzing || isSavingWorkout"
-            (click)="analyzePhoto()"
-          >
-            <ion-spinner slot="start" name="crescent" *ngIf="isAnalyzing"></ion-spinner>
-            Log Workout
+            {{ option.label }}
           </ion-button>
         </div>
+      </div>
 
-        <ion-text color="medium" *ngIf="statusMessage && !errorMessage">
-          <p class="status-text">{{ statusMessage }}</p>
-        </ion-text>
+      <div class="preview-shell" *ngIf="photoDataUrl; else emptyPreview">
+        <img [src]="photoDataUrl" alt="Treadmill photo preview" class="preview-image" />
+      </div>
 
-        <ion-text color="danger" *ngIf="errorMessage">
-          <p class="status-text">{{ errorMessage }}</p>
-        </ion-text>
-      </ion-card-content>
-    </ion-card>
+      <ng-template #emptyPreview>
+        <div class="preview-placeholder">
+          <div class="placeholder-card">
+            <p class="placeholder-title">No treadmill photo captured</p>
+            <p class="placeholder-copy">Take a sharp photo of the treadmill display so the logger can detect distance, time, and calories.</p>
+          </div>
+        </div>
+      </ng-template>
 
-    <ion-card class="summary-card" *ngIf="hasAnalyzedWorkout">
-      <ion-card-content>
+      <div class="button-stack">
+        <ion-button
+          expand="block"
+          class="primary-button"
+          [disabled]="isCapturing || isAnalyzing || isSavingWorkout"
+          (click)="captureTreadmillPhoto()"
+        >
+          {{ photoDataUrl ? 'Retake Treadmill Photo' : 'Take Treadmill Photo' }}
+        </ion-button>
+
+        <ion-button
+          expand="block"
+          fill="outline"
+          class="secondary-button"
+          [disabled]="!photoDataUrl || isAnalyzing || isSavingWorkout"
+          (click)="analyzePhoto()"
+        >
+          <ion-spinner slot="start" name="crescent" *ngIf="isAnalyzing"></ion-spinner>
+          Analyze Photo
+        </ion-button>
+      </div>
+
+      <ion-text color="danger" *ngIf="errorMessage">
+        <p class="status-text status-text-error">{{ errorMessage }}</p>
+      </ion-text>
+    </section>
+
+    <section class="summary-card" *ngIf="hasAnalyzedWorkout">
+      <div class="summary-card-inner">
         <p class="eyebrow">Detected Cardio Workout</p>
         <div class="summary-row" *ngFor="let row of cardioRows">
           <h3>{{ formatExerciseName(row.cardio_type) }}</h3>
@@ -95,7 +105,7 @@
           <ion-spinner slot="start" name="crescent" *ngIf="isSavingWorkout"></ion-spinner>
           Save Workout
         </ion-button>
-      </ion-card-content>
-    </ion-card>
+      </div>
+    </section>
   </div>
 </ion-content>

@@ -1,1 +1,112 @@
-/* Shared styles moved to src/global.scss */
+ion-content {
+  --background: transparent;
+}
+
+$atlas-surface: #f5f9ff;
+$atlas-blue: #172bff;
+$atlas-shadow-dark: #ccd5e2;
+$atlas-shadow-light: #ffffff;
+$atlas-text: #111111;
+$atlas-muted: #5b6473;
+
+@mixin atlas-neu($radius: 24px) {
+  background: $atlas-surface;
+  border-radius: $radius;
+  box-shadow:
+    7px 7px 14px rgba($atlas-shadow-dark, 0.9),
+    -7px -7px 14px rgba($atlas-shadow-light, 0.95);
+}
+
+.calendar-shell {
+  position: relative;
+  z-index: 1;
+  padding: 18px 16px 32px;
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+.loading-container {
+  position: relative;
+  z-index: 1;
+  margin: 18px 16px 0;
+  padding: 18px;
+  text-align: center;
+  color: $atlas-muted;
+  @include atlas-neu(22px);
+
+  ion-spinner {
+    color: $atlas-blue;
+    transform: scale(1.05);
+  }
+
+  p {
+    margin: 10px 0 0;
+    font-size: 14px;
+    font-weight: 500;
+  }
+}
+
+.calendar-card,
+.summary-card,
+.empty-card {
+  --background: transparent;
+  background: transparent;
+  box-shadow: none;
+  margin: 0 0 18px;
+}
+
+.calendar-card ion-card-content,
+.summary-card ion-card-header,
+.empty-card ion-card-content {
+  @include atlas-neu(24px);
+}
+
+.calendar-card ion-card-content {
+  padding: 18px;
+}
+
+.summary-card ion-card-header,
+.empty-card ion-card-content {
+  padding: 18px 20px;
+}
+
+.summary-card ion-card-title {
+  font-size: 20px;
+  line-height: 1.25;
+  color: $atlas-text;
+  font-family: 'Roboto Flex', 'Inter', sans-serif;
+  font-weight: 700;
+}
+
+.empty-card p {
+  margin: 0;
+  color: $atlas-muted;
+  line-height: 1.5;
+}
+
+.trainings-container {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+ion-datetime {
+  width: 100%;
+  --background: transparent;
+  --background-rgb: 245, 249, 255;
+  --title-color: #111111;
+  --wheel-highlight-background: rgba(23, 43, 255, 0.12);
+  --wheel-fade-background-rgb: 245, 249, 255;
+  --ion-color-primary: #172bff;
+  border-radius: 20px;
+}
+
+@media (max-width: 768px) {
+  .calendar-shell {
+    padding: 16px 14px 28px;
+  }
+
+  .summary-card ion-card-title {
+    font-size: 18px;
+  }
+}

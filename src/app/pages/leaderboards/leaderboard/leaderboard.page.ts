@@ -1,20 +1,27 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnDestroy, OnInit, inject } from '@angular/core';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import {
   NavController,
   IonContent,
+  IonButton,
+  IonIcon,
+  ToastController,
 } from '@ionic/angular/standalone';
 import { Firestore, doc, onSnapshot } from '@angular/fire/firestore';
 import { Subscription } from 'rxjs';
+import { addIcons } from 'ionicons';
+import { chatbubblesOutline } from 'ionicons/icons';
 
 import {
   LeaderboardService,
   LeaderboardEntry,
+  LeaderboardTrendSeries,
   Metric,
 } from '../../../services/leaderboard.service';
 import {
   DistributionPoint,
+  LeaderboardChartMode,
   LeaderboardShellComponent,
 } from '../../../components/leaderboard-shell/leaderboard-shell.component';
 import { AccountService } from '../../../services/account/account.service';
@@ -22,30 +29,42 @@ import {
   buildLeaderboardDistributionChart,
   emptyLeaderboardDistributionChart,
 } from '../../../components/leaderboard-shell/leaderboard-distribution.util';
+import { HeaderComponent } from '../../../components/header/header.component';
+import { ChatsService } from '../../../services/chats.service';
 
 @Component({
   selector: 'app-leaderboard',
   standalone: true,
   templateUrl: './leaderboard.page.html',
   styleUrls: ['./leaderboard.page.scss'],
-  imports: [CommonModule, IonContent, LeaderboardShellComponent],
+  imports: [CommonModule, IonContent, IonButton, IonIcon, LeaderboardShellComponent, HeaderComponent],
 })
 export class LeaderboardPage implements OnInit, OnDestroy {
+  private static readonly SMALL_POPULATION_THRESHOLD = 10;
+
   private route = inject(ActivatedRoute);
+  private router = inject(Router);
   private navCtrl = inject(NavController);
   private leaderboard = inject(LeaderboardService);
   private accountService = inject(AccountService);
   private firestore = inject(Firestore);
+  private chatsService = inject(ChatsService);
+  private toastCtrl = inject(ToastController);
 
   groupId = '';
   groupName = 'Group';
+  isPTGroup = false;
   showSettingsButton = false;
+  openingGroupChat = false;
 
   loading = true;
   errorMsg = '';
   metric: Metric = 'total';
+  chartMode: LeaderboardChartMode = 'distribution';
+  availableChartModes: LeaderboardChartMode[] = ['distribution'];
 
   entries: LeaderboardEntry[] = [];
+  trendSeries: LeaderboardTrendSeries[] = [];
   distributionCurvePath = '';
   distributionPoints: DistributionPoint[] = [];
   distributionMedianXPercent: number | null = null;
@@ -54,8 +73,11 @@ export class LeaderboardPage implements OnInit, OnDestroy {
   selectedPointUserIds = new Set<string>();
   private groupUnsubscribe: (() => void) | null = null;
   private leaderboardSub?: Subscription;
+  private trendSub?: Subscription;
 
-  constructor() {}
+  constructor() {
+    addIcons({ chatbubblesOutline });
+  }
 
   async ngOnInit(): Promise<void> {
     const groupId = this.route.snapshot.paramMap.get('groupID');
@@ -76,6 +98,15 @@ export class LeaderboardPage implements OnInit, OnDestroy {
     this.subscribeToLeaderboard();
   }
 
+  onChartModeChanged(mode: LeaderboardChartMode): void {
+    if (!this.availableChartModes.includes(mode) || this.chartMode === mode) {
+      return;
+    }
+
+    this.chartMode = mode;
+    this.syncChartForCurrentMode();
+  }
+
   private subscribeToLeaderboard(): void {
     this.leaderboardSub?.unsubscribe();
     this.errorMsg = '';
@@ -86,23 +117,20 @@ export class LeaderboardPage implements OnInit, OnDestroy {
         this.entries = entries;
         this.loading = false;
         this.errorMsg = '';
-        this.buildDistributionChart();
+        this.syncChartOptionsByPopulation();
+        this.syncChartForCurrentMode();
       },
       error: (err: any) => {
         console.warn('[GroupLeaderboard] subscription failed', err);
         this.errorMsg = err?.message ?? 'Failed to load group leaderboard.';
         this.entries = [];
+        this.trendSeries = [];
+        this.trendSub?.unsubscribe();
+        this.trendSub = undefined;
         this.resetChartSelection();
         this.clearDistributionChart();
         this.loading = false;
       },
-    });
-  }
-
-  goBack(): void {
-    this.navCtrl.navigateBack('/groups', {
-      animated: true,
-      animationDirection: 'back',
     });
   }
 
@@ -151,8 +179,12 @@ export class LeaderboardPage implements OnInit, OnDestroy {
       (snap) => {
         if (!snap.exists()) {
           this.groupName = 'Group';
+          this.isPTGroup = false;
           this.showSettingsButton = false;
           this.entries = [];
+          this.trendSeries = [];
+          this.trendSub?.unsubscribe();
+          this.trendSub = undefined;
           this.resetChartSelection();
           this.clearDistributionChart();
           return;
@@ -160,6 +192,7 @@ export class LeaderboardPage implements OnInit, OnDestroy {
 
         const group = snap.data() as any;
         this.groupName = typeof group?.name === 'string' && group.name.trim() ? group.name : 'Group';
+        this.isPTGroup = group?.isPTGroup === true;
 
         const ownerUserId = typeof group?.ownerUserId === 'string' ? group.ownerUserId.trim() : '';
         const currentUserId = this.accountService.getCredentials()().uid;
@@ -167,9 +200,62 @@ export class LeaderboardPage implements OnInit, OnDestroy {
       },
       () => {
         this.groupName = 'Group';
+        this.isPTGroup = false;
         this.showSettingsButton = false;
       }
     );
+  }
+
+  async openGroupChat(): Promise<void> {
+    if (!this.groupId || this.openingGroupChat) {
+      return;
+    }
+
+    if (this.isPTGroup) {
+      await this.showToast('Group chat is unavailable for PT groups.');
+      return;
+    }
+
+    this.openingGroupChat = true;
+    try {
+      const currentUserId = this.accountService.getCredentials()().uid;
+      if (!currentUserId) {
+        await this.showToast('Please sign in again to open group chat.');
+        return;
+      }
+
+      const chatId = await this.chatsService.ensureGroupChatForGroup(this.groupId);
+
+      await this.router.navigate(['/chat', chatId], {
+        state: {
+          isGroupChat: true,
+          groupId: this.groupId,
+        },
+      });
+    } catch (error) {
+      console.error('[GroupLeaderboard] Failed to open group chat:', error);
+      const errorCode = typeof error === 'object' && error && 'code' in error
+        ? String((error as { code?: unknown }).code ?? '')
+        : '';
+      if (errorCode.includes('failed-precondition')) {
+        await this.showToast('Group chat is unavailable for this group.');
+        return;
+      }
+
+      if (errorCode.includes('permission-denied')) {
+        await this.showToast('You are not a member of this group chat.');
+        return;
+      }
+
+      if (errorCode.includes('not-found')) {
+        await this.showToast('This group no longer exists.');
+        return;
+      }
+
+      await this.showToast('Could not open group chat.');
+    } finally {
+      this.openingGroupChat = false;
+    }
   }
 
   openGroupSettings(): void {
@@ -183,6 +269,7 @@ export class LeaderboardPage implements OnInit, OnDestroy {
     this.groupUnsubscribe?.();
     this.groupUnsubscribe = null;
     this.leaderboardSub?.unsubscribe();
+    this.trendSub?.unsubscribe();
   }
 
   private resetChartSelection(): void {
@@ -199,11 +286,65 @@ export class LeaderboardPage implements OnInit, OnDestroy {
     this.distributionMedianLabel = chart.medianLabel;
   }
 
+  private syncChartOptionsByPopulation(): void {
+    if (this.entries.length <= LeaderboardPage.SMALL_POPULATION_THRESHOLD) {
+      this.availableChartModes = ['trend'];
+      this.chartMode = 'trend';
+      return;
+    }
+
+    this.availableChartModes = ['distribution', 'trend'];
+    this.chartMode = 'distribution';
+  }
+
+  private syncChartForCurrentMode(): void {
+    if (this.chartMode === 'trend') {
+      this.resetChartSelection();
+      this.clearDistributionChart();
+      this.subscribeToTrendSeries();
+      return;
+    }
+
+    this.trendSub?.unsubscribe();
+    this.trendSub = undefined;
+    this.trendSeries = [];
+    this.buildDistributionChart();
+  }
+
+  private subscribeToTrendSeries(): void {
+    this.trendSub?.unsubscribe();
+    this.trendSub = undefined;
+
+    if (this.entries.length === 0) {
+      this.trendSeries = [];
+      return;
+    }
+
+    this.trendSub = this.leaderboard.watchAddedScoreTrend(this.entries, this.metric).subscribe({
+      next: (series) => {
+        this.trendSeries = series;
+      },
+      error: (error) => {
+        console.warn('[GroupLeaderboard] Failed to load trend chart data', error);
+        this.trendSeries = [];
+      },
+    });
+  }
+
   private clearDistributionChart(): void {
     const chart = emptyLeaderboardDistributionChart();
     this.distributionCurvePath = chart.curvePath;
     this.distributionPoints = chart.points;
     this.distributionMedianXPercent = chart.medianXPercent;
     this.distributionMedianLabel = chart.medianLabel;
+  }
+
+  private async showToast(message: string): Promise<void> {
+    const toast = await this.toastCtrl.create({
+      message,
+      duration: 1800,
+      position: 'bottom',
+    });
+    await toast.present();
   }
 }

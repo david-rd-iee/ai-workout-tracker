@@ -16,6 +16,14 @@ import type {
 } from "../../shared/models/workout-event.model";
 export { retrainExerciseEstimatorOnWorkoutLogCreate } from "./exerciseEstimatorTraining";
 export { completeWorkoutEvent } from "./completeWorkoutEvent";
+export { onClientTrainerAssignmentChange } from "./userStatsVerification";
+export { proposeGroupWarMatches } from "./groupWarMatchmaking";
+export { onGroupWarProposalUpdated } from "./groupWarProposalLifecycle";
+export { finalizeExpiredGroupWars } from "./groupWarFinalization";
+export {
+  ensureGroupChatForGroup,
+  onGroupDocumentWrittenSyncChat,
+} from "./groupChatSync";
 export {
   onWorkoutEventCreated,
 } from "./workoutEventPostWriteHandlers";

@@ -1,4 +1,9 @@
-<div class="greek-statue" [class]="'size-' + size" [class.uncarved]="isUncarved">
+<div
+  class="greek-statue"
+  [class]="'size-' + size"
+  [class.uncarved]="isUncarved"
+  [class.showcase-layout]="layout === 'showcase'"
+>
   <div class="statue-container">
     <!-- Statue Icon with Gradient Background -->
     <div class="statue-icon" [style.background]="statueGradient">
@@ -33,7 +38,7 @@
     </div>
 
     <!-- Statue Info -->
-    <div class="statue-info">
+    <div class="statue-info" *ngIf="layout === 'full'">
       <div class="statue-header">
         <h3 class="god-name">{{ statue.godName }}</h3>
         <p class="god-title">{{ statue.title }}</p>
@@ -66,7 +71,7 @@
       </div>
 
       <!-- Progress to Next Stage -->
-      <div class="progress-section" *ngIf="showProgress && progress">
+      <div class="progress-section" *ngIf="layout === 'full' && showProgress && progress">
         <div class="progress-header">
           <span class="progress-text">
             {{ progress.nextLevel ? 'Next Stage: ' + tierConfig[progress.nextLevel].displayName : 'Divine Masterpiece!' }}
@@ -99,15 +104,15 @@
       </div>
 
       <!-- Carving Stage Description -->
-      <div class="carving-stage" *ngIf="!isUncarved">
+      <div class="carving-stage" *ngIf="layout === 'full' && !isUncarved">
         <p class="stage-description">
           <ion-icon name="information-circle-outline"></ion-icon>
           {{ carvingStageDescription }}
         </p>
       </div>
 
-      <p class="mythology-text">{{ statue.mythology }}</p>
-      <p class="statue-description">{{ statue.description }}</p>
+      <p class="mythology-text" *ngIf="layout === 'full'">{{ statue.mythology }}</p>
+      <p class="statue-description" *ngIf="layout === 'full'">{{ statue.description }}</p>
     </div>
   </div>
 </div>

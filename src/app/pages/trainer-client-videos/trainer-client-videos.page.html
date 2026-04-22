@@ -1,0 +1,54 @@
+<app-header
+  [title]="clientName || 'Client Videos'"
+  [showBack]="true"
+  [backHref]="'/tabs/home'"
+  [neoBlend]="true"
+></app-header>
+
+<ion-content [fullscreen]="true" class="trainer-client-videos-content">
+  <div class="background-gradient"></div>
+
+  <div class="trainer-client-videos-page">
+    <section class="videos-hero">
+      <p class="hero-eyebrow">Workout Library</p>
+      <h1>Choose a video to open in the analyzer.</h1>
+      <p class="hero-copy">
+        Videos are sorted with the newest on top so you can jump into the latest session first.
+      </p>
+    </section>
+
+    <section class="videos-shell" *ngIf="!isLoading; else loadingState">
+      <h2>Videos</h2>
+      <p class="error-text" *ngIf="errorMessage">{{ errorMessage }}</p>
+
+      <ng-container *ngIf="!errorMessage">
+        <button
+          type="button"
+          class="video-row"
+          *ngFor="let video of videos"
+          (click)="openVideo(video)"
+        >
+          <span class="video-copy">
+            <strong>{{ video.workoutName }}</strong>
+            <small>{{ video.recordedAtLabel }}</small>
+          </span>
+          <span class="video-row-icon" aria-hidden="true">
+            <ion-icon name="chevron-forward-outline"></ion-icon>
+          </span>
+        </button>
+
+        <div class="empty-state" *ngIf="videos.length === 0">
+          <ion-icon name="analytics-outline"></ion-icon>
+          <p>No analyzed videos found for this client yet.</p>
+        </div>
+      </ng-container>
+    </section>
+
+    <ng-template #loadingState>
+      <div class="loading-state">
+        <ion-spinner name="crescent"></ion-spinner>
+        <p>Loading client videos...</p>
+      </div>
+    </ng-template>
+  </div>
+</ion-content>

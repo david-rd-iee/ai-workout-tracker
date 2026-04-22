@@ -1,70 +1,104 @@
-<ion-header [translucent]="true">
-  <ion-toolbar class="settings-toolbar">
-    <ion-buttons slot="start">
-      <ion-button fill="clear" class="back-button" (click)="goBack()" aria-label="Go back">
-        <ion-icon name="arrow-back-outline" slot="icon-only"></ion-icon>
-      </ion-button>
-    </ion-buttons>
-    <ion-title>Find Trainer</ion-title>
-  </ion-toolbar>
-</ion-header>
+<app-header
+  [title]="'Find Trainer'"
+  [showBack]="true"
+  [backHref]="'/profile-user'"
+></app-header>
 
 <ion-content [fullscreen]="true" class="settings-content">
-  <div class="settings-shell">
-    <section class="settings-panel">
-      <h2>Choose Your Trainer</h2>
-      <p class="page-copy">Select one trainer to connect with your profile.</p>
+  <div class="background-gradient"></div>
+  <div class="settings-page">
+    <div class="client-find-trainer-page">
+      <section class="logger-hero">
+        <div class="hero-title-row">
+          <h1>Trainers:</h1>
+        </div>
+      </section>
 
-      <ion-text color="danger" *ngIf="errorMessage">
-        <p class="form-message">{{ errorMessage }}</p>
-      </ion-text>
+      <section class="hero-card">
+        <ion-text color="danger" *ngIf="errorMessage">
+          <p class="form-message form-message-error">{{ errorMessage }}</p>
+        </ion-text>
 
-      <ion-text color="success" *ngIf="successMessage">
-        <p class="form-message">{{ successMessage }}</p>
-      </ion-text>
+        <ion-text color="success" *ngIf="successMessage">
+          <p class="form-message form-message-success">{{ successMessage }}</p>
+        </ion-text>
 
-      <div class="loading-state" *ngIf="isLoading">
-        <ion-spinner name="crescent"></ion-spinner>
-      </div>
-
-      <div class="empty-state" *ngIf="!isLoading && trainers.length === 0">
-        No trainers found.
-      </div>
-
-      <div class="trainer-list" *ngIf="!isLoading && trainers.length > 0">
-        <article class="trainer-block" *ngFor="let trainer of trainers; trackBy: trackTrainer">
-          <div class="trainer-row">
-            <ion-avatar class="trainer-avatar">
-              <img
-                [src]="trainer.profileImage"
-                [alt]="trainer.firstName + ' ' + trainer.lastName"
-                (error)="onImageError($event)"
-              />
-            </ion-avatar>
-
-            <div class="trainer-name">
-              {{ trainer.firstName }} {{ trainer.lastName }}
-            </div>
+        <div class="loading-state" *ngIf="isLoading">
+          <div class="loading-card">
+            <ion-spinner name="crescent"></ion-spinner>
+            <span>Loading trainers...</span>
           </div>
+        </div>
 
-          <ion-button
-            expand="block"
-            class="trainer-action-btn"
-            [class.blocked]="isActionBlocked(trainer.uid)"
-            [color]="selectedTrainerUid === trainer.uid ? 'danger' : 'primary'"
-            [disabled]="isActionDisabled(trainer.uid)"
-            (click)="onTrainerAction(trainer)"
+        <div class="empty-state" *ngIf="!isLoading && trainers.length === 0">
+          <div class="empty-card">
+            <span class="empty-title">No trainers found</span>
+            <span class="empty-copy">Check back again once more trainer profiles are available.</span>
+          </div>
+        </div>
+
+        <div class="trainer-list" *ngIf="!isLoading && trainers.length > 0">
+          <article
+            class="trainer-block"
+            [class.trainer-block-selected]="selectedTrainerUid === trainer.uid"
+            *ngFor="let trainer of trainers; trackBy: trackTrainer"
           >
-            {{
-              pendingTrainerUid === trainer.uid
-                ? 'Saving...'
-                : selectedTrainerUid === trainer.uid
-                ? 'Remove as Trainer'
-                : 'Add as Trainer'
-            }}
-          </ion-button>
-        </article>
-      </div>
-    </section>
+            <div class="trainer-row">
+              <div class="trainer-profile">
+                <ion-avatar class="trainer-avatar">
+                  <img
+                    [src]="trainer.profileImage"
+                    [alt]="trainer.firstName + ' ' + trainer.lastName"
+                    (error)="onImageError($event)"
+                  />
+                </ion-avatar>
+
+                <div class="trainer-copy">
+                  <div class="trainer-name-row">
+                    <div class="trainer-name">
+                      {{ trainer.firstName }} {{ trainer.lastName }}
+                    </div>
+                    <div class="trainer-status-pill" *ngIf="selectedTrainerUid === trainer.uid">
+                      Active
+                    </div>
+                  </div>
+
+                  <div class="trainer-meta">
+                    {{ selectedTrainerUid === trainer.uid ? 'Currently linked to your profile' : 'Available to add to your support team' }}
+                  </div>
+                </div>
+              </div>
+
+              <div class="trainer-icon-well" aria-hidden="true">
+                <span>{{ selectedTrainerUid === trainer.uid ? '✓' : '+' }}</span>
+              </div>
+            </div>
+
+            <div class="trainer-footer">
+              <div class="trainer-hint" *ngIf="isActionBlocked(trainer.uid)">
+                Remove your current trainer before choosing another.
+              </div>
+
+              <ion-button
+                expand="block"
+                class="trainer-action-btn"
+                [class.blocked]="isActionBlocked(trainer.uid)"
+                [class.remove]="selectedTrainerUid === trainer.uid"
+                [disabled]="isActionDisabled(trainer.uid)"
+                (click)="onTrainerAction(trainer)"
+              >
+                {{
+                  pendingTrainerUid === trainer.uid
+                    ? 'Saving...'
+                    : selectedTrainerUid === trainer.uid
+                    ? 'Remove as Trainer'
+                    : 'Add as Trainer'
+                }}
+              </ion-button>
+            </div>
+          </article>
+        </div>
+      </section>
+    </div>
   </div>
 </ion-content>

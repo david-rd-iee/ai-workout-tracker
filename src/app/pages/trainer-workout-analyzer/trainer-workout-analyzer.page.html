@@ -51,34 +51,37 @@
 </ion-header>
 
 <ion-content [id]="contentId" [fullscreen]="false" class="trainer-workout-analyzer-content">
-  <ng-container *ngIf="!isLoading; else loadingState">
-    <app-video-analysis-viewer
-      *ngIf="selectedAnalysis; else emptySelection"
-      [analysis]="selectedAnalysis"
-      [clientId]="clientId"
-      [trainerId]="trainerUid"
-      [readonly]="isSelectedAnalysisReadOnly"
-      [showTools]="!isSelectedAnalysisReadOnly"
-      [showSendToClient]="true"
-      [sendToClientLabel]="sendToClientLabel"
-      [disableSendToClient]="!canSendToClient"
-      (analysisChange)="handleAnalysisChange($event)"
-      (requestSendToClient)="sendAnalysisToClient()"
-    ></app-video-analysis-viewer>
+  <div class="background-gradient"></div>
+  <div class="trainer-workout-analyzer-page">
+    <ng-container *ngIf="!isLoading; else loadingState">
+      <app-video-analysis-viewer
+        *ngIf="selectedAnalysis; else emptySelection"
+        [analysis]="selectedAnalysis"
+        [clientId]="clientId"
+        [trainerId]="trainerUid"
+        [readonly]="isSelectedAnalysisReadOnly"
+        [showTools]="!isSelectedAnalysisReadOnly"
+        [showSendToClient]="true"
+        [sendToClientLabel]="sendToClientLabel"
+        [disableSendToClient]="!canSendToClient"
+        (analysisChange)="handleAnalysisChange($event)"
+        (requestSendToClient)="sendAnalysisToClient()"
+      ></app-video-analysis-viewer>
 
-    <ng-template #emptySelection>
-      <div class="hero-card">
-        <h1>Workout Analyzer</h1>
-        <p *ngIf="clientName">Select a saved analysis for {{ clientName }} from the top-right menu.</p>
-        <p *ngIf="!clientName">Select a saved analysis from the top-right menu.</p>
+      <ng-template #emptySelection>
+        <div class="hero-card">
+          <h1>Workout Analyzer</h1>
+          <p *ngIf="clientName">Select a saved analysis for {{ clientName }} from the top-right menu.</p>
+          <p *ngIf="!clientName">Select a saved analysis from the top-right menu.</p>
+        </div>
+      </ng-template>
+    </ng-container>
+
+    <ng-template #loadingState>
+      <div class="loading-state">
+        <ion-spinner name="crescent"></ion-spinner>
+        <p>Loading workout analyses...</p>
       </div>
     </ng-template>
-  </ng-container>
-
-  <ng-template #loadingState>
-    <div class="loading-state">
-      <ion-spinner name="crescent"></ion-spinner>
-      <p>Loading workout analyses...</p>
-    </div>
-  </ng-template>
+  </div>
 </ion-content>

@@ -26,6 +26,7 @@ const rtdb = admin.database();
 const WORKOUT_EVENT_PATH = "users/{userId}/workoutEvents/{eventId}";
 const DERIVATIONS_COLLECTION = "derivations";
 const WORKOUT_SUMMARIES_COLLECTION = "workoutSummaries";
+const CHAT_SUMMARIES_ROOT = "chatSummaries";
 const EXERCISE_ESTIMATOR_ROOT_COLLECTION = "exercise_estimators";
 const EXERCISE_ESTIMATOR_PARENT_DOC = "default";
 const EXERCISE_ESTIMATOR_WORKOUT_LOGS_COLLECTION = "workout_logs";
@@ -110,6 +111,12 @@ interface GroupRankingsMap {
   [key: string]: number | string | undefined;
 }
 
+interface UserScoreTotals {
+  totalScore: number;
+  totalCardioScore: number;
+  totalStrengthScore: number;
+}
+
 interface StreakData {
   currentStreak: number;
   maxStreak: number;
@@ -156,6 +163,7 @@ async function processWorkoutEventCreatedStats(
 ): Promise<void> {
   await processWorkoutEventCreatedUserStats(context);
   await processWorkoutEventCreatedScoreAggregation(context);
+  await processWorkoutEventCreatedGroupWarScoring(context);
 }
 
 async function processWorkoutEventCreatedUserStats(
@@ -502,6 +510,15 @@ async function processWorkoutEventCreatedScoreAggregation(
         nextTotalScore,
         userGroupIds,
       });
+      const nextGroupWarWeights = await calculateGroupWarWeights(transaction, {
+        userId,
+        userGroupIds,
+        nextUserScoreTotals: {
+          totalScore: nextTotalScore,
+          totalCardioScore: newCardioScore,
+          totalStrengthScore: newStrengthScore,
+        },
+      });
       const currentAddedScore = addedScoreSnap.exists ? addedScoreSnap.data() ?? {} : {};
       const nextCardioScoreAddedToday = toWholeNumber(
         toNonNegativeNumber(currentAddedScore["cardioScoreAddedToday"]) + addedCardioScore
@@ -566,6 +583,16 @@ async function processWorkoutEventCreatedScoreAggregation(
           {
             ...payload,
             createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          },
+          {merge: true}
+        );
+      });
+
+      Object.entries(nextGroupWarWeights).forEach(([groupId, warWeight]) => {
+        transaction.set(
+          db.doc(`groupID/${groupId}`),
+          {
+            warWeight,
           },
           {merge: true}
         );
@@ -679,6 +706,15 @@ async function processWorkoutEventCreatedWorkoutSummary(
         rtdb.ref(`chats/${chatId}/lastMessageTime`).set(messageTimestamp)
       );
     }
+
+    writes.push(
+      upsertDirectChatSummary(chatId, [userId, trainerUid], {
+        lastMessage: messageText,
+        lastMessageTime: messageTimestamp,
+        senderId: userId,
+        incrementUnreadForUserIds: existingMessageSnapshot.exists() ? [] : [trainerUid],
+      })
+    );
   }
 
   writes.push(
@@ -700,6 +736,394 @@ async function processWorkoutEventCreatedWorkoutSummary(
   );
 
   await Promise.all(writes);
+}
+
+async function processWorkoutEventCreatedGroupWarScoring(
+  context: WorkoutEventProcessorContext
+): Promise<void> {
+  const {snapshot, userId, eventId, persisted} = context;
+  const markerRef = snapshot.ref.collection(DERIVATIONS_COLLECTION).doc("group_war_scoring");
+  const scoreMarkerRef = snapshot.ref.collection(DERIVATIONS_COLLECTION).doc("score_aggregation");
+  const userRef = db.doc(`users/${userId}`);
+  const eventTimestamp = admin.firestore.Timestamp.fromDate(persisted.createdAt);
+
+  await db.runTransaction(async (transaction) => {
+    const [markerSnap, scoreMarkerSnap, userSnap] = await Promise.all([
+      transaction.get(markerRef),
+      transaction.get(scoreMarkerRef),
+      transaction.get(userRef),
+    ]);
+
+    if (markerSnap.exists) {
+      return;
+    }
+
+    if (!scoreMarkerSnap.exists) {
+      transaction.set(
+        markerRef,
+        {
+          status: "skipped",
+          reason: "missing_score_aggregation",
+          processedAt: admin.firestore.FieldValue.serverTimestamp(),
+          sourceModel: "workout_event",
+          derivedFromWorkoutEventId: eventId,
+        },
+        {merge: true}
+      );
+      return;
+    }
+
+    const scoreMarkerData = scoreMarkerSnap.data() ?? {};
+    // Reuse the canonical normalized workout score emitted by score aggregation.
+    // This keeps user stats/leaderboards/war scoring on one shared scoring model.
+    const contributionScore = toWholeNumber(scoreMarkerData["addedTotalScore"]);
+    if (contributionScore <= 0) {
+      transaction.set(
+        markerRef,
+        {
+          status: "completed",
+          reason: "non_positive_contribution",
+          processedAt: admin.firestore.FieldValue.serverTimestamp(),
+          sourceModel: "workout_event",
+          derivedFromWorkoutEventId: eventId,
+          contributionScore,
+          contributionCount: 0,
+          scoredWarIds: [],
+        },
+        {merge: true}
+      );
+      return;
+    }
+
+    const userData = userSnap.exists ? userSnap.data() ?? {} : {};
+    const userGroupIds = normalizeStringArray(userData["groupID"]);
+    if (userGroupIds.length === 0) {
+      transaction.set(
+        markerRef,
+        {
+          status: "completed",
+          reason: "user_has_no_groups",
+          processedAt: admin.firestore.FieldValue.serverTimestamp(),
+          sourceModel: "workout_event",
+          derivedFromWorkoutEventId: eventId,
+          contributionScore,
+          contributionCount: 0,
+          scoredWarIds: [],
+        },
+        {merge: true}
+      );
+      return;
+    }
+
+    const groupSnaps = await Promise.all(
+      userGroupIds.map((groupId) => transaction.get(db.doc(`groupID/${groupId}`)))
+    );
+    const candidateGroupIdsByWarId = new Map<string, string[]>();
+
+    groupSnaps.forEach((groupSnap, index) => {
+      if (!groupSnap.exists) {
+        return;
+      }
+
+      const groupId = userGroupIds[index];
+      const groupData = groupSnap.data() ?? {};
+      const memberIds = normalizeStringArray(groupData["userIDs"]);
+      if (memberIds.length > 0 && !memberIds.includes(userId)) {
+        return;
+      }
+
+      const activeWarId = readText(groupData["currentActiveWarId"]);
+      if (!activeWarId) {
+        return;
+      }
+
+      const currentGroupIds = candidateGroupIdsByWarId.get(activeWarId) ?? [];
+      if (!currentGroupIds.includes(groupId)) {
+        currentGroupIds.push(groupId);
+      }
+      candidateGroupIdsByWarId.set(activeWarId, currentGroupIds);
+    });
+
+    const candidateWarIds = Array.from(candidateGroupIdsByWarId.keys());
+    if (candidateWarIds.length === 0) {
+      transaction.set(
+        markerRef,
+        {
+          status: "completed",
+          reason: "no_candidate_active_wars",
+          processedAt: admin.firestore.FieldValue.serverTimestamp(),
+          sourceModel: "workout_event",
+          derivedFromWorkoutEventId: eventId,
+          contributionScore,
+          contributionCount: 0,
+          scoredWarIds: [],
+        },
+        {merge: true}
+      );
+      return;
+    }
+
+    const warSnaps = await Promise.all(
+      candidateWarIds.map((warId) => transaction.get(db.doc(`groupWars/${warId}`)))
+    );
+    const userDisplayName = buildWarMemberDisplayName(userData);
+    const userProfileImage = readText(
+      userData["profilePicUrl"] ??
+      userData["profileImageUrl"] ??
+      userData["profilePic"] ??
+      userData["photoURL"]
+    );
+    const scoreDate = readText(scoreMarkerData["scoreDate"]);
+    const addedCardioContribution = toWholeNumber(scoreMarkerData["addedCardioScore"]);
+    const addedStrengthContribution = toWholeNumber(scoreMarkerData["addedStrengthScore"]);
+    const exerciseContributionDeltas = normalizeExerciseContributionDeltas(
+      scoreMarkerData["exerciseScoreDeltas"]
+    );
+    const topExerciseTagForContribution = resolveTopExerciseTagFromTotals(exerciseContributionDeltas);
+    const scoredWarIds: string[] = [];
+    const contributionPlans: Array<{
+      warId: string;
+      warRef: FirebaseFirestore.DocumentReference;
+      contributionRef: FirebaseFirestore.DocumentReference;
+      memberStandingRef: FirebaseFirestore.DocumentReference;
+      contributorGroupId: string;
+      scoreField: "challengerScoreTotal" | "opponentScoreTotal";
+      groupPointsField: "groupAPoints" | "groupBPoints";
+      categoryCardioField: "groupACardioPoints" | "groupBCardioPoints";
+      categoryStrengthField: "groupAStrengthPoints" | "groupBStrengthPoints";
+      legacyCategoryCardioField: "challengerCardioScoreTotal" | "opponentCardioScoreTotal";
+      legacyCategoryStrengthField: "challengerStrengthScoreTotal" | "opponentStrengthScoreTotal";
+    }> = [];
+
+    for (let index = 0; index < warSnaps.length; index += 1) {
+      const warSnap = warSnaps[index];
+      if (!warSnap.exists) {
+        continue;
+      }
+
+      const warId = candidateWarIds[index];
+      const warData = warSnap.data() ?? {};
+      const status = readText(warData["status"]).toLowerCase();
+      if (status !== "active" && status !== "finalizing") {
+        continue;
+      }
+
+      const warStart = resolveWarWindowStart(warData);
+      const warEnd = resolveWarWindowEnd(warData);
+      if (!isWorkoutEventWithinWarWindow(persisted.createdAt, warStart, warEnd)) {
+        continue;
+      }
+
+      const groupAId = readText(warData["groupAId"] ?? warData["challengerGroupId"]);
+      const groupBId = readText(warData["groupBId"] ?? warData["opponentGroupId"]);
+      if (!groupAId || !groupBId) {
+        continue;
+      }
+
+      const candidateGroupIds = candidateGroupIdsByWarId.get(warId) ?? [];
+      const userBelongsToGroupA = candidateGroupIds.includes(groupAId);
+      const userBelongsToGroupB = candidateGroupIds.includes(groupBId);
+      if (userBelongsToGroupA && userBelongsToGroupB) {
+        logger.warn("[WorkoutEventHandlers] Skipping war contribution due to ambiguous group membership.", {
+          userId,
+          eventId,
+          warId,
+          groupAId,
+          groupBId,
+        });
+        continue;
+      }
+      if (!userBelongsToGroupA && !userBelongsToGroupB) {
+        continue;
+      }
+
+      const contributorGroupId = userBelongsToGroupA ? groupAId : groupBId;
+      const challengerGroupId = readText(warData["challengerGroupId"]) || groupAId;
+      const opponentGroupId = readText(warData["opponentGroupId"]) || groupBId;
+      const challengerMemberUserIdsAtStart = normalizeStringArray(
+        warData["challengerMemberUserIdsAtStart"]
+      );
+      const opponentMemberUserIdsAtStart = normalizeStringArray(
+        warData["opponentMemberUserIdsAtStart"]
+      );
+      const requiresChallengerMembershipCheck = challengerMemberUserIdsAtStart.length > 0;
+      const requiresOpponentMembershipCheck = opponentMemberUserIdsAtStart.length > 0;
+      if (
+        contributorGroupId === challengerGroupId &&
+        requiresChallengerMembershipCheck &&
+        !challengerMemberUserIdsAtStart.includes(userId)
+      ) {
+        continue;
+      }
+      if (
+        contributorGroupId === opponentGroupId &&
+        requiresOpponentMembershipCheck &&
+        !opponentMemberUserIdsAtStart.includes(userId)
+      ) {
+        continue;
+      }
+      const contributionRef = db.doc(`groupWars/${warId}/contributions/${eventId}`);
+      const memberStandingRef = db.doc(`groupWars/${warId}/members/${userId}`);
+      let scoreField: "challengerScoreTotal" | "opponentScoreTotal";
+      let groupPointsField: "groupAPoints" | "groupBPoints";
+      let categoryCardioField: "groupACardioPoints" | "groupBCardioPoints";
+      let categoryStrengthField: "groupAStrengthPoints" | "groupBStrengthPoints";
+      let legacyCategoryCardioField: "challengerCardioScoreTotal" | "opponentCardioScoreTotal";
+      let legacyCategoryStrengthField: "challengerStrengthScoreTotal" | "opponentStrengthScoreTotal";
+      if (contributorGroupId === challengerGroupId) {
+        scoreField = "challengerScoreTotal";
+        groupPointsField = "groupAPoints";
+        categoryCardioField = "groupACardioPoints";
+        categoryStrengthField = "groupAStrengthPoints";
+        legacyCategoryCardioField = "challengerCardioScoreTotal";
+        legacyCategoryStrengthField = "challengerStrengthScoreTotal";
+      } else if (contributorGroupId === opponentGroupId) {
+        scoreField = "opponentScoreTotal";
+        groupPointsField = "groupBPoints";
+        categoryCardioField = "groupBCardioPoints";
+        categoryStrengthField = "groupBStrengthPoints";
+        legacyCategoryCardioField = "opponentCardioScoreTotal";
+        legacyCategoryStrengthField = "opponentStrengthScoreTotal";
+      } else if (contributorGroupId === groupAId) {
+        scoreField = "challengerScoreTotal";
+        groupPointsField = "groupAPoints";
+        categoryCardioField = "groupACardioPoints";
+        categoryStrengthField = "groupAStrengthPoints";
+        legacyCategoryCardioField = "challengerCardioScoreTotal";
+        legacyCategoryStrengthField = "challengerStrengthScoreTotal";
+      } else {
+        scoreField = "opponentScoreTotal";
+        groupPointsField = "groupBPoints";
+        categoryCardioField = "groupBCardioPoints";
+        categoryStrengthField = "groupBStrengthPoints";
+        legacyCategoryCardioField = "opponentCardioScoreTotal";
+        legacyCategoryStrengthField = "opponentStrengthScoreTotal";
+      }
+
+      contributionPlans.push({
+        warId,
+        warRef: warSnap.ref,
+        contributionRef,
+        memberStandingRef,
+        contributorGroupId,
+        scoreField,
+        groupPointsField,
+        categoryCardioField,
+        categoryStrengthField,
+        legacyCategoryCardioField,
+        legacyCategoryStrengthField,
+      });
+    }
+
+    const contributionSnaps = await Promise.all(
+      contributionPlans.map((plan) => transaction.get(plan.contributionRef))
+    );
+    const memberStandingSnaps = await Promise.all(
+      contributionPlans.map((plan) => transaction.get(plan.memberStandingRef))
+    );
+
+    for (let index = 0; index < contributionPlans.length; index += 1) {
+      const plan = contributionPlans[index];
+      const contributionSnap = contributionSnaps[index];
+      if (contributionSnap.exists) {
+        continue;
+      }
+      const memberStandingSnap = memberStandingSnaps[index];
+      const memberStandingData = memberStandingSnap.exists ? memberStandingSnap.data() ?? {} : {};
+      const currentExerciseContributionTotals = toNumberMap(
+        memberStandingData["exerciseContributionTotals"] ?? memberStandingData["exerciseTotals"]
+      );
+      const nextExerciseContributionTotals = applyExerciseContributionDeltas(
+        currentExerciseContributionTotals,
+        exerciseContributionDeltas
+      );
+      const existingTopExerciseTag = readText(memberStandingData["topExerciseTag"]);
+      const nextTopExerciseTag =
+        resolveTopExerciseTagFromTotals(nextExerciseContributionTotals) ||
+        existingTopExerciseTag;
+
+      const warUpdate: Record<string, unknown> = {
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        [plan.scoreField]: admin.firestore.FieldValue.increment(contributionScore),
+        [plan.groupPointsField]: admin.firestore.FieldValue.increment(contributionScore),
+      };
+      if (addedCardioContribution > 0) {
+        warUpdate[plan.categoryCardioField] = admin.firestore.FieldValue.increment(addedCardioContribution);
+        warUpdate[plan.legacyCategoryCardioField] = admin.firestore.FieldValue.increment(addedCardioContribution);
+      }
+      if (addedStrengthContribution > 0) {
+        warUpdate[plan.categoryStrengthField] = admin.firestore.FieldValue.increment(addedStrengthContribution);
+        warUpdate[plan.legacyCategoryStrengthField] = admin.firestore.FieldValue.increment(addedStrengthContribution);
+      }
+
+      transaction.set(
+        plan.contributionRef,
+        {
+          contributionId: eventId,
+          warId: plan.warId,
+          workoutEventId: eventId,
+          groupId: plan.contributorGroupId,
+          userId,
+          normalizedWorkoutScoreTotal: contributionScore,
+          totalContribution: contributionScore,
+          cardioContribution: addedCardioContribution,
+          strengthContribution: addedStrengthContribution,
+          exerciseContributionDeltas,
+          ...(topExerciseTagForContribution ? {topExerciseTag: topExerciseTagForContribution} : {}),
+          scoreSource: "score_aggregation.addedTotalScore",
+          workoutCount: 1,
+          contributedAt: eventTimestamp,
+          ...(scoreDate ? {scoreDate} : {}),
+          sourceModel: "workout_event",
+          derivedFromWorkoutEventId: eventId,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        },
+        {merge: true}
+      );
+      transaction.set(
+        plan.memberStandingRef,
+        {
+          warId: plan.warId,
+          groupId: plan.contributorGroupId,
+          userId,
+          displayName: userDisplayName,
+          ...(userProfileImage ? {profilePicUrl: userProfileImage} : {}),
+          normalizedWorkoutScoreTotal: admin.firestore.FieldValue.increment(contributionScore),
+          totalContribution: admin.firestore.FieldValue.increment(contributionScore),
+          cardioContributionTotal: admin.firestore.FieldValue.increment(addedCardioContribution),
+          strengthContributionTotal: admin.firestore.FieldValue.increment(addedStrengthContribution),
+          exerciseContributionTotals: nextExerciseContributionTotals,
+          ...(nextTopExerciseTag ? {topExerciseTag: nextTopExerciseTag} : {}),
+          workoutCount: admin.firestore.FieldValue.increment(1),
+          lastContributionAt: eventTimestamp,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        },
+        {merge: true}
+      );
+      transaction.set(plan.warRef, warUpdate, {merge: true});
+      scoredWarIds.push(plan.warId);
+    }
+
+    transaction.set(
+      markerRef,
+      {
+        status: "completed",
+        processedAt: admin.firestore.FieldValue.serverTimestamp(),
+        sourceModel: "workout_event",
+        derivedFromWorkoutEventId: eventId,
+        contributionScore,
+        addedCardioContribution,
+        addedStrengthContribution,
+        topExerciseTagForContribution,
+        contributionCount: scoredWarIds.length,
+        scoredWarIds,
+        candidateWarIds,
+        eventCreatedAt: eventTimestamp,
+      },
+      {merge: true}
+    );
+  });
 }
 
 const workoutEventCreatedProcessors: WorkoutEventProcessor[] = [
@@ -1390,6 +1814,280 @@ async function calculateGroupRankings(
   return groupRankings;
 }
 
+async function calculateGroupWarWeights(
+  transaction: FirebaseFirestore.Transaction,
+  params: {
+    userId: string;
+    userGroupIds: string[];
+    nextUserScoreTotals: UserScoreTotals;
+  }
+): Promise<Record<string, number>> {
+  const nextGroupWarWeights: Record<string, number> = {};
+  const groupIds = normalizeStringArray(params.userGroupIds);
+  if (groupIds.length === 0) {
+    return nextGroupWarWeights;
+  }
+
+  const groupSnaps = await Promise.all(
+    groupIds.map((groupId) => transaction.get(db.doc(`groupID/${groupId}`)))
+  );
+  const validGroups = new Map<string, string[]>();
+  const memberIdsToLoad = new Set<string>();
+
+  groupSnaps.forEach((groupSnap, index) => {
+    if (!groupSnap.exists) {
+      return;
+    }
+
+    const groupId = groupIds[index];
+    const groupData = groupSnap.data() ?? {};
+    const memberIds = normalizeStringArray(groupData["userIDs"]);
+    if (memberIds.length === 0 || !memberIds.includes(params.userId)) {
+      return;
+    }
+
+    validGroups.set(groupId, memberIds);
+    memberIds.forEach((memberId) => {
+      if (memberId !== params.userId) {
+        memberIdsToLoad.add(memberId);
+      }
+    });
+  });
+
+  if (validGroups.size === 0) {
+    return nextGroupWarWeights;
+  }
+
+  const otherMemberIds = Array.from(memberIdsToLoad);
+  const otherMemberStatSnaps = await Promise.all(
+    otherMemberIds.map((memberId) => transaction.get(db.doc(`userStats/${memberId}`)))
+  );
+  const scoreTotalsByUserId = new Map<string, UserScoreTotals>([
+    [
+      params.userId,
+      {
+        totalScore: toWholeNumber(params.nextUserScoreTotals.totalScore),
+        totalCardioScore: toWholeNumber(params.nextUserScoreTotals.totalCardioScore),
+        totalStrengthScore: toWholeNumber(params.nextUserScoreTotals.totalStrengthScore),
+      },
+    ],
+  ]);
+
+  otherMemberStatSnaps.forEach((memberStatsSnap, index) => {
+    const memberId = otherMemberIds[index];
+    const memberStats = memberStatsSnap.exists ? memberStatsSnap.data() ?? {} : {};
+    scoreTotalsByUserId.set(memberId, resolveUserScoreTotals(memberStats));
+  });
+
+  Array.from(validGroups.entries()).forEach(([groupId, memberIds]) => {
+    const groupScoreTotals = memberIds.reduce<UserScoreTotals>((totals, memberId) => {
+      const memberTotals = scoreTotalsByUserId.get(memberId) ?? {
+        totalScore: 0,
+        totalCardioScore: 0,
+        totalStrengthScore: 0,
+      };
+      return {
+        totalScore: totals.totalScore + memberTotals.totalScore,
+        totalCardioScore: totals.totalCardioScore + memberTotals.totalCardioScore,
+        totalStrengthScore: totals.totalStrengthScore + memberTotals.totalStrengthScore,
+      };
+    }, {
+      totalScore: 0,
+      totalCardioScore: 0,
+      totalStrengthScore: 0,
+    });
+
+    nextGroupWarWeights[groupId] = calculateWarWeight(groupScoreTotals);
+  });
+
+  return nextGroupWarWeights;
+}
+
+function resolveUserScoreTotals(userStats: Record<string, unknown>): UserScoreTotals {
+  const userScore = normalizeUserScore(
+    userStats["userScore"],
+    userStats["cardioScore"],
+    userStats["strengthScore"],
+    userStats["totalScore"],
+    userStats["workScore"]
+  );
+  const totalCardioScore = toWholeNumber(resolveScoreTotal(
+    userScore.cardioScore,
+    "totalCardioScore"
+  ));
+  const totalStrengthScore = toWholeNumber(resolveScoreTotal(
+    userScore.strengthScore,
+    "totalStrengthScore"
+  ));
+
+  return {
+    totalScore: toWholeNumber(userScore.totalScore),
+    totalCardioScore,
+    totalStrengthScore,
+  };
+}
+
+function calculateWarWeight(scoreTotals: UserScoreTotals): number {
+  const totalScore = toWholeNumber(toNonNegativeNumber(scoreTotals.totalScore));
+  if (totalScore <= 0) {
+    return 1;
+  }
+
+  const totalStrengthScore = toNonNegativeNumber(scoreTotals.totalStrengthScore);
+  const totalCardioScore = toNonNegativeNumber(scoreTotals.totalCardioScore);
+  const strengthShare = clampPercentage(totalStrengthScore / totalScore);
+  const cardioShare = clampPercentage(totalCardioScore / totalScore);
+  const normalizedStrengthComponent = totalScore * strengthShare;
+  const normalizedCardioComponent = totalScore * cardioShare;
+  const warWeight = Math.sqrt(
+    (totalScore * totalScore) +
+    (normalizedStrengthComponent * normalizedStrengthComponent) +
+    (normalizedCardioComponent * normalizedCardioComponent)
+  );
+
+  return Math.max(1, toWholeNumber(warWeight));
+}
+
+function clampPercentage(value: number): number {
+  if (!Number.isFinite(value)) {
+    return 0;
+  }
+  if (value < 0) {
+    return 0;
+  }
+  if (value > 1) {
+    return 1;
+  }
+  return value;
+}
+
+function resolveWarWindowStart(warData: Record<string, unknown>): Date | null {
+  return toDate(warData["startAt"] ?? warData["activatedAt"]);
+}
+
+function resolveWarWindowEnd(warData: Record<string, unknown>): Date | null {
+  return toDate(warData["endAt"] ?? warData["endsAt"]);
+}
+
+function isWorkoutEventWithinWarWindow(
+  eventCreatedAt: Date,
+  warStart: Date | null,
+  warEnd: Date | null
+): boolean {
+  if (!warStart || !warEnd) {
+    return false;
+  }
+
+  const eventMillis = eventCreatedAt.getTime();
+  if (Number.isNaN(eventMillis)) {
+    return false;
+  }
+
+  return eventMillis >= warStart.getTime() && eventMillis < warEnd.getTime();
+}
+
+function buildWarMemberDisplayName(userData: Record<string, unknown>): string {
+  const firstName = readText(userData["firstName"]);
+  const lastName = readText(userData["lastName"]);
+  const fullName = `${firstName} ${lastName}`.trim();
+  if (fullName) {
+    return fullName;
+  }
+
+  const fallbackName = readText(
+    userData["displayName"] ??
+    userData["username"] ??
+    userData["name"]
+  );
+  if (fallbackName) {
+    return fallbackName;
+  }
+
+  return "Member";
+}
+
+function normalizeExerciseContributionDeltas(value: unknown): Record<string, number> {
+  const normalized: Record<string, number> = {};
+  if (Array.isArray(value)) {
+    value.forEach((entry) => {
+      const row = toRecord(entry);
+      const exerciseType = normalizeEstimatorId(readText(row["exerciseType"]));
+      const addedScore = toWholeNumber(row["addedScore"]);
+      if (!exerciseType || addedScore <= 0) {
+        return;
+      }
+      normalized[exerciseType] = toWholeNumber(
+        toNonNegativeNumber(normalized[exerciseType]) + addedScore
+      );
+    });
+    return normalized;
+  }
+
+  const rawMap = toNumberMap(value);
+  Object.entries(rawMap).forEach(([exerciseType, addedScore]) => {
+    const normalizedExerciseType = normalizeEstimatorId(exerciseType);
+    const normalizedScore = toWholeNumber(addedScore);
+    if (!normalizedExerciseType || normalizedScore <= 0) {
+      return;
+    }
+    normalized[normalizedExerciseType] = toWholeNumber(
+      toNonNegativeNumber(normalized[normalizedExerciseType]) + normalizedScore
+    );
+  });
+  return normalized;
+}
+
+function applyExerciseContributionDeltas(
+  currentTotals: Record<string, number>,
+  contributionDeltas: Record<string, number>
+): Record<string, number> {
+  const nextTotals: Record<string, number> = {};
+  Object.entries(toNumberMap(currentTotals)).forEach(([exerciseType, total]) => {
+    const normalizedExerciseType = normalizeEstimatorId(exerciseType);
+    const normalizedTotal = toWholeNumber(total);
+    if (!normalizedExerciseType || normalizedTotal <= 0) {
+      return;
+    }
+    nextTotals[normalizedExerciseType] = normalizedTotal;
+  });
+
+  Object.entries(contributionDeltas).forEach(([exerciseType, addedScore]) => {
+    const normalizedExerciseType = normalizeEstimatorId(exerciseType);
+    const normalizedAddedScore = toWholeNumber(addedScore);
+    if (!normalizedExerciseType || normalizedAddedScore <= 0) {
+      return;
+    }
+    nextTotals[normalizedExerciseType] = toWholeNumber(
+      toNonNegativeNumber(nextTotals[normalizedExerciseType]) + normalizedAddedScore
+    );
+  });
+
+  return nextTotals;
+}
+
+function resolveTopExerciseTagFromTotals(exerciseTotals: Record<string, number>): string {
+  let topExerciseTag = "";
+  let topScore = 0;
+
+  Object.entries(exerciseTotals).forEach(([exerciseType, total]) => {
+    const normalizedExerciseType = normalizeEstimatorId(exerciseType);
+    const normalizedTotal = toWholeNumber(total);
+    if (!normalizedExerciseType || normalizedTotal <= 0) {
+      return;
+    }
+
+    if (
+      normalizedTotal > topScore ||
+      (normalizedTotal === topScore && normalizedExerciseType.localeCompare(topExerciseTag) < 0)
+    ) {
+      topExerciseTag = normalizedExerciseType;
+      topScore = normalizedTotal;
+    }
+  });
+
+  return topExerciseTag;
+}
+
 function normalizeUserScore(
   value: unknown,
   legacyCardioScore?: unknown,
@@ -1587,6 +2285,10 @@ async function findOrCreateDirectChat(userId1: string, userId2: string): Promise
             .filter((entry) => entry.length > 0)
         : [];
       if (participants.includes(userId1) && participants.includes(userId2)) {
+        await upsertDirectChatSummary(chatId, participants, {
+          lastMessage: readText(chatData["lastMessage"]),
+          lastMessageTime: readText(chatData["lastMessageTime"]),
+        });
         return chatId;
       }
     }
@@ -1595,9 +2297,11 @@ async function findOrCreateDirectChat(userId1: string, userId2: string): Promise
   const chatId = buildDirectChatId(userId1, userId2);
   const chatRef = rtdb.ref(`chats/${chatId}`);
   const chatSnapshot = await chatRef.once("value");
+  let summaryTimestamp = new Date().toISOString();
 
   if (!chatSnapshot.exists()) {
     const timestamp = new Date().toISOString();
+    summaryTimestamp = timestamp;
     await chatRef.set({
       chatId,
       participants: [userId1, userId2],
@@ -1612,12 +2316,162 @@ async function findOrCreateDirectChat(userId1: string, userId2: string): Promise
     rtdb.ref(`userChats/${userId2}/${chatId}`).set(true),
   ]);
 
+  await upsertDirectChatSummary(chatId, [userId1, userId2], {
+    lastMessage: "",
+    lastMessageTime: summaryTimestamp,
+  });
+
   return chatId;
 }
 
 function buildDirectChatId(userId1: string, userId2: string): string {
   const [left, right] = [normalizeEstimatorId(userId1), normalizeEstimatorId(userId2)].sort();
   return `${DIRECT_CHAT_PREFIX}_${left}_${right}`;
+}
+
+async function upsertDirectChatSummary(
+  chatId: string,
+  participantsInput: string[],
+  options: {
+    lastMessage: string;
+    lastMessageTime: string;
+    senderId?: string;
+    incrementUnreadForUserIds?: string[];
+    unreadByUser?: Record<string, boolean>;
+    unreadCountByUser?: Record<string, number>;
+    lastReadAtByUser?: Record<string, string>;
+  }
+): Promise<void> {
+  const participants = normalizeStringArray(participantsInput);
+  if (!chatId || participants.length === 0) {
+    return;
+  }
+
+  const summaryRef = rtdb.ref(`${CHAT_SUMMARIES_ROOT}/${chatId}`);
+  const summarySnapshot = await summaryRef.once("value");
+  const summaryData = toRecord(summarySnapshot.val());
+  const timestamp = readText(options.lastMessageTime) || new Date().toISOString();
+  const senderId = readText(options.senderId);
+
+  const baselineUnreadCountByUser = buildUnreadCountByUserMap(
+    participants,
+    normalizeUnreadCountByUserMap(summaryData["unreadCountByUser"]),
+    normalizeUnreadByUserMap(summaryData["unreadByUser"])
+  );
+
+  const explicitUnreadCountByUser = options.unreadCountByUser ?
+    buildUnreadCountByUserMap(
+      participants,
+      normalizeUnreadCountByUserMap(options.unreadCountByUser),
+      normalizeUnreadByUserMap(options.unreadByUser)
+    ) :
+    baselineUnreadCountByUser;
+
+  const incrementUnreadForUserIds = new Set(normalizeStringArray(options.incrementUnreadForUserIds));
+  const unreadCountByUser = participants.reduce<Record<string, number>>((acc, participantId) => {
+    const previousCount = explicitUnreadCountByUser[participantId] ?? 0;
+    acc[participantId] = incrementUnreadForUserIds.has(participantId) ? previousCount + 1 : previousCount;
+    return acc;
+  }, {});
+
+  if (senderId && unreadCountByUser[senderId] !== undefined) {
+    unreadCountByUser[senderId] = 0;
+  }
+
+  const existingLastReadAtByUser = normalizeStringMap(summaryData["lastReadAtByUser"]);
+  const requestedLastReadAtByUser = normalizeStringMap(options.lastReadAtByUser);
+  const lastReadAtByUser = participants.reduce<Record<string, string>>((acc, participantId) => {
+    const timestampForParticipant =
+      requestedLastReadAtByUser[participantId] ||
+      existingLastReadAtByUser[participantId] ||
+      "";
+    if (timestampForParticipant) {
+      acc[participantId] = timestampForParticipant;
+    }
+    return acc;
+  }, {});
+
+  if (senderId && participants.includes(senderId)) {
+    lastReadAtByUser[senderId] = timestamp;
+  }
+
+  await summaryRef.update({
+    chatId,
+    participants,
+    type: "direct",
+    isGroupChat: false,
+    lastMessage: readText(options.lastMessage),
+    lastMessageTime: timestamp,
+    unreadCountByUser,
+    unreadByUser: buildUnreadByUserMap(unreadCountByUser),
+    lastReadAtByUser,
+  });
+}
+
+function buildUnreadByUserMap(
+  unreadCountByUser: Record<string, number> = {}
+): Record<string, boolean> {
+  return Object.entries(unreadCountByUser).reduce<Record<string, boolean>>((acc, [participantId, unreadCount]) => {
+    acc[participantId] = toWholeNumber(toNonNegativeNumber(unreadCount)) > 0;
+    return acc;
+  }, {});
+}
+
+function buildUnreadCountByUserMap(
+  participants: string[],
+  unreadCountByUser: Record<string, number> = {},
+  unreadByUser: Record<string, boolean> = {}
+): Record<string, number> {
+  return participants.reduce<Record<string, number>>((acc, participantId) => {
+    const existingUnreadCount = unreadCountByUser[participantId];
+    if (Number.isFinite(existingUnreadCount)) {
+      acc[participantId] = toWholeNumber(toNonNegativeNumber(existingUnreadCount));
+      return acc;
+    }
+
+    acc[participantId] = unreadByUser[participantId] === true ? 1 : 0;
+    return acc;
+  }, {});
+}
+
+function normalizeUnreadCountByUserMap(value: unknown): Record<string, number> {
+  const source = toRecord(value);
+  return Object.entries(source).reduce<Record<string, number>>((acc, [rawUserId, rawUnreadCount]) => {
+    const userId = readText(rawUserId);
+    if (!userId) {
+      return acc;
+    }
+
+    acc[userId] = toWholeNumber(toNonNegativeNumber(rawUnreadCount));
+    return acc;
+  }, {});
+}
+
+function normalizeUnreadByUserMap(value: unknown): Record<string, boolean> {
+  const source = toRecord(value);
+  return Object.entries(source).reduce<Record<string, boolean>>((acc, [rawUserId, rawUnreadFlag]) => {
+    const userId = readText(rawUserId);
+    if (!userId) {
+      return acc;
+    }
+
+    acc[userId] = rawUnreadFlag === true;
+    return acc;
+  }, {});
+}
+
+function normalizeStringMap(value: unknown): Record<string, string> {
+  const source = toRecord(value);
+  return Object.entries(source).reduce<Record<string, string>>((acc, [rawUserId, rawTimestamp]) => {
+    const userId = readText(rawUserId);
+    const timestamp = readText(rawTimestamp);
+    if (!userId || !timestamp) {
+      return acc;
+    }
+
+    acc[userId] = timestamp;
+    return acc;
+  }, {});
 }
 
 async function buildWorkoutSummaryForDate(

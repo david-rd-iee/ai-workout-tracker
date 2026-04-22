@@ -11,6 +11,12 @@
         ".read": "auth != null",
         ".write": "auth != null"
       }
+    },
+    "chatSummaries": {
+      "$chatId": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
     }
   }
 }

@@ -1,3 +1,99 @@
-<ion-button (click)="exportCsv()">
-  Export CSV
-</ion-button>
+<app-header
+  [title]="pageTitle"
+  [showBack]="true"
+  [backHref]="backHref"
+  [transparent]="true"
+  [neoBlend]="true"
+></app-header>
+
+<ion-content [fullscreen]="true" class="history-content">
+  <div class="background-gradient"></div>
+
+  <div class="history-page">
+    <div class="actions-grid">
+      <ion-button class="action-button insights-button" expand="block" (click)="viewInsights()">
+        <ion-icon slot="start" name="analytics-outline"></ion-icon>
+        Workout Insights
+      </ion-button>
+
+      <ion-button
+        class="action-button csv-button"
+        expand="block"
+        (click)="viewCsv()"
+        [disabled]="isLoading || historyGroups.length === 0"
+      >
+        <ion-icon slot="start" name="grid-outline"></ion-icon>
+        View CSV
+      </ion-button>
+    </div>
+
+    <div class="status-card" *ngIf="isLoading">
+      <p>Loading workouts...</p>
+    </div>
+
+    <div class="status-card" *ngIf="!isLoading && historyGroups.length === 0">
+      <p>No workouts saved yet.</p>
+    </div>
+
+    <ion-list class="history-list" *ngIf="!isLoading && historyGroups.length > 0">
+      <ion-item
+        class="day-card"
+        lines="none"
+        button
+        [detail]="false"
+        *ngFor="let day of historyGroups"
+        (click)="openSummary(day.date)"
+      >
+        <ion-label class="ion-text-wrap">
+          <div class="day-header">
+            <div class="day-info">
+              <h2>{{ day.date }}</h2>
+              <p class="tap-hint">Tap to open full summary</p>
+            </div>
+
+            <div class="day-meta">
+              <p class="calorie-pill">{{ day.totalCaloriesBurned }} kcal</p>
+              <span class="chevron-well" aria-hidden="true">
+                <ion-icon name="chevron-forward-outline"></ion-icon>
+              </span>
+            </div>
+          </div>
+
+          <div class="section-block" *ngIf="day.strength.length > 0">
+            <h3>Strength</h3>
+            <div class="entry" *ngFor="let entry of day.strength">
+              <p class="entry-title">{{ entry.exercise }}</p>
+              <p>Sets: {{ entry.sets }}</p>
+              <p>Reps: {{ entry.reps }}</p>
+              <p>Weight: {{ entry.weights }}</p>
+              <p>Calories: {{ entry.caloriesBurned }}</p>
+            </div>
+          </div>
+
+          <div class="section-block" *ngIf="day.cardio.length > 0">
+            <h3>Cardio</h3>
+            <div class="entry" *ngFor="let entry of day.cardio">
+              <p class="entry-title">{{ entry.exercise }}</p>
+              <p>Distance: {{ entry.distance || 'N/A' }}</p>
+              <p>Time: {{ entry.time || 'N/A' }}</p>
+              <p>Calories: {{ entry.caloriesBurned }}</p>
+            </div>
+          </div>
+
+          <div class="section-block" *ngIf="day.other.length > 0">
+            <h3>Other</h3>
+            <div class="entry" *ngFor="let entry of day.other">
+              <p class="entry-title">{{ entry.exercise }}</p>
+              <p>Details: {{ entry.details || 'Activity logged' }}</p>
+              <p>Calories: {{ entry.caloriesBurned }}</p>
+            </div>
+          </div>
+
+          <div class="notes-well" *ngIf="day.trainerNotes">
+            <p><strong>Trainer note:</strong> {{ day.trainerNotes }}</p>
+          </div>
+        </ion-label>
+      </ion-item>
+    </ion-list>
+  </div>
+</ion-content>
