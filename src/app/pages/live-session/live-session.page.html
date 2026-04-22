@@ -7,89 +7,107 @@
   </ion-toolbar>
 </ion-header>
 
-<ion-content class="ion-padding">
-  <ion-card>
+<ion-content class="ion-padding live-session-content">
+  <ion-card class="session-hero-card">
     <ion-card-content>
-      <h2>Live Session</h2>
+      <div class="hero-header">
+        <div class="hero-copy">
+          <p class="eyebrow">Live Session</p>
+          <h2 class="hero-title">
+            {{ sessionStarted ? 'Workout in Progress' : 'Ready to Start' }}
+          </h2>
+        </div>
 
-      <ion-button
-        expand="block"
-        (click)="startSession()"
-        *ngIf="!sessionStarted">
-        Start Session
-      </ion-button>
+        <div class="timer-pill" *ngIf="sessionStarted">
+          {{ formattedElapsedTime }}
+        </div>
+      </div>
 
-      <ion-button
-        expand="block"
-        color="danger"
-        (click)="finishSession()"
-        *ngIf="sessionStarted">
-        Finish Session
-      </ion-button>
-    </ion-card-content>
-  </ion-card>
+      <div
+        class="live-session-body"
+        *ngIf="sessionStarted && displayedHeartRate !== null; else idleState"
+      >
+        <div class="heart-rate-row">
+          <div class="heart-icon-shell">
+            <div class="heart-icon">❤</div>
+          </div>
 
-  <ion-card>
-    <ion-card-content>
-      <h2>Session Stats</h2>
+          <div class="heart-rate-block">
+            <div class="section-label">Current Heart Rate</div>
+            <div class="heart-rate-value">
+              {{ displayedHeartRate | number:'1.0-0' }}
+              <span>BPM</span>
+            </div>
+          </div>
+        </div>
 
-      <p>Timer: {{ formattedElapsedTime }}</p>
+        <div class="zone-panel">
+          <div class="section-label">Current Zone</div>
+          <div class="zone-value" [style.color]="currentZone.color">
+            {{ currentZone.name }}
+          </div>
+          <div class="zone-subtext">
+            {{ heartRatePercent }}% of estimated max HR
+          </div>
+        </div>
 
-      <p *ngIf="currentHeartRate !== null">
-        Current HR: {{ currentHeartRate }} BPM
-      </p>
+        <div class="chart-section" *ngIf="heartRateChartData.length > 0">
+          <div class="chart-header-inline">
+            <h3 class="chart-title">Live Heart Rate</h3>
+            <p class="chart-subtitle">
+              Apple Watch live updates
+            </p>
+          </div>
 
-      <p *ngIf="avgHeartRate !== null">
-        Avg HR: {{ avgHeartRate }} BPM
-      </p>
+          <ngx-charts-line-chart
+            [view]="chartView"
+            [results]="heartRateChartData"
+            [scheme]="colorScheme"
+            [gradient]="gradient"
+            [xAxis]="showXAxis"
+            [yAxis]="showYAxis"
+            [legend]="showLegend"
+            [showXAxisLabel]="false"
+            [showYAxisLabel]="false"
+            [xAxisLabel]="xAxisLabel"
+            [yAxisLabel]="yAxisLabel"
+            [autoScale]="autoScale"
+            [yScaleMin]="yScaleMin"
+            [yScaleMax]="yScaleMax"
+            [xAxisTickFormatting]="xAxisTickFormatting"
+            [yAxisTickFormatting]="yAxisTickFormatting"
+            [animations]="true">
+          </ngx-charts-line-chart>
+        </div>
+      </div>
 
-      <p *ngIf="maxHeartRate !== null">
-        Max HR: {{ maxHeartRate }} BPM
-      </p>
-    </ion-card-content>
-  </ion-card>
+      <ng-template #idleState>
+        <div class="idle-state">
+          <p class="idle-title">Start a live session to begin tracking</p>
+          <p class="idle-subtext">
+            Your Apple Watch heart rate, zone, and live graph will appear here.
+          </p>
+        </div>
+      </ng-template>
 
-  <ion-card *ngIf="sessionStarted && displayedHeartRate !== null">
-    <ion-card-content>
-      <h2>Heart Rate Zone</h2>
+      <div class="action-row">
+        <ion-button
+          expand="block"
+          class="session-button"
+          (click)="startSession()"
+          *ngIf="!sessionStarted">
+          Start Session
+        </ion-button>
 
-      <p [style.color]="currentZone.color" style="font-weight: 700; font-size: 1.2rem;">
-        {{ currentZone.name }}
-      </p>
-
-      <p>
-        {{ heartRatePercent }}% of estimated max HR
-      </p>
-
-      <p>
-        Estimated max HR: {{ estimatedMaxHeartRate }} BPM
-      </p>
-    </ion-card-content>
-  </ion-card>
-
-  <ion-card *ngIf="sessionStarted && heartRateChartData.length > 0">
-    <ion-card-content>
-      <h2>Live Heart Rate</h2>
-
-      <ngx-charts-line-chart
-        [view]="chartView"
-        [results]="heartRateChartData"
-        [scheme]="colorScheme"
-        [gradient]="gradient"
-        [xAxis]="showXAxis"
-        [yAxis]="showYAxis"
-        [legend]="showLegend"
-        [showXAxisLabel]="showXAxisLabel"
-        [showYAxisLabel]="showYAxisLabel"
-        [xAxisLabel]="xAxisLabel"
-        [yAxisLabel]="yAxisLabel"
-        [autoScale]="autoScale"
-        [yScaleMin]="yScaleMin"
-        [yScaleMax]="yScaleMax"
-        [xAxisTickFormatting]="xAxisTickFormatting"
-        [yAxisTickFormatting]="yAxisTickFormatting"
-        [animations]="true">
-      </ngx-charts-line-chart>
+        <ion-button
+          expand="block"
+          color="danger"
+          class="session-button"
+          (click)="finishSession()"
+          *ngIf="sessionStarted">
+          Finish Session
+        </ion-button>
+      </div>
     </ion-card-content>
   </ion-card>
 </ion-content>

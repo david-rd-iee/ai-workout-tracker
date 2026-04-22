@@ -51,7 +51,7 @@ export class LiveSessionPage implements OnDestroy {
   heartRateSamples: { timestamp: number; value: number }[] = [];
   heartRateChartData: { name: string; series: { name: string; value: number }[] }[] = [];
 
-  chartView: [number, number] = [300, 220];
+  chartView: [number, number] = [300, 160];
   showXAxis = true;
   showYAxis = true;
   gradient = false;
