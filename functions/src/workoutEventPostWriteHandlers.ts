@@ -26,6 +26,7 @@ const rtdb = admin.database();
 const WORKOUT_EVENT_PATH = "users/{userId}/workoutEvents/{eventId}";
 const DERIVATIONS_COLLECTION = "derivations";
 const WORKOUT_SUMMARIES_COLLECTION = "workoutSummaries";
+const CHAT_SUMMARIES_ROOT = "chatSummaries";
 const EXERCISE_ESTIMATOR_ROOT_COLLECTION = "exercise_estimators";
 const EXERCISE_ESTIMATOR_PARENT_DOC = "default";
 const EXERCISE_ESTIMATOR_WORKOUT_LOGS_COLLECTION = "workout_logs";
@@ -705,6 +706,15 @@ async function processWorkoutEventCreatedWorkoutSummary(
         rtdb.ref(`chats/${chatId}/lastMessageTime`).set(messageTimestamp)
       );
     }
+
+    writes.push(
+      upsertDirectChatSummary(chatId, [userId, trainerUid], {
+        lastMessage: messageText,
+        lastMessageTime: messageTimestamp,
+        senderId: userId,
+        incrementUnreadForUserIds: existingMessageSnapshot.exists() ? [] : [trainerUid],
+      })
+    );
   }
 
   writes.push(
@@ -2275,6 +2285,10 @@ async function findOrCreateDirectChat(userId1: string, userId2: string): Promise
             .filter((entry) => entry.length > 0)
         : [];
       if (participants.includes(userId1) && participants.includes(userId2)) {
+        await upsertDirectChatSummary(chatId, participants, {
+          lastMessage: readText(chatData["lastMessage"]),
+          lastMessageTime: readText(chatData["lastMessageTime"]),
+        });
         return chatId;
       }
     }
@@ -2283,9 +2297,11 @@ async function findOrCreateDirectChat(userId1: string, userId2: string): Promise
   const chatId = buildDirectChatId(userId1, userId2);
   const chatRef = rtdb.ref(`chats/${chatId}`);
   const chatSnapshot = await chatRef.once("value");
+  let summaryTimestamp = new Date().toISOString();
 
   if (!chatSnapshot.exists()) {
     const timestamp = new Date().toISOString();
+    summaryTimestamp = timestamp;
     await chatRef.set({
       chatId,
       participants: [userId1, userId2],
@@ -2300,12 +2316,162 @@ async function findOrCreateDirectChat(userId1: string, userId2: string): Promise
     rtdb.ref(`userChats/${userId2}/${chatId}`).set(true),
   ]);
 
+  await upsertDirectChatSummary(chatId, [userId1, userId2], {
+    lastMessage: "",
+    lastMessageTime: summaryTimestamp,
+  });
+
   return chatId;
 }
 
 function buildDirectChatId(userId1: string, userId2: string): string {
   const [left, right] = [normalizeEstimatorId(userId1), normalizeEstimatorId(userId2)].sort();
   return `${DIRECT_CHAT_PREFIX}_${left}_${right}`;
+}
+
+async function upsertDirectChatSummary(
+  chatId: string,
+  participantsInput: string[],
+  options: {
+    lastMessage: string;
+    lastMessageTime: string;
+    senderId?: string;
+    incrementUnreadForUserIds?: string[];
+    unreadByUser?: Record<string, boolean>;
+    unreadCountByUser?: Record<string, number>;
+    lastReadAtByUser?: Record<string, string>;
+  }
+): Promise<void> {
+  const participants = normalizeStringArray(participantsInput);
+  if (!chatId || participants.length === 0) {
+    return;
+  }
+
+  const summaryRef = rtdb.ref(`${CHAT_SUMMARIES_ROOT}/${chatId}`);
+  const summarySnapshot = await summaryRef.once("value");
+  const summaryData = toRecord(summarySnapshot.val());
+  const timestamp = readText(options.lastMessageTime) || new Date().toISOString();
+  const senderId = readText(options.senderId);
+
+  const baselineUnreadCountByUser = buildUnreadCountByUserMap(
+    participants,
+    normalizeUnreadCountByUserMap(summaryData["unreadCountByUser"]),
+    normalizeUnreadByUserMap(summaryData["unreadByUser"])
+  );
+
+  const explicitUnreadCountByUser = options.unreadCountByUser ?
+    buildUnreadCountByUserMap(
+      participants,
+      normalizeUnreadCountByUserMap(options.unreadCountByUser),
+      normalizeUnreadByUserMap(options.unreadByUser)
+    ) :
+    baselineUnreadCountByUser;
+
+  const incrementUnreadForUserIds = new Set(normalizeStringArray(options.incrementUnreadForUserIds));
+  const unreadCountByUser = participants.reduce<Record<string, number>>((acc, participantId) => {
+    const previousCount = explicitUnreadCountByUser[participantId] ?? 0;
+    acc[participantId] = incrementUnreadForUserIds.has(participantId) ? previousCount + 1 : previousCount;
+    return acc;
+  }, {});
+
+  if (senderId && unreadCountByUser[senderId] !== undefined) {
+    unreadCountByUser[senderId] = 0;
+  }
+
+  const existingLastReadAtByUser = normalizeStringMap(summaryData["lastReadAtByUser"]);
+  const requestedLastReadAtByUser = normalizeStringMap(options.lastReadAtByUser);
+  const lastReadAtByUser = participants.reduce<Record<string, string>>((acc, participantId) => {
+    const timestampForParticipant =
+      requestedLastReadAtByUser[participantId] ||
+      existingLastReadAtByUser[participantId] ||
+      "";
+    if (timestampForParticipant) {
+      acc[participantId] = timestampForParticipant;
+    }
+    return acc;
+  }, {});
+
+  if (senderId && participants.includes(senderId)) {
+    lastReadAtByUser[senderId] = timestamp;
+  }
+
+  await summaryRef.update({
+    chatId,
+    participants,
+    type: "direct",
+    isGroupChat: false,
+    lastMessage: readText(options.lastMessage),
+    lastMessageTime: timestamp,
+    unreadCountByUser,
+    unreadByUser: buildUnreadByUserMap(unreadCountByUser),
+    lastReadAtByUser,
+  });
+}
+
+function buildUnreadByUserMap(
+  unreadCountByUser: Record<string, number> = {}
+): Record<string, boolean> {
+  return Object.entries(unreadCountByUser).reduce<Record<string, boolean>>((acc, [participantId, unreadCount]) => {
+    acc[participantId] = toWholeNumber(toNonNegativeNumber(unreadCount)) > 0;
+    return acc;
+  }, {});
+}
+
+function buildUnreadCountByUserMap(
+  participants: string[],
+  unreadCountByUser: Record<string, number> = {},
+  unreadByUser: Record<string, boolean> = {}
+): Record<string, number> {
+  return participants.reduce<Record<string, number>>((acc, participantId) => {
+    const existingUnreadCount = unreadCountByUser[participantId];
+    if (Number.isFinite(existingUnreadCount)) {
+      acc[participantId] = toWholeNumber(toNonNegativeNumber(existingUnreadCount));
+      return acc;
+    }
+
+    acc[participantId] = unreadByUser[participantId] === true ? 1 : 0;
+    return acc;
+  }, {});
+}
+
+function normalizeUnreadCountByUserMap(value: unknown): Record<string, number> {
+  const source = toRecord(value);
+  return Object.entries(source).reduce<Record<string, number>>((acc, [rawUserId, rawUnreadCount]) => {
+    const userId = readText(rawUserId);
+    if (!userId) {
+      return acc;
+    }
+
+    acc[userId] = toWholeNumber(toNonNegativeNumber(rawUnreadCount));
+    return acc;
+  }, {});
+}
+
+function normalizeUnreadByUserMap(value: unknown): Record<string, boolean> {
+  const source = toRecord(value);
+  return Object.entries(source).reduce<Record<string, boolean>>((acc, [rawUserId, rawUnreadFlag]) => {
+    const userId = readText(rawUserId);
+    if (!userId) {
+      return acc;
+    }
+
+    acc[userId] = rawUnreadFlag === true;
+    return acc;
+  }, {});
+}
+
+function normalizeStringMap(value: unknown): Record<string, string> {
+  const source = toRecord(value);
+  return Object.entries(source).reduce<Record<string, string>>((acc, [rawUserId, rawTimestamp]) => {
+    const userId = readText(rawUserId);
+    const timestamp = readText(rawTimestamp);
+    if (!userId || !timestamp) {
+      return acc;
+    }
+
+    acc[userId] = timestamp;
+    return acc;
+  }, {});
 }
 
 async function buildWorkoutSummaryForDate(

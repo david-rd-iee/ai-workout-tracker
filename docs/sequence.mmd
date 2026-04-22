@@ -6,59 +6,85 @@ participant ChatPage as WorkoutChatbotPage
 participant WorkflowSvc as WorkoutWorkflowService
 participant EstimatorPrep as WorkoutWorkflowEstimatorPreparationService
 participant SummaryProjection as WorkoutWorkflowSummaryProjectionService
-participant ChatSvc as WorkoutChatService
+participant WorkoutChatSvc as WorkoutChatService
 participant ChatFn as workoutChatCallable
 participant OpenAI
 participant LogSvc as WorkoutLogService
 participant CompleteFn as completeWorkoutEvent
 participant FS as Firestore
 participant PostWrite as onWorkoutEventCreated
+participant GroupSyncFn as onGroupDocumentWrittenSyncChat
+participant EnsureGroupFn as ensureGroupChatForGroup
 participant RTDB as Realtime Database
 participant HistoryPage as WorkoutHistoryPage
 participant SummarySvc as WorkoutSummaryService
 participant SummaryPage as WorkoutSummaryPage
+participant GroupSvc as GroupService
+participant ChatsSvc as ChatsService
+participant LeaderboardPage as LeaderboardPage
 participant ChatDetail as ChatDetailPage
 
-User->>ChatPage: Enter workout details
-ChatPage->>WorkflowSvc: processWorkoutMessage(message, messages, screenState)
-WorkflowSvc->>EstimatorPrep: prepareEstimatorsForSession(session)
-EstimatorPrep-->>WorkflowSvc: estimatorIds
-WorkflowSvc->>ChatSvc: sendMessage(message, session, history, estimatorIds)
-ChatSvc->>ChatFn: httpsCallable(payload)
-ChatFn->>OpenAI: parse/update structured workout data
-OpenAI-->>ChatFn: assistantMessage + summary
-ChatFn-->>ChatSvc: ChatResponse
-WorkflowSvc->>SummaryProjection: projectWorkflowState(updatedSession)
-WorkflowSvc-->>ChatPage: session + live summary rows
+rect rgb(245, 248, 255)
+  Note over User,PostWrite: Workout capture + persistence pipeline
+  User->>ChatPage: Enter workout details
+  ChatPage->>WorkflowSvc: processWorkoutMessage(message, messages, screenState)
+  WorkflowSvc->>EstimatorPrep: prepareEstimatorsForSession(session)
+  EstimatorPrep-->>WorkflowSvc: estimatorIds
+  WorkflowSvc->>WorkoutChatSvc: sendMessage(message, session, history, estimatorIds)
+  WorkoutChatSvc->>ChatFn: httpsCallable(payload)
+  ChatFn->>OpenAI: parse/update structured workout data
+  OpenAI-->>ChatFn: assistantMessage + summary
+  ChatFn-->>WorkoutChatSvc: ChatResponse
+  WorkflowSvc->>SummaryProjection: projectWorkflowState(updatedSession)
+  WorkflowSvc-->>ChatPage: session + live summary rows
 
-User->>ChatPage: Submit workout
-ChatPage->>WorkflowSvc: submitWorkout(session, requestTrainerNotes)
-WorkflowSvc->>LogSvc: saveCompletedWorkout(session)
-LogSvc->>CompleteFn: completeWorkoutEvent(normalized WorkoutEvent)
-CompleteFn->>FS: Write users/{uid}/workoutEvents/{eventId}
-CompleteFn-->>LogSvc: { eventId, status: persisted }
+  User->>ChatPage: Submit workout
+  ChatPage->>WorkflowSvc: submitWorkout(session, requestTrainerNotes)
+  WorkflowSvc->>LogSvc: saveCompletedWorkout(session)
+  LogSvc->>CompleteFn: completeWorkoutEvent(normalized WorkoutEvent)
+  CompleteFn->>FS: Write users/{uid}/workoutEvents/{eventId}
+  CompleteFn-->>LogSvc: { eventId, status: persisted }
 
-FS-->>PostWrite: Trigger on users/{uid}/workoutEvents/{eventId}
-PostWrite->>FS: Update user stats + score derivations
-PostWrite->>FS: Read same-day workoutEvents
-PostWrite->>FS: Upsert users/{uid}/workoutSummaries/{YYYY-MM-DD}
+  FS-->>PostWrite: Trigger on users/{uid}/workoutEvents/{eventId}
+  PostWrite->>FS: Update user stats + score derivations + group war scoring
+  PostWrite->>FS: Read same-day workoutEvents
+  PostWrite->>FS: Upsert users/{uid}/workoutSummaries/{YYYY-MM-DD}
 
-alt user has trainerId
-  PostWrite->>FS: Read users/{uid} / clients/{uid} for trainerId and user name
-  PostWrite->>RTDB: Find or create direct chat with trainer
-  alt first workoutSummary message for the day does not exist
-    PostWrite->>RTDB: Create chats/{chatId}/messages/workout_summary_{YYYY-MM-DD}
-    PostWrite->>RTDB: Set lastMessage + lastMessageTime
-  else same-day message already exists
-    PostWrite->>RTDB: Update existing workout_summary_{YYYY-MM-DD} message text
-    PostWrite->>RTDB: Update lastMessage only
+  alt user has trainerId
+    PostWrite->>FS: Resolve trainer + user display identity
+    PostWrite->>RTDB: Find or create direct chat with trainer
+    alt first summary message for day
+      PostWrite->>RTDB: Create chats/{chatId}/messages/workout_summary_{YYYY-MM-DD}
+      PostWrite->>RTDB: Set lastMessage + lastMessageTime
+    else same-day summary already exists
+      PostWrite->>RTDB: Update existing workout_summary_{YYYY-MM-DD} text
+      PostWrite->>RTDB: Update lastMessage
+    end
   end
+
+  LogSvc->>FS: Poll derivations/workout_summary + derivations/score_aggregation
+  LogSvc-->>WorkflowSvc: savedSession + scoreUpdate
+  WorkflowSvc->>SummaryProjection: projectWorkflowState(savedSession)
+  WorkflowSvc-->>ChatPage: saved state
 end
 
-LogSvc->>FS: Poll derivations/workout_summary + derivations/score_aggregation
-LogSvc-->>WorkflowSvc: savedSession + scoreUpdate
-WorkflowSvc->>SummaryProjection: projectWorkflowState(savedSession)
-WorkflowSvc-->>ChatPage: saved state
+rect rgb(246, 255, 248)
+  Note over FS,RTDB: Automatic group-chat synchronization on group document writes
+  FS-->>GroupSyncFn: Trigger on groupID/{groupId} write
+  alt group exists AND !isPTGroup AND has members
+    GroupSyncFn->>RTDB: Find group chat by groupId
+    alt group chat exists
+      GroupSyncFn->>RTDB: Sync participants/displayName/groupImage/isGroupChat
+      GroupSyncFn->>RTDB: Add missing userChats pointers
+      GroupSyncFn->>RTDB: Remove userChats pointers for removed users
+    else group chat missing
+      GroupSyncFn->>RTDB: Create chats/{chatId} type=group
+      GroupSyncFn->>RTDB: Set userChats/{uid}/{chatId}=true for each member
+    end
+  else PT/deleted/invalid group
+    GroupSyncFn-->>FS: No-op
+  end
+end
 
 User->>HistoryPage: Open workout history
 HistoryPage->>SummarySvc: listRecentWorkoutSummaries(uid)
@@ -70,10 +96,50 @@ SummaryPage->>SummarySvc: getWorkoutSummary(uid, date)
 SummarySvc->>FS: Read users/{uid}/workoutSummaries/{date}
 SummarySvc-->>SummaryPage: daily summary for display
 
-User->>ChatDetail: Open trainer chat
-ChatDetail->>RTDB: Subscribe to chats/{chatId}/messages
-RTDB-->>ChatDetail: workout_summary message
-ChatDetail-->>User: Render workout summary as custom card, not a normal bubble
+rect rgb(255, 249, 245)
+  Note over User,RTDB: Open a group's chat from leaderboard (on-demand ensure)
+  User->>LeaderboardPage: Tap "Go to group chat"
+  LeaderboardPage->>ChatsSvc: ensureGroupChatForGroup(groupId)
+  ChatsSvc->>EnsureGroupFn: httpsCallable(groupId)
+  EnsureGroupFn->>FS: Read groupID/{groupId} + validate auth membership
+  alt caller is member and group is not PT
+    EnsureGroupFn->>RTDB: Upsert group chat metadata + participants
+    EnsureGroupFn->>RTDB: Ensure userChats/{callerUid}/{chatId}=true
+    EnsureGroupFn-->>ChatsSvc: {chatId, created}
+    ChatsSvc-->>LeaderboardPage: chatId
+    LeaderboardPage->>ChatDetail: Navigate /chat/{chatId}
+  else permission denied / PT / not found
+    EnsureGroupFn-->>LeaderboardPage: HttpsError
+    LeaderboardPage-->>User: Show toast error
+  end
+end
 
-Note over PostWrite,SummarySvc: The daily WorkoutSummary is the source of truth for history and persisted summary views.
-Note over RTDB,ChatDetail: Trainer chat keeps one workout_summary message per day and updates it in place for additional same-day events.
+rect rgb(245, 255, 255)
+  Note over User,RTDB: Share workout summary to selected non-PT groups
+  User->>SummaryPage: Tap "Share to Group"
+  SummaryPage->>GroupSvc: getUserGroups(currentUid)
+  GroupSvc->>FS: Read users/{uid}.groupID + groupID docs
+  GroupSvc-->>SummaryPage: Group[]
+  SummaryPage-->>User: Show modal (non-PT groups, multi-select, Select All)
+  User->>SummaryPage: Confirm selected groups
+  loop each selected groupId
+    SummaryPage->>ChatsSvc: ensureGroupChatForGroup(groupId)
+    ChatsSvc->>EnsureGroupFn: httpsCallable(groupId)
+    EnsureGroupFn->>RTDB: Upsert/return group chat
+    EnsureGroupFn-->>ChatsSvc: chatId
+    SummaryPage->>ChatsSvc: sendWorkoutSummaryMessage(chatId, senderId, summaryText)
+    ChatsSvc->>RTDB: Push chats/{chatId}/messages/{autoId} type=workout_summary
+    ChatsSvc->>RTDB: Set lastMessage="Workout summary shared"
+  end
+  SummaryPage-->>User: Success or partial-failure toast
+end
+
+User->>ChatDetail: Open chat detail
+ChatDetail->>RTDB: Subscribe chats/{chatId}/messages
+RTDB-->>ChatDetail: text + workout_summary + invite/request messages
+ChatDetail->>FS: Read groupID/{groupId} when group chat
+ChatDetail-->>User: Render summary cards + optional members menu
+
+Note over PostWrite,SummarySvc: Daily WorkoutSummary in Firestore remains the source of truth for history/persisted summary views.
+Note over PostWrite,RTDB: Trainer direct chat uses deterministic workout_summary_{YYYY-MM-DD} message ids (upsert per day).
+Note over SummaryPage,RTDB: Group sharing sends normal pushed workout_summary messages to each selected group chat.
