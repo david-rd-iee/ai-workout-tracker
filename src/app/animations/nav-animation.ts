@@ -29,8 +29,6 @@ export const appNavAnimation: AnimationBuilder = (_baseEl: any, opts: any): Anim
   const leavingIsLoggingMethodRoutes = containsSelector(leavingEl, 'app-logging-method-routes');
   const enteringIsWorkoutHistory = containsSelector(enteringEl, 'app-workout-history');
   const leavingIsWorkoutHistory = containsSelector(leavingEl, 'app-workout-history');
-  const enteringIsClientWorkoutAnalysis = containsSelector(enteringEl, 'app-client-workout-analysis');
-  const leavingIsClientWorkoutAnalysis = containsSelector(leavingEl, 'app-client-workout-analysis');
   const enteringIsHome = containsSelector(enteringEl, 'app-home');
   const leavingIsWorkoutSummary = containsSelector(leavingEl, 'app-workout-summary');
   const isProfileHorizontalTransition =
@@ -40,7 +38,6 @@ export const appNavAnimation: AnimationBuilder = (_baseEl: any, opts: any): Anim
         leavingIsGroups ||
         leavingIsWorkoutChatbot ||
         leavingIsLoggingMethodRoutes ||
-        leavingIsClientWorkoutAnalysis ||
         leavingIsWorkoutHistory
       )
     ) ||
@@ -50,7 +47,6 @@ export const appNavAnimation: AnimationBuilder = (_baseEl: any, opts: any): Anim
         enteringIsGroups ||
         enteringIsWorkoutChatbot ||
         enteringIsLoggingMethodRoutes ||
-        enteringIsClientWorkoutAnalysis ||
         enteringIsWorkoutHistory
       )
     );

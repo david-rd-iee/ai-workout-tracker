@@ -823,6 +823,20 @@ export class HomePage implements OnInit, OnDestroy {
       state: { client } 
     });
   }
+
+  viewClientWorkoutVideos(client: any, event?: Event): void {
+    event?.stopPropagation();
+
+    const clientId = String(client?.id || client?.userId || '').trim();
+    if (!clientId) {
+      return;
+    }
+
+    const clientName = String(client?.name || '').trim();
+    this.router.navigate([`/trainer-client-videos/${clientId}`], {
+      queryParams: clientName ? { clientName } : {},
+    });
+  }
   
   previousMonth() {
     if (this.currentMonthIndex > 0) {

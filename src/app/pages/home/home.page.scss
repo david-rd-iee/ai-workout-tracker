@@ -455,6 +455,16 @@ ion-card {
   }
 }
 
+.view-videos-button {
+  margin-top: 10px;
+  --border-radius: 10px;
+  --border-color: #2e6ef5;
+  --color: #2e6ef5;
+  font-size: 0.74rem;
+  letter-spacing: 0.03em;
+  text-transform: none;
+}
+
 .chevron {
   color: $neo-accent;
   font-size: 18px;

@@ -195,6 +195,14 @@
                   <span class="stat-divider">·</span>
                   <span class="stat">Last: {{ client.lastWorkout | date:'MMM d' }}</span>
                 </div>
+                <ion-button
+                  class="view-videos-button"
+                  fill="outline"
+                  size="small"
+                  (click)="viewClientWorkoutVideos(client, $event)"
+                >
+                  View Workout Videos
+                </ion-button>
               </div>
               <ion-icon name="chevron-forward" class="chevron"></ion-icon>
             </div>

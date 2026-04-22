@@ -74,9 +74,11 @@ export class TrainerWorkoutAnalyzerPage implements OnInit {
   }
 
   goBack(): void {
-    this.navCtrl.navigateBack('/client-workout-analysis', {
+    const fallbackRoute = this.clientId ? `/trainer-client-videos/${this.clientId}` : '/tabs/home';
+    this.navCtrl.navigateBack(fallbackRoute, {
       animated: true,
       animationDirection: 'back',
+      queryParams: this.clientName ? { clientName: this.clientName } : undefined,
     });
   }
 
