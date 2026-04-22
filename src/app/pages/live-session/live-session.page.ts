@@ -12,7 +12,7 @@ import {
   IonBackButton,
 } from '@ionic/angular/standalone';
 import { NgxChartsModule, ScaleType } from '@swimlane/ngx-charts';
-import { Health } from '@capgo/capacitor-health';
+import { Preferences } from '@capacitor/preferences';
 
 @Component({
   selector: 'app-live-session',
@@ -34,22 +34,21 @@ import { Health } from '@capgo/capacitor-health';
   ],
 })
 export class LiveSessionPage implements OnDestroy {
-  healthStatus = 'Not connected';
-  isConnectingHealth = false;
-
   sessionStarted = false;
-  sessionStartTime: number | null = null;
   elapsedSeconds = 0;
 
   currentHeartRate: number | null = null;
+  displayedHeartRate: number | null = null;
   avgHeartRate: number | null = null;
   maxHeartRate: number | null = null;
 
   timerInterval: any = null;
-  heartRateInterval: any = null;
+  watchHeartRateInterval: any = null;
+  smoothingInterval: any = null;
 
-  heartRateSamples: { timestamp: string; value: number }[] = [];
+  lastWatchTimestamp: number | null = null;
 
+  heartRateSamples: { timestamp: number; value: number }[] = [];
   heartRateChartData: { name: string; series: { name: string; value: number }[] }[] = [];
 
   chartView: [number, number] = [300, 220];
@@ -61,9 +60,11 @@ export class LiveSessionPage implements OnDestroy {
   xAxisLabel = 'Time';
   showYAxisLabel = true;
   yAxisLabel = 'Heart Rate (BPM)';
-  autoScale = true;
+  autoScale = false;
   xAxisTickFormatting = (value: string) => value;
   yAxisTickFormatting = (value: number) => `${Math.round(value)}`;
+  yScaleMin = 60;
+  yScaleMax = 180;
 
   colorScheme = {
     name: 'heartRateScheme',
@@ -71,6 +72,8 @@ export class LiveSessionPage implements OnDestroy {
     group: ScaleType.Ordinal,
     domain: ['#ff4d6d']
   };
+
+  estimatedMaxHeartRate = 190;
 
   get formattedElapsedTime(): string {
     const hrs = Math.floor(this.elapsedSeconds / 3600);
@@ -82,124 +85,174 @@ export class LiveSessionPage implements OnDestroy {
       .join(':');
   }
 
-  async connectAppleHealth() {
-    if (this.isConnectingHealth) return;
+  get heartRatePercent(): number | null {
+    if (this.displayedHeartRate === null) return null;
+    return Math.round((this.displayedHeartRate / this.estimatedMaxHeartRate) * 100);
+  }
 
-    this.isConnectingHealth = true;
-    this.healthStatus = 'Connecting...';
-
-    try {
-      await Health.requestAuthorization({
-        read: ['heartRate'],
-        write: [],
-      });
-
-      this.healthStatus = 'Apple Health connected';
-    } catch (error) {
-      this.healthStatus = 'Apple Health connection failed';
-      console.error('Apple Health authorization error:', error);
-    } finally {
-      this.isConnectingHealth = false;
+  get currentZone() {
+    if (this.displayedHeartRate === null) {
+      return {
+        name: 'No Zone',
+        color: '#9ca3af',
+        percent: 0,
+      };
     }
+
+    const pct = this.displayedHeartRate / this.estimatedMaxHeartRate;
+
+    if (pct < 0.60) {
+      return { name: 'Warm Up', color: '#60a5fa', percent: Math.round(pct * 100) };
+    }
+    if (pct < 0.70) {
+      return { name: 'Fat Burn', color: '#34d399', percent: Math.round(pct * 100) };
+    }
+    if (pct < 0.80) {
+      return { name: 'Aerobic', color: '#f59e0b', percent: Math.round(pct * 100) };
+    }
+    if (pct < 0.90) {
+      return { name: 'Anaerobic', color: '#f97316', percent: Math.round(pct * 100) };
+    }
+
+    return { name: 'Max Effort', color: '#ef4444', percent: Math.round(pct * 100) };
   }
 
   startSession() {
     if (this.sessionStarted) return;
 
     this.sessionStarted = true;
-    this.sessionStartTime = Date.now();
     this.elapsedSeconds = 0;
-    this.heartRateSamples = [];
-    this.heartRateChartData = [];
     this.currentHeartRate = null;
+    this.displayedHeartRate = null;
     this.avgHeartRate = null;
     this.maxHeartRate = null;
+    this.heartRateSamples = [];
+    this.heartRateChartData = [];
+    this.lastWatchTimestamp = null;
+    this.colorScheme = {
+      ...this.colorScheme,
+      domain: ['#ff4d6d']
+    };
 
     this.timerInterval = setInterval(() => {
       this.elapsedSeconds += 1;
     }, 1000);
 
-    this.fetchLatestHeartRate();
-    this.heartRateInterval = setInterval(() => {
-      this.fetchLatestHeartRate();
-    }, 5000);
+    void this.readLatestWatchHeartRate();
+
+    this.watchHeartRateInterval = setInterval(() => {
+      void this.readLatestWatchHeartRate();
+    }, 1000);
+
+    this.smoothingInterval = setInterval(() => {
+      this.smoothHeartRate();
+    }, 1000);
   }
 
-  async fetchLatestHeartRate() {
+  async readLatestWatchHeartRate() {
     try {
-      const endDate = new Date();
-      const startDate = new Date(Date.now() - 10 * 60 * 1000);
-  
-      const { samples } = await Health.readSamples({
-        dataType: 'heartRate',
-        startDate: startDate.toISOString(),
-        endDate: endDate.toISOString(),
-        limit: 10,
-      });
-  
-      if (!samples || samples.length === 0) {
+      const hrResult = await Preferences.get({ key: 'latestWatchHeartRate' });
+      const tsResult = await Preferences.get({ key: 'latestWatchHeartRateTimestamp' });
+
+      if (!hrResult.value || !tsResult.value) return;
+
+      const heartRate = Number(hrResult.value);
+      const timestamp = Number(tsResult.value);
+
+      if (!heartRate || !timestamp) return;
+
+      this.currentHeartRate = heartRate;
+
+      if (this.lastWatchTimestamp === timestamp) {
         return;
       }
-  
-      const validSamples = samples
-        .filter((s: any) => typeof s?.value === 'number')
-        .sort(
-          (a: any, b: any) =>
-            new Date(a.endDate || a.startDate).getTime() -
-            new Date(b.endDate || b.startDate).getTime()
-        );
-  
-      if (validSamples.length === 0) return;
-  
-      const latestSample = validSamples[validSamples.length - 1];
-      const latestValue = Math.round(latestSample.value);
 
-      console.log('Latest Health sample:', {
-        timestamp: latestSample.endDate || latestSample.startDate,
-        value: latestSample.value,
-      });
-  
-      this.currentHeartRate = latestValue;
-  
-      this.heartRateSamples.push({
-        timestamp: new Date().toISOString(),
-        value: latestValue,
-      });
-  
-      const values = this.heartRateSamples.map((s) => s.value);
+      this.lastWatchTimestamp = timestamp;
+
+      const values = [...this.heartRateSamples.map((s) => s.value), heartRate];
       const sum = values.reduce((a, b) => a + b, 0);
-  
+
       this.avgHeartRate = Math.round(sum / values.length);
       this.maxHeartRate = Math.round(Math.max(...values));
-  
-      const recentSamples = this.heartRateSamples.slice(-10);
 
-      this.heartRateChartData = [
-        {
-          name: 'Heart Rate',
-          series: recentSamples.map((sample) => ({
-            name: new Date(sample.timestamp).toLocaleTimeString([], {
-              minute: '2-digit',
-              second: '2-digit',
-            }),
-            value: Math.round(sample.value),
-          })),
-        },
-      ];
+      if (this.displayedHeartRate === null) {
+        this.displayedHeartRate = heartRate;
+      }
+
+      this.updateChart();
     } catch (error) {
-      console.error('Live heart rate fetch error:', error);
+      console.error('Error reading watch heart rate:', error);
     }
+  }
+
+  smoothHeartRate() {
+    if (this.currentHeartRate === null) return;
+
+    if (this.displayedHeartRate === null) {
+      this.displayedHeartRate = this.currentHeartRate;
+    } else {
+      const diff = this.currentHeartRate - this.displayedHeartRate;
+
+      if (Math.abs(diff) <= 1) {
+        this.displayedHeartRate = this.currentHeartRate;
+      } else {
+        this.displayedHeartRate += diff * 0.35;
+      }
+    }
+
+    const displayValue = Math.round(this.displayedHeartRate);
+    const now = Date.now() / 1000;
+
+    const lastPoint = this.heartRateSamples[this.heartRateSamples.length - 1];
+
+    if (!lastPoint || now - lastPoint.timestamp >= 1) {
+      this.heartRateSamples.push({
+        timestamp: now,
+        value: displayValue,
+      });
+
+      if (this.heartRateSamples.length > 30) {
+        this.heartRateSamples = this.heartRateSamples.slice(-30);
+      }
+
+      this.updateChart();
+    }
+  }
+
+  updateChart() {
+    const recentSamples = this.heartRateSamples.slice(-20);
+
+    if (recentSamples.length === 0) return;
+
+    const values = recentSamples.map((s) => s.value);
+    const minVal = Math.min(...values);
+    const maxVal = Math.max(...values);
+
+    this.yScaleMin = Math.max(40, Math.floor(minVal - 5));
+    this.yScaleMax = Math.ceil(maxVal + 5);
+
+    this.colorScheme = {
+      ...this.colorScheme,
+      domain: [this.currentZone.color]
+    };
+
+    this.heartRateChartData = [
+      {
+        name: 'Heart Rate',
+        series: recentSamples.map((sample) => ({
+          name: new Date(sample.timestamp * 1000).toLocaleTimeString([], {
+            minute: '2-digit',
+            second: '2-digit',
+          }),
+          value: Math.round(sample.value),
+        })),
+      },
+    ];
   }
 
   finishSession() {
     this.stopIntervals();
     this.sessionStarted = false;
-    console.log('Session finished', {
-      durationSeconds: this.elapsedSeconds,
-      avgHeartRate: this.avgHeartRate,
-      maxHeartRate: this.maxHeartRate,
-      samples: this.heartRateSamples,
-    });
   }
 
   private stopIntervals() {
@@ -208,9 +261,14 @@ export class LiveSessionPage implements OnDestroy {
       this.timerInterval = null;
     }
 
-    if (this.heartRateInterval) {
-      clearInterval(this.heartRateInterval);
-      this.heartRateInterval = null;
+    if (this.watchHeartRateInterval) {
+      clearInterval(this.watchHeartRateInterval);
+      this.watchHeartRateInterval = null;
+    }
+
+    if (this.smoothingInterval) {
+      clearInterval(this.smoothingInterval);
+      this.smoothingInterval = null;
     }
   }
 
