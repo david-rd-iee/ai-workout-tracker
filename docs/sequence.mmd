@@ -22,6 +22,7 @@ participant SummaryPage as WorkoutSummaryPage
 participant GroupSvc as GroupService
 participant ChatsSvc as ChatsService
 participant LeaderboardPage as LeaderboardPage
+participant ClientChatsPage as ClientChatsPage
 participant ChatDetail as ChatDetailPage
 
 rect rgb(245, 248, 255)
@@ -56,9 +57,11 @@ rect rgb(245, 248, 255)
     alt first summary message for day
       PostWrite->>RTDB: Create chats/{chatId}/messages/workout_summary_{YYYY-MM-DD}
       PostWrite->>RTDB: Set lastMessage + lastMessageTime
+      PostWrite->>RTDB: Upsert chatSummaries/{chatId} + increment trainer unreadCountByUser
     else same-day summary already exists
       PostWrite->>RTDB: Update existing workout_summary_{YYYY-MM-DD} text
       PostWrite->>RTDB: Update lastMessage
+      PostWrite->>RTDB: Upsert chatSummaries/{chatId} without unread increment
     end
   end
 
@@ -69,16 +72,23 @@ rect rgb(245, 248, 255)
 end
 
 rect rgb(246, 255, 248)
-  Note over FS,RTDB: Automatic group-chat synchronization on group document writes
+  Note over FS,RTDB: Automatic group-chat sync with membership-aware pointer writes
   FS-->>GroupSyncFn: Trigger on groupID/{groupId} write
   alt group exists AND !isPTGroup AND has members
+    GroupSyncFn->>GroupSyncFn: Compare before vs after membership/name/image/PT fields
     GroupSyncFn->>RTDB: Find group chat by groupId
     alt group chat exists
       GroupSyncFn->>RTDB: Sync participants/displayName/groupImage/isGroupChat
-      GroupSyncFn->>RTDB: Add missing userChats pointers
-      GroupSyncFn->>RTDB: Remove userChats pointers for removed users
+      GroupSyncFn->>RTDB: Upsert chatSummaries/{chatId} + unread maps
+      alt membership changed
+        GroupSyncFn->>RTDB: Add missing userChats pointers
+        GroupSyncFn->>RTDB: Remove userChats pointers for removed users
+      else membership unchanged
+        GroupSyncFn-->>RTDB: Skip userChats pointer sync
+      end
     else group chat missing
       GroupSyncFn->>RTDB: Create chats/{chatId} type=group
+      GroupSyncFn->>RTDB: Create chatSummaries/{chatId}
       GroupSyncFn->>RTDB: Set userChats/{uid}/{chatId}=true for each member
     end
   else PT/deleted/invalid group
@@ -104,6 +114,7 @@ rect rgb(255, 249, 245)
   EnsureGroupFn->>FS: Read groupID/{groupId} + validate auth membership
   alt caller is member and group is not PT
     EnsureGroupFn->>RTDB: Upsert group chat metadata + participants
+    EnsureGroupFn->>RTDB: Upsert chatSummaries/{chatId}
     EnsureGroupFn->>RTDB: Ensure userChats/{callerUid}/{chatId}=true
     EnsureGroupFn-->>ChatsSvc: {chatId, created}
     ChatsSvc-->>LeaderboardPage: chatId
@@ -130,16 +141,37 @@ rect rgb(245, 255, 255)
     SummaryPage->>ChatsSvc: sendWorkoutSummaryMessage(chatId, senderId, summaryText)
     ChatsSvc->>RTDB: Push chats/{chatId}/messages/{autoId} type=workout_summary
     ChatsSvc->>RTDB: Set lastMessage="Workout summary shared"
+    ChatsSvc->>RTDB: Update chatSummaries/{chatId} lastMessage + unreadCountByUser
   end
   SummaryPage-->>User: Success or partial-failure toast
 end
 
-User->>ChatDetail: Open chat detail
-ChatDetail->>RTDB: Subscribe chats/{chatId}/messages
-RTDB-->>ChatDetail: text + workout_summary + invite/request messages
-ChatDetail->>FS: Read groupID/{groupId} when group chat
-ChatDetail-->>User: Render summary cards + optional members menu
+rect rgb(245, 245, 255)
+  Note over User,RTDB: Chat inbox list uses summary-only subscriptions
+  User->>ClientChatsPage: Open /tabs/chats/client-chats
+  ClientChatsPage->>ChatsSvc: initializeUserChats(uid, accountType)
+  ChatsSvc->>RTDB: Subscribe userChats/{uid}
+  loop each chatId
+    ChatsSvc->>RTDB: Subscribe chatSummaries/{chatId}
+    alt summary missing
+      ChatsSvc->>RTDB: One-time read chats/{chatId}
+      ChatsSvc->>RTDB: Bootstrap chatSummaries/{chatId}
+    end
+  end
+  ChatsSvc-->>ClientChatsPage: Emit sorted chat list
+  ClientChatsPage-->>User: Render inbox without message-tree listeners
+end
+
+rect rgb(244, 252, 255)
+  Note over User,RTDB: Full message stream subscription lives only in chat detail
+  User->>ChatDetail: Open chat detail
+  ChatDetail->>RTDB: Subscribe chats/{chatId}/messages
+  RTDB-->>ChatDetail: text + workout_summary + invite/request messages
+  ChatDetail->>RTDB: Mark current user read in chatSummaries/{chatId}
+  ChatDetail->>FS: Read groupID/{groupId} when group chat
+  ChatDetail-->>User: Render summary cards + optional members menu
+end
 
 Note over PostWrite,SummarySvc: Daily WorkoutSummary in Firestore remains the source of truth for history/persisted summary views.
-Note over PostWrite,RTDB: Trainer direct chat uses deterministic workout_summary_{YYYY-MM-DD} message ids (upsert per day).
-Note over SummaryPage,RTDB: Group sharing sends normal pushed workout_summary messages to each selected group chat.
+Note over PostWrite,RTDB: Trainer direct chat uses deterministic workout_summary_{YYYY-MM-DD} ids and summary upserts.
+Note over ChatsSvc,RTDB: Inbox unread state comes from chatSummaries unreadCountByUser/lastReadAtByUser, not message scans.

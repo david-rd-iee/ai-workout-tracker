@@ -78,6 +78,18 @@ namespace Shared_Domain {
     +displayName: string
     +groupImage: string
   }
+  class ChatSummary {
+    +chatId: string
+    +participants: string[]
+    +type: direct_or_group
+    +groupId: string
+    +displayName: string
+    +groupImage: string
+    +lastMessage: string
+    +lastMessageTime: string
+    +unreadCountByUser: map_user_to_count
+    +lastReadAtByUser: map_user_to_iso_time
+  }
   class Message {
     +type: message_kind
     +senderId: string
@@ -100,6 +112,9 @@ namespace Firebase_Data {
     +path: chats_chatId
     +messagesPath: chats_chatId_messages_messageId
   }
+  class ChatSummariesCollection {
+    +path: chatSummaries_chatId
+  }
   class UserChatsIndex {
     +path: userChats_uid_chatId_true
   }
@@ -115,6 +130,7 @@ WorkoutEvent o-- WorkoutEventSummary
 WorkoutEvent o-- WorkoutEventEntry
 WorkoutSummary o-- WorkoutEvent : aggregate
 Chat o-- Message
+ChatSummary ..> Chat : metadata projection
 
 WorkoutChatbotPage --> WorkoutWorkflowService : processWorkoutMessage()/submitWorkout()
 WorkoutHistoryPage --> WorkoutSummaryService : listRecentWorkoutSummaries()
@@ -122,8 +138,8 @@ WorkoutSummaryPage --> WorkoutSummaryService : getWorkoutSummary(date)
 WorkoutSummaryPage --> GroupService : getUserGroups(uid)
 WorkoutSummaryPage --> ChatsService : ensureGroupChatForGroup() + sendWorkoutSummaryMessage()
 LeaderboardPage --> ChatsService : ensureGroupChatForGroup()
-ClientChatsPage --> ChatsService : initializeUserChats()
-ChatDetailPage --> RealtimeDatabase : subscribe chats/{chatId}/messages
+ClientChatsPage --> ChatsService : initializeUserChats() summary-only inbox
+ChatDetailPage --> RealtimeDatabase : subscribe chats/{chatId}/messages only
 ChatDetailPage --> Firestore : read groupID metadata/member list
 
 WorkoutWorkflowService --> WorkoutChatService : sendMessage()
@@ -138,18 +154,23 @@ WorkoutLogService --> completeWorkoutEvent : httpsCallable
 completeWorkoutEvent --> UserWorkoutEventsCollection : write canonical event record
 onWorkoutEventCreated --> UserWorkoutSummariesCollection : upsert daily WorkoutSummary
 onWorkoutEventCreated --> ChatsCollection : create/update trainer workout_summary message
+onWorkoutEventCreated --> ChatSummariesCollection : upsert lastMessage + unreadCountByUser
 onWorkoutEventCreated --> Firestore : user stats + score derivations + group war scoring
 
 onGroupDocumentWrittenSyncChat --> GroupsCollection : trigger on create/update
 onGroupDocumentWrittenSyncChat --> ChatsCollection : upsert group chat metadata + participants
-onGroupDocumentWrittenSyncChat --> UserChatsIndex : add/remove membership pointers
+onGroupDocumentWrittenSyncChat --> ChatSummariesCollection : upsert summary + unread counters
+onGroupDocumentWrittenSyncChat --> UserChatsIndex : add/remove pointers only when membership changes
 
 ChatsService --> ensureGroupChatForGroup : httpsCallable(us-central1)
 ensureGroupChatForGroup --> GroupsCollection : validate group + membership + PT exclusion
 ensureGroupChatForGroup --> ChatsCollection : create or sync group chat
+ensureGroupChatForGroup --> ChatSummariesCollection : ensure summary record
 ensureGroupChatForGroup --> UserChatsIndex : ensure caller chat pointer
 
-ChatsService --> RealtimeDatabase : send/read chat messages
+ChatsService --> RealtimeDatabase : listen userChats + chatSummaries for list
+ChatsService --> RealtimeDatabase : write chats/{chatId}/messages on send
+ChatsService --> ChatSummariesCollection : increment unreadCountByUser + update lastReadAtByUser
 ChatsService --> UserService : resolve recipient account type + sender identity
 ChatsService --> NotificationService : push notifications
 
@@ -157,4 +178,5 @@ UserWorkoutEventsCollection --> Firestore
 UserWorkoutSummariesCollection --> Firestore
 GroupsCollection --> Firestore
 ChatsCollection --> RealtimeDatabase
+ChatSummariesCollection --> RealtimeDatabase
 UserChatsIndex --> RealtimeDatabase
