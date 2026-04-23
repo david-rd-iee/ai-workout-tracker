@@ -14,6 +14,95 @@ export class TrainerAvailabilityService {
   
   constructor(private firestore: Firestore) { }
 
+  private parseDateInput(date: string): Date | null {
+    const normalized = String(date || '').trim();
+    if (!normalized) {
+      return null;
+    }
+
+    const directDateMatch = normalized.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (directDateMatch) {
+      const year = Number.parseInt(directDateMatch[1], 10);
+      const month = Number.parseInt(directDateMatch[2], 10);
+      const day = Number.parseInt(directDateMatch[3], 10);
+      return new Date(year, month - 1, day);
+    }
+
+    const parsed = new Date(normalized);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
+
+  private normalizeAvailabilityEntries(rawAvailability: unknown): any[] {
+    if (Array.isArray(rawAvailability)) {
+      return rawAvailability;
+    }
+
+    if (!rawAvailability || typeof rawAvailability !== 'object') {
+      return [];
+    }
+
+    return Object.entries(rawAvailability as Record<string, unknown>).map(([day, slots]) => ({
+      day,
+      available: Array.isArray(slots) ? slots.length > 0 : Boolean(slots),
+      timeWindows: Array.isArray(slots)
+        ? slots
+            .map((slot) => {
+              const normalizedSlot = slot as Record<string, unknown>;
+              const start = String(
+                normalizedSlot['startTime'] || normalizedSlot['start'] || ''
+              ).trim();
+              const end = String(
+                normalizedSlot['endTime'] || normalizedSlot['end'] || ''
+              ).trim();
+              return start && end ? { startTime: start, endTime: end } : null;
+            })
+            .filter((slot): slot is { startTime: string; endTime: string } => !!slot)
+        : [],
+    }));
+  }
+
+  private getDefaultDayEntry(dayOfWeek: string): any {
+    return {
+      day: dayOfWeek,
+      available: true,
+      timeWindows: [{ startTime: '09:00 AM', endTime: '05:00 PM' }],
+    };
+  }
+
+  private applyBookedSessionsToTimeSlots(
+    trainerId: string,
+    date: string,
+    timeSlots: TimeSlot[],
+  ): void {
+    const trainerAvailabilityRef = doc(this.firestore, `trainerAvailability/${trainerId}`);
+
+    getDoc(trainerAvailabilityRef)
+      .then((trainerAvailabilitySnap) => {
+        let updatedTimeSlots = [...timeSlots];
+
+        if (trainerAvailabilitySnap.exists() && trainerAvailabilitySnap.data()['bookedSessions']) {
+          const bookedSessions = trainerAvailabilitySnap.data()['bookedSessions'] || [];
+
+          const activeSessions = bookedSessions.filter(
+            (session: any) => session.date === date && session.status !== 'cancelled'
+          );
+
+          if (activeSessions.length > 0) {
+            updatedTimeSlots = updatedTimeSlots.map((slot) => {
+              const isBooked = activeSessions.some((session: any) => session.startTime === slot.time);
+              return isBooked ? { ...slot, booked: true } : slot;
+            });
+          }
+        }
+
+        this.availableTimeSlots.set(updatedTimeSlots);
+      })
+      .catch((error) => {
+        console.error('Error checking bookings:', error);
+        this.availableTimeSlots.set(timeSlots);
+      });
+  }
+
   /**
    * Get a trainer's availability for a specific date
    * @param trainerId The ID of the trainer
@@ -26,7 +115,11 @@ export class TrainerAvailabilityService {
     this.availableTimeSlots.set([]);
     
     // Get the day of the week for the selected date
-    const dateObj = new Date(date);
+    const dateObj = this.parseDateInput(date);
+    if (!dateObj) {
+      this.availableTimeSlots.set([]);
+      return this.availableTimeSlots;
+    }
     const dayOfWeek = dateObj.toLocaleString('en-US', { weekday: 'long' });
     
     // Check both possible document paths for trainer availability
@@ -44,8 +137,16 @@ export class TrainerAvailabilityService {
         const trainerData = trainerProfileSnap.data() as Record<string, unknown>;
         
         // Check if availability array exists in the trainer document
-        if (trainerData['availability'] && Array.isArray(trainerData['availability'])) {
-          this.processAvailabilityFromArray(trainerId, date, trainerData['availability'], dayOfWeek);
+        const normalizedProfileAvailability = this.normalizeAvailabilityEntries(
+          trainerData['availability']
+        );
+        if (normalizedProfileAvailability.length > 0) {
+          this.processAvailabilityFromArray(
+            trainerId,
+            date,
+            normalizedProfileAvailability,
+            dayOfWeek
+          );
           return; // Exit early if we found availability in the trainer document
         } else {
           console.log('DEBUG: No availability array found in trainers collection');
@@ -58,18 +159,34 @@ export class TrainerAvailabilityService {
       if (availabilitySnap.exists()) {
         const availabilityData = availabilitySnap.data();
         
-        if (availabilityData['availability'] && Array.isArray(availabilityData['availability'])) {
-          this.processAvailabilityFromArray(trainerId, date, availabilityData['availability'], dayOfWeek);
+        const normalizedAvailability = this.normalizeAvailabilityEntries(availabilityData['availability']);
+        if (normalizedAvailability.length > 0) {
+          this.processAvailabilityFromArray(trainerId, date, normalizedAvailability, dayOfWeek);
         } else {
-          this.availableTimeSlots.set([]);
+          this.processAvailabilityFromArray(
+            trainerId,
+            date,
+            [this.getDefaultDayEntry(dayOfWeek)],
+            dayOfWeek
+          );
         }
       } else {
         console.log('DEBUG: No availability document found in trainerAvailability collection');
-        this.availableTimeSlots.set([]);
+        this.processAvailabilityFromArray(
+          trainerId,
+          date,
+          [this.getDefaultDayEntry(dayOfWeek)],
+          dayOfWeek
+        );
       }
     }).catch(error => {
       console.error('DEBUG: Error getting trainer data:', error);
-      this.availableTimeSlots.set([]);
+      this.processAvailabilityFromArray(
+        trainerId,
+        date,
+        [this.getDefaultDayEntry(dayOfWeek)],
+        dayOfWeek
+      );
     });
     
     // Set up real-time listeners for changes
@@ -81,8 +198,16 @@ export class TrainerAvailabilityService {
         const trainerData = snapshot.exists()
           ? (snapshot.data() as Record<string, unknown>)
           : null;
-        if (trainerData?.['availability'] && Array.isArray(trainerData['availability'])) {
-          this.processAvailabilityFromArray(trainerId, date, trainerData['availability'], dayOfWeek);
+        const normalizedProfileAvailability = this.normalizeAvailabilityEntries(
+          trainerData?.['availability']
+        );
+        if (normalizedProfileAvailability.length > 0) {
+          this.processAvailabilityFromArray(
+            trainerId,
+            date,
+            normalizedProfileAvailability,
+            dayOfWeek
+          );
         }
       },
       (error) => {
@@ -95,8 +220,9 @@ export class TrainerAvailabilityService {
       
       if (snapshot.exists()) {
         const availabilityData = snapshot.data();
-        if (availabilityData['availability'] && Array.isArray(availabilityData['availability'])) {
-          this.processAvailabilityFromArray(trainerId, date, availabilityData['availability'], dayOfWeek);
+        const normalizedAvailability = this.normalizeAvailabilityEntries(availabilityData['availability']);
+        if (normalizedAvailability.length > 0) {
+          this.processAvailabilityFromArray(trainerId, date, normalizedAvailability, dayOfWeek);
         }
       }
     }, (error) => {
@@ -153,58 +279,11 @@ export class TrainerAvailabilityService {
         return;
       }
       
-      // Check for bookings using the bookedSessions array
-      const trainerAvailabilityRef = doc(this.firestore, `trainerAvailability/${trainerId}`);
-      
-      // Get the trainer availability document
-      getDoc(trainerAvailabilityRef).then((trainerAvailabilitySnap) => {
-        console.log(`DEBUG: Trainer availability document exists: ${trainerAvailabilitySnap.exists()}`);
-        
-        let updatedTimeSlots = [...timeSlots];
-        
-        // Check bookedSessions array
-        if (trainerAvailabilitySnap.exists() && trainerAvailabilitySnap.data()['bookedSessions']) {
-          const bookedSessions = trainerAvailabilitySnap.data()['bookedSessions'] || [];
-          console.log(`DEBUG: Found ${bookedSessions.length} booked sessions in total`);
-          
-          // Filter for sessions on the selected date that aren't cancelled
-          const activeSessions = bookedSessions.filter((session: any) => 
-            session.date === date && session.status !== 'cancelled'
-          );
-          
-          console.log(`DEBUG: Found ${activeSessions.length} active sessions for date ${date}`);
-          
-          // Mark booked slots as unavailable
-          if (activeSessions.length > 0) {
-            console.log('DEBUG: Active sessions for this date:', JSON.stringify(activeSessions, null, 2));
-            
-            updatedTimeSlots = updatedTimeSlots.map(slot => {
-              // Check if this time slot is booked in any session
-              const isBooked = activeSessions.some((session: any) => session.startTime === slot.time);
-              if (isBooked) {
-                console.log(`DEBUG: Marking time slot ${slot.time} as booked`);
-                return { ...slot, booked: true };
-              }
-              return slot;
-            });
-            
-            console.log('DEBUG: Time slots after checking bookedSessions array:', updatedTimeSlots);
-          }
-        } else {
-          console.log('DEBUG: No bookedSessions array found in trainer availability document');
-        }
-        
-        // Update the available time slots
-        console.log(`DEBUG: Setting ${updatedTimeSlots.length} available time slots`);
-        this.availableTimeSlots.set(updatedTimeSlots);
-      }).catch(error => {
-        console.error('Error checking bookings:', error);
-        // Still update with available slots even if checking bookings fails
-        this.availableTimeSlots.set(timeSlots);
-      });
+      this.applyBookedSessionsToTimeSlots(trainerId, date, timeSlots);
     } else {
       console.log('No availability entry found for this day of week');
-      this.availableTimeSlots.set([]);
+      const fallbackSlots = this.generateTimeSlotsFromArray(this.getDefaultDayEntry(dayOfWeek));
+      this.applyBookedSessionsToTimeSlots(trainerId, date, fallbackSlots);
     }
   }
   

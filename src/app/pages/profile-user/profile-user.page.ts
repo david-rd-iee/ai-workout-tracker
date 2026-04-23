@@ -276,6 +276,9 @@ export class ProfileUserPage implements OnInit, OnDestroy {
     const uid = this.auth.currentUser?.uid ?? null;
     if (uid) {
       this.startUsersDocRealtimeListener(uid);
+      if (this.currentUser?.accountType === 'trainer') {
+        void this.calculateTrainerStatsFromBookings(uid);
+      }
     }
     void this.runDeferredLoads();
   }

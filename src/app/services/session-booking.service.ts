@@ -78,7 +78,7 @@ export class SessionBookingService {
       if (String(booking?.['clientId'] || '').trim() !== normalizedClientId) {
         return;
       }
-      if (booking?.['status'] === 'cancelled') {
+      if (booking?.['status'] === 'cancelled' || booking?.['status'] === 'pending') {
         return;
       }
 
@@ -159,7 +159,11 @@ export class SessionBookingService {
         endTime: bookingData.endTime || this.calculateEndTime(bookingData.time, bookingData.duration),
         bookingId: bookingId,
         status: bookingData.status || 'confirmed', // Use defaulted status
-        duration: bookingData.duration || 30 // Store duration in minutes
+        duration: bookingData.duration || 30, // Store duration in minutes
+        sessionType: (bookingData as any).sessionType || '',
+        notes: (bookingData as any).notes || '',
+        requestedBy: (bookingData as any).requestedBy || '',
+        requestType: (bookingData as any).requestType || ''
       };
       
       console.log('Adding booked session to trainer availability:', bookedSession);
@@ -422,6 +426,68 @@ export class SessionBookingService {
       console.error('Error cancelling booked session:', error);
       throw error;
     }
+  }
+
+  async acceptPendingBookingRequest(trainerId: string, bookingId: string): Promise<void> {
+    const normalizedTrainerId = String(trainerId || '').trim();
+    const normalizedBookingId = String(bookingId || '').trim();
+    if (!normalizedTrainerId || !normalizedBookingId) {
+      throw new Error('Trainer ID and booking ID are required.');
+    }
+
+    const bookingRef = doc(this.firestore, `bookings/${normalizedBookingId}`);
+    const bookingSnap = await getDoc(bookingRef);
+    if (!bookingSnap.exists()) {
+      throw new Error(`Booking ${normalizedBookingId} not found.`);
+    }
+
+    const bookingData = bookingSnap.data() as Record<string, unknown>;
+    const clientId = String(bookingData['clientId'] || '').trim();
+    const bookingTrainerId = String(bookingData['trainerId'] || '').trim();
+    if (bookingTrainerId && bookingTrainerId !== normalizedTrainerId) {
+      throw new Error('This booking does not belong to the current trainer.');
+    }
+
+    await updateDoc(bookingRef, {
+      status: 'confirmed',
+      respondedAt: new Date(),
+    });
+
+    const trainerAvailabilityRef = doc(this.firestore, `trainerAvailability/${normalizedTrainerId}`);
+    const trainerAvailabilityDoc = await getDoc(trainerAvailabilityRef);
+    if (trainerAvailabilityDoc.exists() && trainerAvailabilityDoc.data()['bookedSessions']) {
+      const bookedSessions = trainerAvailabilityDoc.data()['bookedSessions'] || [];
+      const updatedSessions = bookedSessions.map((session: any) => {
+        if (session.bookingId === normalizedBookingId || session.id === normalizedBookingId) {
+          return { ...session, status: 'confirmed' };
+        }
+        return session;
+      });
+
+      await updateDoc(trainerAvailabilityRef, {
+        bookedSessions: updatedSessions,
+      });
+    }
+
+    if (clientId) {
+      await this.syncTrainerClientRecord(normalizedTrainerId, clientId);
+    }
+  }
+
+  async rejectPendingBookingRequest(trainerId: string, bookingId: string): Promise<void> {
+    const normalizedTrainerId = String(trainerId || '').trim();
+    const normalizedBookingId = String(bookingId || '').trim();
+    if (!normalizedTrainerId || !normalizedBookingId) {
+      throw new Error('Trainer ID and booking ID are required.');
+    }
+
+    await this.cancelBookedSession(normalizedTrainerId, normalizedBookingId);
+
+    const bookingRef = doc(this.firestore, `bookings/${normalizedBookingId}`);
+    await updateDoc(bookingRef, {
+      respondedAt: new Date(),
+      rejectedAt: new Date(),
+    });
   }
   
   /**

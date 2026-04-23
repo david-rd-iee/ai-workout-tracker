@@ -36,11 +36,6 @@ $neo-accent: #2e6ef5;
   position: relative;
 }
 
-.auth-page-content.keyboard-open::part(scroll) {
-  overflow-y: hidden;
-  overscroll-behavior-y: none;
-}
-
 .background-gradient {
   position: absolute;
   inset: 0;
@@ -54,29 +49,23 @@ $neo-accent: #2e6ef5;
 .auth-page-container {
   position: relative;
   z-index: 1;
-  max-width: 540px;
+  max-width: 760px;
   margin: 0 auto;
   min-height: 100%;
   padding: 16px;
   padding-top: 10px;
-  padding-bottom: 24px;
+  padding-bottom: 28px;
   display: grid;
-  align-content: center;
+  align-content: start;
   gap: 16px;
 }
 
-.auth-page-content.keyboard-open .auth-page-container {
-  align-content: start;
-  padding-top: calc(env(safe-area-inset-top, 0px) + 10px);
-  padding-bottom: calc(var(--ios-keyboard-height, 0px) + env(safe-area-inset-bottom, 0px) + 12px);
-}
-
-.auth-page-content.keyboard-open .auth-hero-card {
-  display: none;
+.auth-hero-card,
+.auth-form-card {
+  @include neo-raised(26px);
 }
 
 .auth-hero-card {
-  @include neo-raised(26px);
   display: grid;
   grid-template-columns: 130px 1fr;
   gap: 14px;
@@ -99,7 +88,6 @@ $neo-accent: #2e6ef5;
   object-fit: contain;
   border-radius: 16px;
   filter: drop-shadow(0 12px 16px rgba(123, 144, 182, 0.34));
-  transform: translateY(-1px);
 }
 
 .hero-copy {
@@ -108,9 +96,9 @@ $neo-accent: #2e6ef5;
   h1 {
     margin: 4px 0 6px;
     color: $neo-text;
-    font-size: clamp(2.15rem, 5.1vw, 2.95rem);
-    letter-spacing: 0.05em;
-    line-height: 0.95;
+    font-size: clamp(2.05rem, 4.8vw, 2.9rem);
+    letter-spacing: 0.04em;
+    line-height: 0.97;
     font-weight: 680;
     text-shadow: 0 1px 0 rgba(255, 255, 255, 0.7);
   }
@@ -118,8 +106,8 @@ $neo-accent: #2e6ef5;
   p {
     margin: 0;
     color: $neo-muted;
-    font-size: 0.9rem;
-    line-height: 1.45;
+    font-size: 0.92rem;
+    line-height: 1.5;
     font-weight: 600;
   }
 }
@@ -134,9 +122,8 @@ $neo-accent: #2e6ef5;
 }
 
 .auth-form-card {
-  @include neo-raised(26px);
   display: grid;
-  gap: 14px;
+  gap: 16px;
   padding: 16px;
 
   h2 {
@@ -149,9 +136,36 @@ $neo-accent: #2e6ef5;
   }
 }
 
-.auth-form {
+.auth-form,
+.form-section {
   display: grid;
   gap: 12px;
+}
+
+.field-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.form-section {
+  @include neo-inset(22px);
+  padding: 14px;
+}
+
+.section-header {
+  h3 {
+    margin: 0;
+    color: $neo-text;
+    font-size: 0.98rem;
+    font-weight: 700;
+  }
+
+  p {
+    margin: 6px 0 0;
+    color: $neo-muted;
+    font-size: 0.82rem;
+    line-height: 1.5;
+  }
 }
 
 .auth-input-item {
@@ -166,15 +180,27 @@ $neo-accent: #2e6ef5;
   color: $neo-text;
 }
 
-.auth-input-item ion-input {
+.auth-input-item ion-input,
+.auth-input-item ion-select,
+.auth-input-item ion-textarea {
   --color: #526078;
   --placeholder-color: #8b9ab0;
   --highlight-color-focused: #2e6ef5;
   --label-color: #7586a0;
-  --padding-top: 8px;
-  --padding-bottom: 8px;
   font-size: 0.98rem;
   font-weight: 600;
+}
+
+.textarea-item {
+  --min-height: 120px;
+  align-items: flex-start;
+}
+
+.unit-helper {
+  margin: -2px 4px 2px;
+  color: $neo-muted;
+  font-size: 0.8rem;
+  line-height: 1.45;
 }
 
 .primary-auth-btn {
@@ -184,7 +210,7 @@ $neo-accent: #2e6ef5;
   --color: #f7fbff;
   --border-radius: 16px;
   --box-shadow: none;
-  min-height: 44px;
+  min-height: 46px;
   margin: 2px 0 0;
   font-size: 16px;
   font-weight: 700;
@@ -192,43 +218,6 @@ $neo-accent: #2e6ef5;
   box-shadow:
     8px 8px 16px -12px rgba(78, 122, 210, 0.55),
     inset 1px 1px 1px rgba(255, 255, 255, 0.4);
-
-  &::part(native) {
-    border-radius: 16px;
-    overflow: hidden;
-    transition: transform 170ms ease, box-shadow 170ms ease;
-  }
-
-  &:active::part(native) {
-    transform: translateY(1px) scale(0.997);
-  }
-}
-
-.apple-auth-btn {
-  --background: linear-gradient(145deg, #eef3fb, #e2e9f5);
-  --background-hover: linear-gradient(145deg, #f5f8fd, #e8eef8);
-  --background-activated: linear-gradient(145deg, #e0e8f4, #d5deed);
-  --color: #4f617c;
-  --border-radius: 16px;
-  --box-shadow: none;
-  min-height: 44px;
-  margin: 0;
-  font-size: 0.94rem;
-  font-weight: 700;
-  letter-spacing: 0.01em;
-  box-shadow:
-    8px 8px 16px -12px rgba(184, 196, 214, 0.9),
-    -8px -8px 14px -12px rgba(249, 252, 255, 0.92);
-
-  &::part(native) {
-    border-radius: 16px;
-    overflow: hidden;
-    transition: transform 170ms ease, box-shadow 170ms ease;
-  }
-
-  &:active::part(native) {
-    transform: translateY(1px) scale(0.997);
-  }
 }
 
 .auth-error p {
@@ -240,52 +229,13 @@ $neo-accent: #2e6ef5;
   text-align: center;
 }
 
-.auth-success p {
-  margin: 0;
-  color: #436d55;
-  font-size: 0.86rem;
-  line-height: 1.45;
-  font-weight: 600;
-  text-align: center;
-}
-
-.forgot-password-link {
-  justify-self: center;
-  border: 0;
-  padding: 0;
-  background: transparent;
-  color: $neo-accent;
-  font-size: 0.88rem;
-  font-weight: 700;
-  line-height: 1.2;
-  cursor: pointer;
-}
-
-.forgot-password-link[disabled] {
-  opacity: 0.55;
-  cursor: default;
-}
-
-.auth-switch-copy {
-  margin: 0;
-  text-align: center;
-  color: $neo-muted;
-  font-size: 0.86rem;
-  font-weight: 600;
-  line-height: 1.4;
-
-  a {
-    color: $neo-accent;
-    font-weight: 700;
-    text-decoration: none;
+@media (min-width: 560px) {
+  .two-up {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-}
 
-@media (max-width: 768px) {
-  .auth-page-container {
-    padding: 14px;
-    padding-top: 10px;
-    padding-bottom: 22px;
+  .three-up {
+    grid-template-columns: 1.2fr 0.9fr 0.9fr;
   }
 }
 
@@ -297,11 +247,6 @@ $neo-accent: #2e6ef5;
   }
 
   .hero-copy h1 {
-    font-size: 2.3rem;
-  }
-
-  .hero-copy p {
-    max-width: 26ch;
-    margin: 0 auto;
+    font-size: 2.25rem;
   }
 }

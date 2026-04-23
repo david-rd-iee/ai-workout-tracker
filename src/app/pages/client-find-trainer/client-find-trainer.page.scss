@@ -183,12 +183,25 @@ $atlas-blue-strong: #2e6ef5;
 .trainer-avatar {
   width: 62px;
   height: 62px;
+  min-width: 62px;
+  min-height: 62px;
   padding: 4px;
+  border-radius: 50%;
+  overflow: hidden;
   background: linear-gradient(145deg, #edf2fb, #e4ebf7);
   border: 1px solid rgba(255, 255, 255, 0.56);
   box-shadow:
     inset 7px 7px 12px -10px rgba(184, 196, 214, 0.9),
     inset -7px -7px 12px -10px rgba(249, 252, 255, 0.95);
+}
+
+.trainer-avatar img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  object-position: center;
+  display: block;
 }
 
 .trainer-copy {
@@ -224,9 +237,38 @@ $atlas-blue-strong: #2e6ef5;
   text-transform: uppercase;
 }
 
+.trainer-status-pill.pending {
+  color: #6b7280;
+}
+
+.trainer-status-pill.declined {
+  color: #b45309;
+}
+
 .trainer-meta {
   color: $atlas-muted;
   font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.trainer-quick-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+
+  span {
+    @include atlas-inset(999px);
+    padding: 6px 10px;
+    color: $atlas-text;
+    font-size: 0.74rem;
+    font-weight: 700;
+    line-height: 1.2;
+  }
+}
+
+.trainer-request-note {
+  color: $atlas-text;
+  font-size: 0.82rem;
   line-height: 1.45;
 }
 
@@ -245,6 +287,87 @@ $atlas-blue-strong: #2e6ef5;
 .trainer-footer {
   display: grid;
   gap: 10px;
+}
+
+.details-toggle {
+  @include atlas-inset(16px);
+  border: 0;
+  padding: 12px 14px;
+  color: $atlas-blue-strong;
+  font: inherit;
+  font-size: 0.84rem;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+
+.trainer-details {
+  display: grid;
+  gap: 10px;
+}
+
+.details-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.detail-card {
+  @include atlas-inset(18px);
+  padding: 12px 14px;
+  display: grid;
+  gap: 6px;
+}
+
+.detail-card-full {
+  margin-top: 2px;
+}
+
+.detail-label {
+  color: $atlas-blue-strong;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.detail-value {
+  color: $atlas-text;
+  font-size: 0.88rem;
+  line-height: 1.5;
+  font-weight: 600;
+}
+
+.request-composer {
+  display: grid;
+  gap: 8px;
+}
+
+.request-label {
+  color: $atlas-text;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.request-textarea {
+  @include atlas-inset(16px);
+  width: 100%;
+  min-height: 88px;
+  padding: 12px 14px;
+  border: 0;
+  resize: vertical;
+  color: $atlas-text;
+  font: inherit;
+  line-height: 1.45;
+  outline: none;
+}
+
+.request-textarea::placeholder {
+  color: $atlas-muted;
+}
+
+.request-textarea:disabled {
+  cursor: default;
+  opacity: 0.8;
 }
 
 .trainer-hint {
@@ -334,5 +457,13 @@ $atlas-blue-strong: #2e6ef5;
   .trainer-avatar {
     width: 58px;
     height: 58px;
+    min-width: 58px;
+    min-height: 58px;
+  }
+}
+
+@media (min-width: 700px) {
+  .details-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

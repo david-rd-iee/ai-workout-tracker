@@ -150,7 +150,7 @@ export class UserService {
 
     const trainerNeedsNameCompletion = await this.ensureTrainerUsersDocIdentity(userID, email);
     if (trainerNeedsNameCompletion) {
-      this.profileCompletionRoute = '/profile-creation/trainer';
+      this.profileCompletionRoute = '/complete-profile/trainer';
       this.userInfo.set(null);
       this.loadedProfileUid = null;
       this.userBadgesService.clear();
@@ -180,10 +180,10 @@ export class UserService {
       const firstName = typeof usersData?.['firstName'] === 'string' ? usersData['firstName'].trim() : '';
       const lastName = typeof usersData?.['lastName'] === 'string' ? usersData['lastName'].trim() : '';
       const username = typeof usersData?.['username'] === 'string' ? usersData['username'].trim() : '';
+      const isTrainer = usersData?.['isPT'] === true;
 
-      // Keep complete-profile flow for signups until core identity fields are set.
       if (!firstName || !lastName || !username) {
-        this.profileCompletionRoute = '/complete-profile';
+        this.profileCompletionRoute = isTrainer ? '/complete-profile/trainer' : '/complete-profile';
         this.userInfo.set(null);
         this.loadedProfileUid = null;
         this.userBadgesService.clear();
@@ -192,7 +192,7 @@ export class UserService {
       }
 
       if (!hasRequiredStats) {
-        this.profileCompletionRoute = '/complete-profile';
+        this.profileCompletionRoute = '/complete-profile/client';
         this.userInfo.set(null);
         this.loadedProfileUid = null;
         this.userBadgesService.clear();
@@ -241,7 +241,7 @@ export class UserService {
     }
 
     if (!isTrainerProfile && !hasRequiredStats) {
-      this.profileCompletionRoute = '/complete-profile';
+      this.profileCompletionRoute = '/complete-profile/client';
       this.userInfo.set(null);
       this.loadedProfileUid = null;
       this.userBadgesService.clear();
