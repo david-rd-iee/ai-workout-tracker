@@ -1,8 +1,229 @@
+.live-session-content {
+  --padding-top: 10px;
+  --padding-bottom: 24px;
+}
+
 ion-card {
-    margin-bottom: 16px;
-  }
+  margin: 0 0 16px 0;
+}
+
+.session-hero-card {
+  margin-bottom: 16px;
+}
+
+ion-card-content {
+  padding: 24px 20px 20px;
+}
+
+.hero-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 14px;
+  margin-bottom: 22px;
+}
+
+.hero-copy {
+  min-width: 0;
+  flex: 1;
+}
+
+.eyebrow {
+  margin: 0 0 8px 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  opacity: 0.65;
+}
+
+.hero-title {
+  margin: 0;
+  font-size: 1.7rem;
+  line-height: 0.98;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.timer-pill {
+  flex-shrink: 0;
+  padding: 12px 16px;
+  border-radius: 999px;
+  font-size: 1.1rem;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+  max-width: 140px;
+  text-align: center;
+}
+
+.live-session-body {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.heart-rate-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.heart-icon-shell {
+  width: 64px;
+  height: 64px;
+  min-width: 64px;
+  border-radius: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.heart-icon {
+  font-size: 2rem;
+  line-height: 1;
+  color: #ff5f7a;
+  animation: heartbeat 1s infinite ease-in-out;
+  transform-origin: center;
+}
+
+.heart-rate-block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.section-label {
+  font-size: 0.98rem;
+  font-weight: 600;
+  opacity: 0.7;
+}
+
+.heart-rate-value {
+  font-size: 3rem;
+  line-height: 0.95;
+  font-weight: 800;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  letter-spacing: -0.03em;
+}
+
+.heart-rate-value span {
+  font-size: 1.05rem;
+  font-weight: 700;
+  opacity: 0.75;
+}
+
+.zone-panel {
+  padding-top: 2px;
+}
+
+.zone-value {
+  margin-top: 6px;
+  font-size: 2rem;
+  line-height: 1;
+  font-weight: 800;
+}
+
+.zone-subtext {
+  margin-top: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  opacity: 0.75;
+}
+
+.chart-section {
+  margin-top: 2px;
+}
+
+.chart-header-inline {
+  margin-bottom: 10px;
+}
+
+.chart-title {
+  margin: 0;
+  font-size: 1.65rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.chart-subtitle {
+  margin: 6px 0 0 0;
+  font-size: 0.95rem;
+  opacity: 0.68;
+  line-height: 1.35;
+}
 
 ngx-charts-line-chart {
-    display: block;
-    margin-top: 12px;
+  display: block;
+  margin-top: 6px;
+}
+
+.action-row {
+  margin-top: 18px;
+}
+
+.session-button {
+  margin-top: 0;
+}
+
+.idle-state {
+  padding: 10px 0 2px;
+}
+
+.idle-title {
+  margin: 0 0 8px 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.idle-subtext {
+  margin: 0;
+  font-size: 0.98rem;
+  opacity: 0.72;
+  line-height: 1.45;
+}
+
+@keyframes heartbeat {
+  0% {
+    transform: scale(1);
+  }
+  14% {
+    transform: scale(1.16);
+  }
+  28% {
+    transform: scale(1);
+  }
+  42% {
+    transform: scale(1.16);
+  }
+  70% {
+    transform: scale(1);
+  }
+}
+
+@media (max-width: 520px) {
+  .hero-title {
+    font-size: 1.55rem;
+  }
+
+  .timer-pill {
+    font-size: 1rem;
+    padding: 10px 14px;
+    max-width: 126px;
+  }
+
+  .heart-rate-value {
+    font-size: 2.7rem;
+  }
+
+  .zone-value {
+    font-size: 1.8rem;
+  }
+
+  .chart-title {
+    font-size: 1.5rem;
+  }
 }
