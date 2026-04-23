@@ -42,6 +42,7 @@ import {
 export class LoginPage implements OnInit, OnDestroy {
   email = '';
   password = '';
+  resetMessage = '';
 
   isIOS = false;
   isIOSKeyboardOpen = false;
@@ -94,6 +95,7 @@ export class LoginPage implements OnInit, OnDestroy {
 
   async onLoginSubmit() {
     this.errorMessage = '';
+    this.resetMessage = '';
     this.accountService.clearLastAuthError();
 
     if (!this.email || !this.password) {
@@ -137,6 +139,7 @@ export class LoginPage implements OnInit, OnDestroy {
 
   async loginWithApple() {
     this.errorMessage = '';
+    this.resetMessage = '';
     this.isSubmitting = true;
 
     try {
@@ -164,6 +167,33 @@ export class LoginPage implements OnInit, OnDestroy {
     } catch (err) {
       console.error(err);
       this.errorMessage = 'An error occurred during Apple login.';
+    } finally {
+      this.isSubmitting = false;
+    }
+  }
+
+  async onForgotPassword(): Promise<void> {
+    this.errorMessage = '';
+    this.resetMessage = '';
+    this.accountService.clearLastAuthError();
+
+    if (!this.email.trim()) {
+      this.errorMessage = 'Enter your email address to reset your password.';
+      return;
+    }
+
+    this.isSubmitting = true;
+    try {
+      const result = await this.accountService.sendPasswordReset(this.email);
+      if (!result.success) {
+        this.errorMessage = result.message;
+        return;
+      }
+
+      this.resetMessage = result.message;
+    } catch (error) {
+      console.error(error);
+      this.errorMessage = 'Unable to send reset email right now.';
     } finally {
       this.isSubmitting = false;
     }

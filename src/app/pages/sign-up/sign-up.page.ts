@@ -100,7 +100,6 @@ export class SignUpPage implements OnInit, OnDestroy {
         return;
       }
 
-      // After signup route to basic profile completion before entering app
       await this.router.navigateByUrl('/complete-profile', { replaceUrl: true });
     } catch (err) {
       console.error(err);

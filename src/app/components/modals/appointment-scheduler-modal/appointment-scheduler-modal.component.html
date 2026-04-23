@@ -1,6 +1,6 @@
 <ion-header class="trainer-modal-header">
   <ion-toolbar class="trainer-modal-toolbar">
-    <ion-title>Schedule Session</ion-title>
+    <ion-title>{{ modalTitle }}</ion-title>
     <ion-buttons slot="end">
       <ion-button class="modal-close-button" (click)="dismiss()">
         <ion-icon name="close"></ion-icon>
@@ -17,9 +17,9 @@
         <ion-icon name="person-circle"></ion-icon>
       </div>
       <div class="client-info">
-        <p class="eyebrow">Trainer Session</p>
-        <h2>{{ clientName }}</h2>
-        <p>Schedule a training session with a polished trainer-side workflow.</p>
+        <p class="eyebrow">{{ eyebrowLabel }}</p>
+        <h2>{{ heroTitle }}</h2>
+        <p>{{ heroCopy }}</p>
       </div>
     </section>
 
@@ -36,6 +36,7 @@
             <ion-label position="stacked">Date</ion-label>
             <ion-datetime
               [(ngModel)]="appointment.date"
+              (ionChange)="onDateChanged($event)"
               presentation="date"
               [min]="minDate"
               class="date-picker"
@@ -47,10 +48,13 @@
               <ion-label position="stacked">Start Time</ion-label>
               <ion-select 
                 [(ngModel)]="appointment.time" 
-                placeholder="Select time"
+                [placeholder]="isClientRequestMode() ? 'Select available time' : 'Select time'"
                 interface="action-sheet"
               >
-                <ion-select-option *ngFor="let slot of timeSlots" [value]="slot">
+                <ion-select-option
+                  *ngFor="let slot of (isClientRequestMode() ? requestAvailableSlots() : timeSlots)"
+                  [value]="slot"
+                >
                   {{ formatTimeSlot(slot) }}
                 </ion-select-option>
               </ion-select>
@@ -69,6 +73,9 @@
               </ion-select>
             </ion-item>
           </div>
+          <p class="availability-empty" *ngIf="isClientRequestMode() && requestAvailableSlots().length === 0">
+            Your trainer has no open slots for this day yet. Try another date or ask them to update availability.
+          </p>
         </div>
       </ion-card-content>
     </ion-card>
@@ -95,7 +102,7 @@
       </ion-card-content>
     </ion-card>
 
-    <ion-card class="section-card">
+    <ion-card class="section-card" *ngIf="!isClientRequestMode()">
       <ion-card-header>
         <div class="card-header-with-icon">
           <ion-icon name="cash-outline" color="tertiary"></ion-icon>
@@ -148,9 +155,13 @@
           <ion-icon name="fitness" color="success"></ion-icon>
           <span>{{ appointment.sessionType }}</span>
         </div>
-        <div class="summary-row" *ngIf="appointment.price">
+        <div class="summary-row" *ngIf="summaryPriceVisible">
           <ion-icon name="cash" color="tertiary"></ion-icon>
           <span>${{ appointment.price }}</span>
+        </div>
+        <div class="summary-row summary-status" *ngIf="isClientRequestMode()">
+          <ion-icon name="time" color="warning"></ion-icon>
+          <span>Trainer approval required before this session becomes confirmed.</span>
         </div>
       </div>
     </div>
@@ -160,6 +171,6 @@
 <div class="modal-footer">
   <ion-button expand="block" (click)="scheduleAppointment()" color="primary" size="large" class="confirm-btn">
     <ion-icon name="checkmark-circle" slot="start"></ion-icon>
-    Confirm Session
+    {{ confirmButtonLabel }}
   </ion-button>
 </div>

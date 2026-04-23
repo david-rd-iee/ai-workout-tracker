@@ -59,10 +59,23 @@
           <p>{{ errorMessage }}</p>
         </ion-text>
 
+        <ion-text class="auth-success" *ngIf="resetMessage">
+          <p>{{ resetMessage }}</p>
+        </ion-text>
+
         <ion-button class="primary-auth-btn" expand="block" type="submit" [disabled]="isSubmitting">
           Login
         </ion-button>
       </form>
+
+      <button
+        class="forgot-password-link"
+        type="button"
+        (click)="onForgotPassword()"
+        [disabled]="isSubmitting"
+      >
+        Forgot password?
+      </button>
 
       <ion-button
         *ngIf="isIOS"

@@ -399,6 +399,28 @@ export class AccountService {
     }
   }
 
+  async sendPasswordReset(email: string): Promise<{ success: boolean; message: string }> {
+    try {
+      this.lastAuthError.set('');
+      const cleanEmail = email.trim();
+
+      if (!cleanEmail) {
+        return { success: false, message: 'Enter your email address first.' };
+      }
+
+      await this.afAuth.sendPasswordResetEmail(cleanEmail);
+      return {
+        success: true,
+        message: 'Password reset email sent. Check your inbox and spam folder.',
+      };
+    } catch (error: any) {
+      console.error('Password reset failed:', error);
+      const message = this.mapFirebaseAuthError(error);
+      this.lastAuthError.set(message);
+      return { success: false, message };
+    }
+  }
+
   // Update the logout method
   async logout() {
     await this.afAuth.signOut();

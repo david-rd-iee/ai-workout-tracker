@@ -47,6 +47,22 @@ export const routes: Routes = [
     canActivate: [authGuard],
   },
   {
+    path: 'complete-profile/client',
+    loadComponent: () =>
+      import('./pages/complete-profile/complete-profile-client/complete-profile-client.page').then(
+        (m) => m.CompleteProfileClientPage
+      ),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'complete-profile/trainer',
+    loadComponent: () =>
+      import('./pages/complete-profile/complete-profile-trainer/complete-profile-trainer.page').then(
+        (m) => m.CompleteProfileTrainerPage
+      ),
+    canActivate: [authGuard],
+  },
+  {
     path: 'profile-creation',
     loadComponent: () =>
       import('./pages/profile-creation/profile-creation.page').then((m) => m.ProfileCreationPage),

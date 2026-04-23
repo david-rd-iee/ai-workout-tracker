@@ -1,0 +1,134 @@
+<ion-content [fullscreen]="true" class="auth-page-content">
+  <div class="background-gradient"></div>
+
+  <div class="auth-page-container">
+    <section class="auth-hero-card">
+      <div class="hero-media-shell">
+        <img class="hero-runner-image" src="assets/auth/runner-figure.webp" alt="Running figure" />
+      </div>
+
+      <div class="hero-copy">
+        <p class="hero-eyebrow">CLIENT SETUP</p>
+        <h1>Build Your Profile</h1>
+        <p>Add the body metrics and account details from the original signup flow, then step into Atlas.</p>
+      </div>
+    </section>
+
+    <section class="auth-form-card">
+      <h2>Client Details</h2>
+
+      <form class="auth-form" (ngSubmit)="onSubmit()">
+        <div class="field-grid two-up">
+          <ion-item class="auth-input-item" lines="none">
+            <ion-input label="First Name" label-placement="floating" [(ngModel)]="firstName" name="firstName" placeholder="First name" required></ion-input>
+          </ion-item>
+
+          <ion-item class="auth-input-item" lines="none">
+            <ion-input label="Last Name" label-placement="floating" [(ngModel)]="lastName" name="lastName" placeholder="Last name" required></ion-input>
+          </ion-item>
+        </div>
+
+        <ion-item class="auth-input-item" lines="none">
+          <ion-input label="Username" label-placement="floating" [(ngModel)]="username" name="username" placeholder="Choose a username" required></ion-input>
+        </ion-item>
+
+        <div class="field-grid two-up">
+          <ion-item class="auth-input-item" lines="none">
+            <ion-input label="Phone" label-placement="floating" [(ngModel)]="phone" name="phone" placeholder="Phone number" required></ion-input>
+          </ion-item>
+
+          <ion-item class="auth-input-item" lines="none">
+            <ion-input label="Age" label-placement="floating" type="number" inputmode="numeric" [(ngModel)]="age" name="age" placeholder="Age" required></ion-input>
+          </ion-item>
+        </div>
+
+        <div class="field-grid three-up">
+          <ion-item class="auth-input-item" lines="none">
+            <ion-input label="City" label-placement="floating" [(ngModel)]="city" name="city" placeholder="City" required></ion-input>
+          </ion-item>
+
+          <ion-item class="auth-input-item" lines="none">
+            <ion-input label="State" label-placement="floating" [(ngModel)]="state" name="state" placeholder="State" required></ion-input>
+          </ion-item>
+
+          <ion-item class="auth-input-item" lines="none">
+            <ion-input label="Zip Code" label-placement="floating" [(ngModel)]="zip" name="zip" placeholder="Zip code" required></ion-input>
+          </ion-item>
+        </div>
+
+        <div class="form-section">
+          <div class="section-header">
+            <h3>Body Metrics</h3>
+            <p>This brings back the age, height, weight, and sex step from the old client signup flow.</p>
+          </div>
+
+          <ion-item class="auth-input-item" lines="none">
+            <ion-select label="Units" label-placement="floating" [(ngModel)]="unitSystem" name="unitSystem" interface="popover" (ionChange)="onUnitSystemChange()">
+              <ion-select-option value="metric">Metric (m, kg)</ion-select-option>
+              <ion-select-option value="imperial">Imperial (ft/in, lb)</ion-select-option>
+            </ion-select>
+          </ion-item>
+
+          <p class="unit-helper">Height and weight are stored in meters and kilograms for scoring and profile stats.</p>
+
+          <ion-item class="auth-input-item" lines="none" *ngIf="unitSystem === 'metric'">
+            <ion-input label="Height (m)" label-placement="floating" type="number" inputmode="decimal" [(ngModel)]="heightMeters" name="heightMeters" placeholder="e.g. 1.78" required></ion-input>
+          </ion-item>
+
+          <div class="field-grid two-up" *ngIf="unitSystem === 'imperial'">
+            <ion-item class="auth-input-item" lines="none">
+              <ion-input label="Height (ft)" label-placement="floating" type="number" inputmode="numeric" [(ngModel)]="heightFeet" name="heightFeet" placeholder="e.g. 5"></ion-input>
+            </ion-item>
+
+            <ion-item class="auth-input-item" lines="none">
+              <ion-input label="Height (in)" label-placement="floating" type="number" inputmode="decimal" [(ngModel)]="heightInches" name="heightInches" placeholder="e.g. 10"></ion-input>
+            </ion-item>
+          </div>
+
+          <ion-item class="auth-input-item" lines="none" *ngIf="unitSystem === 'metric'">
+            <ion-input label="Weight (kg)" label-placement="floating" type="number" inputmode="decimal" [(ngModel)]="weightKg" name="weightKg" placeholder="e.g. 72" required></ion-input>
+          </ion-item>
+
+          <ion-item class="auth-input-item" lines="none" *ngIf="unitSystem === 'imperial'">
+            <ion-input label="Weight (lb)" label-placement="floating" type="number" inputmode="decimal" [(ngModel)]="weightPounds" name="weightPounds" placeholder="e.g. 165" required></ion-input>
+          </ion-item>
+
+          <ion-item class="auth-input-item" lines="none">
+            <ion-select label="Sex" label-placement="floating" [(ngModel)]="sex" name="sex" interface="popover" required>
+              <ion-select-option [value]="1">Male</ion-select-option>
+              <ion-select-option [value]="2">Female</ion-select-option>
+              <ion-select-option [value]="1.5">Other</ion-select-option>
+            </ion-select>
+          </ion-item>
+        </div>
+
+        <div class="form-section">
+          <div class="section-header">
+            <h3>Goals</h3>
+            <p>Add a little context now so your home screen and future trainer matching feel more personal.</p>
+          </div>
+
+          <ion-item class="auth-input-item" lines="none">
+            <ion-input label="Primary Goal" label-placement="floating" [(ngModel)]="goals" name="goals" placeholder="Strength, weight loss, mobility, endurance..."></ion-input>
+          </ion-item>
+
+          <ion-item class="auth-input-item" lines="none">
+            <ion-input label="Training Experience" label-placement="floating" [(ngModel)]="experience" name="experience" placeholder="Beginner, intermediate, advanced..."></ion-input>
+          </ion-item>
+
+          <ion-item class="auth-input-item textarea-item" lines="none">
+            <ion-textarea label="Notes" label-placement="stacked" [(ngModel)]="description" name="description" placeholder="Anything a trainer or Atlas should know about your fitness journey?" rows="4" autoGrow="true"></ion-textarea>
+          </ion-item>
+        </div>
+
+        <ion-text class="auth-error" *ngIf="errorMessage">
+          <p>{{ errorMessage }}</p>
+        </ion-text>
+
+        <ion-button class="primary-auth-btn" expand="block" type="submit" [disabled]="isSubmitting">
+          {{ isSubmitting ? 'Creating Profile...' : 'Finish Client Setup' }}
+        </ion-button>
+      </form>
+    </section>
+  </div>
+</ion-content>

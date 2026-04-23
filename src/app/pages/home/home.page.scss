@@ -118,6 +118,7 @@ $neo-accent: #2e6ef5;
 .streak-widget,
 .next-workout-widget,
 .session-card,
+.client-request-card,
 .no-sessions-card,
 .revenue-card,
 .total-revenue-card,
@@ -137,6 +138,7 @@ ion-card {
 .streak-widget,
 .next-workout-widget,
 .session-card,
+.client-request-card,
 .no-sessions-card,
 .client-card,
 .revenue-card,
@@ -151,6 +153,7 @@ ion-card {
 .streak-widget,
 .next-workout-widget,
 .session-card,
+.client-request-card,
 .client-card,
 .revenue-card {
   transition: transform 180ms ease, box-shadow 180ms ease;
@@ -228,6 +231,10 @@ ion-card {
   ion-card-content {
     padding: 16px;
   }
+}
+
+.request-session-card {
+  margin-top: 14px;
 }
 
 .secondary-action-content {
@@ -370,6 +377,14 @@ ion-card {
   }
 }
 
+.client-request-card {
+  margin-bottom: 12px;
+
+  ion-card-content {
+    padding: 16px;
+  }
+}
+
 .session-content,
 .client-content {
   display: flex;
@@ -436,6 +451,45 @@ ion-card {
   font-weight: 600;
 }
 
+.session-status {
+  margin: 4px 0 0;
+  color: $neo-text;
+  font-size: 0.76rem;
+  font-weight: 600;
+
+  &.pending {
+    color: #a06a0f;
+  }
+}
+
+.request-label {
+  margin: 4px 0 0;
+  color: $neo-accent;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.request-message {
+  margin: 6px 0 0;
+  color: $neo-muted;
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.request-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+
+  ion-button {
+    margin: 0;
+    --border-radius: 12px;
+    text-transform: none;
+    font-size: 0.78rem;
+  }
+}
+
 .session-notes {
   margin: 4px 0 0;
   color: $neo-muted;
@@ -460,6 +514,16 @@ ion-card {
   --border-radius: 10px;
   --border-color: #2e6ef5;
   --color: #2e6ef5;
+  font-size: 0.74rem;
+  letter-spacing: 0.03em;
+  text-transform: none;
+}
+
+.remove-client-button {
+  margin-top: 8px;
+  --border-radius: 10px;
+  --border-color: #c46872;
+  --color: #c46872;
   font-size: 0.74rem;
   letter-spacing: 0.03em;
   text-transform: none;
