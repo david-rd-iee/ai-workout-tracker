@@ -18,13 +18,13 @@ import {
   IonDatetime,
   IonSelect,
   IonSelectOption,
+  IonInput,
   IonTextarea,
-  IonNote,
   ModalController,
   ToastController
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
-import { close, calendar, time, fitness, calendarOutline, fitnessOutline, cashOutline, documentTextOutline, checkmarkCircle, personCircle, barbell, flash, walk, medal, rocket, nutrition, library } from 'ionicons/icons';
+import { close, calendarOutline, fitnessOutline, cashOutline, documentTextOutline, checkmarkCircle } from 'ionicons/icons';
 import { SessionBookingService } from 'src/app/services/session-booking.service';
 import { TrainerAvailabilityService } from 'src/app/services/trainer-availability.service';
 import { TimeSlot } from 'src/app/Interfaces/Calendar';
@@ -64,6 +64,7 @@ interface AppointmentData {
     IonDatetime,
     IonSelect,
     IonSelectOption,
+    IonInput,
     IonTextarea
   ],
 })
@@ -122,7 +123,7 @@ export class AppointmentSchedulerModalComponent implements OnInit {
   minDate: string = new Date().toISOString();
 
   constructor(private modalController: ModalController) {
-    addIcons({ close, calendar, time, fitness, calendarOutline, fitnessOutline, cashOutline, documentTextOutline, checkmarkCircle, personCircle, barbell, flash, walk, medal, rocket, nutrition, library });
+    addIcons({ close, calendarOutline, fitnessOutline, cashOutline, documentTextOutline, checkmarkCircle });
 
     effect(() => {
       if (!this.isClientRequestMode()) {
@@ -191,10 +192,6 @@ export class AppointmentSchedulerModalComponent implements OnInit {
     return this.isClientRequestMode() ? 'Send Session Request' : 'Confirm Session';
   }
 
-  get summaryPriceVisible(): boolean {
-    return !this.isClientRequestMode() && !!this.appointment.price;
-  }
-
   requestAvailableSlots(): string[] {
     return this.availabilitySignal()
       .filter((slot) => !slot.booked && !!slot.time)
@@ -246,20 +243,11 @@ export class AppointmentSchedulerModalComponent implements OnInit {
     return normalizedRawValue.includes('T') ? normalizedRawValue.split('T')[0] : normalizedRawValue;
   }
 
-  getSessionIcon(type: string): string {
-    const iconMap: { [key: string]: string } = {
-      'Strength Training': 'barbell',
-      'HIIT Session': 'flash',
-      'Cardio & Core': 'walk',
-      'Upper Body Focus': 'fitness',
-      'Lower Body Focus': 'fitness',
-      'Full Body Workout': 'medal',
-      'Mobility & Flexibility': 'body',
-      'Sports Performance': 'rocket',
-      'Weight Loss Focus': 'nutrition',
-      'Muscle Building': 'library'
-    };
-    return iconMap[type] || 'fitness';
+  selectAvailableTime(slot: string): void {
+    if (!slot) {
+      return;
+    }
+    this.appointment.time = slot;
   }
 
   dismiss() {
@@ -308,8 +296,10 @@ export class AppointmentSchedulerModalComponent implements OnInit {
         requestType: this.isClientRequestMode() ? 'session_request' : 'trainer_scheduled'
       };
 
-      // Save to Firestore using SessionBookingService
-      const bookingId = await this.sessionBookingService.bookSession(bookingRequest);
+      // Save booking request/session
+      const bookingId = this.isClientRequestMode()
+        ? await this.sessionBookingService.requestSessionBooking(bookingRequest)
+        : await this.sessionBookingService.bookSession(bookingRequest);
       console.log('Appointment scheduled successfully with ID:', bookingId);
 
       await this.showToast(

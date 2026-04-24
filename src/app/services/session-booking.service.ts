@@ -1,15 +1,100 @@
 import { Injectable, inject } from '@angular/core';
 import { Firestore, collection, doc, getDoc, setDoc, updateDoc, arrayUnion, query, where, getDocs } from '@angular/fire/firestore';
+import { getFunctions, httpsCallable } from '@angular/fire/functions';
 import { BookingRequest, TimeSlot } from '../Interfaces/Calendar';
 import { SessionRescheduleRequest } from '../Interfaces/SessionReschedule';
+import { runTransaction } from 'firebase/firestore';
 
 @Injectable({
   providedIn: 'root'
 })
 export class SessionBookingService {
   private firestore = inject(Firestore);
+  private readonly NO_AVAILABILITY_ERROR = 'No availability on that day.';
+  private readonly OUTSIDE_AVAILABILITY_ERROR = 'Selected time is outside trainer availability.';
+  private readonly SLOT_CONFLICT_ERROR = 'This slot is already requested or booked.';
+  private readonly TRANSACTION_FAILED_ERROR = 'Booking transaction failed. Please try again.';
+  private readonly PERMISSION_ERROR = 'Booking could not be saved due to permissions. Please refresh and try again.';
   
   constructor() { }
+
+  async requestSessionBooking(bookingData: BookingRequest): Promise<string> {
+    const functions = getFunctions(undefined, 'us-central1');
+    const requestSessionBookingCallable = httpsCallable<
+      {
+        trainerId: string;
+        clientId: string;
+        trainerFirstName?: string;
+        trainerLastName?: string;
+        trainerProfilePic?: string;
+        clientFirstName?: string;
+        clientLastName?: string;
+        clientProfilePic?: string;
+        date: string;
+        time: string;
+        endTime?: string;
+        duration: number;
+        price?: number;
+        sessionType?: string;
+        notes?: string;
+      },
+      { bookingId: string; status: string }
+    >(functions, 'requestSessionBooking');
+
+    try {
+      const result = await requestSessionBookingCallable({
+        trainerId: String(bookingData.trainerId || '').trim(),
+        clientId: String(bookingData.clientId || '').trim(),
+        trainerFirstName: bookingData.trainerFirstName,
+        trainerLastName: bookingData.trainerLastName,
+        trainerProfilePic: bookingData.trainerProfilePic,
+        clientFirstName: bookingData.clientFirstName,
+        clientLastName: bookingData.clientLastName,
+        clientProfilePic: bookingData.clientProfilePic,
+        date: String(bookingData.date || '').trim(),
+        time: String(bookingData.time || '').trim(),
+        endTime: String((bookingData as any).endTime || '').trim() || undefined,
+        duration: Number(bookingData.duration || 60) || 60,
+        price: Number(bookingData.price || 75) || 75,
+        sessionType: String((bookingData as any).sessionType || '').trim(),
+        notes: String((bookingData as any).notes || '').trim(),
+      });
+
+      const bookingId = String(result?.data?.bookingId || '').trim();
+      const status = String(result?.data?.status || '').trim().toLowerCase();
+      if (!bookingId || status !== 'pending') {
+        throw new Error(this.TRANSACTION_FAILED_ERROR);
+      }
+
+      return bookingId;
+    } catch (error: any) {
+      const message = String(error?.message || '').trim();
+      if (
+        message === this.NO_AVAILABILITY_ERROR ||
+        message === this.OUTSIDE_AVAILABILITY_ERROR ||
+        message === this.SLOT_CONFLICT_ERROR
+      ) {
+        throw new Error(message);
+      }
+
+      const code = String(error?.code || '').trim().toLowerCase();
+      if (code.includes('permission-denied')) {
+        throw new Error(this.PERMISSION_ERROR);
+      }
+
+      if (message.includes(this.NO_AVAILABILITY_ERROR)) {
+        throw new Error(this.NO_AVAILABILITY_ERROR);
+      }
+      if (message.includes(this.OUTSIDE_AVAILABILITY_ERROR)) {
+        throw new Error(this.OUTSIDE_AVAILABILITY_ERROR);
+      }
+      if (message.includes(this.SLOT_CONFLICT_ERROR)) {
+        throw new Error(this.SLOT_CONFLICT_ERROR);
+      }
+
+      throw new Error(this.TRANSACTION_FAILED_ERROR);
+    }
+  }
 
   private parseBookingDate(booking: any): Date | null {
     const utc = booking?.['startTimeUTC'];
@@ -173,7 +258,7 @@ export class SessionBookingService {
     const trainerAvailabilityRef = doc(this.firestore, `trainerAvailability/${normalizedTrainerId}`);
     const trainerAvailabilityDoc = await getDoc(trainerAvailabilityRef);
     if (!trainerAvailabilityDoc.exists()) {
-      return;
+      throw new Error(this.NO_AVAILABILITY_ERROR);
     }
 
     const bookedSessions = trainerAvailabilityDoc.data()['bookedSessions'] || [];
@@ -207,31 +292,20 @@ export class SessionBookingService {
     console.log('Booking session with data:', bookingData);
     
     try {
-      await this.ensureTrainerTimeRangeAvailable(
-        bookingData.trainerId,
-        bookingData.date,
-        bookingData.time,
-        bookingData.duration || 30,
-      );
-
       // Create a unique booking ID
       const bookingId = `${bookingData.trainerId}_${bookingData.clientId}_${bookingData.date}_${bookingData.time.replace(/\s+/g, '')}`;
-      
-      // Store the full booking details in bookings collection
-      const bookingDetailsRef = doc(this.firestore, `bookings/${bookingId}`);
-      await setDoc(bookingDetailsRef, {
-        ...bookingData,
-        bookingId,
-        createdAt: new Date(),
-        duration: bookingData.duration || 30, // Default to 30 minutes if not specified
-        price: bookingData.price || 75, // Default to $75 per session if not specified
-        status: bookingData.status || 'confirmed'
-      });
-      
-      // Add to bookedSessions array in trainerAvailability document
+
+      const normalizedStatus = String(bookingData.status || 'confirmed').trim().toLowerCase();
+      const status: BookingRequest['status'] =
+        normalizedStatus === 'pending' || normalizedStatus === 'cancelled'
+          ? (normalizedStatus as BookingRequest['status'])
+          : 'confirmed';
+      const normalizedDuration = Number(bookingData.duration || 30) || 30;
+      const normalizedPrice = Number(bookingData.price || 75) || 75;
+
       const trainerAvailabilityRef = doc(this.firestore, `trainerAvailability/${bookingData.trainerId}`);
-      const trainerAvailabilityDoc = await getDoc(trainerAvailabilityRef);
-      
+      const bookingDetailsRef = doc(this.firestore, `bookings/${bookingId}`);
+
       const bookedSession = {
         clientId: bookingData.clientId,
         clientFirstName: bookingData.clientFirstName,
@@ -241,40 +315,243 @@ export class SessionBookingService {
         time: bookingData.time, // Add time field
         startTime: bookingData.time,
         // Calculate end time based on duration
-        endTime: bookingData.endTime || this.calculateEndTime(bookingData.time, bookingData.duration),
+        endTime: bookingData.endTime || this.calculateEndTime(bookingData.time, normalizedDuration),
         bookingId: bookingId,
-        status: bookingData.status || 'confirmed', // Use defaulted status
-        duration: bookingData.duration || 30, // Store duration in minutes
+        status, // Use defaulted status
+        duration: normalizedDuration, // Store duration in minutes
         sessionType: (bookingData as any).sessionType || '',
         notes: (bookingData as any).notes || '',
         requestedBy: (bookingData as any).requestedBy || '',
         requestType: (bookingData as any).requestType || ''
       };
-      
-      console.log('Adding booked session to trainer availability:', bookedSession);
-      
-      if (trainerAvailabilityDoc.exists()) {
-        // Update existing document with new booked session
-        await updateDoc(trainerAvailabilityRef, {
-          bookedSessions: arrayUnion(bookedSession)
-        });
-        console.log('Updated existing trainerAvailability document');
-      } else {
-        // Create new document with booked session
-        await setDoc(trainerAvailabilityRef, {
-          bookedSessions: [bookedSession]
-        }, { merge: true });
-        console.log('Created new trainerAvailability document');
-      }
 
-      await this.syncTrainerClientRecord(bookingData.trainerId, bookingData.clientId);
+      await runTransaction(this.firestore, async (transaction) => {
+        const trainerAvailabilityDoc = await transaction.get(trainerAvailabilityRef);
+        if (!trainerAvailabilityDoc.exists()) {
+          throw new Error(this.NO_AVAILABILITY_ERROR);
+        }
+
+        const trainerAvailabilityData = trainerAvailabilityDoc.data() as Record<string, unknown>;
+        this.validateSessionInsideTrainerAvailability(
+          trainerAvailabilityData,
+          bookingData.date,
+          bookingData.time,
+          normalizedDuration
+        );
+        this.validateNoBookedSessionOverlap(
+          trainerAvailabilityData['bookedSessions'],
+          bookingData.date,
+          bookingData.time,
+          normalizedDuration
+        );
+
+        const existingBookingDoc = await transaction.get(bookingDetailsRef);
+        if (existingBookingDoc.exists()) {
+          const existingStatus = String(existingBookingDoc.data()?.['status'] || '').trim().toLowerCase();
+          if (existingStatus !== 'cancelled') {
+            throw new Error(this.SLOT_CONFLICT_ERROR);
+          }
+        }
+
+        transaction.set(bookingDetailsRef, {
+          ...bookingData,
+          bookingId,
+          createdAt: new Date(),
+          duration: normalizedDuration,
+          price: normalizedPrice,
+          status,
+        });
+
+        const bookedSessions = Array.isArray(trainerAvailabilityData['bookedSessions'])
+          ? [...trainerAvailabilityData['bookedSessions'] as any[]]
+          : [];
+        bookedSessions.push(bookedSession);
+
+        transaction.set(
+          trainerAvailabilityRef,
+          { bookedSessions },
+          { merge: true }
+        );
+      });
+
+      const requestedBy = String((bookingData as any)['requestedBy'] || '')
+        .trim()
+        .toLowerCase();
+      const shouldSyncTrainerClientRecord = !(requestedBy === 'client' && status === 'pending');
+      if (shouldSyncTrainerClientRecord) {
+        await this.syncTrainerClientRecord(bookingData.trainerId, bookingData.clientId);
+      }
       
       console.log('Booking created successfully with ID:', bookingId);
       return bookingId;
     } catch (error) {
       console.error('Error creating booking:', error);
-      throw error;
+      if (error instanceof Error) {
+        const message = String(error.message || '').trim();
+        if (
+          message === this.NO_AVAILABILITY_ERROR ||
+          message === this.OUTSIDE_AVAILABILITY_ERROR ||
+          message === this.SLOT_CONFLICT_ERROR
+        ) {
+          throw error;
+        }
+      }
+
+      const errorCode = String((error as Record<string, unknown>)?.['code'] || '').trim().toLowerCase();
+      if (errorCode.includes('permission-denied')) {
+        throw new Error(this.PERMISSION_ERROR);
+      }
+
+      throw new Error(this.TRANSACTION_FAILED_ERROR);
     }
+  }
+
+  private validateSessionInsideTrainerAvailability(
+    trainerAvailabilityData: Record<string, unknown>,
+    date: string,
+    time: string,
+    duration: number,
+  ): void {
+    const requestedRange = this.getSessionRangeInMinutes({
+      startTime: String(time || '').trim(),
+      duration,
+    });
+    if (!requestedRange) {
+      throw new Error(this.OUTSIDE_AVAILABILITY_ERROR);
+    }
+
+    const windows = this.getAvailabilityWindowsForDate(trainerAvailabilityData['availability'], date);
+    if (!windows.length) {
+      throw new Error(this.NO_AVAILABILITY_ERROR);
+    }
+
+    const isInsideAnyWindow = windows.some((window) =>
+      requestedRange.start >= window.start && requestedRange.end <= window.end
+    );
+
+    if (!isInsideAnyWindow) {
+      throw new Error(this.OUTSIDE_AVAILABILITY_ERROR);
+    }
+  }
+
+  private validateNoBookedSessionOverlap(
+    rawBookedSessions: unknown,
+    date: string,
+    time: string,
+    duration: number,
+  ): void {
+    const requestedRange = this.getSessionRangeInMinutes({
+      startTime: String(time || '').trim(),
+      duration,
+    });
+    if (!requestedRange) {
+      throw new Error(this.OUTSIDE_AVAILABILITY_ERROR);
+    }
+
+    const bookedSessions = Array.isArray(rawBookedSessions) ? rawBookedSessions : [];
+    const hasOverlap = bookedSessions.some((session: any) => {
+      const sessionDate = String(session?.date || '').trim();
+      if (sessionDate !== String(date || '').trim()) {
+        return false;
+      }
+
+      const status = String(session?.status || '').trim().toLowerCase();
+      if (status === 'cancelled') {
+        return false;
+      }
+
+      const existingRange = this.getSessionRangeInMinutes(session as Record<string, unknown>);
+      return !!existingRange && this.rangesOverlap(requestedRange, existingRange);
+    });
+
+    if (hasOverlap) {
+      throw new Error(this.SLOT_CONFLICT_ERROR);
+    }
+  }
+
+  private getAvailabilityWindowsForDate(
+    rawAvailability: unknown,
+    date: string,
+  ): Array<{ start: number; end: number }> {
+    const normalizedDate = String(date || '').trim();
+    const parsedDate = new Date(normalizedDate);
+    if (!normalizedDate || Number.isNaN(parsedDate.getTime())) {
+      return [];
+    }
+
+    const dayOfWeek = parsedDate.toLocaleString('en-US', { weekday: 'long' });
+    const dayShort = dayOfWeek.slice(0, 3).toLowerCase();
+    const dayLong = dayOfWeek.toLowerCase();
+
+    const availabilityEntries = this.normalizeAvailabilityEntries(rawAvailability);
+    const dayEntry = availabilityEntries.find((entry) => {
+      const day = String(entry.day || '').trim().toLowerCase();
+      return day === dayLong || day === dayShort;
+    });
+
+    if (!dayEntry || dayEntry.available === false) {
+      return [];
+    }
+
+    const windows = Array.isArray(dayEntry.timeWindows) ? dayEntry.timeWindows : [];
+    return windows
+      .map((window) => {
+        const start = this.parseTimeToMinutes(String(window.startTime || '').trim());
+        const end = this.parseTimeToMinutes(String(window.endTime || '').trim());
+        if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) {
+          return null;
+        }
+        return { start, end };
+      })
+      .filter((window): window is { start: number; end: number } => !!window);
+  }
+
+  private normalizeAvailabilityEntries(rawAvailability: unknown): Array<{
+    day: string;
+    available: boolean;
+    timeWindows: Array<{ startTime: string; endTime: string }>;
+  }> {
+    if (Array.isArray(rawAvailability)) {
+      return rawAvailability.map((entry) => ({
+        day: String((entry as Record<string, unknown>)['day'] || '').trim(),
+        available: (entry as Record<string, unknown>)['available'] !== false,
+        timeWindows: this.extractAvailabilityTimeWindows(
+          (entry as Record<string, unknown>)['timeWindows'] ??
+          (entry as Record<string, unknown>)['times'] ??
+          []
+        ),
+      }));
+    }
+
+    if (!rawAvailability || typeof rawAvailability !== 'object') {
+      return [];
+    }
+
+    return Object.entries(rawAvailability as Record<string, unknown>).map(([day, windows]) => ({
+      day: String(day || '').trim(),
+      available: Array.isArray(windows) ? windows.length > 0 : Boolean(windows),
+      timeWindows: this.extractAvailabilityTimeWindows(windows),
+    }));
+  }
+
+  private extractAvailabilityTimeWindows(
+    rawWindows: unknown
+  ): Array<{ startTime: string; endTime: string }> {
+    if (!Array.isArray(rawWindows)) {
+      return [];
+    }
+
+    return rawWindows
+      .map((window) => {
+        const record = (window || {}) as Record<string, unknown>;
+        const startTime = String(record['startTime'] || record['start'] || '').trim();
+        const endTime = String(record['endTime'] || record['end'] || '').trim();
+        if (!startTime || !endTime) {
+          return null;
+        }
+        return { startTime, endTime };
+      })
+      .filter((window): window is { startTime: string; endTime: string } => !!window);
   }
   
   /**
@@ -644,7 +921,9 @@ export class SessionBookingService {
     const sortedTimeSlots = [...timeSlots].sort((a, b) => {
       const timeA = this.parseTimeToMinutes(a);
       const timeB = this.parseTimeToMinutes(b);
-      return timeA - timeB;
+      const safeA = Number.isFinite(timeA) ? timeA : 0;
+      const safeB = Number.isFinite(timeB) ? timeB : 0;
+      return safeA - safeB;
     });
     
     const sessions: { startTime: string, endTime: string, duration: number }[] = [];
@@ -661,6 +940,9 @@ export class SessionBookingService {
       // Check if current time slot is consecutive to the previous one (30 min difference)
       const currentMinutes = this.parseTimeToMinutes(currentTime);
       const previousMinutes = this.parseTimeToMinutes(previousTime);
+      if (!Number.isFinite(currentMinutes) || !Number.isFinite(previousMinutes)) {
+        continue;
+      }
       
       if (currentMinutes - previousMinutes === 30) {
         // Add to current session if consecutive
@@ -699,21 +981,41 @@ export class SessionBookingService {
    * @returns Minutes since midnight
    */
   private parseTimeToMinutes(timeStr: string): number {
-    const match = timeStr.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
-    if (!match) return 0;
-    
-    let hour = parseInt(match[1], 10);
-    const minute = parseInt(match[2], 10);
-    const ampm = match[3].toUpperCase();
-    
-    // Convert to 24-hour format
-    if (ampm === 'PM' && hour < 12) {
-      hour += 12;
-    } else if (ampm === 'AM' && hour === 12) {
-      hour = 0;
+    const normalized = String(timeStr || '').trim();
+    if (!normalized) {
+      return Number.NaN;
     }
-    
-    return hour * 60 + minute;
+
+    const amPmMatch = normalized.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+    if (amPmMatch) {
+      let hour = parseInt(amPmMatch[1], 10);
+      const minute = parseInt(amPmMatch[2], 10);
+      const ampm = amPmMatch[3].toUpperCase();
+
+      if (hour < 1 || hour > 12 || minute < 0 || minute > 59) {
+        return Number.NaN;
+      }
+
+      if (ampm === 'PM' && hour < 12) {
+        hour += 12;
+      } else if (ampm === 'AM' && hour === 12) {
+        hour = 0;
+      }
+
+      return hour * 60 + minute;
+    }
+
+    const twentyFourHourMatch = normalized.match(/^(\d{1,2}):(\d{2})$/);
+    if (twentyFourHourMatch) {
+      const hour = parseInt(twentyFourHourMatch[1], 10);
+      const minute = parseInt(twentyFourHourMatch[2], 10);
+      if (hour < 0 || hour > 23 || minute < 0 || minute > 59) {
+        return Number.NaN;
+      }
+      return hour * 60 + minute;
+    }
+
+    return Number.NaN;
   }
   
   /**

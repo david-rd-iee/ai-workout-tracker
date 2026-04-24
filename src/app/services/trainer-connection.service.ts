@@ -7,6 +7,7 @@ import {
   serverTimestamp,
   setDoc,
 } from '@angular/fire/firestore';
+import { getFunctions, httpsCallable } from '@angular/fire/functions';
 import { ChatsService } from './chats.service';
 import { UserService } from './account/user.service';
 
@@ -129,74 +130,23 @@ export class TrainerConnectionService {
       throw new Error('Missing client or trainer ID.');
     }
 
-    const clientSummary = await this.userService.getUserSummaryDirectly(normalizedClientUid);
-    const clientProfile = await this.userService.getUserProfileDirectly(normalizedClientUid, 'client');
-    const clientSummaryData = clientSummary
-      ? (clientSummary as unknown as Record<string, unknown>)
-      : {};
-    const clientProfileData = clientProfile
-      ? (clientProfile as unknown as Record<string, unknown>)
-      : {};
+    const functions = getFunctions(undefined, 'us-central1');
+    const acceptTrainerClientRequest = httpsCallable<
+      { clientId: string },
+      { trainerId: string; clientId: string; status: string }
+    >(functions, 'acceptTrainerClientRequest');
+    const result = await acceptTrainerClientRequest({ clientId: normalizedClientUid });
 
-    const firstName =
-      this.pickString(clientSummaryData['firstName']) || this.pickString(clientProfileData['firstName']);
-    const lastName =
-      this.pickString(clientSummaryData['lastName']) || this.pickString(clientProfileData['lastName']);
-    const clientEmail =
-      this.pickString(clientProfileData['email']) || this.pickString(clientSummaryData['email']);
-    const profilepic =
-      this.pickString(clientSummaryData['profilepic']) ||
-      this.pickString(clientSummaryData['profileImage']) ||
-      this.pickString(clientProfileData['profilepic']) ||
-      this.pickString(clientProfileData['profileImage']) ||
-      this.fallbackProfileImage;
-
-    const joinedDate = new Date().toISOString();
-
-    await Promise.all([
-      setDoc(
-        doc(this.firestore, `users/${normalizedClientUid}`),
-        {
-          trainerId: normalizedTrainerUid,
-          updatedAt: serverTimestamp(),
-        },
-        { merge: true }
-      ),
-      setDoc(
-        doc(this.firestore, `clients/${normalizedClientUid}`),
-        {
-          trainerId: normalizedTrainerUid,
-          updatedAt: serverTimestamp(),
-        },
-        { merge: true }
-      ),
-      setDoc(
-        doc(this.firestore, `trainers/${normalizedTrainerUid}/clients/${normalizedClientUid}`),
-        {
-          clientId: normalizedClientUid,
-          firstName,
-          lastName,
-          clientName: `${firstName} ${lastName}`.trim(),
-          clientEmail,
-          profilepic,
-          joinedDate,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-        },
-        { merge: true }
-      ),
-      deleteDoc(doc(this.firestore, `trainers/${normalizedTrainerUid}/clientRequests/${normalizedClientUid}`)),
-      setDoc(
-        doc(this.firestore, `clients/${normalizedClientUid}/trainerRequests/${normalizedTrainerUid}`),
-        {
-          status: 'accepted',
-          respondedAt: serverTimestamp(),
-          respondedBy: normalizedTrainerUid,
-          updatedAt: serverTimestamp(),
-        },
-        { merge: true }
-      ),
-    ]);
+    const acceptedTrainerId = String(result?.data?.trainerId || '').trim();
+    const acceptedClientId = String(result?.data?.clientId || '').trim();
+    const acceptedStatus = String(result?.data?.status || '').trim().toLowerCase();
+    if (
+      acceptedTrainerId !== normalizedTrainerUid ||
+      acceptedClientId !== normalizedClientUid ||
+      acceptedStatus !== 'accepted'
+    ) {
+      throw new Error('Invalid accept response from server.');
+    }
 
     await this.chatsService.findOrCreateDirectChat(normalizedClientUid, normalizedTrainerUid);
   }

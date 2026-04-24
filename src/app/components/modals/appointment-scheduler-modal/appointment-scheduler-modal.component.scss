@@ -87,8 +87,7 @@ $atlas-blue-strong: #2e6ef5;
 }
 
 .client-header,
-.section-card,
-.summary-preview {
+.section-card {
   @include trainer-neu(24px);
 }
 
@@ -171,8 +170,7 @@ $atlas-blue-strong: #2e6ef5;
   font-weight: 680;
 }
 
-.datetime-grid,
-.summary-content {
+.datetime-grid {
   display: grid;
   gap: 14px;
 }
@@ -242,11 +240,34 @@ $atlas-blue-strong: #2e6ef5;
 
 .availability-chip {
   @include trainer-inset(999px);
+  appearance: none;
+  border: 1px solid rgba(255, 255, 255, 0.56);
+  background: transparent;
   padding: 8px 12px;
   color: $atlas-text;
   font-size: 0.8rem;
   font-weight: 600;
   line-height: 1;
+  cursor: pointer;
+  transition: color 160ms ease, border-color 160ms ease, transform 120ms ease, box-shadow 160ms ease;
+}
+
+.availability-chip.selected {
+  border-color: rgba(46, 110, 245, 0.4);
+  color: $atlas-blue-strong;
+  box-shadow:
+    inset 7px 7px 12px -10px rgba(184, 196, 214, 0.9),
+    inset -7px -7px 12px -10px rgba(249, 252, 255, 0.95),
+    0 0 0 2px rgba(46, 110, 245, 0.1);
+}
+
+.availability-chip:active {
+  transform: translateY(1px);
+}
+
+.availability-chip:focus-visible {
+  outline: 2px solid rgba(46, 110, 245, 0.45);
+  outline-offset: 2px;
 }
 
 .date-picker {
@@ -281,54 +302,6 @@ $atlas-blue-strong: #2e6ef5;
   padding-top: 0;
 }
 
-.session-types-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-}
-
-.session-type-card {
-  @include trainer-inset(18px);
-  padding: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.56);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
-  transition: transform 170ms ease, border-color 170ms ease, box-shadow 170ms ease;
-}
-
-.session-type-card ion-icon {
-  font-size: 1.9rem;
-  color: $atlas-muted;
-}
-
-.session-type-card span {
-  color: $atlas-text;
-  font-size: 0.82rem;
-  font-weight: 600;
-  text-align: center;
-  line-height: 1.35;
-}
-
-.session-type-card.selected {
-  border-color: rgba(46, 110, 245, 0.38);
-  box-shadow:
-    inset 7px 7px 12px -10px rgba(184, 196, 214, 0.9),
-    inset -7px -7px 12px -10px rgba(249, 252, 255, 0.95),
-    0 0 0 2px rgba(46, 110, 245, 0.1);
-}
-
-.session-type-card.selected ion-icon,
-.session-type-card.selected span {
-  color: $atlas-blue-strong;
-}
-
-.session-type-card:active {
-  transform: translateY(1px) scale(0.997);
-}
-
 ion-label {
   color: $atlas-muted !important;
   font-size: 0.82rem !important;
@@ -340,40 +313,6 @@ ion-datetime,
 ion-textarea,
 ion-input {
   color: $atlas-text;
-}
-
-.summary-preview {
-  padding: 18px;
-}
-
-.summary-preview h3 {
-  margin: 0 0 16px;
-  color: $atlas-text;
-  font-size: 1.02rem;
-  font-weight: 680;
-}
-
-.summary-row {
-  @include trainer-inset(16px);
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 14px;
-}
-
-.summary-row ion-icon {
-  font-size: 1.2rem;
-}
-
-.summary-row span {
-  color: $atlas-text;
-  font-size: 0.9rem;
-  font-weight: 600;
-  line-height: 1.4;
-}
-
-.summary-status span {
-  color: $atlas-muted;
 }
 
 .modal-footer {
@@ -411,17 +350,15 @@ ion-input {
 @media (max-width: 576px) {
   .modal-page {
     padding: 14px;
-    padding-bottom: calc(168px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(156px + env(safe-area-inset-bottom, 0px));
   }
 
   .client-header,
-  .section-card ion-card-content,
-  .summary-preview {
+  .section-card ion-card-content {
     padding: 16px;
   }
 
-  .time-duration-row,
-  .session-types-grid {
+  .time-duration-row {
     grid-template-columns: 1fr;
   }
 

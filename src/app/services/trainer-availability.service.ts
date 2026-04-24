@@ -1,4 +1,4 @@
-import { Injectable, signal, computed, Signal } from '@angular/core';
+import { Injectable, signal, Signal } from '@angular/core';
 import { Firestore } from '@angular/fire/firestore';
 import { doc, getDoc, onSnapshot, setDoc, updateDoc } from 'firebase/firestore';
 import { TimeSlot } from '../Interfaces/Calendar';
@@ -64,13 +64,13 @@ export class TrainerAvailabilityService {
 
   private createDefaultWeeklyAvailability(): DayAvailability[] {
     return [
-      { day: 'Sun', available: false, timeWindows: [{ startTime: '09:00 AM', endTime: '05:00 PM' }] },
-      { day: 'Mon', available: false, timeWindows: [{ startTime: '09:00 AM', endTime: '05:00 PM' }] },
-      { day: 'Tue', available: false, timeWindows: [{ startTime: '09:00 AM', endTime: '05:00 PM' }] },
-      { day: 'Wed', available: false, timeWindows: [{ startTime: '09:00 AM', endTime: '05:00 PM' }] },
-      { day: 'Thu', available: false, timeWindows: [{ startTime: '09:00 AM', endTime: '05:00 PM' }] },
-      { day: 'Fri', available: false, timeWindows: [{ startTime: '09:00 AM', endTime: '05:00 PM' }] },
-      { day: 'Sat', available: false, timeWindows: [{ startTime: '09:00 AM', endTime: '05:00 PM' }] },
+      { day: 'Sun', available: false, timeWindows: [] },
+      { day: 'Mon', available: false, timeWindows: [] },
+      { day: 'Tue', available: false, timeWindows: [] },
+      { day: 'Wed', available: false, timeWindows: [] },
+      { day: 'Thu', available: false, timeWindows: [] },
+      { day: 'Fri', available: false, timeWindows: [] },
+      { day: 'Sat', available: false, timeWindows: [] },
     ];
   }
 
@@ -119,22 +119,14 @@ export class TrainerAvailabilityService {
                 window: { startTime: string; endTime: string } | null
               ): window is { startTime: string; endTime: string } => !!window
             )
-        : defaultDay.timeWindows;
+        : [];
 
       return {
         day: defaultDay.day,
         available: matched.available !== false && timeWindows.length > 0,
-        timeWindows: timeWindows.length ? timeWindows : [...defaultDay.timeWindows],
+        timeWindows,
       };
     });
-  }
-
-  private getDefaultDayEntry(dayOfWeek: string): any {
-    return {
-      day: dayOfWeek,
-      available: true,
-      timeWindows: [{ startTime: '09:00 AM', endTime: '05:00 PM' }],
-    };
   }
 
   private applyBookedSessionsToTimeSlots(
@@ -210,36 +202,11 @@ export class TrainerAvailabilityService {
     }
     const dayOfWeek = dateObj.toLocaleString('en-US', { weekday: 'long' });
     
-    // Check both possible document paths for trainer availability
-    const trainerProfileRef = doc(this.firestore, 'trainers', trainerId);
     const trainerAvailabilityRef = doc(this.firestore, `trainerAvailability/${trainerId}`);
     this.stopRealtimeListeners();
 
-    // Check both paths for availability data
-    Promise.all([
-      getDoc(trainerProfileRef),
-      getDoc(trainerAvailabilityRef)
-    ]).then(([trainerProfileSnap, availabilitySnap]) => {
-      
-      if (trainerProfileSnap.exists()) {
-        const trainerData = trainerProfileSnap.data() as Record<string, unknown>;
-        
-        // Check if availability array exists in the trainer document
-        const normalizedProfileAvailability = this.normalizeAvailabilityEntries(
-          trainerData['availability']
-        );
-        if (normalizedProfileAvailability.length > 0) {
-          this.processAvailabilityFromArray(
-            trainerId,
-            date,
-            normalizedProfileAvailability,
-            dayOfWeek
-          );
-          return; // Exit early if we found availability in the trainer document
-        }
-      }
-      
-      // If we get here, we didn't find availability in the trainer document, so check the availability document
+    // Only use trainerAvailability as the source of truth.
+    getDoc(trainerAvailabilityRef).then((availabilitySnap) => {
       if (availabilitySnap.exists()) {
         const availabilityData = availabilitySnap.data();
         
@@ -247,62 +214,28 @@ export class TrainerAvailabilityService {
         if (normalizedAvailability.length > 0) {
           this.processAvailabilityFromArray(trainerId, date, normalizedAvailability, dayOfWeek);
         } else {
-          this.processAvailabilityFromArray(
-            trainerId,
-            date,
-            [this.getDefaultDayEntry(dayOfWeek)],
-            dayOfWeek
-          );
+          this.availableTimeSlots.set([]);
         }
       } else {
-        this.processAvailabilityFromArray(
-          trainerId,
-          date,
-          [this.getDefaultDayEntry(dayOfWeek)],
-          dayOfWeek
-        );
+        this.availableTimeSlots.set([]);
       }
     }).catch(error => {
       console.error('DEBUG: Error getting trainer data:', error);
-      this.processAvailabilityFromArray(
-        trainerId,
-        date,
-        [this.getDefaultDayEntry(dayOfWeek)],
-        dayOfWeek
-      );
+      this.availableTimeSlots.set([]);
     });
     
     // Set up real-time listeners for changes
-    this.trainerProfileUnsubscribe = onSnapshot(
-      trainerProfileRef,
-      (snapshot) => {
-        const trainerData = snapshot.exists()
-          ? (snapshot.data() as Record<string, unknown>)
-          : null;
-        const normalizedProfileAvailability = this.normalizeAvailabilityEntries(
-          trainerData?.['availability']
-        );
-        if (normalizedProfileAvailability.length > 0) {
-          this.processAvailabilityFromArray(
-            trainerId,
-            date,
-            normalizedProfileAvailability,
-            dayOfWeek
-          );
-        }
-      },
-      (error) => {
-        console.error('DEBUG: Error in trainer profile listener:', error);
-      }
-    );
-    
     this.trainerAvailabilityUnsubscribe = onSnapshot(trainerAvailabilityRef, (snapshot) => {
       if (snapshot.exists()) {
         const availabilityData = snapshot.data();
         const normalizedAvailability = this.normalizeAvailabilityEntries(availabilityData['availability']);
         if (normalizedAvailability.length > 0) {
           this.processAvailabilityFromArray(trainerId, date, normalizedAvailability, dayOfWeek);
+        } else {
+          this.availableTimeSlots.set([]);
         }
+      } else {
+        this.availableTimeSlots.set([]);
       }
     }, (error) => {
       console.error('DEBUG: Error in availability document listener:', error);
@@ -354,8 +287,7 @@ export class TrainerAvailabilityService {
       
       this.applyBookedSessionsToTimeSlots(trainerId, date, timeSlots);
     } else {
-      const fallbackSlots = this.generateTimeSlotsFromArray(this.getDefaultDayEntry(dayOfWeek));
-      this.applyBookedSessionsToTimeSlots(trainerId, date, fallbackSlots);
+      this.availableTimeSlots.set([]);
     }
   }
   
@@ -374,18 +306,15 @@ export class TrainerAvailabilityService {
         return;
       }
 
-      let currentHour = startTimeParts.hour;
-      let currentMinute = startTimeParts.minute;
-      const endHour = endTimeParts.hour;
-      const endMinute = endTimeParts.minute;
+      let currentMinutes = startTimeParts.hour * 60 + startTimeParts.minute;
+      const endMinutes = endTimeParts.hour * 60 + endTimeParts.minute;
 
-      while (
-        currentHour < endHour ||
-        (currentHour === endHour && currentMinute <= endMinute)
-      ) {
+      while (currentMinutes < endMinutes) {
+        const currentHour = Math.floor(currentMinutes / 60);
+        const currentMinute = currentMinutes % 60;
         const ampm = currentHour < 12 ? 'AM' : 'PM';
         const hour12 = currentHour % 12 || 12;
-        const minuteStr = currentMinute === 0 ? '00' : '30';
+        const minuteStr = currentMinute.toString().padStart(2, '0');
 
         timeSlots.push({
           time: `${hour12}:${minuteStr} ${ampm}`,
@@ -393,11 +322,7 @@ export class TrainerAvailabilityService {
           booked: false,
         });
 
-        currentMinute += 30;
-        if (currentMinute >= 60) {
-          currentHour += 1;
-          currentMinute = 0;
-        }
+        currentMinutes += 30;
       }
     };
 

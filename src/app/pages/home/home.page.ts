@@ -1172,6 +1172,13 @@ export class HomePage implements OnInit, OnDestroy {
       await this.loadTrainerClients(trainerId);
     } catch (error) {
       console.error('Error approving client request:', error);
+      await this.presentActionError(
+        'Unable to Accept Request',
+        this.getActionErrorMessage(
+          error,
+          'The client request could not be accepted. Please try again.'
+        )
+      );
     }
   }
 
@@ -1244,6 +1251,25 @@ export class HomePage implements OnInit, OnDestroy {
 
     const reason = String(data?.values?.reason || '').trim();
     return reason || null;
+  }
+
+  private getActionErrorMessage(error: unknown, fallback: string): string {
+    const rawMessage = String((error as { message?: unknown } | null)?.message || '').trim();
+    if (!rawMessage) {
+      return fallback;
+    }
+
+    return rawMessage.replace(/^Firebase:\s*/i, '').trim() || fallback;
+  }
+
+  private async presentActionError(header: string, message: string): Promise<void> {
+    const alert = await this.alertController.create({
+      header,
+      message,
+      buttons: ['OK'],
+    });
+
+    await alert.present();
   }
   
   previousMonth() {
