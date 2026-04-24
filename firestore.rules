@@ -22,9 +22,41 @@ service cloud.firestore {
     }
 
     function isClientAssignedToTrainer(clientId, trainerId) {
-      return isSignedIn() &&
-        exists(/databases/$(database)/documents/users/$(clientId)) &&
-        get(/databases/$(database)/documents/users/$(clientId)).data.trainerId == trainerId;
+      return isSignedIn() && (
+        (
+          exists(/databases/$(database)/documents/users/$(clientId)) &&
+          (
+            get(/databases/$(database)/documents/users/$(clientId)).data.trainerID == trainerId ||
+            get(/databases/$(database)/documents/users/$(clientId)).data.trainerId == trainerId
+          )
+        ) ||
+        (
+          exists(/databases/$(database)/documents/clients/$(clientId)) &&
+          (
+            get(/databases/$(database)/documents/clients/$(clientId)).data.trainerID == trainerId ||
+            get(/databases/$(database)/documents/clients/$(clientId)).data.trainerId == trainerId
+          )
+        )
+      );
+    }
+
+    function isAssignedClientOfTrainer(trainerId) {
+      return isSignedIn() && (
+        (
+          exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+          (
+            get(/databases/$(database)/documents/users/$(request.auth.uid)).data.trainerID == trainerId ||
+            get(/databases/$(database)/documents/users/$(request.auth.uid)).data.trainerId == trainerId
+          )
+        ) ||
+        (
+          exists(/databases/$(database)/documents/clients/$(request.auth.uid)) &&
+          (
+            get(/databases/$(database)/documents/clients/$(request.auth.uid)).data.trainerID == trainerId ||
+            get(/databases/$(database)/documents/clients/$(request.auth.uid)).data.trainerId == trainerId
+          )
+        )
+      );
     }
 
     function isGroupOwner(groupId) {
@@ -57,6 +89,13 @@ service cloud.firestore {
     
     function isAgreementParticipant(agreementData) {
       return isSignedIn() && (request.auth.uid == agreementData.trainerId || request.auth.uid == agreementData.clientId);
+    }
+
+    function canReadTrainerSubscription(subscriptionData) {
+      return isSignedIn() && (
+        (isClient() && subscriptionData.clientId == request.auth.uid) ||
+        (isTrainer() && subscriptionData.trainerId == request.auth.uid)
+      );
     }
     
     // User profiles - trainers collection
@@ -164,11 +203,10 @@ service cloud.firestore {
       
       // Update rules for agreements
       allow update: if isSignedIn() && (
-        // Trainer can update any field of their agreements EXCEPT paymentStatus cannot be set to "completed"
+        // Trainer can update agreement details, but paymentStatus is server-managed only.
         (isTrainer() && 
          resource.data.trainerId == request.auth.uid &&
-         // Prevent setting paymentStatus to "completed" (only Stripe/Flex webhook can do this)
-         (request.resource.data.paymentStatus != "completed" || resource.data.paymentStatus == "completed")) ||
+         request.resource.data.paymentStatus == resource.data.paymentStatus) ||
         
         // Client can only update specific fields related to their signature and pending signature
         (isClient() && 
@@ -245,9 +283,46 @@ service cloud.firestore {
         (isClient() && resource.data.clientId == request.auth.uid)
       );
       
-      // Only allow creation through the Stripe webhook function
-      // This is handled by the Cloud Function with admin privileges
-      allow create: if false;
+      // Server-managed only (Cloud Functions with admin privileges bypass rules).
+      allow create, update, delete: if false;
+    }
+
+    // Trainer plans can be read by owner trainer or assigned clients.
+    // Writes are restricted to server-side callables/admin.
+    match /trainerPlans/{planId} {
+      // Explicit get rule allows deterministic reads by doc id (trainer uid)
+      // even when the target plan doc has not been created yet.
+      allow get: if isSignedIn() && (
+        planId == request.auth.uid ||
+        isAssignedClientOfTrainer(planId) ||
+        resource.data.trainerId == request.auth.uid ||
+        resource.data.trainerID == request.auth.uid ||
+        isAssignedClientOfTrainer(resource.data.trainerId) ||
+        isAssignedClientOfTrainer(resource.data.trainerID)
+      );
+      allow list: if isSignedIn() && (
+        resource.data.trainerId == request.auth.uid ||
+        resource.data.trainerID == request.auth.uid ||
+        isAssignedClientOfTrainer(resource.data.trainerId) ||
+        isAssignedClientOfTrainer(resource.data.trainerID)
+      );
+      allow write, delete: if false;
+    }
+
+    // Checkout sessions are server-managed; allow participants to read only.
+    match /checkoutSessions/{sessionId} {
+      allow read: if isSignedIn() && (
+        resource.data.clientId == request.auth.uid ||
+        resource.data.trainerId == request.auth.uid
+      );
+      allow create, update, delete: if false;
+    }
+
+    // Trainer subscriptions are server-managed via Stripe webhook.
+    match /trainerSubscriptions/{subscriptionId} {
+      // Clients read only their own subscriptions; trainers read only subscriptions they own.
+      allow read: if canReadTrainerSubscription(resource.data);
+      allow create, update, delete: if false;
     }
     
     // Trainer search collection

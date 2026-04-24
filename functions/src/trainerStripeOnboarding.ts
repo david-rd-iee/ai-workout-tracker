@@ -11,6 +11,7 @@ if (admin.apps.length === 0) {
 const db = admin.firestore();
 const stripeSecretKey = defineSecret("STRIPE_SECRET_KEY");
 const DEFAULT_CONNECT_COUNTRY = "US";
+const STRIPE_SECRET_KEY_PATTERN = /^sk_(test|live)_[A-Za-z0-9]+$/;
 
 interface ConnectAccountRecord {
   id: string;
@@ -49,6 +50,13 @@ export const createTrainerOnboardingLink = onCall(
         "internal",
         "Stripe onboarding is not configured.",
         "STRIPE_SECRET_KEY is missing."
+      );
+    }
+    if (!isLikelyStripeSecretKey(stripeApiKey)) {
+      throw new HttpsError(
+        "internal",
+        "Stripe onboarding is not configured.",
+        "STRIPE_SECRET_KEY must be a Stripe secret key (sk_test_... or sk_live_...)."
       );
     }
 
@@ -134,6 +142,13 @@ export const createTrainerOnboardingLink = onCall(
 
       if (error instanceof HttpsError) {
         throw error;
+      }
+      if (isStripeAuthenticationError(error)) {
+        throw new HttpsError(
+          "internal",
+          "Stripe onboarding is not configured.",
+          "STRIPE_SECRET_KEY is invalid. Set a valid Stripe secret key and redeploy this function."
+        );
       }
 
       throw new HttpsError(
@@ -255,6 +270,29 @@ function isStripeResourceMissingError(error: unknown): boolean {
   }
 
   return (error as {code?: unknown}).code === "resource_missing";
+}
+
+function isLikelyStripeSecretKey(value: string): boolean {
+  return STRIPE_SECRET_KEY_PATTERN.test(value.trim());
+}
+
+function isStripeAuthenticationError(error: unknown): boolean {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+
+  const candidate = error as {type?: unknown; rawType?: unknown; statusCode?: unknown; raw?: unknown};
+  if (candidate.type === "StripeAuthenticationError") {
+    return true;
+  }
+
+  if (candidate.rawType === "invalid_request_error" && Number(candidate.statusCode) === 401) {
+    return true;
+  }
+
+  const raw = toRecord(candidate.raw);
+  const rawMessage = normalizeString(raw["message"]).toLowerCase();
+  return rawMessage.includes("invalid api key provided");
 }
 
 function normalizeString(value: unknown): string {

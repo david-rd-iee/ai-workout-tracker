@@ -29,6 +29,8 @@ export {
 } from "./workoutEventPostWriteHandlers";
 export { createTrainerOnboardingLink } from "./trainerStripeOnboarding";
 export { createTrainerPlan } from "./trainerPlans";
+export { createCheckoutSession } from "./clientCheckout";
+export { stripeWebhook } from "./stripeWebhook";
 
 const openaiApiKey = defineSecret("OPENAI_API_KEY");
 

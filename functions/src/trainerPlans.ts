@@ -58,9 +58,9 @@ export const createTrainerPlan = onCall(async (request): Promise<CreateTrainerPl
     );
   }
 
-  const planRef = db.collection("trainerPlans").doc();
+  const planRef = db.doc(`trainerPlans/${uid}`);
   await planRef.set({
-    planId: planRef.id,
+    planId: uid,
     trainerId: uid,
     title,
     description,
@@ -71,15 +71,15 @@ export const createTrainerPlan = onCall(async (request): Promise<CreateTrainerPl
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
   });
 
-  logger.info("[TrainerPlans] Trainer plan created.", {
+  logger.info("[TrainerPlans] Trainer plan upserted.", {
     trainerId: uid,
-    planId: planRef.id,
+    planId: uid,
     billingType,
     priceCents,
   });
 
   return {
-    planId: planRef.id,
+    planId: uid,
   };
 });
 

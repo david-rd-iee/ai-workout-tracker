@@ -227,6 +227,14 @@ export const routes: Routes = [
     canActivate: [authGuard],
   },
   {
+    path: 'client-payments',
+    loadComponent: () =>
+      import('./pages/client-payments/client-payments.page').then(
+        (m) => m.ClientPaymentsPage
+      ),
+    canActivate: [authGuard],
+  },
+  {
     path: 'trainer-approval-pending',
     loadComponent: () =>
       import('./pages/trainer-approval-pending/trainer-approval-pending.page').then(
