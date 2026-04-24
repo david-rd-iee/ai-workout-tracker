@@ -51,20 +51,11 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
-<<<<<<< Updated upstream
-=======
-	<key>NSHealthShareUsageDescription</key>
-	<string>Atlas reads workout data to generate post-workout summaries.</string>
-	<key>NSHealthUpdateUsageDescription</key>
-	<string>Atlas may save workout summaries to Apple Health.</string>
-	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Atlas uses your location while the map tracker is open to record outdoor runs.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Atlas uses the camera to capture workout videos and treadmill photos.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Atlas accesses your photo library so you can select profile photos and upload workout media.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>Atlas saves captured or edited workout images to your photo library when you choose to save them.</string>
->>>>>>> Stashed changes
 </dict>
 </plist>

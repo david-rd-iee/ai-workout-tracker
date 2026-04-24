@@ -11,8 +11,7 @@ import {
 import { Router } from '@angular/router';
 import { Auth, onAuthStateChanged } from '@angular/fire/auth';
 import { Capacitor } from '@capacitor/core';
-
-const PushNotifications: any = null;
+import { PushNotifications } from '../../services/push-notifications.plugin';
 
 type AccountChoice = 'trainer' | 'client';
 

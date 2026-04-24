@@ -17,11 +17,8 @@ def capacitor_pods
   pod 'CapacitorFilesystem', :path => '../../node_modules/@capacitor/filesystem'
   pod 'CapacitorHaptics', :path => '../../node_modules/@capacitor/haptics'
   pod 'CapacitorKeyboard', :path => '../../node_modules/@capacitor/keyboard'
-<<<<<<< Updated upstream
   pod 'CapacitorPreferences', :path => '../../node_modules/@capacitor/preferences'
-=======
   pod 'CapacitorScreenOrientation', :path => '../../node_modules/@capacitor/screen-orientation'
->>>>>>> Stashed changes
   pod 'CapacitorStatusBar', :path => '../../node_modules/@capacitor/status-bar'
   pod 'CapgoCapacitorHealth', :path => '../../node_modules/@capgo/capacitor-health'
 end

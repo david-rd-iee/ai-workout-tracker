@@ -1,6 +1,9 @@
 import { HttpsError, onCall, onRequest } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import { defineSecret } from "firebase-functions/params";
+import { getApps, initializeApp } from "firebase-admin/app";
+import { getFirestore } from "firebase-admin/firestore";
+import { getMessaging } from "firebase-admin/messaging";
 import OpenAI from "openai";
 import {
   createEmptyWorkoutEvent,
@@ -28,7 +31,77 @@ export {
   onWorkoutEventCreated,
 } from "./workoutEventPostWriteHandlers";
 
+if (getApps().length === 0) {
+  initializeApp();
+}
+
 const openaiApiKey = defineSecret("OPENAI_API_KEY");
+
+function normalizeStringValue(value: unknown): string {
+  return String(value ?? "").trim();
+}
+
+function normalizeNotificationData(data: Record<string, unknown> | undefined): Record<string, string> {
+  if (!data || typeof data !== "object") {
+    return {};
+  }
+
+  return Object.entries(data).reduce<Record<string, string>>((accumulator, [key, value]) => {
+    if (value === null || value === undefined) {
+      return accumulator;
+    }
+
+    if (typeof value === "string") {
+      accumulator[key] = value;
+      return accumulator;
+    }
+
+    if (typeof value === "number" || typeof value === "boolean") {
+      accumulator[key] = String(value);
+      return accumulator;
+    }
+
+    accumulator[key] = JSON.stringify(value);
+    return accumulator;
+  }, {});
+}
+
+async function loadPushTokensForUser(userId: string): Promise<string[]> {
+  const firestore = getFirestore();
+  const [userSnap, trainerSnap, clientSnap] = await Promise.all([
+    firestore.doc(`users/${userId}`).get(),
+    firestore.doc(`trainers/${userId}`).get(),
+    firestore.doc(`clients/${userId}`).get(),
+  ]);
+
+  const rawTokenValues = [
+    userSnap.get("apnsPushTokens"),
+    userSnap.get("pushTokens"),
+    userSnap.get("fcmTokens"),
+    trainerSnap.get("apnsPushTokens"),
+    trainerSnap.get("pushTokens"),
+    trainerSnap.get("fcmTokens"),
+    clientSnap.get("apnsPushTokens"),
+    clientSnap.get("pushTokens"),
+    clientSnap.get("fcmTokens"),
+  ];
+
+  const uniqueTokens = new Set<string>();
+  for (const rawValue of rawTokenValues) {
+    if (!Array.isArray(rawValue)) {
+      continue;
+    }
+
+    for (const tokenEntry of rawValue) {
+      const normalizedToken = normalizeStringValue(tokenEntry);
+      if (normalizedToken) {
+        uniqueTokens.add(normalizedToken);
+      }
+    }
+  }
+
+  return Array.from(uniqueTokens);
+}
 
 function toPositiveNumber(value: unknown): number | undefined {
   const parsed = Number(value);
@@ -820,4 +893,90 @@ export const treadmillLoggerCallable = onCall({secrets: [openaiApiKey]}, async (
       error?.message ?? String(error)
     );
   }
+});
+
+export const sendApnsNotification = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Authentication is required to send notifications.");
+  }
+
+  const requestData =
+    request.data && typeof request.data === "object" ? request.data as Record<string, unknown> : {};
+  const userId = normalizeStringValue(requestData["userId"]);
+  const title = normalizeStringValue(requestData["title"]);
+  const body = normalizeStringValue(requestData["body"]);
+  const data = requestData["data"] && typeof requestData["data"] === "object"
+    ? requestData["data"] as Record<string, unknown>
+    : undefined;
+
+  if (!userId) {
+    throw new HttpsError("invalid-argument", "userId is required.");
+  }
+
+  const tokens = await loadPushTokensForUser(userId);
+  if (tokens.length === 0) {
+    logger.info("sendApnsNotification: no push tokens found", {userId});
+    return {
+      success: true,
+      sentCount: 0,
+      failedCount: 0,
+      skipped: true,
+      reason: "no-push-tokens",
+    };
+  }
+
+  const messaging = getMessaging();
+  const stringData = normalizeNotificationData(data);
+  const silent = stringData["silent"] === "true";
+
+  const multicastMessage = {
+    tokens,
+    ...(silent ? {} : {
+      notification: {
+        title: title || "Atlas Notification",
+        body,
+      },
+    }),
+    data: stringData,
+    apns: {
+      headers: {
+        "apns-priority": silent ? "5" : "10",
+      },
+      payload: {
+        aps: {
+          ...(silent ? {"content-available": 1} : {}),
+          ...(stringData["mutableContent"] === "true" ? {"mutable-content": 1} : {}),
+          ...(stringData["category"] ? {category: stringData["category"]} : {}),
+          sound: silent ? undefined : "default",
+        },
+      },
+    },
+  };
+
+  const response = await messaging.sendEachForMulticast(multicastMessage);
+  const invalidTokens = response.responses
+    .map((sendResponse, index) => ({sendResponse, token: tokens[index]}))
+    .filter(({sendResponse}) =>
+      !sendResponse.success &&
+      !!sendResponse.error &&
+      (
+        sendResponse.error.code === "messaging/invalid-registration-token" ||
+        sendResponse.error.code === "messaging/registration-token-not-registered"
+      )
+    )
+    .map(({token}) => token);
+
+  if (invalidTokens.length > 0) {
+    logger.warn("sendApnsNotification: invalid push tokens detected", {
+      userId,
+      invalidTokens,
+    });
+  }
+
+  return {
+    success: response.failureCount === 0,
+    sentCount: response.successCount,
+    failedCount: response.failureCount,
+    invalidTokens,
+  };
 });

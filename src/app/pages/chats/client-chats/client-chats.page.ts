@@ -211,9 +211,13 @@ export class ClientChatsPage implements OnInit {
       return chat.displayName || 'Group Chat';
     }
 
+    if (chat.displayName?.trim()) {
+      return chat.displayName.trim();
+    }
+
     const profile = chat.userProfile?.();
     if (!profile) {
-      return 'Loading...';
+      return 'User';
     }
 
     const fullName = `${profile.firstName || ''} ${profile.lastName || ''}`.trim();
@@ -225,7 +229,7 @@ export class ClientChatsPage implements OnInit {
       return chat.groupImage || 'assets/icons/Icon.png';
     }
 
-    return chat.userProfile?.()?.profilepic || 'assets/icon/favicon.png';
+    return chat.profilepic || chat.userProfile?.()?.profilepic || 'assets/icon/favicon.png';
   }
 
   loadChat(chat: Chat) {

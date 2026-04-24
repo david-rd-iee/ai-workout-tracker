@@ -5,6 +5,7 @@ import { IonApp, IonRouterOutlet } from '@ionic/angular/standalone';
 import { AccountService } from './services/account/account.service';
 import { UserService } from './services/account/user.service';
 import { ExerciseEstimatorsService } from './services/exercise-estimators.service';
+import { NotificationService } from './services/notification.service';
 import { OrientationPolicyService } from './services/orientation/orientation-policy.service';
 import { environment } from '../environments/environment';
 import { Subscription } from 'rxjs';
@@ -25,6 +26,7 @@ export class AppComponent implements OnInit, OnDestroy {
     private accountService: AccountService,
     private userService: UserService,
     private exerciseEstimatorsService: ExerciseEstimatorsService,
+    private notificationService: NotificationService,
     private orientationPolicyService: OrientationPolicyService,
     private router: Router
   ) {
@@ -65,11 +67,14 @@ export class AppComponent implements OnInit, OnDestroy {
   private async handleAuthState() {
     const uid = (this.accountService.getCredentials()().uid || '').trim();
     if (!uid) {
+      this.notificationService.stopInAppNotifications();
       this.loadedProfileUid = null;
       return;
     }
 
     this.initializeExerciseEstimatorsAfterLogin();
+    this.notificationService.startInAppNotifications(uid);
+    void this.notificationService.initPushNotifications();
 
     if (this.loadedProfileUid === uid) {
       return;

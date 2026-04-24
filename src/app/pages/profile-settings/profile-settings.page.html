@@ -212,6 +212,18 @@
         <ion-button
           class="logout-settings-btn"
           fill="outline"
+          [routerLink]="'/notifications'"
+          [disabled]="isLoading || isSaving"
+        >
+          Notifications
+          <span *ngIf="notificationService.unreadCount() > 0">
+            ({{ notificationService.unreadCount() }})
+          </span>
+        </ion-button>
+
+        <ion-button
+          class="logout-settings-btn"
+          fill="outline"
           [routerLink]="'/service-agreements'"
           [disabled]="isLoading || isSaving"
         >

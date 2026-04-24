@@ -3,9 +3,10 @@ import { IonHeader, IonToolbar, IonButton, IonIcon, IonTitle, IonAvatar, NavCont
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { addIcons } from 'ionicons';
-import { chevronBackOutline, informationCircleOutline, personOutline, personCircleOutline, settingsOutline } from 'ionicons/icons';
+import { chevronBackOutline, informationCircleOutline, notificationsOutline, personOutline, personCircleOutline, settingsOutline } from 'ionicons/icons';
 import type { AppUser } from '../../models/user.model';
 import { UserService } from '../../services/account/user.service';
+import { NotificationService } from '../../services/notification.service';
 
 @Component({
   selector: 'app-header',
@@ -29,18 +30,21 @@ export class HeaderComponent implements OnInit {
   @Input() showEndActionButton: boolean = false;
   @Input() endActionIconName: string = 'settings-outline';
   @Input() endActionAriaLabel: string = 'Header action';
+  @Input() showNotificationsButton: boolean = true;
 
   @Output() endAction = new EventEmitter<void>();
 
   private navCtrl = inject(NavController);
   private router = inject(Router);
   private userService = inject(UserService);
+  readonly notificationService = inject(NotificationService);
   private loadedUser: any = null;
 
   constructor() {
     addIcons({
       chevronBackOutline,
       informationCircleOutline,
+      notificationsOutline,
       personOutline,
       personCircleOutline,
       settingsOutline
@@ -140,5 +144,17 @@ export class HeaderComponent implements OnInit {
   onEndActionClick(): void {
     this.blurActiveElement();
     this.endAction.emit();
+  }
+
+  goToNotifications(): void {
+    if (this.router.url.startsWith('/notifications')) {
+      return;
+    }
+
+    this.blurActiveElement();
+    this.navCtrl.navigateForward('/notifications', {
+      animated: true,
+      animationDirection: 'forward',
+    });
   }
 }

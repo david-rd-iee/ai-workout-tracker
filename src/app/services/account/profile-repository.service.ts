@@ -513,7 +513,9 @@ export class ProfileRepositoryService {
         ...(userSnap.data() as AppUser),
       };
     } catch (error) {
-      console.error('[ProfileRepositoryService] Failed to load user summary:', error);
+      if (!this.isPermissionDeniedError(error)) {
+        console.error('[ProfileRepositoryService] Failed to load user summary:', error);
+      }
       return null;
     }
   }
@@ -562,7 +564,13 @@ export class ProfileRepositoryService {
         ...(profileSnap.data() as UserProfile),
       } as UserProfile & Record<string, unknown>;
 
-      const userSummary = await this.getUserSummary(userId);
+      const needsUserSummary =
+        !this.hasValue(rawProfile['firstName']) ||
+        !this.hasValue(rawProfile['lastName']) ||
+        !this.hasValue(rawProfile['email']) ||
+        !this.hasValue(rawProfile['profilepic']) ||
+        !this.hasValue(rawProfile['username']);
+      const userSummary = needsUserSummary ? await this.getUserSummary(userId) : null;
       return this.applyUserSummaryToProfile(rawProfile, userId, accountType, userSummary, true);
     } catch (error) {
       console.error(`[ProfileRepositoryService] Failed to load ${accountType} profile:`, error);
@@ -653,6 +661,12 @@ export class ProfileRepositoryService {
 
   private hasValue(value: unknown): boolean {
     return typeof value === 'string' ? value.trim().length > 0 : value !== null && value !== undefined;
+  }
+
+  private isPermissionDeniedError(error: unknown): boolean {
+    const code = String((error as { code?: unknown } | null)?.code || '').trim().toLowerCase();
+    const message = String((error as { message?: unknown } | null)?.message || '').toLowerCase();
+    return code === 'permission-denied' || message.includes('insufficient permissions');
   }
 
   private clearResolvedProfileCachesForUser(userId: string): void {

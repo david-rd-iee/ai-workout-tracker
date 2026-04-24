@@ -1,7 +1,7 @@
 {
   "name": "functions",
   "scripts": {
-    "build": "rm -rf lib && tsc",
+    "build": "node -e \"require('fs').rmSync('lib',{recursive:true,force:true})\" && tsc",
     "build:watch": "tsc --watch",
     "serve": "npm run build && firebase emulators:start --only functions",
     "shell": "npm run build && firebase functions:shell",
@@ -15,6 +15,7 @@
   },
   "main": "lib/functions/src/index.js",
   "dependencies": {
+    "@capacitor/push-notifications": "^8.0.3",
     "firebase-admin": "^13.6.0",
     "firebase-functions": "^7.0.1",
     "openai": "^6.10.0"

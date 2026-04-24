@@ -34,7 +34,7 @@
     "@capacitor/ios": "7.4.4",
     "@capacitor/keyboard": "7.0.3",
     "@capacitor/preferences": "^7.0.4",
-    "@capacitor/screen-orientation": "^7.0.1",
+    "@capacitor/screen-orientation": "^7.0.4",
     "@capacitor/status-bar": "7.0.3",
     "@capgo/capacitor-health": "^7.2.15",
     "@dataconnect/generated": "file:src/dataconnect-generated",
