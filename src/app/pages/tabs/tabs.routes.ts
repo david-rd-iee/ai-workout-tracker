@@ -47,6 +47,11 @@ export const routes: Routes = [
           },
         ],
       },
+      {
+        path: 'stripe-setup',
+        loadComponent: () =>
+          import('../stripe-setup/stripe-setup.page').then((m) => m.StripeSetupPage),
+      },
       // default inside /tabs → /tabs/home
       {
         path: '',

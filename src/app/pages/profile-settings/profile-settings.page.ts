@@ -24,6 +24,11 @@ import { UserService } from '../../services/account/user.service';
 import { NotificationService } from '../../services/notification.service';
 import { HeaderComponent } from '../../components/header/header.component';
 import { environment } from '../../../environments/environment';
+import { ROUTE_PATHS } from '../../app.routes';
+import {
+  TrainerPaymentsService,
+  TrainerStripeConnectSummary,
+} from '../../services/trainer-payments.service';
 
 type UnitSystem = 'metric' | 'imperial';
 
@@ -54,6 +59,7 @@ export class ProfileSettingsPage implements OnInit {
   private accountService = inject(AccountService);
   private profileRepository = inject(ProfileRepositoryService);
   private userService = inject(UserService);
+  private trainerPaymentsService = inject(TrainerPaymentsService);
   readonly notificationService = inject(NotificationService);
 
   firstName = '';
@@ -70,6 +76,9 @@ export class ProfileSettingsPage implements OnInit {
   sex: string | number | null = null;
   isTrainer = false;
   canManageTrainerApprovals = false;
+  readonly ROUTE_PATHS = ROUTE_PATHS;
+  trainerPaymentSummary: TrainerStripeConnectSummary | null = null;
+  isLoadingTrainerPaymentSummary = false;
 
   isLoading = false;
   isSaving = false;
@@ -89,6 +98,24 @@ export class ProfileSettingsPage implements OnInit {
 
   ngOnInit(): void {
     void this.loadSettings();
+  }
+
+  get trainerPaymentsReadyForPayout(): boolean {
+    const summary = this.trainerPaymentSummary;
+    if (!summary) {
+      return false;
+    }
+
+    return summary.detailsSubmitted && summary.chargesEnabled && summary.payoutsEnabled;
+  }
+
+  formatStripeAccountId(accountId: string): string {
+    const normalized = String(accountId || '').trim();
+    if (normalized.length <= 10) {
+      return normalized;
+    }
+
+    return `${normalized.slice(0, 6)}...${normalized.slice(-4)}`;
   }
 
   async logout(): Promise<void> {
@@ -303,6 +330,12 @@ export class ProfileSettingsPage implements OnInit {
           (currentEmail.length > 0 && approvedReviewerEmails.includes(currentEmail));
       }
 
+      if (this.isTrainer) {
+        await this.loadTrainerPaymentSummary(uid);
+      } else {
+        this.trainerPaymentSummary = null;
+      }
+
       if (!this.email && this.auth.currentUser?.email) {
         this.email = this.auth.currentUser.email;
       }
@@ -439,6 +472,18 @@ export class ProfileSettingsPage implements OnInit {
     }
 
     return Number((totalInches * 0.0254).toFixed(4));
+  }
+
+  private async loadTrainerPaymentSummary(uid: string): Promise<void> {
+    this.isLoadingTrainerPaymentSummary = true;
+    try {
+      this.trainerPaymentSummary = await this.trainerPaymentsService.getStripeSummary(uid);
+    } catch (error) {
+      console.error('[ProfileSettingsPage] Failed to load trainer payment summary:', error);
+      this.trainerPaymentSummary = null;
+    } finally {
+      this.isLoadingTrainerPaymentSummary = false;
+    }
   }
 
   private convertPoundsToKilograms(poundsValue: unknown): number | null {

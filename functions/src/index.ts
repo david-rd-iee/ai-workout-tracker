@@ -30,6 +30,8 @@ export {
 export {
   onWorkoutEventCreated,
 } from "./workoutEventPostWriteHandlers";
+export { createTrainerOnboardingLink } from "./trainerStripeOnboarding";
+export { createTrainerPlan } from "./trainerPlans";
 
 if (getApps().length === 0) {
   initializeApp();
