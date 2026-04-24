@@ -22,12 +22,18 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>Atlas uses the camera to capture workout videos and treadmill photos.</string>
 	<key>NSHealthShareUsageDescription</key>
 	<string>Atlas reads workout data to generate post-workout summaries.</string>
 	<key>NSHealthUpdateUsageDescription</key>
 	<string>Atlas may save workout summaries to Apple Health.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Atlas uses your location while the map tracker is open to record outdoor runs.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Atlas saves captured or edited workout images to your photo library when you choose to save them.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Atlas accesses your photo library so you can select profile photos and upload workout media.</string>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
@@ -51,11 +57,5 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
-	<key>NSCameraUsageDescription</key>
-	<string>Atlas uses the camera to capture workout videos and treadmill photos.</string>
-	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Atlas accesses your photo library so you can select profile photos and upload workout media.</string>
-	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>Atlas saves captured or edited workout images to your photo library when you choose to save them.</string>
 </dict>
 </plist>

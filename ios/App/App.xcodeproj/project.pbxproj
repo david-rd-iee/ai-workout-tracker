@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 77;
+	objectVersion = 70;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -15,32 +15,7 @@
 		504EC30F1FED79650016851F /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 504EC30E1FED79650016851F /* Assets.xcassets */; };
 		504EC3121FED79650016851F /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 504EC3101FED79650016851F /* LaunchScreen.storyboard */; };
 		50B271D11FEDC1A000F3C39B /* public in Resources */ = {isa = PBXBuildFile; fileRef = 50B271D01FEDC1A000F3C39B /* public */; };
-		FE54E5CF2F9027F3005ED6C8 /* AtlasWatch Watch App.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = FE54E5AF2F9027F1005ED6C8 /* AtlasWatch Watch App.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
-
-/* Begin PBXContainerItemProxy section */
-		FE54E5BC2F9027F3005ED6C8 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = 504EC2FC1FED79650016851F /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = FE54E5AE2F9027F1005ED6C8;
-			remoteInfo = "AtlasWatch Watch App";
-		};
-		FE54E5C62F9027F3005ED6C8 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = 504EC2FC1FED79650016851F /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = FE54E5AE2F9027F1005ED6C8;
-			remoteInfo = "AtlasWatch Watch App";
-		};
-		FE54E5CD2F9027F3005ED6C8 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = 504EC2FC1FED79650016851F /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = FE54E5AE2F9027F1005ED6C8;
-			remoteInfo = "AtlasWatch Watch App";
-		};
-/* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
 		FE54E5D02F9027F3005ED6C8 /* Embed Watch Content */ = {
@@ -49,7 +24,6 @@
 			dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";
 			dstSubfolderSpec = 16;
 			files = (
-				FE54E5CF2F9027F3005ED6C8 /* AtlasWatch Watch App.app in Embed Watch Content */,
 			);
 			name = "Embed Watch Content";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -69,46 +43,13 @@
 		50B271D01FEDC1A000F3C39B /* public */ = {isa = PBXFileReference; lastKnownFileType = folder; path = public; sourceTree = "<group>"; };
 		6FC328D7DEF0CDBC3586E583 /* Pods-App.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-App.debug.xcconfig"; path = "Target Support Files/Pods-App/Pods-App.debug.xcconfig"; sourceTree = "<group>"; };
 		E556F4FBD42AC4DC58AE4F55 /* Pods_App.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_App.framework; sourceTree = BUILT_PRODUCTS_DIR; };
-		FE54E5AF2F9027F1005ED6C8 /* AtlasWatch Watch App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "AtlasWatch Watch App.app"; sourceTree = BUILT_PRODUCTS_DIR; };
-		FE54E5BB2F9027F3005ED6C8 /* AtlasWatch Watch AppTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "AtlasWatch Watch AppTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
-		FE54E5C52F9027F3005ED6C8 /* AtlasWatch Watch AppUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "AtlasWatch Watch AppUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		FEEC92952F5B639800DFF0DD /* App.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = App.entitlements; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		FE54E5B02F9027F1005ED6C8 /* AtlasWatch Watch App */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-			);
-			explicitFileTypes = {
-			};
-			explicitFolders = (
-			);
-			path = "AtlasWatch Watch App";
-			sourceTree = "<group>";
-		};
-		FE54E5BE2F9027F3005ED6C8 /* AtlasWatch Watch AppTests */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-			);
-			explicitFileTypes = {
-			};
-			explicitFolders = (
-			);
-			path = "AtlasWatch Watch AppTests";
-			sourceTree = "<group>";
-		};
-		FE54E5C82F9027F3005ED6C8 /* AtlasWatch Watch AppUITests */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-			);
-			explicitFileTypes = {
-			};
-			explicitFolders = (
-			);
-			path = "AtlasWatch Watch AppUITests";
-			sourceTree = "<group>";
-		};
+		FE54E5B02F9027F1005ED6C8 /* AtlasWatch Watch App */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = "AtlasWatch Watch App"; sourceTree = "<group>"; };
+		FE54E5BE2F9027F3005ED6C8 /* AtlasWatch Watch AppTests */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = "AtlasWatch Watch AppTests"; sourceTree = "<group>"; };
+		FE54E5C82F9027F3005ED6C8 /* AtlasWatch Watch AppUITests */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = "AtlasWatch Watch AppUITests"; sourceTree = "<group>"; };
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -117,27 +58,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				343706D8F9ABEE9FCA1798A8 /* Pods_App.framework in Frameworks */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		FE54E5AC2F9027F1005ED6C8 /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		FE54E5B82F9027F3005ED6C8 /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		FE54E5C22F9027F3005ED6C8 /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -150,7 +70,6 @@
 				6FC328D7DEF0CDBC3586E583 /* Pods-App.debug.xcconfig */,
 				43EC8C361054F6D85844876C /* Pods-App.release.xcconfig */,
 			);
-			name = Pods;
 			path = Pods;
 			sourceTree = "<group>";
 		};
@@ -171,9 +90,6 @@
 			isa = PBXGroup;
 			children = (
 				504EC3041FED79650016851F /* App.app */,
-				FE54E5AF2F9027F1005ED6C8 /* AtlasWatch Watch App.app */,
-				FE54E5BB2F9027F3005ED6C8 /* AtlasWatch Watch AppTests.xctest */,
-				FE54E5C52F9027F3005ED6C8 /* AtlasWatch Watch AppUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -219,74 +135,11 @@
 			buildRules = (
 			);
 			dependencies = (
-				FE54E5CE2F9027F3005ED6C8 /* PBXTargetDependency */,
 			);
 			name = App;
 			productName = App;
 			productReference = 504EC3041FED79650016851F /* App.app */;
 			productType = "com.apple.product-type.application";
-		};
-		FE54E5AE2F9027F1005ED6C8 /* AtlasWatch Watch App */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = FE54E5D72F9027F3005ED6C8 /* Build configuration list for PBXNativeTarget "AtlasWatch Watch App" */;
-			buildPhases = (
-				FE54E5AB2F9027F1005ED6C8 /* Sources */,
-				FE54E5AC2F9027F1005ED6C8 /* Frameworks */,
-				FE54E5AD2F9027F1005ED6C8 /* Resources */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-			);
-			fileSystemSynchronizedGroups = (
-				FE54E5B02F9027F1005ED6C8 /* AtlasWatch Watch App */,
-			);
-			name = "AtlasWatch Watch App";
-			productName = "AtlasWatch Watch App";
-			productReference = FE54E5AF2F9027F1005ED6C8 /* AtlasWatch Watch App.app */;
-			productType = "com.apple.product-type.application";
-		};
-		FE54E5BA2F9027F3005ED6C8 /* AtlasWatch Watch AppTests */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = FE54E5D82F9027F3005ED6C8 /* Build configuration list for PBXNativeTarget "AtlasWatch Watch AppTests" */;
-			buildPhases = (
-				FE54E5B72F9027F3005ED6C8 /* Sources */,
-				FE54E5B82F9027F3005ED6C8 /* Frameworks */,
-				FE54E5B92F9027F3005ED6C8 /* Resources */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-				FE54E5BD2F9027F3005ED6C8 /* PBXTargetDependency */,
-			);
-			fileSystemSynchronizedGroups = (
-				FE54E5BE2F9027F3005ED6C8 /* AtlasWatch Watch AppTests */,
-			);
-			name = "AtlasWatch Watch AppTests";
-			productName = "AtlasWatch Watch AppTests";
-			productReference = FE54E5BB2F9027F3005ED6C8 /* AtlasWatch Watch AppTests.xctest */;
-			productType = "com.apple.product-type.bundle.unit-test";
-		};
-		FE54E5C42F9027F3005ED6C8 /* AtlasWatch Watch AppUITests */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = FE54E5D92F9027F3005ED6C8 /* Build configuration list for PBXNativeTarget "AtlasWatch Watch AppUITests" */;
-			buildPhases = (
-				FE54E5C12F9027F3005ED6C8 /* Sources */,
-				FE54E5C22F9027F3005ED6C8 /* Frameworks */,
-				FE54E5C32F9027F3005ED6C8 /* Resources */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-				FE54E5C72F9027F3005ED6C8 /* PBXTargetDependency */,
-			);
-			fileSystemSynchronizedGroups = (
-				FE54E5C82F9027F3005ED6C8 /* AtlasWatch Watch AppUITests */,
-			);
-			name = "AtlasWatch Watch AppUITests";
-			productName = "AtlasWatch Watch AppUITests";
-			productReference = FE54E5C52F9027F3005ED6C8 /* AtlasWatch Watch AppUITests.xctest */;
-			productType = "com.apple.product-type.bundle.ui-testing";
 		};
 /* End PBXNativeTarget section */
 
@@ -301,17 +154,6 @@
 						CreatedOnToolsVersion = 9.2;
 						LastSwiftMigration = 1100;
 						ProvisioningStyle = Automatic;
-					};
-					FE54E5AE2F9027F1005ED6C8 = {
-						CreatedOnToolsVersion = 16.4;
-					};
-					FE54E5BA2F9027F3005ED6C8 = {
-						CreatedOnToolsVersion = 16.4;
-						TestTargetID = FE54E5AE2F9027F1005ED6C8;
-					};
-					FE54E5C42F9027F3005ED6C8 = {
-						CreatedOnToolsVersion = 16.4;
-						TestTargetID = FE54E5AE2F9027F1005ED6C8;
 					};
 				};
 			};
@@ -329,9 +171,6 @@
 			projectRoot = "";
 			targets = (
 				504EC3031FED79650016851F /* App */,
-				FE54E5AE2F9027F1005ED6C8 /* AtlasWatch Watch App */,
-				FE54E5BA2F9027F3005ED6C8 /* AtlasWatch Watch AppTests */,
-				FE54E5C42F9027F3005ED6C8 /* AtlasWatch Watch AppUITests */,
 			);
 		};
 /* End PBXProject section */
@@ -347,27 +186,6 @@
 				50379B232058CBB4000EE86E /* capacitor.config.json in Resources */,
 				504EC30D1FED79650016851F /* Main.storyboard in Resources */,
 				2FAD9763203C412B000D30F8 /* config.xml in Resources */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		FE54E5AD2F9027F1005ED6C8 /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		FE54E5B92F9027F3005ED6C8 /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		FE54E5C32F9027F3005ED6C8 /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -422,46 +240,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		FE54E5AB2F9027F1005ED6C8 /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		FE54E5B72F9027F3005ED6C8 /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		FE54E5C12F9027F3005ED6C8 /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 /* End PBXSourcesBuildPhase section */
-
-/* Begin PBXTargetDependency section */
-		FE54E5BD2F9027F3005ED6C8 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = FE54E5AE2F9027F1005ED6C8 /* AtlasWatch Watch App */;
-			targetProxy = FE54E5BC2F9027F3005ED6C8 /* PBXContainerItemProxy */;
-		};
-		FE54E5C72F9027F3005ED6C8 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = FE54E5AE2F9027F1005ED6C8 /* AtlasWatch Watch App */;
-			targetProxy = FE54E5C62F9027F3005ED6C8 /* PBXContainerItemProxy */;
-		};
-		FE54E5CE2F9027F3005ED6C8 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = FE54E5AE2F9027F1005ED6C8 /* AtlasWatch Watch App */;
-			targetProxy = FE54E5CD2F9027F3005ED6C8 /* PBXContainerItemProxy */;
-		};
-/* End PBXTargetDependency section */
 
 /* Begin PBXVariantGroup section */
 		504EC30B1FED79650016851F /* Main.storyboard */ = {
@@ -599,7 +378,7 @@
 				CODE_SIGN_ENTITLEMENTS = App/App.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = PN5QBK4GKH;
+				DEVELOPMENT_TEAM = 84S794F67X;
 				INFOPLIST_FILE = App/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -608,7 +387,7 @@
 				);
 				MARKETING_VERSION = 1.0;
 				OTHER_SWIFT_FLAGS = "$(inherited) \"-D\" \"COCOAPODS\" \"-DDEBUG\"";
-				PRODUCT_BUNDLE_IDENTIFIER = com.matthewpatterson.aihealthassistant;
+				PRODUCT_BUNDLE_IDENTIFIER = com.davidriede.aiworkouttracker;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_VERSION = 5.0;
@@ -624,7 +403,7 @@
 				CODE_SIGN_ENTITLEMENTS = App/App.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = PN5QBK4GKH;
+				DEVELOPMENT_TEAM = 84S794F67X;
 				INFOPLIST_FILE = App/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -637,214 +416,6 @@
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = Release;
-		};
-		FE54E5D12F9027F3005ED6C8 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
-				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
-				CLANG_ENABLE_OBJC_WEAK = YES;
-				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
-				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
-				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
-				CODE_SIGN_ENTITLEMENTS = "AtlasWatch Watch App/AtlasWatch Watch App.entitlements";
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = PN5QBK4GKH;
-				ENABLE_PREVIEWS = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
-				GCC_C_LANGUAGE_STANDARD = gnu17;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = AtlasWatch;
-				INFOPLIST_KEY_NSHealthShareUsageDescription = "AtlasWatch reads heart rate data during live workout sessions";
-				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "AtlasWatch saves workout sessions to Apple Health";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
-				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.matthewpatterson.aihealthassistant;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-				);
-				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 1.0;
-				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
-				MTL_FAST_MATH = YES;
-				PRODUCT_BUNDLE_IDENTIFIER = com.matthewpatterson.aihealthassistant.watchkitapp;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = watchos;
-				SKIP_INSTALL = YES;
-				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = 4;
-				WATCHOS_DEPLOYMENT_TARGET = 11.5;
-			};
-			name = Debug;
-		};
-		FE54E5D22F9027F3005ED6C8 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
-				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
-				CLANG_ENABLE_OBJC_WEAK = YES;
-				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
-				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
-				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
-				CODE_SIGN_ENTITLEMENTS = "AtlasWatch Watch App/AtlasWatch Watch App.entitlements";
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = PN5QBK4GKH;
-				ENABLE_PREVIEWS = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
-				GCC_C_LANGUAGE_STANDARD = gnu17;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = AtlasWatch;
-				INFOPLIST_KEY_NSHealthShareUsageDescription = "AtlasWatch reads heart rate data during live workout sessions";
-				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "AtlasWatch saves workout sessions to Apple Health";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
-				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.matthewpatterson.aihealthassistant;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-				);
-				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 1.0;
-				MTL_FAST_MATH = YES;
-				PRODUCT_BUNDLE_IDENTIFIER = com.matthewpatterson.aihealthassistant.watchkitapp;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = watchos;
-				SKIP_INSTALL = YES;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = 4;
-				WATCHOS_DEPLOYMENT_TARGET = 11.5;
-			};
-			name = Release;
-		};
-		FE54E5D32F9027F3005ED6C8 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
-				BUNDLE_LOADER = "$(TEST_HOST)";
-				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
-				CLANG_ENABLE_OBJC_WEAK = YES;
-				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
-				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
-				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = PN5QBK4GKH;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
-				GCC_C_LANGUAGE_STANDARD = gnu17;
-				GENERATE_INFOPLIST_FILE = YES;
-				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 1.0;
-				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
-				MTL_FAST_MATH = YES;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.MatthewPatterson.AtlasWatch-Watch-AppTests";
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = watchos;
-				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
-				SWIFT_EMIT_LOC_STRINGS = NO;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = 4;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/AtlasWatch Watch App.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/AtlasWatch Watch App";
-				WATCHOS_DEPLOYMENT_TARGET = 11.5;
-			};
-			name = Debug;
-		};
-		FE54E5D42F9027F3005ED6C8 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
-				BUNDLE_LOADER = "$(TEST_HOST)";
-				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
-				CLANG_ENABLE_OBJC_WEAK = YES;
-				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
-				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
-				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = PN5QBK4GKH;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
-				GCC_C_LANGUAGE_STANDARD = gnu17;
-				GENERATE_INFOPLIST_FILE = YES;
-				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 1.0;
-				MTL_FAST_MATH = YES;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.MatthewPatterson.AtlasWatch-Watch-AppTests";
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = watchos;
-				SWIFT_EMIT_LOC_STRINGS = NO;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = 4;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/AtlasWatch Watch App.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/AtlasWatch Watch App";
-				WATCHOS_DEPLOYMENT_TARGET = 11.5;
-			};
-			name = Release;
-		};
-		FE54E5D52F9027F3005ED6C8 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
-				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
-				CLANG_ENABLE_OBJC_WEAK = YES;
-				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
-				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
-				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = PN5QBK4GKH;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
-				GCC_C_LANGUAGE_STANDARD = gnu17;
-				GENERATE_INFOPLIST_FILE = YES;
-				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 1.0;
-				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
-				MTL_FAST_MATH = YES;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.MatthewPatterson.AtlasWatch-Watch-AppUITests";
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = watchos;
-				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
-				SWIFT_EMIT_LOC_STRINGS = NO;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = 4;
-				TEST_TARGET_NAME = "AtlasWatch Watch App";
-				WATCHOS_DEPLOYMENT_TARGET = 11.5;
-			};
-			name = Debug;
-		};
-		FE54E5D62F9027F3005ED6C8 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
-				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
-				CLANG_ENABLE_OBJC_WEAK = YES;
-				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
-				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
-				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = PN5QBK4GKH;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
-				GCC_C_LANGUAGE_STANDARD = gnu17;
-				GENERATE_INFOPLIST_FILE = YES;
-				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 1.0;
-				MTL_FAST_MATH = YES;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.MatthewPatterson.AtlasWatch-Watch-AppUITests";
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = watchos;
-				SWIFT_EMIT_LOC_STRINGS = NO;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = 4;
-				TEST_TARGET_NAME = "AtlasWatch Watch App";
-				WATCHOS_DEPLOYMENT_TARGET = 11.5;
 			};
 			name = Release;
 		};
@@ -865,33 +436,6 @@
 			buildConfigurations = (
 				504EC3171FED79650016851F /* Debug */,
 				504EC3181FED79650016851F /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
-		FE54E5D72F9027F3005ED6C8 /* Build configuration list for PBXNativeTarget "AtlasWatch Watch App" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				FE54E5D12F9027F3005ED6C8 /* Debug */,
-				FE54E5D22F9027F3005ED6C8 /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
-		FE54E5D82F9027F3005ED6C8 /* Build configuration list for PBXNativeTarget "AtlasWatch Watch AppTests" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				FE54E5D32F9027F3005ED6C8 /* Debug */,
-				FE54E5D42F9027F3005ED6C8 /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
-		FE54E5D92F9027F3005ED6C8 /* Build configuration list for PBXNativeTarget "AtlasWatch Watch AppUITests" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				FE54E5D52F9027F3005ED6C8 /* Debug */,
-				FE54E5D62F9027F3005ED6C8 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
