@@ -9,6 +9,7 @@ import {
   IonSelect,
   IonSelectOption,
   IonText,
+  IonTextarea,
 } from '@ionic/angular/standalone';
 import { Auth, onAuthStateChanged } from '@angular/fire/auth';
 import { Firestore } from '@angular/fire/firestore';
@@ -48,6 +49,7 @@ type UnitSystem = 'metric' | 'imperial';
     IonSelect,
     IonSelectOption,
     IonText,
+    IonTextarea,
     HeaderComponent,
   ],
 })
@@ -74,6 +76,9 @@ export class ProfileSettingsPage implements OnInit {
   weightPounds: string | number | null = '';
   unitSystem: UnitSystem = 'metric';
   sex: string | number | null = null;
+  goals = '';
+  experience = '';
+  description = '';
   isTrainer = false;
   canManageTrainerApprovals = false;
   readonly ROUTE_PATHS = ROUTE_PATHS;
@@ -144,6 +149,9 @@ export class ProfileSettingsPage implements OnInit {
     }
 
     const shouldSaveStats = !this.isTrainer;
+    const goals = shouldSaveStats ? this.goals.trim() : '';
+    const experience = shouldSaveStats ? this.experience.trim() : '';
+    const description = shouldSaveStats ? this.description.trim() : '';
     const parsedAge = shouldSaveStats ? this.parseNumber(this.age) : null;
     let parsedHeightMeters = shouldSaveStats ? this.parseNumber(this.heightMeters) : null;
     let parsedWeightKg = shouldSaveStats ? this.parseNumber(this.weightKg) : null;
@@ -249,6 +257,16 @@ export class ProfileSettingsPage implements OnInit {
       this.userService.syncCurrentUserSummaryPatch(uid, userSummaryPatch);
 
       if (shouldSaveStats) {
+        const clientProfilePatch = {
+          goals,
+          experience,
+          description,
+          updatedAt: serverTimestamp(),
+        };
+        await setDoc(doc(this.firestore, 'clients', uid), clientProfilePatch, { merge: true });
+        this.profileRepository.applyProfilePatch(uid, 'client', { goals, experience, description });
+        this.userService.syncCurrentUserProfilePatch(uid, 'client', { goals, experience, description });
+
         const userStatsPayload: Record<string, unknown> = {
           userId: uid,
           age: parsedAge,
@@ -275,13 +293,13 @@ export class ProfileSettingsPage implements OnInit {
         this.errorMessage =
           'Verification email sent. Confirm the new email, then save again to sync it here.';
         this.successMessage = shouldSaveStats
-          ? 'Name, age, sex, height, and weight were saved.'
+          ? 'Profile details and body metrics were saved.'
           : 'Name and email were saved.';
         this.email = emailForUsersDoc;
       } else if (emailUpdateError) {
         this.errorMessage = emailUpdateError;
         this.successMessage = shouldSaveStats
-          ? 'Name, age, sex, height, and weight were saved.'
+          ? 'Profile details and body metrics were saved.'
           : 'Name and email were saved.';
         this.email = emailForUsersDoc;
       } else {
@@ -332,8 +350,15 @@ export class ProfileSettingsPage implements OnInit {
 
       if (this.isTrainer) {
         await this.loadTrainerPaymentSummary(uid);
+        this.goals = '';
+        this.experience = '';
+        this.description = '';
       } else {
         this.trainerPaymentSummary = null;
+        const clientProfile = await this.profileRepository.getProfile(uid, 'client') as Record<string, unknown> | null;
+        this.goals = typeof clientProfile?.['goals'] === 'string' ? clientProfile['goals'] : '';
+        this.experience = typeof clientProfile?.['experience'] === 'string' ? clientProfile['experience'] : '';
+        this.description = typeof clientProfile?.['description'] === 'string' ? clientProfile['description'] : '';
       }
 
       if (!this.email && this.auth.currentUser?.email) {

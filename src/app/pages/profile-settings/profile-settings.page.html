@@ -185,6 +185,44 @@
                 required
               ></ion-input>
             </ion-item>
+
+            <ion-item lines="none" class="settings-field" *ngIf="!isTrainer">
+              <ion-input
+                class="settings-input"
+                label="Primary Goal"
+                label-placement="stacked"
+                [(ngModel)]="goals"
+                name="goals"
+                placeholder="Strength, weight loss, mobility..."
+                [disabled]="isLoading || isSaving"
+              ></ion-input>
+            </ion-item>
+
+            <ion-item lines="none" class="settings-field" *ngIf="!isTrainer">
+              <ion-input
+                class="settings-input"
+                label="Training Experience"
+                label-placement="stacked"
+                [(ngModel)]="experience"
+                name="experience"
+                placeholder="Beginner, intermediate, advanced..."
+                [disabled]="isLoading || isSaving"
+              ></ion-input>
+            </ion-item>
+
+            <ion-item lines="none" class="settings-field" *ngIf="!isTrainer">
+              <ion-textarea
+                class="settings-input"
+                label="Notes"
+                label-placement="stacked"
+                [(ngModel)]="description"
+                name="description"
+                placeholder="Anything Atlas or your trainer should know?"
+                rows="4"
+                autoGrow="true"
+                [disabled]="isLoading || isSaving"
+              ></ion-textarea>
+            </ion-item>
           </div>
 
           <ion-text color="danger" *ngIf="errorMessage">

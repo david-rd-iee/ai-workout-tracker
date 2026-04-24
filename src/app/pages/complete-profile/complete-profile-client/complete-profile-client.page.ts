@@ -9,7 +9,6 @@ import {
   IonSelect,
   IonSelectOption,
   IonText,
-  IonTextarea,
 } from '@ionic/angular/standalone';
 import { Router } from '@angular/router';
 import { Auth, onAuthStateChanged } from '@angular/fire/auth';
@@ -35,7 +34,6 @@ type UnitSystem = 'metric' | 'imperial';
     IonSelect,
     IonSelectOption,
     IonText,
-    IonTextarea,
   ],
 })
 export class CompleteProfileClientPage implements OnInit {
@@ -48,13 +46,6 @@ export class CompleteProfileClientPage implements OnInit {
   firstName = '';
   lastName = '';
   username = '';
-  phone = '';
-  city = '';
-  state = '';
-  zip = '';
-  goals = '';
-  experience = '';
-  description = '';
   age: string | number = '';
   heightMeters: string | number = '';
   weightKg: string | number = '';
@@ -62,7 +53,6 @@ export class CompleteProfileClientPage implements OnInit {
   heightInches: string | number = '';
   weightPounds: string | number = '';
   unitSystem: UnitSystem = 'metric';
-  sex: string | number | null = null;
   isSubmitting = false;
   errorMessage = '';
 
@@ -76,15 +66,8 @@ export class CompleteProfileClientPage implements OnInit {
     const firstName = this.firstName.trim();
     const lastName = this.lastName.trim();
     const username = this.username.trim();
-    const phone = this.phone.trim();
-    const city = this.city.trim();
-    const state = this.state.trim().toUpperCase();
-    const goals = this.goals.trim();
-    const experience = this.experience.trim();
-    const description = this.description.trim();
     const age = this.parsePositiveInteger(this.age);
-    const sex = this.parseSexValue(this.sex);
-    const zipNumber = this.parseZipCode(this.zip);
+    const sex = 1.5;
 
     let heightMeters = this.parsePositiveNumber(this.heightMeters);
     let weightKg = this.parsePositiveNumber(this.weightKg);
@@ -111,12 +94,7 @@ export class CompleteProfileClientPage implements OnInit {
       !firstName ||
       !lastName ||
       !username ||
-      !phone ||
-      !city ||
-      !state ||
-      zipNumber === null ||
-      age === null ||
-      sex === null
+      age === null
     ) {
       this.errorMessage = 'Please fill out all required fields.';
       return;
@@ -157,15 +135,15 @@ export class CompleteProfileClientPage implements OnInit {
         firstName,
         lastName,
         email: this.auth.currentUser?.email ?? '',
-        phone,
+        phone: '',
         profilepic: '',
-        city,
-        state,
-        zip: zipNumber,
+        city: '',
+        state: '',
+        zip: 0,
         accountType: 'client',
-        goals,
-        experience,
-        description,
+        goals: '',
+        experience: '',
+        description: '',
       };
 
       await this.userService.createUserProfile(profileData);
@@ -211,7 +189,6 @@ export class CompleteProfileClientPage implements OnInit {
         { merge: true }
       );
 
-      await this.userService.linkProfileByPhone(phone);
       await this.userService.loadUserProfile();
       await this.router.navigateByUrl('/tabs/home', { replaceUrl: true });
     } catch (error) {
@@ -347,15 +324,6 @@ export class CompleteProfileClientPage implements OnInit {
     return Number.isInteger(parsed) ? parsed : null;
   }
 
-  private parseZipCode(value: unknown): number | null {
-    const trimmed = String(value ?? '').trim();
-    if (!/^\d{5}$/.test(trimmed)) {
-      return null;
-    }
-
-    return Number(trimmed);
-  }
-
   private parseNumber(value: unknown): number | null {
     if (value === null || value === undefined) {
       return null;
@@ -387,11 +355,4 @@ export class CompleteProfileClientPage implements OnInit {
     return Number.isFinite(bmi) ? Number(bmi.toFixed(2)) : null;
   }
 
-  private parseSexValue(value: unknown): number | null {
-    const parsed = Number(String(value ?? '').trim());
-    if (parsed === 1 || parsed === 1.5 || parsed === 2) {
-      return parsed;
-    }
-    return null;
-  }
 }
