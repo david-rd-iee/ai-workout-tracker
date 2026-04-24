@@ -94,6 +94,12 @@ async function routeStripeEvent(event: any, stripe: any): Promise<void> {
       event
     );
     return;
+  case "invoice.paid":
+    await handleInvoicePaid(
+      event.data.object,
+      event
+    );
+    return;
   default:
     logger.info("[StripeWebhook] Ignoring event.", {
       eventId: event.id,
@@ -256,6 +262,75 @@ async function handleInvoicePaymentFailed(
   });
 }
 
+async function handleInvoicePaid(
+  invoice: any,
+  event: any
+): Promise<void> {
+  const invoiceId = normalizeString(invoice.id);
+  const subscriptionId = resolveSubscriptionId(invoice.subscription);
+  if (!subscriptionId) {
+    logger.warn("[StripeWebhook] invoice.paid missing subscription id.", {
+      eventId: event.id,
+      invoiceId,
+    });
+    return;
+  }
+
+  const invoiceMetadata = toRecord(invoice.metadata);
+  const identity = await resolveIdentityForSubscription(subscriptionId, invoiceMetadata);
+  if (!identity) {
+    logger.warn("[StripeWebhook] invoice.paid missing identity fields.", {
+      eventId: event.id,
+      invoiceId,
+      subscriptionId,
+    });
+    return;
+  }
+
+  const amountPaidCents = toPositiveInteger(
+    invoice.amount_paid ?? invoice.amount_due ?? invoice.amount_total
+  );
+  if (amountPaidCents === null || amountPaidCents <= 0) {
+    return;
+  }
+
+  const paidAtSeconds = toPositiveInteger(toRecord(invoice.status_transitions)["paid_at"]);
+  const paidAt = toTimestampOrNull(paidAtSeconds ?? undefined);
+  const currency = normalizeString(invoice.currency).toLowerCase() || "usd";
+
+  await db.doc(`transactions/${invoiceId || subscriptionId}_${event.id}`).set({
+    transactionId: invoiceId || `${subscriptionId}_${event.id}`,
+    stripeInvoiceId: invoiceId,
+    stripeSubscriptionId: subscriptionId,
+    clientId: identity.clientId,
+    trainerId: identity.trainerId,
+    planId: identity.planId,
+    amountCents: amountPaidCents,
+    amount: amountPaidCents / 100,
+    currency,
+    status: "paid",
+    source: "stripe",
+    paymentMethod: "stripe",
+    paidAt: paidAt ?? admin.firestore.FieldValue.serverTimestamp(),
+    createdAt: paidAt ?? admin.firestore.FieldValue.serverTimestamp(),
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    lastEventId: event.id,
+    lastEventType: event.type,
+  }, {merge: true});
+
+  await upsertTrainerSubscription(subscriptionId, {
+    status: "active",
+    clientId: identity.clientId,
+    trainerId: identity.trainerId,
+    planId: identity.planId,
+    stripeSubscriptionId: subscriptionId,
+    stripeCustomerId: resolveStripeObjectId(invoice.customer),
+    latestInvoiceId: invoiceId,
+    lastEventId: event.id,
+    lastEventType: event.type,
+  });
+}
+
 async function resolveIdentityForCheckoutSession(
   session: any,
   subscriptionId: string,
@@ -382,6 +457,16 @@ function toTimestampOrNull(value: number | null | undefined): admin.firestore.Ti
   }
 
   return admin.firestore.Timestamp.fromMillis(value * 1000);
+}
+
+function toPositiveInteger(value: unknown): number | null {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) {
+    return null;
+  }
+
+  const rounded = Math.trunc(parsed);
+  return rounded > 0 ? rounded : null;
 }
 
 function stringifyError(error: unknown): string {

@@ -107,6 +107,21 @@ interface PendingSessionRequest {
   notes: string;
 }
 
+interface RevenueMonthSummary {
+  month: Date;
+  revenue: number;
+  payments: number;
+  isPast: boolean;
+  isCurrent: boolean;
+  isFuture: boolean;
+}
+
+interface RevenueLedgerEntry {
+  dedupeKey: string;
+  amount: number;
+  date: Date;
+}
+
 @Component({
   selector: 'app-home',
   standalone: true,
@@ -154,7 +169,7 @@ export class HomePage implements OnInit, OnDestroy {
   pendingClientRequests: PendingClientRequest[] = [];
   pendingSessionRequests: PendingSessionRequest[] = [];
   currentMonthIndex = 0;
-  monthlyRevenue: any[] = [];
+  monthlyRevenue: RevenueMonthSummary[] = [];
   totalRevenue = 0;
   
   // Client-specific data
@@ -577,7 +592,7 @@ export class HomePage implements OnInit, OnDestroy {
     if (!trainerId) return;
 
     // Load revenue data in parallel, don't block client list loading
-    void this.calculateRevenueFromBookings(trainerId);
+    void this.calculateRevenueFromStripeData(trainerId);
 
     this.stopTrainerClientsListener();
 
@@ -716,53 +731,39 @@ export class HomePage implements OnInit, OnDestroy {
     }
   }
 
-  async calculateRevenueFromBookings(trainerId: string) {
+  async calculateRevenueFromStripeData(trainerId: string) {
     try {
       const today = new Date();
-      const monthlyRevenue: any[] = [];
-      let totalRevenue = 0;
-      
-      const bookingsRef = collection(this.firestore, 'bookings');
-      const q = query(bookingsRef, where('trainerId', '==', trainerId));
-      const querySnapshot = await getDocs(q);
-      
-      const revenueByMonth = new Map<string, { revenue: number; sessions: number }>();
-      
-      querySnapshot.forEach((doc) => {
-        const booking = doc.data() as any;
-        
-        if (booking.status === 'completed' || booking.status === 'confirmed') {
-          const bookingDate = new Date(booking.startTimeUTC || booking.createdAt?.toDate() || new Date());
-          const monthKey = `${bookingDate.getFullYear()}-${bookingDate.getMonth()}`;
-          const price = booking.price || 75;
-          
-          if (!revenueByMonth.has(monthKey)) {
-            revenueByMonth.set(monthKey, { revenue: 0, sessions: 0 });
-          }
-          
-          const monthData = revenueByMonth.get(monthKey)!;
-          monthData.revenue += price;
-          monthData.sessions += 1;
+      const monthlyRevenue: RevenueMonthSummary[] = [];
+
+      const revenueEntries = await this.readTrainerStripeRevenueEntries(trainerId);
+      const totalRevenue = revenueEntries.reduce((sum, entry) => sum + entry.amount, 0);
+      const revenueByMonth = new Map<string, { revenue: number; payments: number }>();
+
+      for (const entry of revenueEntries) {
+        const monthKey = `${entry.date.getFullYear()}-${entry.date.getMonth()}`;
+        if (!revenueByMonth.has(monthKey)) {
+          revenueByMonth.set(monthKey, { revenue: 0, payments: 0 });
         }
-      });
-      
+
+        const monthData = revenueByMonth.get(monthKey)!;
+        monthData.revenue += entry.amount;
+        monthData.payments += 1;
+      }
+
       for (let i = -3; i <= 2; i++) {
         const monthDate = new Date(today.getFullYear(), today.getMonth() + i, 1);
         const monthKey = `${monthDate.getFullYear()}-${monthDate.getMonth()}`;
-        const monthStats = revenueByMonth.get(monthKey) || { revenue: 0, sessions: 0 };
-        
+        const monthStats = revenueByMonth.get(monthKey) || { revenue: 0, payments: 0 };
+
         monthlyRevenue.push({
           month: monthDate,
           revenue: monthStats.revenue,
-          sessions: monthStats.sessions,
+          payments: monthStats.payments,
           isPast: i < 0,
           isCurrent: i === 0,
           isFuture: i > 0
         });
-        
-        if (i <= 0) {
-          totalRevenue += monthStats.revenue;
-        }
       }
 
       if (this.activeUserDataKey !== `${trainerId}:trainer`) {
@@ -774,12 +775,145 @@ export class HomePage implements OnInit, OnDestroy {
       this.currentMonthIndex = 3;
       
     } catch (error) {
-      console.error('Error calculating revenue:', error);
+      console.error('Error calculating Stripe revenue:', error);
       if (this.activeUserDataKey === `${trainerId}:trainer`) {
         this.monthlyRevenue = [];
         this.totalRevenue = 0;
       }
     }
+  }
+
+  private async readTrainerStripeRevenueEntries(trainerId: string): Promise<RevenueLedgerEntry[]> {
+    const [transactionsSnapshot, checkoutSessionsSnapshot] = await Promise.all([
+      getDocs(query(collection(this.firestore, 'transactions'), where('trainerId', '==', trainerId))),
+      getDocs(query(collection(this.firestore, 'checkoutSessions'), where('trainerId', '==', trainerId))),
+    ]);
+
+    const entries: RevenueLedgerEntry[] = [];
+    const seenKeys = new Set<string>();
+
+    for (const transactionDoc of transactionsSnapshot.docs) {
+      const transaction = transactionDoc.data() as Record<string, unknown>;
+      const status = String(transaction['status'] || '').trim().toLowerCase();
+      if (!this.isSuccessfulStripePaymentStatus(status)) {
+        continue;
+      }
+
+      const amount = this.resolveStripeAmount(transaction);
+      if (amount <= 0) {
+        continue;
+      }
+
+      const date =
+        this.coerceDate(transaction['createdAt']) ||
+        this.coerceDate(transaction['date']) ||
+        this.coerceDate(transaction['timestamp']) ||
+        this.coerceDate(transaction['paidAt']) ||
+        this.coerceDate(transaction['updatedAt']);
+      if (!date) {
+        continue;
+      }
+
+      const dedupeKey = this.resolveRevenueDedupeKey(transaction, transactionDoc.id, 'txn');
+      if (seenKeys.has(dedupeKey)) {
+        continue;
+      }
+
+      seenKeys.add(dedupeKey);
+      entries.push({ dedupeKey, amount, date });
+    }
+
+    for (const checkoutSessionDoc of checkoutSessionsSnapshot.docs) {
+      const checkoutSession = checkoutSessionDoc.data() as Record<string, unknown>;
+      const stripeStatus = String(checkoutSession['stripeStatus'] || '').trim().toLowerCase();
+      if (!this.isSuccessfulStripePaymentStatus(stripeStatus)) {
+        continue;
+      }
+
+      const amount = this.resolveStripeAmount(checkoutSession);
+      if (amount <= 0) {
+        continue;
+      }
+
+      const date =
+        this.coerceDate(checkoutSession['createdAt']) ||
+        this.coerceDate(checkoutSession['updatedAt']);
+      if (!date) {
+        continue;
+      }
+
+      const dedupeKey = this.resolveRevenueDedupeKey(checkoutSession, checkoutSessionDoc.id, 'checkout');
+      if (seenKeys.has(dedupeKey)) {
+        continue;
+      }
+
+      seenKeys.add(dedupeKey);
+      entries.push({ dedupeKey, amount, date });
+    }
+
+    return entries;
+  }
+
+  private isSuccessfulStripePaymentStatus(status: string): boolean {
+    return status === 'paid' ||
+      status === 'succeeded' ||
+      status === 'complete' ||
+      status === 'completed';
+  }
+
+  private resolveRevenueDedupeKey(
+    record: Record<string, unknown>,
+    fallbackId: string,
+    source: 'txn' | 'checkout'
+  ): string {
+    const checkoutSessionId =
+      String(record['checkoutSessionId'] || '').trim() ||
+      String(record['stripeCheckoutSessionId'] || '').trim();
+    if (checkoutSessionId) {
+      return `checkout:${checkoutSessionId}`;
+    }
+
+    const paymentIntentId =
+      String(record['paymentIntentId'] || '').trim() ||
+      String(record['stripePaymentIntentId'] || '').trim();
+    if (paymentIntentId) {
+      return `paymentIntent:${paymentIntentId}`;
+    }
+
+    const chargeId = String(record['stripeChargeId'] || '').trim();
+    if (chargeId) {
+      return `charge:${chargeId}`;
+    }
+
+    return `${source}:${fallbackId}`;
+  }
+
+  private resolveStripeAmount(record: Record<string, unknown>): number {
+    const centsAmount = this.toFiniteNumber(record['priceCents']) ??
+      this.toFiniteNumber(record['amountCents']) ??
+      this.toFiniteNumber(record['unitAmountCents']) ??
+      this.toFiniteNumber(record['unit_amount']) ??
+      this.toFiniteNumber(record['amount_total']);
+    if (centsAmount !== null && centsAmount > 0) {
+      return centsAmount / 100;
+    }
+
+    const dollarAmount = this.toFiniteNumber(record['amount']) ??
+      this.toFiniteNumber(record['total']) ??
+      this.toFiniteNumber(record['price']);
+    if (dollarAmount === null || dollarAmount <= 0) {
+      return 0;
+    }
+
+    return dollarAmount;
+  }
+
+  private toFiniteNumber(value: unknown): number | null {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed)) {
+      return null;
+    }
+    return parsed;
   }
 
   loadUserData() {
