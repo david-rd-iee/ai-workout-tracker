@@ -212,6 +212,30 @@ export const routes: Routes = [
     canActivate: [authGuard],
   },
   {
+    path: 'service-agreements',
+    loadComponent: () =>
+      import('./pages/service-agreements/service-agreements.page').then(
+        (m) => m.ServiceAgreementsPage
+      ),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'trainer-approval-pending',
+    loadComponent: () =>
+      import('./pages/trainer-approval-pending/trainer-approval-pending.page').then(
+        (m) => m.TrainerApprovalPendingPage
+      ),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'trainer-approval-admin',
+    loadComponent: () =>
+      import('./pages/trainer-approval-admin/trainer-approval-admin.page').then(
+        (m) => m.TrainerApprovalAdminPage
+      ),
+    canActivate: [authGuard],
+  },
+  {
     path: 'profile-settings',
     redirectTo: 'user-settings',
     pathMatch: 'full',

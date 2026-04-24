@@ -16,6 +16,7 @@ import { UserService } from '../../services/account/user.service';
 })
 export class HeaderComponent implements OnInit {
   @Input() title: string = 'ATLAS';
+  @Input() hideTitle: boolean = false;
   @Input() showBack: boolean = false;
   @Input() transparent: boolean = true;
   @Input() neoBlend: boolean = true;

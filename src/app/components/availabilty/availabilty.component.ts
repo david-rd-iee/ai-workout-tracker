@@ -14,7 +14,7 @@ import { DayAvailability } from 'src/app/Interfaces/Availability';
   templateUrl: './availabilty.component.html',
   styleUrls: ['./availabilty.component.scss'],
   standalone: true,
-  imports: [CommonModule, IonicModule, TimePickerModalComponent],
+  imports: [CommonModule, IonicModule],
   schemas: [CUSTOM_ELEMENTS_SCHEMA]
 })
 export class AvailabiltyComponent implements OnInit {

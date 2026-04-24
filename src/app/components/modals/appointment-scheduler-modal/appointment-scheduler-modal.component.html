@@ -12,17 +12,6 @@
 <ion-content class="scheduler-content">
   <div class="background-gradient"></div>
   <div class="modal-page">
-    <section class="client-header">
-      <div class="client-avatar">
-        <ion-icon name="person-circle"></ion-icon>
-      </div>
-      <div class="client-info">
-        <p class="eyebrow">{{ eyebrowLabel }}</p>
-        <h2>{{ heroTitle }}</h2>
-        <p>{{ heroCopy }}</p>
-      </div>
-    </section>
-
     <ion-card class="section-card">
       <ion-card-header>
         <div class="card-header-with-icon">
@@ -32,16 +21,36 @@
       </ion-card-header>
       <ion-card-content>
         <div class="datetime-grid">
-          <ion-item lines="none" class="datetime-item">
-            <ion-label position="stacked">Date</ion-label>
+          <div class="datetime-item datetime-calendar-shell">
+            <div class="field-label">Date</div>
             <ion-datetime
               [(ngModel)]="appointment.date"
               (ionChange)="onDateChanged($event)"
               presentation="date"
               [min]="minDate"
+              [showDefaultTitle]="false"
               class="date-picker"
             ></ion-datetime>
-          </ion-item>
+          </div>
+
+          <div class="availability-preview" *ngIf="isClientRequestMode()">
+            <div class="availability-preview-header">
+              <span class="field-label">Trainer Availability</span>
+              <span class="availability-count" *ngIf="requestAvailableSlots().length > 0">
+                {{ requestAvailableSlots().length }} open times
+              </span>
+            </div>
+            <div class="availability-chip-list" *ngIf="requestAvailableSlots().length > 0; else noAvailabilityPreview">
+              <span class="availability-chip" *ngFor="let slot of previewAvailableSlots()">
+                {{ formatTimeSlot(slot) }}
+              </span>
+            </div>
+            <ng-template #noAvailabilityPreview>
+              <p class="availability-empty">
+                Your trainer has no open slots for this day yet. Try another date or ask them to update availability.
+              </p>
+            </ng-template>
+          </div>
 
           <div class="time-duration-row">
             <ion-item lines="none" class="half-width">
@@ -73,9 +82,6 @@
               </ion-select>
             </ion-item>
           </div>
-          <p class="availability-empty" *ngIf="isClientRequestMode() && requestAvailableSlots().length === 0">
-            Your trainer has no open slots for this day yet. Try another date or ask them to update availability.
-          </p>
         </div>
       </ion-card-content>
     </ion-card>
@@ -149,7 +155,7 @@
         </div>
         <div class="summary-row">
           <ion-icon name="time" color="primary"></ion-icon>
-          <span>{{ formatTimeSlot(appointment.time) }} • {{ appointment.duration }} min</span>
+          <span>{{ formatTimeSlot(appointment.time) }} · {{ appointment.duration }} min</span>
         </div>
         <div class="summary-row">
           <ion-icon name="fitness" color="success"></ion-icon>

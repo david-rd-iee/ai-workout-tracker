@@ -135,13 +135,13 @@ export class CompleteProfileTrainerPage implements OnInit {
           remote: this.remote,
           inPerson: this.inPerson,
         },
-        visible: this.visible,
+        visible: false,
+        approvalStatus: 'pending',
         ...(hourlyRate !== null ? { hourlyRate } : {}),
       };
 
       await this.userService.createUserProfile(profileData);
-      await this.userService.loadUserProfile();
-      await this.router.navigateByUrl('/tabs/home', { replaceUrl: true });
+      await this.router.navigateByUrl('/trainer-approval-pending', { replaceUrl: true });
     } catch (error) {
       console.error('[CompleteProfileTrainerPage] Failed to save trainer profile:', error);
       this.errorMessage = 'Failed to save trainer profile. Please try again.';

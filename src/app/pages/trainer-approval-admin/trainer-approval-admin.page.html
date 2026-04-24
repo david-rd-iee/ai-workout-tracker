@@ -1,0 +1,115 @@
+<app-header
+  [title]="'Trainer Approvals'"
+  [hideTitle]="true"
+  [showBack]="true"
+  [backHref]="'/user-settings'"
+></app-header>
+
+<ion-content [fullscreen]="true" class="approval-admin-content">
+  <div class="background-gradient"></div>
+
+  <div class="approval-admin-shell">
+    <div class="loading-state" *ngIf="isLoading()">
+      <ion-spinner name="crescent"></ion-spinner>
+      <p>Loading trainer applications...</p>
+    </div>
+
+    <ng-container *ngIf="!isLoading()">
+      <div class="page-actions">
+        <ion-button fill="outline" (click)="refresh()">Refresh Applications</ion-button>
+      </div>
+
+      <ion-card class="panel-card" *ngIf="!hasApplications()">
+        <ion-card-content>
+          <div class="empty-state">
+            No trainer applications are waiting for review right now.
+          </div>
+        </ion-card-content>
+      </ion-card>
+
+      <ion-card class="panel-card application-card" *ngFor="let application of applications()">
+        <ion-card-header>
+          <ion-card-title>
+            {{ application.firstName }} {{ application.lastName }}
+          </ion-card-title>
+        </ion-card-header>
+        <ion-card-content>
+          <div class="meta-grid">
+            <div>
+              <span class="meta-label">Submitted</span>
+              <strong>{{ application.submittedAtLabel }}</strong>
+            </div>
+            <div>
+              <span class="meta-label">Email</span>
+              <strong>{{ application.email || 'No email on file' }}</strong>
+            </div>
+            <div>
+              <span class="meta-label">Location</span>
+              <strong>{{ application.city }}{{ application.city && application.state ? ', ' : '' }}{{ application.state }}</strong>
+            </div>
+            <div>
+              <span class="meta-label">Phone</span>
+              <strong>{{ application.phone || 'Not provided' }}</strong>
+            </div>
+            <div>
+              <span class="meta-label">Specialization</span>
+              <strong>{{ application.specialization || 'Not provided' }}</strong>
+            </div>
+            <div>
+              <span class="meta-label">Hourly Rate</span>
+              <strong>{{ application.hourlyRate !== null ? ('$' + application.hourlyRate) : 'Not provided' }}</strong>
+            </div>
+          </div>
+
+          <div class="detail-block">
+            <span class="meta-label">Experience</span>
+            <p>{{ application.experience || 'Not provided' }}</p>
+          </div>
+
+          <div class="detail-block">
+            <span class="meta-label">Education</span>
+            <p>{{ application.education || 'Not provided' }}</p>
+          </div>
+
+          <div class="detail-block">
+            <span class="meta-label">About</span>
+            <p>{{ application.description || 'Not provided' }}</p>
+          </div>
+
+          <div class="detail-block">
+            <span class="meta-label">Certifications</span>
+            <p>{{ application.certifications.length > 0 ? application.certifications.join(', ') : 'Not provided' }}</p>
+          </div>
+
+          <ion-textarea
+            class="review-note"
+            fill="outline"
+            label="Reviewer note"
+            labelPlacement="stacked"
+            placeholder="Optional rejection note or review comment"
+            [value]="rejectionNotes()[application.uid] || ''"
+            (ionInput)="updateRejectionNote(application.uid, $any($event.target).value || '')"
+          ></ion-textarea>
+
+          <div class="action-row">
+            <ion-button
+              color="success"
+              (click)="approveApplication(application)"
+              [disabled]="actionInFlightUid() === application.uid"
+            >
+              {{ actionInFlightUid() === application.uid ? 'Working...' : 'Approve Trainer' }}
+            </ion-button>
+            <ion-button
+              fill="outline"
+              color="danger"
+              (click)="rejectApplication(application)"
+              [disabled]="actionInFlightUid() === application.uid"
+            >
+              Reject
+            </ion-button>
+          </div>
+        </ion-card-content>
+      </ion-card>
+    </ng-container>
+  </div>
+</ion-content>

@@ -385,6 +385,14 @@ ion-card {
   }
 }
 
+.clients-section .client-card {
+  margin-bottom: 14px;
+}
+
+.clients-section .client-card:last-of-type {
+  margin-bottom: 0;
+}
+
 .session-content,
 .client-content {
   display: flex;
@@ -494,6 +502,16 @@ ion-card {
   margin: 4px 0 0;
   color: $neo-muted;
   font-size: 0.78rem;
+}
+
+.cancel-session-request-button {
+  margin-top: 10px;
+  --border-radius: 10px;
+  --border-color: #c46872;
+  --color: #c46872;
+  font-size: 0.74rem;
+  letter-spacing: 0.03em;
+  text-transform: none;
 }
 
 .client-stats {

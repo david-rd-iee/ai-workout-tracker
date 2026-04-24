@@ -31,10 +31,12 @@ export interface SignatureData {
     client: {
         name: string;
         signedAt: Date;
+        signatureStoragePath?: string;
     }
     trainer: {
         name: string;
         signedAt: Date;
+        signatureStoragePath?: string;
     }
 }
 
@@ -57,13 +59,16 @@ export interface Agreement {
     name: string;
     trainerId: string;
     clientId: string;
-    status: 'pending' | 'completed' | 'partially_signed';
+    status: 'pending' | 'signed' | 'completed' | 'partially_signed';
     agreementData?: agreementData;
     agreementStoragePath: string;
+    trainerName?: string;
+    clientName?: string;
     dateCreated: Date;
     dateUpdated: Date;
     signatures?: SignatureData;
     recurring?: boolean;
     chatId?: string;
+    signedAgreementStoragePath?: string;
 }
 

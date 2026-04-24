@@ -1197,6 +1197,47 @@ export class HomePage implements OnInit, OnDestroy {
 
   viewSessionDetails(_session: UpcomingSession) {}
 
+  async cancelSessionRequest(session: UpcomingSession, event?: Event): Promise<void> {
+    event?.stopPropagation();
+
+    const clientId = String(this.currentUser?.userId || '').trim();
+    const bookingId = String(session?.id || '').trim();
+    if (!clientId || !bookingId || session.status !== 'pending') {
+      return;
+    }
+
+    const alert = await this.alertController.create({
+      header: 'Cancel Session Request',
+      message: `Cancel your pending session request with ${session.trainerName || 'your trainer'}?`,
+      buttons: [
+        {
+          text: 'Keep Request',
+          role: 'cancel',
+        },
+        {
+          text: 'Cancel Request',
+          role: 'destructive',
+        },
+      ],
+    });
+
+    await alert.present();
+    const { role } = await alert.onDidDismiss();
+    if (role !== 'destructive') {
+      return;
+    }
+
+    try {
+      await this.sessionBookingService.cancelPendingBookingRequestByClient(clientId, bookingId);
+      this.upcomingSessions = this.upcomingSessions.filter(
+        (upcomingSession) => String(upcomingSession?.id || '').trim() !== bookingId
+      );
+      await this.loadUpcomingSessions(clientId);
+    } catch (error) {
+      console.error('Error cancelling session request:', error);
+    }
+  }
+
   async approveSessionRequest(request: PendingSessionRequest, event?: Event): Promise<void> {
     event?.stopPropagation();
     const trainerId = String(this.currentUser?.userId || '').trim();

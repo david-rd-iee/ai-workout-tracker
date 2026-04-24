@@ -1,13 +1,14 @@
 .availability-container {
-  padding: 10px;
-  background-color: #f8f9fa;
-  border-radius: 8px;
+  padding: 4px 6px 0;
+  background: transparent;
+  border-radius: 0;
+  box-shadow: none;
 
   .day-row {
     display: flex;
     flex-direction: column;
-    padding: 10px 0;
-    border-bottom: 1px solid #e0e0e0;
+    padding: 14px 4px;
+    border-bottom: 1px solid rgba(178, 191, 214, 0.45);
     
     &:last-child {
       border-bottom: none;
@@ -25,8 +26,9 @@
         gap: 10px;
 
         .day-name {
-          font-weight: 500;
-          color: #555;
+          font-weight: 700;
+          color: #44516b;
+          letter-spacing: 0.02em;
         }
       }
 
@@ -34,6 +36,7 @@
         font-size: 14px;
         --padding-start: 8px;
         --padding-end: 8px;
+        --color: #174cff;
       }
     }
 
@@ -41,7 +44,7 @@
       display: flex;
       flex-direction: column;
       gap: 8px;
-      margin-left: 30px; // Indent time windows under the day
+      margin-left: 30px;
     }
 
     .time-window-row {
@@ -57,12 +60,15 @@
       .ios-time-display {
         display: flex;
         align-items: center;
-        background-color: #f2f2f7; // iOS light gray background
-        border-radius: 8px;
+        background: linear-gradient(145deg, #f7fbff, #e4edf9);
+        border-radius: 16px;
         padding: 0;
         margin-right: 8px;
         overflow: hidden;
-        flex-grow: 1; // Allow time display to take up available space
+        flex-grow: 1;
+        box-shadow:
+          6px 6px 14px rgba(198, 208, 224, 0.55),
+          -6px -6px 14px rgba(255, 255, 255, 0.88);
         
         ion-datetime-button {
           margin: 0;
@@ -86,11 +92,10 @@
         .time-separator {
           margin: 0 4px;
           font-weight: 300;
-          color: var(--ion-color-primary);
+          color: #174cff;
         }
       }
 
-      // Keep this for backward compatibility
       .ios-time-button {
         --background: transparent;
         --color: var(--ion-color-primary);
@@ -128,8 +133,6 @@
         margin: 0;
       }
 
-      // Time separator moved to ios-time-display
-
       .clear-button {
         --padding-start: 4px;
         --padding-end: 4px;
@@ -141,7 +144,12 @@
         }
       }
     }
+  }
 
-
+  .unavailable-text {
+    margin-left: 30px;
+    color: #76839b;
+    font-size: 14px;
+    font-weight: 500;
   }
 }

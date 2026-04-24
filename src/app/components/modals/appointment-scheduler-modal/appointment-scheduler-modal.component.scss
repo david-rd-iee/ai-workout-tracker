@@ -177,6 +177,12 @@ $atlas-blue-strong: #2e6ef5;
   gap: 14px;
 }
 
+.field-label {
+  color: $atlas-muted;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
 .availability-empty {
   margin: 2px 2px 0;
   color: $atlas-muted;
@@ -196,16 +202,83 @@ $atlas-blue-strong: #2e6ef5;
   margin: 0;
 }
 
+.datetime-calendar-shell {
+  padding: 12px 14px 14px;
+  display: grid;
+  gap: 6px;
+}
+
 .time-duration-row {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
 }
 
+.availability-preview {
+  @include trainer-inset(18px);
+  padding: 14px;
+  display: grid;
+  gap: 10px;
+}
+
+.availability-preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.availability-count {
+  color: $atlas-blue-strong;
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.availability-chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.availability-chip {
+  @include trainer-inset(999px);
+  padding: 8px 12px;
+  color: $atlas-text;
+  font-size: 0.8rem;
+  font-weight: 600;
+  line-height: 1;
+}
+
 .date-picker {
   width: 100%;
   max-width: 100%;
   background: transparent;
+  --background: transparent;
+  --padding-top: 0;
+  --padding-bottom: 0;
+  --padding-start: 0;
+  --padding-end: 0;
+  margin-top: 0;
+  min-height: 0;
+}
+
+.date-picker::part(calendar-month-year) {
+  padding-top: 0;
+  margin-top: 0;
+  min-height: 0;
+}
+
+.date-picker::part(month-year-button) {
+  margin-top: 0;
+}
+
+.date-picker::part(calendar-body) {
+  padding-top: 0;
+  margin-top: 0;
+}
+
+.date-picker::part(content) {
+  padding-top: 0;
 }
 
 .session-types-grid {

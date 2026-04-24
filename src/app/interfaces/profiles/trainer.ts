@@ -2,6 +2,7 @@ import { BaseUserProfile } from "./BaseProfile";
 
 export interface trainerProfile extends BaseUserProfile {
   accountType: "trainer";
+  approvalStatus?: 'pending' | 'approved' | 'rejected';
   specialization: string;
   experience: string;
   education: string;
