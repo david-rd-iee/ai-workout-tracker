@@ -1,4 +1,13 @@
 <div id="pdf-content" class="agreement-container">
+  <div class="agreement-name-shell">
+    <h3>{{ mode === 'client' ? 'Agreement Name' : 'Template Name' }}</h3>
+    <ion-input
+      [(ngModel)]="agreementName"
+      placeholder="Example: 60 Minute Strength Coaching Agreement"
+      autocorrect="on"
+    ></ion-input>
+  </div>
+
   <div class="terms">
     <h3>Term Overview</h3>
     <p (click)="toggleExpand()" class="expandable-text">

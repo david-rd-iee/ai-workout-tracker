@@ -1,22 +1,17 @@
-import { ChangeDetectorRef, Component, EventEmitter, Input, OnInit, Output, Renderer2, ElementRef } from '@angular/core';
+import { ChangeDetectorRef, Component, EventEmitter, Input, OnInit, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { IonButton, IonCheckbox, IonContent, IonGrid, IonHeader, IonIcon, IonInput, IonItem, IonLabel, IonList, IonRow, IonTitle, IonToolbar, LoadingController, ToastController } from '@ionic/angular/standalone';
-import html2pdf from 'html2pdf.js';
+import { IonButton, IonCheckbox, IonIcon, IonInput, IonLabel, LoadingController, ToastController } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
-import { add, chevronDownOutline, chevronUp, chevronUpOutline, informationCircleOutline, remove } from 'ionicons/icons';
+import { add, chevronDownOutline, chevronUpOutline, informationCircleOutline, remove } from 'ionicons/icons';
 import { TruncatePipe } from 'src/app/pipes/truncate.pipe';
 import { AgreementService } from 'src/app/services/agreement.service';
-import { Storage, ref, uploadBytes, getDownloadURL } from '@angular/fire/storage';
 import { policy, service } from 'src/app/Interfaces/Agreement';
 import { UserService } from 'src/app/services/account/user.service';
 import { trainerProfile } from 'src/app/Interfaces/Profiles/Trainer';
-import { Http } from '@capacitor-community/http';
-import { Auth, getIdToken } from '@angular/fire/auth';
-import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
+import { Filesystem, Directory } from '@capacitor/filesystem';
 import { Capacitor } from '@capacitor/core';
-import { AutocorrectDirective } from 'src/app/directives/autocorrect.directive';
-import { environment } from 'src/environments/environment';
+import { FileUploadService } from 'src/app/services/file-upload.service';
 
 @Component({
   selector: 'app-service-agreement',
@@ -31,8 +26,7 @@ import { environment } from 'src/environments/environment';
     IonInput,
     IonIcon,
     IonLabel,
-    TruncatePipe,
-    AutocorrectDirective
+    TruncatePipe
   ]
 })
 export class ServiceAgreementComponent implements OnInit {
@@ -43,6 +37,7 @@ export class ServiceAgreementComponent implements OnInit {
   @Output() onSend = new EventEmitter<{ id: string; name: string; storagePath: string }>();
   @Input() mode: 'template' | 'client' = 'template'; // Default to template mode
   @Input() clientId: string | null = null; // Add clientId for client mode
+  @Input() clientName: string = '';
 
   isLoading: boolean = false;
   dsiclamermsg = 'By agreeing to these terms, the Client acknowledges the inherent risks of physical activity and confirms that they have disclosed any medical conditions that may impact their ability to exercise safely. The Client also agrees to inform the Trainer of any health changes and understands that all personal health information will remain confidential. Additionally, the Client agrees not to share or distribute the Trainer\'s intellectual property, including training materials or resources, without prior written consent. The Trainer will ensure a safe training environment, provide evidence-based guidance tailored to the Client\'s goals, and maintain professional standards. Any changes to this agreement must be made through the Atlas App\'s messaging portal, with all communication, payments, and bookings handled through the App for security and transparency.'
@@ -63,10 +58,9 @@ export class ServiceAgreementComponent implements OnInit {
   constructor(
     private cdr: ChangeDetectorRef,
     private agreementService: AgreementService,
-    private storage: Storage,
+    private fileUploadService: FileUploadService,
     private loadingController: LoadingController,
     private userService: UserService,
-    private auth: Auth,
     private toastController: ToastController
   ) {
     addIcons({
@@ -111,16 +105,17 @@ export class ServiceAgreementComponent implements OnInit {
     try {
       const template = await this.agreementService.getTemplateById(this.templateId);
       if (template) {
-        this.agreementName = template.name;
+        this.agreementName = String(template['name'] || 'New Agreement');
 
         // Map the agreement data to your component
-        if (template.agreement_data) {
-          if (template.agreement_data.services) {
-            this.services = template.agreement_data.services;
+        const agreementData = template['agreement_data'] as { services?: service[]; policies?: policy[] } | undefined;
+        if (agreementData) {
+          if (agreementData.services) {
+            this.services = agreementData.services;
           }
 
-          if (template.agreement_data.policies) {
-            this.selectedPolicies = template.agreement_data.policies;
+          if (agreementData.policies) {
+            this.selectedPolicies = agreementData.policies;
           }
         }
         
@@ -246,96 +241,9 @@ export class ServiceAgreementComponent implements OnInit {
   }
 
   async generatePDF(): Promise<Blob> {
-    this.isExpanded = true;
-    this.cdr.detectChanges();
+    const htmlDocument = this.buildAgreementSnapshotHtml();
 
-    const content = document.getElementById('pdf-content');
-    let clonedContent = content!.cloneNode(true) as HTMLElement;
-    const style = document.createElement('style');
-    style.innerHTML = ` 
-    * { color: black !important; }
-    input { color: black !important; }
-    ion-input::part(native) { color: black !important; }
-    ion-input::part(placeholder) { color: black !important; }
-    
-    /* Page break controls */
-    h2, h3 { 
-      page-break-after: avoid;
-      break-after: avoid;
-      margin-top: 15px; 
-    }
-    
-    .services-container, .policies, div[*ngFor="let policy of selectedPolicies"] {
-      page-break-inside: avoid;
-      break-inside: avoid;
-    }
-    
-    .keep-together {
-      page-break-inside: avoid;
-      break-inside: avoid;
-    }
-    
-    .page-break {
-      page-break-before: always;
-      break-before: always;
-    }
-  `;
-    clonedContent.appendChild(style);
-    this.cdr.detectChanges();
-
-    // Remove elements that shouldn't appear in the PDF
-    const elementsToRemove = clonedContent.querySelectorAll('.removePDF');
-    elementsToRemove.forEach(element => element.remove());
-
-    // Wrap headings and their related content to keep them together
-    const headings = clonedContent.querySelectorAll('h2, h3, h4');
-    headings.forEach(heading => {
-      const wrapper = document.createElement('div');
-      wrapper.className = 'keep-together';
-      heading.parentNode?.insertBefore(wrapper, heading);
-
-      // Move the heading into the wrapper
-      wrapper.appendChild(heading);
-
-      // Move related content until the next heading into the wrapper
-      let nextElement = wrapper.nextSibling;
-      while (nextElement &&
-        !(nextElement instanceof HTMLElement &&
-          ['H2', 'H3', 'H4'].includes(nextElement.tagName))) {
-        const current = nextElement;
-        nextElement = nextElement.nextSibling;
-        wrapper.appendChild(current);
-      }
-    });
-    const options = {
-      margin: [0.75, 0.75, 0.75, 0.75], // top, right, bottom, left margins in inches
-      filename: `${this.agreementName}.pdf`,
-      image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: {
-        scale: 2,
-        useCORS: true,
-        logging: false
-      },
-      jsPDF: {
-        unit: 'in',
-        format: 'letter',
-        orientation: 'portrait',
-        compress: true
-      },
-      pagebreak: {
-        mode: ['avoid-all', 'css', 'legacy'],
-        before: '.page-break'
-      }
-    };
-
-    return new Promise((resolve, reject) => {
-      html2pdf()
-        .from(clonedContent)
-        .set(options)
-        .outputPdf('blob')
-        .then((pdfBlob: Blob) => resolve(pdfBlob))
-        .catch((error: any) => reject(error));
-    });
+    return new Blob([htmlDocument], { type: 'text/html;charset=utf-8' });
   }
 
   /**
@@ -351,11 +259,11 @@ export class ServiceAgreementComponent implements OnInit {
     try {
       // Generate PDF blob
       const pdfBlob = await this.generatePDF();
-      const fileName = `${this.agreementName.replace(/\s+/g, '_')}.pdf`;
+      const fileName = `${this.agreementName.replace(/\s+/g, '_')}.html`;
       
       // Convert blob to base64
       const base64Data = await this.blobToBase64(pdfBlob);
-      const base64Content = base64Data.split(',')[1]; // Remove the data:application/pdf;base64, prefix
+      const base64Content = base64Data.split(',')[1];
       
       if (Capacitor.isNativePlatform()) {
         // On native platforms (iOS/Android), use Filesystem API
@@ -368,7 +276,7 @@ export class ServiceAgreementComponent implements OnInit {
         
         // Show success message with the file path
         const toast = await this.toastController.create({
-          message: `PDF saved to Documents/${fileName}`,
+          message: `Agreement saved to Documents/${fileName}`,
           duration: 3000,
           position: 'bottom'
         });
@@ -385,9 +293,9 @@ export class ServiceAgreementComponent implements OnInit {
         URL.revokeObjectURL(url);
       }
     } catch (error) {
-      console.error('Error generating or saving PDF:', error);
+      console.error('Error generating or saving agreement document:', error);
       const toast = await this.toastController.create({
-        message: 'Failed to save PDF. Please try again.',
+        message: 'Failed to save agreement document. Please try again.',
         duration: 3000,
         position: 'bottom',
         color: 'danger'
@@ -409,6 +317,17 @@ export class ServiceAgreementComponent implements OnInit {
     await loading.present();
 
     try {
+      if (!this.agreementName.trim()) {
+        const toast = await this.toastController.create({
+          message: 'Give this agreement a name before saving it.',
+          duration: 2500,
+          position: 'bottom',
+          color: 'warning'
+        });
+        await toast.present();
+        return;
+      }
+
       console.log('Saving agreement template:', this.agreementName, this.services, this.selectedPolicies, this.policies);
       // Save to Firestore
       await this.agreementService.saveAgreementTemplate(
@@ -479,6 +398,17 @@ export class ServiceAgreementComponent implements OnInit {
     await loading.present();
 
     try {
+      if (!this.agreementName.trim()) {
+        const toast = await this.toastController.create({
+          message: 'Give this agreement a clear name before sending it.',
+          duration: 2500,
+          position: 'bottom',
+          color: 'warning'
+        });
+        await toast.present();
+        return;
+      }
+
       // Get trainer's name from profile
       const userInfo = this.userService.getUserInfo()() as trainerProfile;
       if (!userInfo || !userInfo.firstName || !userInfo.lastName) {
@@ -494,60 +424,15 @@ export class ServiceAgreementComponent implements OnInit {
       const base64Data = await this.blobToBase64(pdfBlob);
       const base64Content = base64Data.split(',')[1];
       
-      // Get the Firebase Storage reference and path
-      const fileName = `agreements/${this.clientId}/${Date.now()}_${this.agreementName}.pdf`;
-      const storageRef = ref(this.storage, fileName);
-      const storagePath = storageRef.fullPath;
-      
-      // Get the current user's ID token for authentication
-      const currentUser = this.auth.currentUser;
-      if (!currentUser) {
-        throw new Error('User not authenticated. Please log in before uploading files.');
-      }
-      
-      // Get the Firebase ID token
-      const idToken = await getIdToken(currentUser);
-      console.log('Got ID token for authentication');
-      
-      // Use Cloud Function with @capacitor-community/http to upload the PDF
-      const functionUrl = `${environment.cloudFunctionsBaseUrl}/uploadFile`;
-      console.log('Using Cloud Function URL for PDF upload:', functionUrl);
-      
-      // Create metadata
-      const metadata = {
-        'original-filename': `${this.agreementName}.pdf`,
-        'upload-timestamp': new Date().toISOString(),
-        'content-type': 'application/pdf'
-      };
-      
-      // Use @capacitor-community/http to call the Cloud Function
-      console.log('Calling Cloud Function with @capacitor-community/http for PDF upload...');
-      const response = await Http.request({
-        method: 'POST',
-        url: functionUrl,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${idToken}`
-        },
-        data: {
-          data: {
-            base64Data: base64Content,
-            path: fileName,
-            contentType: 'application/pdf',
-            metadata: metadata
-          }
-        },
-        connectTimeout: 30000, // 30 seconds
-        readTimeout: 30000, // 30 seconds
-        responseType: 'json'
-      });
-      
-      console.log('Cloud Function response status:', response.status);
-      
-      if (response.status < 200 || response.status >= 300) {
-        console.error('Cloud Function response data:', response.data);
-        throw new Error(`Cloud Function call failed with status ${response.status}`);
-      }
+      const safeAgreementName = this.agreementName.trim().replace(/[^a-zA-Z0-9_-]+/g, '_');
+      const fileName = `agreements/${this.clientId}/${Date.now()}_${safeAgreementName}.html`;
+      const htmlFile = this.base64ToFile(
+        base64Data,
+        `${safeAgreementName}.html`,
+        'text/html'
+      );
+
+      await this.fileUploadService.uploadFile(fileName, htmlFile);
 
       // Send the agreement to the client using your existing service method
       const agreementId = await this.agreementService.sendAgreementToClient(
@@ -556,7 +441,7 @@ export class ServiceAgreementComponent implements OnInit {
         this.services,
         this.selectedPolicies,
         trainerName,
-        storagePath,
+        fileName,
         this.recurring
       );
 
@@ -564,12 +449,302 @@ export class ServiceAgreementComponent implements OnInit {
       this.onSend.emit({
         id: agreementId,
         name: this.agreementName,
-        storagePath: storagePath
+        storagePath: fileName
       });
     } catch (error) {
       console.error('Error sending agreement to client:', error);
     } finally {
       await loading.dismiss();
     }
+  }
+
+  private escapeHtml(value: string): string {
+    return String(value || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  private buildAgreementSnapshotHtml(): string {
+    const title = this.escapeHtml(this.agreementName || 'Training Agreement');
+    const serviceSections = this.services
+      .map((serviceEntry, index) => this.renderServiceSection(serviceEntry, index))
+      .join('');
+    const policySections = this.selectedPolicies
+      .map((policyEntry) => this.renderPolicySection(policyEntry))
+      .join('');
+    const recurringSection = this.recurring
+      ? '<p class="recurring-charge-text">This agreement includes a monthly recurring charge.</p>'
+      : '<p class="recurring-charge-text">This agreement does not include a monthly recurring charge.</p>';
+
+    return `
+      <!DOCTYPE html>
+      <html lang="en">
+        <head>
+          <meta charset="utf-8" />
+          <meta name="viewport" content="width=device-width, initial-scale=1" />
+          <title>${title}</title>
+          <style>
+            * { box-sizing: border-box; }
+            body {
+              margin: 0;
+              padding: 32px 20px;
+              font-family: Inter, "Segoe UI", Arial, sans-serif;
+              color: #1f2a3d;
+              background: #f4f7fb;
+              line-height: 1.6;
+            }
+            .document {
+              max-width: 860px;
+              margin: 0 auto;
+              background: #ffffff;
+              border-radius: 24px;
+              padding: 32px;
+              box-shadow: 0 18px 48px rgba(31, 42, 61, 0.08);
+            }
+            h1, h2, h3, h4, p { margin-top: 0; }
+            h1 {
+              font-size: 30px;
+              margin-bottom: 10px;
+              color: #1b3158;
+            }
+            h2 {
+              margin: 28px 0 12px;
+              font-size: 22px;
+              color: #214fbd;
+            }
+            h3 {
+              margin: 18px 0 10px;
+              font-size: 18px;
+              color: #314766;
+            }
+            .lead {
+              color: #5f6f87;
+              margin-bottom: 24px;
+            }
+            .card {
+              background: #f6f8fc;
+              border: 1px solid #dde6f3;
+              border-radius: 18px;
+              padding: 18px 20px;
+              margin-bottom: 16px;
+            }
+            .label {
+              font-size: 12px;
+              letter-spacing: 0.08em;
+              text-transform: uppercase;
+              color: #7a8da9;
+              font-weight: 700;
+              margin-bottom: 4px;
+            }
+            .value {
+              color: #24354f;
+              font-weight: 600;
+            }
+            ul {
+              margin: 10px 0 0 18px;
+              padding: 0;
+            }
+            li + li {
+              margin-top: 10px;
+            }
+            .muted {
+              color: #6f7f97;
+            }
+            .footnote {
+              margin-top: 28px;
+              padding-top: 20px;
+              border-top: 1px solid #dde6f3;
+              color: #566781;
+            }
+            .signature-note {
+              margin-top: 18px;
+              padding: 14px 16px;
+              border-radius: 14px;
+              background: #edf3ff;
+              border: 1px solid #d7e3fb;
+              color: #2d4675;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="document">
+            <h1>${title}</h1>
+            <p class="lead">Trainer service agreement prepared through Atlas.</p>
+
+            <section>
+              <h2>Term Overview</h2>
+              <div class="card">
+                <p>${this.escapeHtml(this.dsiclamermsg)}</p>
+              </div>
+            </section>
+
+            <section>
+              <h2>Services</h2>
+              ${serviceSections || '<div class="card"><p class="muted">No services were added to this agreement.</p></div>'}
+            </section>
+
+            <section>
+              <h2>Policies</h2>
+              <div class="card">
+                <h3>Trainer cancellation policy</h3>
+                <p>If the Trainer is unable to perform the session, the client can request to have the full session refunded or have the session made up at the earliest convenience of both parties within two weeks of the scheduled session date. If the make-up session does not occur within this timeframe, a full refund will be issued.</p>
+                <h3>Trainer late policy</h3>
+                <p>If the Trainer is more than 15 minutes late to the training session, the client can request that the session be made up at the earliest convenience of both parties within two weeks of the scheduled session date. If the make-up session does not occur within this timeframe, a full refund will be issued.</p>
+              </div>
+              ${policySections || '<div class="card"><p class="muted">No additional optional policies were selected for this agreement.</p></div>'}
+            </section>
+
+            <section>
+              <h2>Payment Terms</h2>
+              <div class="card">
+                ${recurringSection}
+              </div>
+            </section>
+
+            <div class="footnote">
+              <p>By signing this agreement, the client acknowledges that they have read, understood, and agreed to the terms and conditions outlined above.</p>
+              <div class="signature-note">
+                Electronic signature is completed in Atlas and stored with this agreement record.
+              </div>
+            </div>
+          </div>
+        </body>
+      </html>
+    `;
+  }
+
+  private renderServiceSection(serviceEntry: service, index: number): string {
+    const serviceName = this.escapeHtml(serviceEntry?.name || `Service ${index + 1}`);
+    const selectedOptions = (serviceEntry?.selectedServiceOptions || [])
+      .map((option) => {
+        const rawValue = String(option?.value || '').trim();
+        const displayValue = rawValue
+          ? this.escapeHtml(this.formatServiceOptionValue(option, rawValue))
+          : 'Not specified';
+        return `
+          <li>
+            <div class="label">${this.escapeHtml(option?.text || 'Detail')}</div>
+            <div class="value">${displayValue}</div>
+          </li>
+        `;
+      })
+      .join('');
+
+    return `
+      <div class="card">
+        <h3>${serviceName}</h3>
+        ${selectedOptions ? `<ul>${selectedOptions}</ul>` : '<p class="muted">No service details were selected.</p>'}
+      </div>
+    `;
+  }
+
+  private renderPolicySection(policyEntry: policy): string {
+    const title = this.escapeHtml(policyEntry?.title || 'Policy');
+    const description = this.escapeHtml(policyEntry?.description || '');
+    const selectedOptions = (policyEntry?.selectedOptions || [])
+      .map((option) => {
+        const rawValue = String(option?.value || '').trim();
+        const hasValue = rawValue && rawValue.toLowerCase() !== 'none';
+        return `
+          <li>
+            <div class="label">${this.escapeHtml(option?.optionDescription || 'Policy detail')}</div>
+            <div class="value">${hasValue ? this.escapeHtml(rawValue) : 'Included'}</div>
+          </li>
+        `;
+      })
+      .join('');
+
+    return `
+      <div class="card">
+        <h3>${title}</h3>
+        ${description ? `<p>${description}</p>` : ''}
+        ${selectedOptions ? `<ul>${selectedOptions}</ul>` : '<p class="muted">No additional policy details were selected.</p>'}
+      </div>
+    `;
+  }
+
+  private formatServiceOptionValue(option: any, rawValue: string): string {
+    const normalizedLabel = String(option?.text || '').trim().toLowerCase();
+    const normalizedPlaceholder = String(option?.placeholder || '').trim().toLowerCase();
+    const normalizedDescription = String(option?.description || '').trim().toLowerCase();
+    const value = String(rawValue || '').trim();
+    const numericValue = Number(value);
+    const isNumericValue = Number.isFinite(numericValue);
+    const pluralize = (base: string) => {
+      if (!isNumericValue) {
+        return base;
+      }
+      return numericValue === 1 ? base : `${base}s`;
+    };
+
+    if (normalizedLabel === 'price per session') {
+      return value.startsWith('$') ? value : `$${value}`;
+    }
+
+    if (
+      (normalizedLabel === 'program length' ||
+        /\bweek\b/.test(normalizedPlaceholder) ||
+        /\bweek\b/.test(normalizedDescription)) &&
+      !/\bweek/i.test(value)
+    ) {
+      return `${value} ${pluralize('week')}`;
+    }
+
+    if (
+      (normalizedLabel === 'session duration' ||
+        /\b(min|minute)\b/.test(normalizedPlaceholder) ||
+        /\b(min|minute)\b/.test(normalizedDescription)) &&
+      !/\b(min|minute)\b/i.test(value)
+    ) {
+      return `${value} ${pluralize('minute')}`;
+    }
+
+    if (
+      normalizedLabel === 'sessions per week' ||
+      (/\bsession/.test(normalizedLabel) && /\bweek\b/.test(normalizedPlaceholder))
+    ) {
+      if (/\bweek\b/i.test(value)) {
+        return value;
+      }
+      return `${value} ${pluralize('session')} per week`;
+    }
+
+    if (/\b(hour|hours)\b/.test(normalizedPlaceholder) && !/\b(hour|hours|hr|hrs)\b/i.test(value)) {
+      return `${value} ${pluralize('hour')}`;
+    }
+
+    if (/\b(day|days)\b/.test(normalizedPlaceholder) && !/\bday/i.test(value)) {
+      return `${value} ${pluralize('day')}`;
+    }
+
+    if (/\b(month|months)\b/.test(normalizedPlaceholder) && !/\bmonth/i.test(value)) {
+      return `${value} ${pluralize('month')}`;
+    }
+
+    if (/\b(session|sessions)\b/.test(normalizedPlaceholder) && !/\bsession/i.test(value)) {
+      return `${value} ${pluralize('session')}`;
+    }
+
+    if (/\b(amount|price|cost|rate)\b/.test(normalizedPlaceholder) && isNumericValue && !value.startsWith('$')) {
+      return `$${value}`;
+    }
+
+    return value;
+  }
+
+  private base64ToFile(dataUrl: string, fileName: string, contentType: string): File {
+    const base64Content = dataUrl.split(',')[1] || '';
+    const byteCharacters = atob(base64Content);
+    const byteNumbers = new Array(byteCharacters.length);
+
+    for (let index = 0; index < byteCharacters.length; index += 1) {
+      byteNumbers[index] = byteCharacters.charCodeAt(index);
+    }
+
+    const byteArray = new Uint8Array(byteNumbers);
+    return new File([byteArray], fileName, { type: contentType });
   }
 }

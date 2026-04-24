@@ -184,25 +184,7 @@ export class AppointmentSchedulerModalComponent implements OnInit {
   }
 
   get modalTitle(): string {
-    return this.isClientRequestMode() ? 'Request Session' : 'Schedule Session';
-  }
-
-  get eyebrowLabel(): string {
-    return this.isClientRequestMode() ? 'Client Request' : 'Trainer Session';
-  }
-
-  get heroTitle(): string {
-    if (this.isClientRequestMode()) {
-      return this.trainerName?.trim() || 'Your Trainer';
-    }
-    return this.clientName;
-  }
-
-  get heroCopy(): string {
-    if (this.isClientRequestMode()) {
-      return 'Choose an open time from your trainer\'s availability and send a booking request for approval.';
-    }
-    return 'Schedule a training session with a polished trainer-side workflow.';
+    return this.isClientRequestMode() ? 'Session' : 'Schedule';
   }
 
   get confirmButtonLabel(): string {
@@ -217,6 +199,10 @@ export class AppointmentSchedulerModalComponent implements OnInit {
     return this.availabilitySignal()
       .filter((slot) => !slot.booked && !!slot.time)
       .map((slot) => slot.time);
+  }
+
+  previewAvailableSlots(): string[] {
+    return this.requestAvailableSlots();
   }
 
   onDateChanged(event: CustomEvent) {
@@ -342,7 +328,11 @@ export class AppointmentSchedulerModalComponent implements OnInit {
       });
     } catch (error) {
       console.error('Error scheduling appointment:', error);
-      await this.showToast('Failed to schedule appointment. Please try again.', 'danger');
+      const message =
+        error instanceof Error && error.message
+          ? error.message
+          : 'Failed to schedule appointment. Please try again.';
+      await this.showToast(message, 'danger');
     }
   }
 

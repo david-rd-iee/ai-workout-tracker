@@ -2,6 +2,7 @@ import { Injectable, signal, computed, Signal } from '@angular/core';
 import { Firestore } from '@angular/fire/firestore';
 import { doc, getDoc, onSnapshot, setDoc, updateDoc } from 'firebase/firestore';
 import { TimeSlot } from '../Interfaces/Calendar';
+import { DayAvailability } from '../Interfaces/Availability';
 
 @Injectable({
   providedIn: 'root'
@@ -61,6 +62,73 @@ export class TrainerAvailabilityService {
     }));
   }
 
+  private createDefaultWeeklyAvailability(): DayAvailability[] {
+    return [
+      { day: 'Sun', available: false, timeWindows: [{ startTime: '09:00 AM', endTime: '05:00 PM' }] },
+      { day: 'Mon', available: false, timeWindows: [{ startTime: '09:00 AM', endTime: '05:00 PM' }] },
+      { day: 'Tue', available: false, timeWindows: [{ startTime: '09:00 AM', endTime: '05:00 PM' }] },
+      { day: 'Wed', available: false, timeWindows: [{ startTime: '09:00 AM', endTime: '05:00 PM' }] },
+      { day: 'Thu', available: false, timeWindows: [{ startTime: '09:00 AM', endTime: '05:00 PM' }] },
+      { day: 'Fri', available: false, timeWindows: [{ startTime: '09:00 AM', endTime: '05:00 PM' }] },
+      { day: 'Sat', available: false, timeWindows: [{ startTime: '09:00 AM', endTime: '05:00 PM' }] },
+    ];
+  }
+
+  async getTrainerWeeklyAvailability(trainerId: string): Promise<DayAvailability[]> {
+    const normalizedTrainerId = String(trainerId || '').trim();
+    if (!normalizedTrainerId) {
+      return this.createDefaultWeeklyAvailability();
+    }
+
+    const trainerProfileRef = doc(this.firestore, 'trainers', normalizedTrainerId);
+    const trainerAvailabilityRef = doc(this.firestore, `trainerAvailability/${normalizedTrainerId}`);
+    const [trainerProfileSnap, trainerAvailabilitySnap] = await Promise.all([
+      getDoc(trainerProfileRef),
+      getDoc(trainerAvailabilityRef),
+    ]);
+
+    const rawAvailability =
+      trainerProfileSnap.data()?.['availability'] ??
+      trainerAvailabilitySnap.data()?.['availability'] ??
+      null;
+
+    const normalizedAvailability = this.normalizeAvailabilityEntries(rawAvailability);
+    if (!normalizedAvailability.length) {
+      return this.createDefaultWeeklyAvailability();
+    }
+
+    const byDay = new Map(
+      normalizedAvailability.map((entry) => [String(entry.day || '').trim().toLowerCase(), entry])
+    );
+
+    return this.createDefaultWeeklyAvailability().map((defaultDay) => {
+      const matched = byDay.get(defaultDay.day.toLowerCase());
+      if (!matched) {
+        return defaultDay;
+      }
+
+      const timeWindows = Array.isArray(matched.timeWindows)
+        ? matched.timeWindows
+            .map((window: any) => {
+              const startTime = String(window?.startTime || window?.start || '').trim();
+              const endTime = String(window?.endTime || window?.end || '').trim();
+              return startTime && endTime ? { startTime, endTime } : null;
+            })
+            .filter(
+              (
+                window: { startTime: string; endTime: string } | null
+              ): window is { startTime: string; endTime: string } => !!window
+            )
+        : defaultDay.timeWindows;
+
+      return {
+        day: defaultDay.day,
+        available: matched.available !== false && timeWindows.length > 0,
+        timeWindows: timeWindows.length ? timeWindows : [...defaultDay.timeWindows],
+      };
+    });
+  }
+
   private getDefaultDayEntry(dayOfWeek: string): any {
     return {
       day: dayOfWeek,
@@ -89,7 +157,27 @@ export class TrainerAvailabilityService {
 
           if (activeSessions.length > 0) {
             updatedTimeSlots = updatedTimeSlots.map((slot) => {
-              const isBooked = activeSessions.some((session: any) => session.startTime === slot.time);
+              const slotTimeParts = this.parseTime(slot.time);
+              const slotMinutes = slotTimeParts
+                ? slotTimeParts.hour * 60 + slotTimeParts.minute
+                : null;
+
+              const isBooked = slotMinutes !== null && activeSessions.some((session: any) => {
+                const startParts = this.parseTime(String(session.startTime || session.time || '').trim());
+                if (!startParts) {
+                  return false;
+                }
+
+                const startMinutes = startParts.hour * 60 + startParts.minute;
+
+                const endParts = this.parseTime(String(session.endTime || '').trim());
+                const fallbackDuration = Number(session.duration || 30) || 30;
+                const endMinutes = endParts
+                  ? endParts.hour * 60 + endParts.minute
+                  : startMinutes + fallbackDuration;
+
+                return slotMinutes >= startMinutes && slotMinutes < endMinutes;
+              });
               return isBooked ? { ...slot, booked: true } : slot;
             });
           }
@@ -505,6 +593,34 @@ export class TrainerAvailabilityService {
         return setDoc(docRef, { availability: availabilityData }, { merge: true });
       }
     });
+  }
+
+  async saveTrainerWeeklyAvailabilityEverywhere(
+    trainerId: string,
+    availabilityData: DayAvailability[],
+  ): Promise<void> {
+    const normalizedTrainerId = String(trainerId || '').trim();
+    if (!normalizedTrainerId) {
+      return;
+    }
+
+    const cleanedAvailability = availabilityData.map((day) => ({
+      day: String(day.day || '').trim(),
+      available: day.available !== false,
+      timeWindows: Array.isArray(day.timeWindows)
+        ? day.timeWindows
+            .map((window) => ({
+              startTime: String(window.startTime || '').trim(),
+              endTime: String(window.endTime || '').trim(),
+            }))
+            .filter((window) => window.startTime && window.endTime)
+        : [],
+    }));
+
+    await Promise.all([
+      this.saveTrainerWeeklyAvailability(normalizedTrainerId, cleanedAvailability, false),
+      this.saveTrainerWeeklyAvailability(normalizedTrainerId, cleanedAvailability, true),
+    ]);
   }
   /**
    * Format date to YYYY-MM-DD

@@ -17,6 +17,10 @@ ion-toolbar.title-container {
   --padding-end: 10px;
 }
 
+ion-toolbar.title-container.compact-toolbar {
+  --min-height: 52px;
+}
+
 .button-space {
   width: 44px;
   min-width: 44px;

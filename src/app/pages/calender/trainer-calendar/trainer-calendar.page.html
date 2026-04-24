@@ -12,6 +12,34 @@
   </div>
 
   <div class="calendar-shell">
+    <ion-card class="availability-card">
+      <ion-card-header>
+        <ion-card-title>Weekly Availability</ion-card-title>
+      </ion-card-header>
+      <ion-card-content>
+        <app-availabilty
+          *ngIf="availabilityLoaded()"
+          [availability]="weeklyAvailability"
+          (availabilityChange)="onAvailabilityChanged($event)">
+        </app-availabilty>
+
+        <div class="availability-loading" *ngIf="!availabilityLoaded()">
+          <ion-spinner name="circles"></ion-spinner>
+          <p>Loading your weekly schedule...</p>
+        </div>
+
+        <div class="availability-actions">
+          <ion-button
+            expand="block"
+            class="save-availability-button"
+            [disabled]="isSavingAvailability() || !availabilityLoaded() || !availabilityDirty"
+            (click)="saveAvailability()">
+            {{ isSavingAvailability() ? 'Saving Availability...' : 'Save Availability' }}
+          </ion-button>
+        </div>
+      </ion-card-content>
+    </ion-card>
+
     <ion-card class="calendar-card">
       <ion-card-content>
         <ion-datetime

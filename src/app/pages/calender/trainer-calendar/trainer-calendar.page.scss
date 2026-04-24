@@ -46,6 +46,7 @@ $atlas-muted: #5b6473;
   }
 }
 
+.availability-card,
 .calendar-card,
 .summary-card,
 .empty-card {
@@ -55,10 +56,23 @@ $atlas-muted: #5b6473;
   margin: 0 0 18px;
 }
 
+.availability-card {
+  @include atlas-neu(24px);
+  overflow: hidden;
+}
+
 .calendar-card ion-card-content,
 .summary-card ion-card-header,
 .empty-card ion-card-content {
   @include atlas-neu(24px);
+}
+
+.availability-card ion-card-header {
+  padding: 20px 22px 10px;
+}
+
+.availability-card ion-card-content {
+  padding: 0 18px 18px;
 }
 
 .calendar-card ion-card-content {
@@ -76,6 +90,42 @@ $atlas-muted: #5b6473;
   color: $atlas-text;
   font-family: 'Roboto Flex', 'Inter', sans-serif;
   font-weight: 700;
+}
+
+.availability-card ion-card-title {
+  font-size: 22px;
+  line-height: 1.2;
+  color: $atlas-text;
+  font-family: 'Roboto Flex', 'Inter', sans-serif;
+  font-weight: 700;
+}
+
+.availability-actions {
+  margin-top: 16px;
+}
+
+.save-availability-button {
+  --border-radius: 18px;
+  --box-shadow: none;
+  min-height: 50px;
+  font-weight: 700;
+}
+
+.availability-loading {
+  display: grid;
+  place-items: center;
+  gap: 10px;
+  padding: 24px 0 12px;
+  color: $atlas-muted;
+
+  ion-spinner {
+    color: $atlas-blue;
+  }
+
+  p {
+    margin: 0;
+    font-size: 14px;
+  }
 }
 
 .empty-card p {

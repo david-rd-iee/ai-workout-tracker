@@ -66,6 +66,19 @@ service firebase.storage {
       );
     }
 
+    // Trainer-client agreements and client signatures
+    match /agreements/{clientId}/{allPaths=**} {
+      allow read: if isSignedIn() && (
+        request.auth.uid == clientId ||
+        isAssignedTrainerPair(clientId, request.auth.uid)
+      );
+
+      allow write: if isSignedIn() && (
+        request.auth.uid == clientId ||
+        isAssignedTrainerPair(clientId, request.auth.uid)
+      );
+    }
+
     // Default deny for everything else
     match /{allPaths=**} {
       allow read, write: if false;

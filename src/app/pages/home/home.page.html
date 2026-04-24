@@ -114,6 +114,16 @@
                     {{ session.status === 'pending' ? 'Pending trainer approval' : 'Confirmed session' }}
                   </p>
                   <p class="session-notes" *ngIf="session.notes">{{ session.notes }}</p>
+                  <ion-button
+                    *ngIf="session.status === 'pending'"
+                    class="cancel-session-request-button"
+                    fill="outline"
+                    color="danger"
+                    size="small"
+                    (click)="cancelSessionRequest(session, $event)"
+                  >
+                    Cancel Request
+                  </ion-button>
                 </div>
                 <ion-icon name="chevron-forward" class="chevron"></ion-icon>
               </div>

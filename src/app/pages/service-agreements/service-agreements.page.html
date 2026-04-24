@@ -1,0 +1,224 @@
+<app-header [title]="pageTitle" [hideTitle]="true" [showBack]="true" [backHref]="'/user-settings'"></app-header>
+
+<ion-content [fullscreen]="true" class="agreements-content">
+  <div class="background-gradient"></div>
+
+  <div class="agreements-shell">
+    <div class="page-actions">
+      <ion-button fill="solid" *ngIf="isTrainer" (click)="startNewTemplate()">
+        <ion-icon name="create-outline" slot="start"></ion-icon>
+        Create Template
+      </ion-button>
+    </div>
+
+    <div class="loading-state" *ngIf="isLoading">
+      <ion-spinner name="crescent"></ion-spinner>
+      <p>Loading agreements...</p>
+    </div>
+
+    <ng-container *ngIf="!isLoading">
+      <section class="content-grid" *ngIf="isTrainer">
+        <ion-card class="panel-card">
+          <ion-card-header>
+            <ion-card-title>Saved Templates</ion-card-title>
+          </ion-card-header>
+          <ion-card-content>
+            <div class="empty-state" *ngIf="templates.length === 0">
+              No templates saved yet.
+            </div>
+
+            <div
+              class="list-card"
+              *ngFor="let template of templates"
+              (click)="editTemplate(template.id)"
+            >
+              <div>
+                <strong>{{ template.name }}</strong>
+                <span>Updated {{ template.date_updated | date:'MMM d, yyyy' }}</span>
+              </div>
+              <div class="template-actions">
+                <ion-icon name="pencil-outline"></ion-icon>
+                <ion-button fill="clear" size="small" color="danger" (click)="deleteTemplate($event, template)">
+                  <ion-icon name="trash-outline"></ion-icon>
+                </ion-button>
+              </div>
+            </div>
+          </ion-card-content>
+        </ion-card>
+
+        <ion-card class="panel-card">
+          <ion-card-header>
+            <ion-card-title>Sent Agreements</ion-card-title>
+          </ion-card-header>
+          <ion-card-content>
+            <div class="empty-state" *ngIf="agreements.length === 0">
+              No agreements have been sent yet.
+            </div>
+
+            <button
+              type="button"
+              class="list-card agreement-card"
+              *ngFor="let agreement of agreements"
+              (click)="openAgreement(agreement)"
+            >
+              <div>
+                <strong>{{ agreement.name }}</strong>
+                <span>{{ agreement.clientName || 'Client' }} • {{ agreement.dateCreated | date:'MMM d, yyyy' }}</span>
+              </div>
+              <span class="status-pill" [class.signed]="agreement.status !== 'pending'">
+                {{ agreement.status === 'pending' ? 'Pending' : 'Signed' }}
+              </span>
+            </button>
+          </ion-card-content>
+        </ion-card>
+      </section>
+
+      <section class="content-grid" *ngIf="!isTrainer">
+        <ion-card class="panel-card">
+          <ion-card-header>
+            <ion-card-title>Pending Agreements</ion-card-title>
+          </ion-card-header>
+          <ion-card-content>
+            <div class="empty-state" *ngIf="pendingAgreements.length === 0">
+              You do not have any pending agreements right now.
+            </div>
+
+            <button
+              type="button"
+              class="list-card agreement-card"
+              *ngFor="let agreement of pendingAgreements"
+              (click)="openAgreement(agreement)"
+            >
+              <div>
+                <strong>{{ agreement.name }}</strong>
+                <span>{{ agreement.trainerName || 'Trainer' }} • Sent {{ agreement.dateCreated | date:'MMM d, yyyy' }}</span>
+              </div>
+              <span class="status-pill pending">Pending signature</span>
+            </button>
+          </ion-card-content>
+        </ion-card>
+
+        <ion-card class="panel-card">
+          <ion-card-header>
+            <ion-card-title>Signed Agreements</ion-card-title>
+          </ion-card-header>
+          <ion-card-content>
+            <div class="empty-state" *ngIf="signedAgreements.length === 0">
+              No signed agreements yet.
+            </div>
+
+            <button
+              type="button"
+              class="list-card agreement-card"
+              *ngFor="let agreement of signedAgreements"
+              (click)="openAgreement(agreement)"
+            >
+              <div>
+                <strong>{{ agreement.name }}</strong>
+                <span>{{ agreement.trainerName || 'Trainer' }} • Signed {{ agreement.dateUpdated | date:'MMM d, yyyy' }}</span>
+              </div>
+              <span class="status-pill signed">Signed</span>
+            </button>
+          </ion-card-content>
+        </ion-card>
+      </section>
+
+      <ion-card class="panel-card editor-card" *ngIf="isTrainer && selectedTemplateId">
+        <ion-card-header>
+          <ion-card-title>{{ selectedTemplateId === 'new' ? 'Create Agreement Template' : 'Edit Agreement Template' }}</ion-card-title>
+        </ion-card-header>
+        <ion-card-content>
+          <app-service-agreement
+            [mode]="'template'"
+            [templateId]="selectedTemplateId"
+            (onSave)="handleTemplateSaved()"
+          ></app-service-agreement>
+          <ion-button fill="clear" class="close-editor" (click)="closeTemplateEditor()">Close editor</ion-button>
+        </ion-card-content>
+      </ion-card>
+
+      <ion-card class="panel-card detail-card" *ngIf="selectedAgreement">
+        <ion-card-header>
+          <ion-card-title>{{ selectedAgreement.name }}</ion-card-title>
+        </ion-card-header>
+        <ion-card-content>
+          <div class="detail-meta">
+            <div>
+              <span class="meta-label">{{ isTrainer ? 'Client' : 'Trainer' }}</span>
+              <strong>{{ isTrainer ? (selectedAgreement.clientName || 'Client') : (selectedAgreement.trainerName || 'Trainer') }}</strong>
+            </div>
+            <div>
+              <span class="meta-label">Status</span>
+              <strong>{{ selectedAgreement.status === 'pending' ? 'Pending signature' : 'Signed' }}</strong>
+            </div>
+          </div>
+
+          <div class="detail-actions">
+            <ion-button fill="outline" (click)="openAgreementPdf(selectedAgreement)">
+              <ion-icon name="eye-outline" slot="start"></ion-icon>
+              View Document
+            </ion-button>
+            <ion-button fill="clear" (click)="openAgreementInBrowser(selectedAgreement)">
+              Open in Browser
+            </ion-button>
+            <ion-button fill="clear" (click)="clearSelectedAgreement()">Close</ion-button>
+          </div>
+
+          <div class="document-viewer-shell" *ngIf="isLoadingDocument || selectedAgreementDocumentUrl || documentLoadError">
+            <div class="document-viewer-state" *ngIf="isLoadingDocument">
+              <ion-spinner name="crescent"></ion-spinner>
+              <p>Loading agreement document...</p>
+            </div>
+
+            <div class="document-viewer-state error" *ngIf="!isLoadingDocument && documentLoadError">
+              <p>{{ documentLoadError }}</p>
+              <ion-button fill="outline" size="small" (click)="openAgreementInBrowser(selectedAgreement)">
+                Open in Browser
+              </ion-button>
+            </div>
+
+            <iframe
+              *ngIf="!isLoadingDocument && selectedAgreementDocumentUrl"
+              class="document-viewer-frame"
+              [attr.title]="selectedAgreement.name"
+              [src]="selectedAgreementDocumentUrl"
+            ></iframe>
+          </div>
+
+          <div class="signature-panel" *ngIf="!isTrainer && selectedAgreement.status === 'pending'">
+            <h3>Electronic Signature</h3>
+            <p>Sign below on your device to accept this agreement.</p>
+
+            <ion-input
+              label="Signer name"
+              labelPlacement="stacked"
+              fill="outline"
+              [(ngModel)]="signerName"
+              placeholder="Enter your full name"
+            ></ion-input>
+
+            <div class="signature-canvas-shell">
+              <canvas
+                #signatureCanvas
+                class="signature-canvas"
+                (pointerdown)="startSignature($event)"
+                (pointermove)="drawSignature($event)"
+                (pointerup)="endSignature()"
+                (pointerleave)="endSignature()"
+                (pointercancel)="endSignature()"
+              ></canvas>
+            </div>
+
+            <div class="detail-actions signature-actions">
+              <ion-button fill="outline" (click)="clearSignaturePad()">Clear</ion-button>
+              <ion-button (click)="submitSignature()" [disabled]="isSubmittingSignature || !signerName.trim()">
+                <ion-icon name="checkmark-circle" slot="start"></ion-icon>
+                {{ isSubmittingSignature ? 'Signing...' : 'Sign Agreement' }}
+              </ion-button>
+            </div>
+          </div>
+        </ion-card-content>
+      </ion-card>
+    </ng-container>
+  </div>
+</ion-content>

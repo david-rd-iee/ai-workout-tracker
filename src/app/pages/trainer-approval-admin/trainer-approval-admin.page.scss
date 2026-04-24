@@ -1,0 +1,102 @@
+.approval-admin-content {
+  --background: #dbe3f0;
+  position: relative;
+}
+
+.background-gradient {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 14% -4%, rgba(255, 255, 255, 0.84) 0, rgba(255, 255, 255, 0) 36%),
+    radial-gradient(circle at 86% 8%, rgba(160, 179, 219, 0.34) 0, rgba(160, 179, 219, 0) 42%),
+    linear-gradient(145deg, #d5deeb 0%, #e8eef8 48%, #dbe4f1 100%);
+}
+
+.approval-admin-shell {
+  position: relative;
+  z-index: 1;
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 16px;
+  display: grid;
+  gap: 16px;
+}
+
+.panel-card {
+  margin: 0;
+  border-radius: 28px;
+  background: linear-gradient(145deg, #f1f5fc, #e8eef8);
+  border: 1px solid rgba(255, 255, 255, 0.78);
+  box-shadow:
+    14px 14px 28px -14px rgba(184, 196, 214, 0.88),
+    -12px -12px 24px -14px rgba(249, 252, 255, 0.95);
+}
+
+.panel-card ion-card-content {
+  padding: 20px;
+}
+
+.loading-state,
+.empty-state {
+  color: #7b8aa1;
+  text-align: center;
+}
+
+.loading-state {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  padding: 24px;
+}
+
+.page-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.meta-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 18px;
+}
+
+.meta-label {
+  display: block;
+  color: #8b9ab0;
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.meta-grid strong {
+  color: #4a5970;
+}
+
+.detail-block {
+  margin-top: 16px;
+}
+
+.detail-block p {
+  margin: 6px 0 0;
+  color: #62738d;
+}
+
+.review-note {
+  margin-top: 18px;
+}
+
+.action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+@media (max-width: 720px) {
+  .meta-grid {
+    grid-template-columns: 1fr;
+  }
+}

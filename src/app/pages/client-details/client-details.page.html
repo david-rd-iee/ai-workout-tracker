@@ -1,5 +1,6 @@
 <app-header
   [title]="'Client Details'"
+  [hideTitle]="true"
   [showBack]="true"
   [backHref]="'/tabs/home'"
 ></app-header>
@@ -7,27 +8,6 @@
 <ion-content [fullscreen]="true" class="client-details-content">
   <div class="background-gradient"></div>
   <div class="client-details-container">
-    <section class="client-hero-shell">
-      <div class="client-overview-card">
-        <p class="section-eyebrow">Trainer View</p>
-        <h1>Support {{ client?.name || 'client' }} with confidence.</h1>
-        <p class="hero-copy">
-          Review progress, upcoming sessions, and coaching actions in one place while keeping the trainer workflow clean and quick.
-        </p>
-
-        <div class="hero-summary">
-          <div class="summary-chip">
-            <span class="summary-label">Sessions</span>
-            <strong>{{ client?.totalSessions || 0 }} completed</strong>
-          </div>
-          <div class="summary-chip">
-            <span class="summary-label">Next Session</span>
-            <strong>{{ client?.nextSession ? (client.nextSession | date:'MMM d, h:mm a') : 'Not scheduled' }}</strong>
-          </div>
-        </div>
-      </div>
-    </section>
-
     <ion-card class="client-header-card">
       <ion-card-content>
         <div class="client-header">
@@ -41,88 +21,54 @@
             <p class="last-workout">Last workout: {{ client.lastWorkout | date:'MMM d, yyyy' }}</p>
           </div>
         </div>
-        <div class="header-actions">
-          <ion-button expand="block" color="light" (click)="scheduleAppointment()">
-            <ion-icon name="calendar" slot="start"></ion-icon>
-            Schedule Session
-          </ion-button>
-          <ion-button expand="block" color="light" (click)="customizeHomePage()">
-            <ion-icon name="create-outline" slot="start"></ion-icon>
-            Customize Home
-          </ion-button>
+
+        <div class="header-summary-grid">
+          <div class="header-summary-item">
+            <span class="header-summary-label">Next Session</span>
+            @if (client?.nextSession) {
+              <strong>{{ client.nextSession | date:'MMM d, h:mm a' }}</strong>
+            } @else {
+              <strong>Not scheduled</strong>
+            }
+          </div>
+          <div class="header-summary-item">
+            <span class="header-summary-label">Total Sessions</span>
+            <strong>{{ client?.totalSessions || 0 }} completed</strong>
+          </div>
+          <div class="header-summary-item">
+            <span class="header-summary-label">Current Streak</span>
+            <strong>{{ currentStreak }} days</strong>
+          </div>
+          <div class="header-summary-item">
+            <span class="header-summary-label">Payment</span>
+            <strong>{{ paymentStatus }}</strong>
+          </div>
         </div>
       </ion-card-content>
     </ion-card>
 
-    <section class="segment-shell">
-      <ion-segment [(ngModel)]="selectedTab" (ionChange)="segmentChanged($event)" mode="md">
-        <ion-segment-button value="overview">
-          <ion-label>Overview</ion-label>
-        </ion-segment-button>
-        <ion-segment-button value="progress">
-          <ion-label>Progress</ion-label>
-        </ion-segment-button>
-        <ion-segment-button value="sessions">
-          <ion-label>Sessions</ion-label>
-        </ion-segment-button>
-        <ion-segment-button value="payments">
-          <ion-label>Payments</ion-label>
-        </ion-segment-button>
-      </ion-segment>
-    </section>
-
-    <!-- Overview Tab -->
-    <div *ngIf="selectedTab === 'overview'" class="tab-content">
-      <!-- At a Glance Stats -->
-      <div class="stats-grid">
-        <ion-card class="stat-card">
-          <ion-card-content>
-            <ion-icon name="calendar" color="primary"></ion-icon>
-            <h3>Next Session</h3>
-            @if (client?.nextSession) {
-              <p class="stat-value">{{ client.nextSession | date:'MMM d' }}</p>
-              <p class="stat-label">{{ client.nextSession | date:'h:mm a' }}</p>
-            } @else {
-              <p class="stat-value">None</p>
-              <p class="stat-label">No upcoming booking</p>
-            }
-          </ion-card-content>
-        </ion-card>
-        <ion-card class="stat-card">
-          <ion-card-content>
-            <ion-icon name="fitness" color="success"></ion-icon>
-            <h3>Total Sessions</h3>
-            <p class="stat-value">{{ client.totalSessions }}</p>
-            <p class="stat-label">completed</p>
-          </ion-card-content>
-        </ion-card>
-        <ion-card class="stat-card">
-          <ion-card-content>
-            <ion-icon name="trophy" color="warning"></ion-icon>
-            <h3>Current Streak</h3>
-            <p class="stat-value">{{ currentStreak }}</p>
-            <p class="stat-label">days</p>
-          </ion-card-content>
-        </ion-card>
-        <ion-card class="stat-card">
-          <ion-card-content>
-            <ion-icon name="card" color="tertiary"></ion-icon>
-            <h3>Payment</h3>
-            <p class="stat-value">{{ paymentStatus }}</p>
-            <p class="stat-label">status</p>
-          </ion-card-content>
-        </ion-card>
-      </div>
-
+    <div class="overview-stack">
       <ion-card class="panel-card">
         <ion-card-header>
-          <ion-card-title>Quick Actions</ion-card-title>
+          <ion-card-title>Client Actions</ion-card-title>
         </ion-card-header>
         <ion-card-content>
           <div class="action-buttons">
+            <ion-button fill="outline" (click)="scheduleAppointment()">
+              <ion-icon name="calendar" slot="start"></ion-icon>
+              Schedule Session
+            </ion-button>
+            <ion-button fill="outline" (click)="customizeHomePage()">
+              <ion-icon name="create-outline" slot="start"></ion-icon>
+              Customize Home
+            </ion-button>
             <ion-button fill="outline" (click)="createWorkout()">
               <ion-icon name="fitness" slot="start"></ion-icon>
               Create Workout
+            </ion-button>
+            <ion-button fill="outline" (click)="sendAgreement()">
+              <ion-icon name="document-text-outline" slot="start"></ion-icon>
+              Send Agreement
             </ion-button>
             <ion-button fill="outline" (click)="viewMessages()">
               <ion-icon name="chatbubbles" slot="start"></ion-icon>
@@ -131,6 +77,10 @@
             <ion-button fill="outline" (click)="openVerifyStatsModal()">
               <ion-icon name="checkmark-circle" slot="start"></ion-icon>
               Verify Stats
+            </ion-button>
+            <ion-button fill="outline" (click)="viewClientWorkoutHistory()">
+              <ion-icon name="fitness" slot="start"></ion-icon>
+              Workout History
             </ion-button>
           </div>
         </ion-card-content>
@@ -157,104 +107,16 @@
       </ion-card>
     </div>
 
-    <!-- Progress Tab -->
-    <div *ngIf="selectedTab === 'progress'" class="tab-content">
-      <ion-card class="panel-card">
-        <ion-card-header>
-          <ion-card-title>Progress Overview</ion-card-title>
-        </ion-card-header>
-        <ion-card-content>
-          <div class="progress-metrics">
-            <div class="metric">
-              <div class="metric-header">
-                <ion-icon name="barbell" color="primary"></ion-icon>
-                <h4>Strength</h4>
-              </div>
-              <div class="metric-progress">
-                <div class="progress-bar">
-                  <div class="progress-fill" [style.width.%]="strengthProgress"></div>
-                </div>
-                <span class="progress-value">{{ strengthProgress }}%</span>
-              </div>
-            </div>
-            <div class="metric">
-              <div class="metric-header">
-                <ion-icon name="heart" color="danger"></ion-icon>
-                <h4>Cardio Endurance</h4>
-              </div>
-              <div class="metric-progress">
-                <div class="progress-bar">
-                  <div class="progress-fill" [style.width.%]="cardioProgress"></div>
-                </div>
-                <span class="progress-value">{{ cardioProgress }}%</span>
-              </div>
-            </div>
-            <div class="metric">
-              <div class="metric-header">
-                <ion-icon name="body" color="success"></ion-icon>
-                <h4>Body Composition</h4>
-              </div>
-              <div class="metric-progress">
-                <div class="progress-bar">
-                  <div class="progress-fill" [style.width.%]="bodyProgress"></div>
-                </div>
-                <span class="progress-value">{{ bodyProgress }}%</span>
-              </div>
-            </div>
-          </div>
-        </ion-card-content>
-      </ion-card>
-
-      <ion-card class="panel-card">
-        <ion-card-header>
-          <ion-card-title>Active Goals</ion-card-title>
-        </ion-card-header>
-        <ion-card-content>
-          <div class="goals-list" *ngIf="activeGoals.length > 0">
-            <div class="goal-item" *ngFor="let goal of activeGoals">
-              <div class="goal-info">
-                <h4>{{ goal.title }}</h4>
-                <p>Target: {{ goal.target }}</p>
-              </div>
-              <div class="goal-progress">
-                <div class="circular-progress">
-                  <span>{{ goal.progress }}%</span>
-                </div>
-              </div>
-            </div>
-          </div>
-          <p *ngIf="activeGoals.length === 0" style="text-align: center; color: var(--ion-color-medium); padding: 20px;">No active goals</p>
-        </ion-card-content>
-      </ion-card>
-
-      <ion-card class="panel-card">
-        <ion-card-header>
-          <ion-card-title>Personal Records</ion-card-title>
-        </ion-card-header>
-        <ion-card-content>
-          <div class="records-grid" *ngIf="personalRecords.length > 0">
-            <div class="record" *ngFor="let record of personalRecords">
-              <ion-icon [name]="record.icon" color="warning"></ion-icon>
-              <div class="record-info">
-                <h4>{{ record.exercise }}</h4>
-                <p class="record-value">{{ record.value }}</p>
-                <p class="record-date">{{ record.date | date:'MMM d, yyyy' }}</p>
-              </div>
-            </div>
-          </div>
-          <p *ngIf="personalRecords.length === 0" style="text-align: center; color: var(--ion-color-medium); padding: 20px;">No personal records</p>
-        </ion-card-content>
-      </ion-card>
-
-      <ion-button
-        expand="block"
-        color="primary"
-        class="history-button"
-        (click)="viewClientWorkoutHistory()"
-      >
-        View Workout History
-      </ion-button>
-    </div>
+    <section class="segment-shell">
+      <ion-segment [(ngModel)]="selectedTab" (ionChange)="segmentChanged($event)" mode="md">
+        <ion-segment-button value="sessions">
+          <ion-label class="segment-label">Sessions</ion-label>
+        </ion-segment-button>
+        <ion-segment-button value="payments">
+          <ion-label class="segment-label">Payments</ion-label>
+        </ion-segment-button>
+      </ion-segment>
+    </section>
 
     <!-- Sessions Tab -->
     <div *ngIf="selectedTab === 'sessions'" class="tab-content">

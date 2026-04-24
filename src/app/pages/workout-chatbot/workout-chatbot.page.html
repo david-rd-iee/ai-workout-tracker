@@ -1,5 +1,6 @@
 <app-header
-  [title]="'AI Coach'"
+  [title]="'Log Workout'"
+  [hideTitle]="true"
   [showBack]="true"
   [backHref]="'/logging-method-routes'"
   [showProfileButtonWithBack]="true"
@@ -24,7 +25,7 @@
               <div class="summary-card-header">
                 <div>
                   <p class="summary-title">Workout Log Summary</p>
-                  <p class="summary-copy">Your running workout draft updates live as the AI coach understands your messages.</p>
+                  <p class="summary-copy">Your workout draft updates live as you log exercises.</p>
                 </div>
                 <div class="summary-status-pill">
                   {{ isLoading ? 'Updating' : 'Live' }}
@@ -117,7 +118,7 @@
               <div class="input-wrapper">
                 <ion-input
                   [(ngModel)]="userInput"
-                  placeholder="Message AI Coach"
+                  placeholder="Log your workout"
                   class="message-input"
                   (keyup.enter)="handleSend()"
                   [disabled]="isLoading"

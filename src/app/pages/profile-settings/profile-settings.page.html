@@ -1,5 +1,6 @@
 <app-header
   [title]="'User Settings'"
+  [hideTitle]="true"
   [transparent]="true"
   [neoBlend]="true"
   [showBack]="true"
@@ -207,6 +208,25 @@
       <section class="settings-panel">
         <h2>Account</h2>
         <p class="page-copy">Manage your session.</p>
+
+        <ion-button
+          class="logout-settings-btn"
+          fill="outline"
+          [routerLink]="'/service-agreements'"
+          [disabled]="isLoading || isSaving"
+        >
+          {{ isTrainer ? 'Agreements & Waivers' : 'My Agreements' }}
+        </ion-button>
+
+        <ion-button
+          class="logout-settings-btn"
+          fill="outline"
+          [routerLink]="'/trainer-approval-admin'"
+          [disabled]="isLoading || isSaving"
+          *ngIf="canManageTrainerApprovals"
+        >
+          Review Trainer Applications
+        </ion-button>
 
         <ion-button
           class="logout-settings-btn"
