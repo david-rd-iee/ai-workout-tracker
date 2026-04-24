@@ -43,6 +43,7 @@ import { UserService } from '../../services/account/user.service';
 import { ProfileRepositoryService } from '../../services/account/profile-repository.service';
 import { SessionBookingService } from '../../services/session-booking.service';
 import { TrainerConnectionService } from '../../services/trainer-connection.service';
+import { ROUTE_PATHS } from '../../app.routes';
 
 import type { AppUser } from '../../models/user.model';
 
@@ -1121,6 +1122,10 @@ export class HomePage implements OnInit, OnDestroy {
     if (this.currentMonthIndex < this.monthlyRevenue.length - 1) {
       this.currentMonthIndex++;
     }
+  }
+
+  openTrainerPaymentDashboard(): void {
+    void this.router.navigateByUrl(ROUTE_PATHS.APP.TABS.STRIPE_SETUP);
   }
   
   get currentMonthData() {

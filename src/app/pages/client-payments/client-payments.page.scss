@@ -1,0 +1,312 @@
+.client-payments-content {
+  --background: #dbe3f0;
+  position: relative;
+}
+
+$atlas-surface-high: #f1f5fc;
+$atlas-surface: #e8eef8;
+$atlas-shadow-dark: rgba(184, 196, 214, 0.88);
+$atlas-shadow-light: rgba(249, 252, 255, 0.95);
+$atlas-text: #5a6880;
+$atlas-muted: #8b9ab0;
+$atlas-blue: #2e6ef5;
+
+@mixin neo-raised($radius: 22px) {
+  background: linear-gradient(145deg, $atlas-surface-high, $atlas-surface);
+  border-radius: $radius;
+  border: 1px solid rgba(255, 255, 255, 0.78);
+  box-shadow:
+    14px 14px 28px -14px $atlas-shadow-dark,
+    -12px -12px 24px -14px $atlas-shadow-light;
+}
+
+@mixin neo-inset($radius: 18px) {
+  background: linear-gradient(145deg, #edf2fb, #e4ebf7);
+  border-radius: $radius;
+  border: 1px solid rgba(255, 255, 255, 0.56);
+  box-shadow:
+    inset 7px 7px 12px -10px rgba(184, 196, 214, 0.9),
+    inset -7px -7px 12px -10px rgba(249, 252, 255, 0.95);
+}
+
+.background-gradient {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 14% -4%, rgba(255, 255, 255, 0.84) 0, rgba(255, 255, 255, 0) 36%),
+    radial-gradient(circle at 86% 8%, rgba(160, 179, 219, 0.34) 0, rgba(160, 179, 219, 0) 42%),
+    linear-gradient(145deg, #d5deeb 0%, #e8eef8 48%, #dbe4f1 100%);
+  pointer-events: none;
+}
+
+.client-payments-page {
+  position: relative;
+  z-index: 1;
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 16px;
+  padding-top: 10px;
+  display: grid;
+  gap: 16px;
+  color: $atlas-text;
+}
+
+.hero-shell {
+  @include neo-raised(26px);
+  padding: 18px;
+
+  h1 {
+    margin: 0;
+    color: $atlas-text;
+    font-size: 1.1rem;
+    font-weight: 680;
+    letter-spacing: 0;
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.7);
+    font-family: 'Roboto Flex', 'Inter', sans-serif;
+  }
+
+  p {
+    margin: 8px 0 0;
+    color: $atlas-muted;
+    line-height: 1.5;
+    font-size: 0.92rem;
+  }
+}
+
+.plans-card {
+  --background: transparent;
+  background: transparent;
+  box-shadow: none;
+  border: 0;
+  margin: 0;
+  @include neo-raised(26px);
+
+  ion-card-content {
+    padding: 18px;
+    display: grid;
+    gap: 12px;
+  }
+}
+
+.loading-shell {
+  @include neo-inset(18px);
+  padding: 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: $atlas-muted;
+  font-size: 0.88rem;
+
+  ion-spinner {
+    color: $atlas-blue;
+  }
+}
+
+.feedback {
+  margin: 0;
+  padding: 10px 12px;
+  font-size: 0.82rem;
+  border-radius: 14px;
+}
+
+.feedback-error {
+  color: #8e3f3f;
+  background: rgba(210, 145, 145, 0.18);
+}
+
+.feedback-success {
+  color: #2d6a43;
+  background: rgba(131, 205, 162, 0.2);
+}
+
+.trainer-shell {
+  @include neo-inset(18px);
+  padding: 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  ion-icon {
+    font-size: 1.2rem;
+    color: $atlas-blue;
+  }
+}
+
+.trainer-copy {
+  h2 {
+    margin: 0;
+    color: $atlas-text;
+    font-size: 0.98rem;
+    font-weight: 680;
+    letter-spacing: 0.01em;
+  }
+
+  p {
+    margin: 3px 0 0;
+    color: $atlas-muted;
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+}
+
+.plan-list {
+  display: grid;
+  gap: 10px;
+}
+
+.plan-item {
+  @include neo-inset(18px);
+  padding: 12px;
+  display: grid;
+  gap: 10px;
+}
+
+.plan-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+
+  h3 {
+    margin: 0;
+    color: $atlas-text;
+    font-size: 0.98rem;
+    font-weight: 680;
+  }
+
+  p {
+    margin: 5px 0 0;
+    color: $atlas-muted;
+    font-size: 0.82rem;
+    line-height: 1.45;
+  }
+}
+
+.price-chip {
+  @include neo-raised(999px);
+  padding: 7px 12px;
+  color: $atlas-text;
+  font-size: 0.82rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.plan-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.billing-chip {
+  @include neo-raised(999px);
+  padding: 6px 10px;
+  color: #2e5fbf;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.billing-note {
+  color: $atlas-muted;
+  font-size: 0.76rem;
+  letter-spacing: 0.04em;
+}
+
+.empty-shell {
+  @include neo-inset(18px);
+  padding: 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: $atlas-muted;
+  font-size: 0.85rem;
+
+  ion-icon {
+    color: #9c5a5a;
+    font-size: 1.05rem;
+  }
+
+  p {
+    margin: 0;
+  }
+}
+
+.action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.primary-action,
+.secondary-action {
+  min-height: 42px;
+  --padding-top: 8px;
+  --padding-bottom: 8px;
+  --padding-start: 18px;
+  --padding-end: 18px;
+  --border-radius: 16px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  text-transform: none;
+  transition: transform 170ms ease, box-shadow 170ms ease;
+
+  &::part(native) {
+    border-radius: 16px;
+    overflow: hidden;
+  }
+
+  &:active {
+    transform: translateY(1px) scale(0.997);
+  }
+}
+
+.primary-action {
+  width: fit-content;
+  --background: linear-gradient(145deg, #79a8ff, #2e6ef5);
+  --background-hover: linear-gradient(145deg, #8eb6ff, #4a83f8);
+  --background-activated: linear-gradient(145deg, #4f88f5, #1f55cb);
+  --color: #ffffff;
+  --box-shadow:
+    8px 8px 18px -10px rgba(107, 128, 199, 0.6),
+    -4px -4px 10px -8px rgba(255, 255, 255, 0.82);
+}
+
+.secondary-action {
+  --background: linear-gradient(145deg, #eef3fb, #e1e8f4);
+  --background-hover: linear-gradient(145deg, #f5f8fd, #e8eef8);
+  --background-activated: linear-gradient(145deg, #e0e8f4, #d5deed);
+  --color: $atlas-text;
+  --border-width: 0;
+  --box-shadow:
+    8px 8px 16px -12px rgba(184, 196, 214, 0.9),
+    -8px -8px 16px -11px rgba(249, 252, 255, 0.95);
+}
+
+:host ::ng-deep app-header .header-button {
+  --background: linear-gradient(145deg, #eef3fb, #e2e9f5);
+  --background-hover: linear-gradient(145deg, #f5f8fd, #e8eef8);
+  --background-activated: linear-gradient(145deg, #e0e8f4, #d5deed);
+  --color: #2e6ef5;
+  border-radius: 50%;
+  box-shadow:
+    8px 8px 16px -12px rgba(184, 196, 214, 0.92),
+    -8px -8px 16px -12px rgba(249, 252, 255, 0.96);
+}
+
+@media (max-width: 768px) {
+  .client-payments-page {
+    padding: 14px;
+    padding-top: 10px;
+  }
+
+  .plans-card ion-card-content {
+    padding: 16px;
+  }
+
+  .plan-top {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

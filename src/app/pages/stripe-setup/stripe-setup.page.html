@@ -1,0 +1,207 @@
+<app-header
+  [title]="'Trainer Payments'"
+  [hideTitle]="true"
+  [transparent]="true"
+  [neoBlend]="true"
+  [showBack]="true"
+></app-header>
+
+<ion-content [fullscreen]="true" class="stripe-setup-content">
+  <div class="background-gradient"></div>
+
+  <div class="stripe-setup-page">
+    <section class="hero-shell">
+      <h1>Payment Setup</h1>
+      <p>Connect your Stripe account to receive payouts from completed sessions.</p>
+    </section>
+
+    <ion-card class="dashboard-card">
+      <ion-card-content>
+        <div class="loading-shell" *ngIf="isLoading">
+          <ion-spinner name="crescent"></ion-spinner>
+          <span>Loading trainer payment details...</span>
+        </div>
+
+        <ng-container *ngIf="!isLoading">
+          <p class="feedback feedback-error" *ngIf="errorMessage">{{ errorMessage }}</p>
+          <p class="feedback feedback-success" *ngIf="successMessage">{{ successMessage }}</p>
+
+          <div class="metrics-grid">
+            <div class="metric-item">
+              <div class="metric-label">
+                <ion-icon name="cash-outline"></ion-icon>
+                <span>Total Revenue</span>
+              </div>
+              <div class="metric-value">${{ dashboardData?.revenue?.totalRevenue ?? 0 | number:'1.0-2' }}</div>
+            </div>
+
+            <div class="metric-item">
+              <div class="metric-label">
+                <ion-icon name="analytics-outline"></ion-icon>
+                <span>Completed Sessions</span>
+              </div>
+              <div class="metric-value">{{ dashboardData?.revenue?.completedSessions ?? 0 }}</div>
+            </div>
+
+            <div class="metric-item">
+              <div class="metric-label">
+                <ion-icon name="card-outline"></ion-icon>
+                <span>Avg Session Value</span>
+              </div>
+              <div class="metric-value">${{ dashboardData?.revenue?.averageSessionValue ?? 0 | number:'1.0-2' }}</div>
+            </div>
+          </div>
+
+          <div class="stripe-status-shell">
+            <div class="status-header">
+              <h2>Stripe Connect</h2>
+              <span class="status-chip" [class.status-chip-ready]="isStripeReadyToPayout">
+                {{ isStripeReadyToPayout ? 'Ready for Payouts' : 'Setup Required' }}
+              </span>
+            </div>
+
+            <p class="status-copy" *ngIf="stripeSummary; else noStripeAccount">
+              Account: <strong>{{ formatAccountId(stripeSummary.accountId) }}</strong>
+            </p>
+
+            <ng-template #noStripeAccount>
+              <p class="status-copy">No Stripe account is connected yet.</p>
+            </ng-template>
+
+            <div class="status-grid">
+              <div class="status-pill" [class.ok]="stripeSummary?.detailsSubmitted === true">
+                <ion-icon [name]="stripeSummary?.detailsSubmitted ? 'checkmark-circle-outline' : 'close-circle-outline'"></ion-icon>
+                <span>Details Submitted</span>
+              </div>
+
+              <div class="status-pill" [class.ok]="stripeSummary?.chargesEnabled === true">
+                <ion-icon [name]="stripeSummary?.chargesEnabled ? 'checkmark-circle-outline' : 'close-circle-outline'"></ion-icon>
+                <span>Charges Enabled</span>
+              </div>
+
+              <div class="status-pill" [class.ok]="stripeSummary?.payoutsEnabled === true">
+                <ion-icon [name]="stripeSummary?.payoutsEnabled ? 'checkmark-circle-outline' : 'close-circle-outline'"></ion-icon>
+                <span>Payouts Enabled</span>
+              </div>
+            </div>
+
+            <div class="requirements-row" *ngIf="stripeSummary">
+              <ion-icon name="warning-outline"></ion-icon>
+              <span>{{ stripeSummary.requirementsCurrentlyDueCount }} requirements currently due</span>
+            </div>
+          </div>
+
+          <div class="action-row">
+            <ion-button
+              class="primary-action"
+              [disabled]="isOpeningOnboarding"
+              (click)="startStripeOnboarding()"
+            >
+              <ion-spinner *ngIf="isOpeningOnboarding" slot="start" name="crescent"></ion-spinner>
+              <ion-icon *ngIf="!isOpeningOnboarding" slot="start" name="link-outline"></ion-icon>
+              {{ onboardingButtonLabel }}
+            </ion-button>
+
+            <ion-button
+              class="secondary-action"
+              fill="outline"
+              [disabled]="isOpeningOnboarding"
+              (click)="refreshDashboard()"
+            >
+              <ion-icon slot="start" name="refresh-outline"></ion-icon>
+              Refresh
+            </ion-button>
+          </div>
+        </ng-container>
+      </ion-card-content>
+    </ion-card>
+
+    <ion-card class="plan-card">
+      <ion-card-content>
+        <div class="plan-header">
+          <h2>Create Trainer Plan</h2>
+          <p>Create coaching offers for clients and save them to your trainer plans.</p>
+        </div>
+
+        <div class="plan-form-grid">
+          <ion-item lines="none" class="plan-field">
+            <ion-input
+              class="plan-input"
+              label="Title"
+              label-placement="stacked"
+              placeholder="Monthly Coaching"
+              [(ngModel)]="planTitle"
+              name="planTitle"
+              [disabled]="isCreatingPlan"
+              maxlength="80"
+            ></ion-input>
+          </ion-item>
+
+          <ion-item lines="none" class="plan-field">
+            <ion-textarea
+              class="plan-input"
+              label="Description"
+              label-placement="stacked"
+              placeholder="Workout programming + weekly check-ins"
+              [(ngModel)]="planDescription"
+              name="planDescription"
+              [disabled]="isCreatingPlan"
+              rows="3"
+              maxlength="280"
+            ></ion-textarea>
+          </ion-item>
+
+          <div class="plan-inline-fields">
+            <ion-item lines="none" class="plan-field">
+              <ion-input
+                class="plan-input"
+                label="Price (cents)"
+                label-placement="stacked"
+                type="number"
+                inputmode="numeric"
+                placeholder="7500"
+                [(ngModel)]="planPriceCents"
+                name="planPriceCents"
+                [disabled]="isCreatingPlan"
+              ></ion-input>
+            </ion-item>
+
+            <ion-item lines="none" class="plan-field">
+              <ion-select
+                class="plan-input"
+                label="Billing Type"
+                label-placement="stacked"
+                interface="popover"
+                [(ngModel)]="planBillingType"
+                name="planBillingType"
+                [disabled]="isCreatingPlan"
+              >
+                <ion-select-option *ngFor="let option of billingTypeOptions" [value]="option">
+                  {{ option | titlecase }}
+                </ion-select-option>
+              </ion-select>
+            </ion-item>
+          </div>
+        </div>
+
+        <p class="feedback feedback-error" *ngIf="planErrorMessage">{{ planErrorMessage }}</p>
+        <p class="feedback feedback-success" *ngIf="planSuccessMessage">{{ planSuccessMessage }}</p>
+        <p class="plan-created-id" *ngIf="latestCreatedPlanId">
+          Saved to <code>trainerPlans/{{ latestCreatedPlanId }}</code>
+        </p>
+
+        <div class="action-row">
+          <ion-button
+            class="primary-action"
+            [disabled]="isCreatingPlan"
+            (click)="createPlan()"
+          >
+            <ion-spinner *ngIf="isCreatingPlan" slot="start" name="crescent"></ion-spinner>
+            <ion-icon *ngIf="!isCreatingPlan" slot="start" name="create-outline"></ion-icon>
+            Create Plan
+          </ion-button>
+        </div>
+      </ion-card-content>
+    </ion-card>
+  </div>
+</ion-content>

@@ -155,7 +155,8 @@ ion-card {
 .session-card,
 .client-request-card,
 .client-card,
-.revenue-card {
+.revenue-card,
+.total-revenue-card {
   transition: transform 180ms ease, box-shadow 180ms ease;
 
   &:active {

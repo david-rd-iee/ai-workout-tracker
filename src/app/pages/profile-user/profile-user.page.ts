@@ -62,6 +62,7 @@ import {
   people,
   school,
   cash,
+  cardOutline,
   checkmarkCircle,
 } from 'ionicons/icons';
 import {
@@ -193,6 +194,7 @@ export class ProfileUserPage implements OnInit, OnDestroy {
       people,
       school,
       cash,
+      cardOutline,
       checkmarkCircle,
     });
 
@@ -412,6 +414,12 @@ export class ProfileUserPage implements OnInit, OnDestroy {
   goToRegional(): void { this.router.navigateByUrl('/regional-leaderboard'); }
   goToAnalyzeWorkout(): void {
     this.navCtrl.navigateForward('/camera', {
+      animated: true,
+      animationDirection: 'forward',
+    });
+  }
+  goToPayTrainer(): void {
+    this.navCtrl.navigateForward('/client-payments', {
       animated: true,
       animationDirection: 'forward',
     });

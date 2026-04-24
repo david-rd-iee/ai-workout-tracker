@@ -30,6 +30,10 @@ export {
 export {
   onWorkoutEventCreated,
 } from "./workoutEventPostWriteHandlers";
+export { createTrainerOnboardingLink } from "./trainerStripeOnboarding";
+export { createTrainerPlan } from "./trainerPlans";
+export { createCheckoutSession } from "./clientCheckout";
+export { stripeWebhook } from "./stripeWebhook";
 
 if (getApps().length === 0) {
   initializeApp();
