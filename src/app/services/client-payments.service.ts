@@ -71,9 +71,6 @@ export class ClientPaymentsService {
       getDoc(doc(this.firestore, `trainers/${trainerId}`)),
       this.readDirectTrainerPlan(trainerId),
     ]);
-    const queryPlanDocs = directPlanSnap?.exists() ?
-      [] :
-      await this.readTrainerPlanFallbackDocs(trainerId);
 
     const trainerData = trainerSnap.exists() ? toRecord(trainerSnap.data()) : {};
     const trainerFirstName = normalizeString(trainerData['firstName']);
@@ -83,6 +80,9 @@ export class ClientPaymentsService {
     const directPlan = directPlanSnap?.exists() ?
       this.mapPlanRecord(directPlanSnap.id, toRecord(directPlanSnap.data()), trainerId) :
       null;
+    const queryPlanDocs = directPlan ?
+      [] :
+      await this.readTrainerPlanFallbackDocs(trainerId);
     const queryPlans = queryPlanDocs
       .filter((docSnap) => docSnap.id !== trainerId)
       .map((docSnap) => this.mapPlanRecord(docSnap.id, toRecord(docSnap.data()), trainerId));
