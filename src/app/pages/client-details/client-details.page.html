@@ -169,14 +169,22 @@
         <ion-card-content>
           <div class="payment-content">
             <div class="payment-icon">
-              <ion-icon name="card" [color]="payment.status === 'paid' ? 'success' : 'warning'"></ion-icon>
+              <ion-icon
+                name="card"
+                [color]="payment.status === 'paid' ? 'success' : (payment.status === 'failed' ? 'danger' : 'warning')"
+              ></ion-icon>
             </div>
             <div class="payment-info">
               <h3>${{ payment.amount }}</h3>
               <p class="payment-date">{{ payment.date | date:'MMM d, yyyy' }}</p>
               <p class="payment-method" *ngIf="payment.status === 'paid'">{{ payment.method }}</p>
             </div>
-            <span class="status-badge" [class.paid]="payment.status === 'paid'" [class.pending]="payment.status === 'pending'">
+            <span
+              class="status-badge"
+              [class.paid]="payment.status === 'paid'"
+              [class.pending]="payment.status === 'pending'"
+              [class.failed]="payment.status === 'failed'"
+            >
               {{ payment.status }}
             </span>
           </div>

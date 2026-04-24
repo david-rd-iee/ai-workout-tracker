@@ -481,6 +481,9 @@ export class ProfileUserPage implements OnInit, OnDestroy {
         return status === 'completed' || status === 'confirmed';
       });
 
+      const revenueEntries = await this.readTrainerStripeRevenueEntries(normalizedTrainerId);
+      const totalRevenue = revenueEntries.reduce((sum, entry) => sum + entry.amount, 0);
+
       const clientSessionCounts = new Map<string, number>();
       for (const booking of completedLikeBookings) {
         const clientId = String(booking['clientId'] || '').trim();
@@ -489,11 +492,6 @@ export class ProfileUserPage implements OnInit, OnDestroy {
         }
         clientSessionCounts.set(clientId, (clientSessionCounts.get(clientId) || 0) + 1);
       }
-
-      const totalRevenue = completedLikeBookings.reduce((sum, booking) => {
-        const amount = Number(booking['price'] ?? booking['amount'] ?? 0);
-        return sum + (Number.isFinite(amount) ? amount : 0);
-      }, 0);
 
       const longestClient = trainerClients
         .map((clientRecord) => {
@@ -546,6 +544,142 @@ export class ProfileUserPage implements OnInit, OnDestroy {
     } catch (error) {
       console.error('[ProfileUser] Error calculating trainer stats from bookings:', error);
     }
+  }
+
+  private async readTrainerStripeRevenueEntries(
+    trainerId: string
+  ): Promise<Array<{ dedupeKey: string; amount: number; date: Date }>> {
+    const [transactionsSnapshot, checkoutSessionsSnapshot] = await Promise.all([
+      getDocs(query(collection(this.firestore, 'transactions'), where('trainerId', '==', trainerId))),
+      getDocs(query(collection(this.firestore, 'checkoutSessions'), where('trainerId', '==', trainerId))),
+    ]);
+
+    const entries: Array<{ dedupeKey: string; amount: number; date: Date }> = [];
+    const seenKeys = new Set<string>();
+
+    for (const transactionDoc of transactionsSnapshot.docs) {
+      const transaction = transactionDoc.data() as Record<string, unknown>;
+      const status = String(transaction['status'] || '').trim().toLowerCase();
+      if (!this.isSuccessfulStripePaymentStatus(status)) {
+        continue;
+      }
+
+      const amount = this.resolveStripeAmount(transaction);
+      if (amount <= 0) {
+        continue;
+      }
+
+      const date =
+        this.toDate(transaction['createdAt']) ||
+        this.toDate(transaction['date']) ||
+        this.toDate(transaction['timestamp']) ||
+        this.toDate(transaction['paidAt']) ||
+        this.toDate(transaction['updatedAt']);
+      if (!date) {
+        continue;
+      }
+
+      const dedupeKey = this.resolveRevenueDedupeKey(transaction, transactionDoc.id, 'txn');
+      if (seenKeys.has(dedupeKey)) {
+        continue;
+      }
+
+      seenKeys.add(dedupeKey);
+      entries.push({ dedupeKey, amount, date });
+    }
+
+    for (const checkoutSessionDoc of checkoutSessionsSnapshot.docs) {
+      const checkoutSession = checkoutSessionDoc.data() as Record<string, unknown>;
+      const stripeStatus = String(checkoutSession['stripeStatus'] || '').trim().toLowerCase();
+      if (!this.isSuccessfulStripePaymentStatus(stripeStatus)) {
+        continue;
+      }
+
+      const amount = this.resolveStripeAmount(checkoutSession);
+      if (amount <= 0) {
+        continue;
+      }
+
+      const date =
+        this.toDate(checkoutSession['createdAt']) ||
+        this.toDate(checkoutSession['updatedAt']);
+      if (!date) {
+        continue;
+      }
+
+      const dedupeKey = this.resolveRevenueDedupeKey(checkoutSession, checkoutSessionDoc.id, 'checkout');
+      if (seenKeys.has(dedupeKey)) {
+        continue;
+      }
+
+      seenKeys.add(dedupeKey);
+      entries.push({ dedupeKey, amount, date });
+    }
+
+    return entries;
+  }
+
+  private isSuccessfulStripePaymentStatus(status: string): boolean {
+    return status === 'paid' ||
+      status === 'succeeded' ||
+      status === 'complete' ||
+      status === 'completed';
+  }
+
+  private resolveRevenueDedupeKey(
+    record: Record<string, unknown>,
+    fallbackId: string,
+    source: 'txn' | 'checkout'
+  ): string {
+    const checkoutSessionId =
+      String(record['checkoutSessionId'] || '').trim() ||
+      String(record['stripeCheckoutSessionId'] || '').trim();
+    if (checkoutSessionId) {
+      return `checkout:${checkoutSessionId}`;
+    }
+
+    const paymentIntentId =
+      String(record['paymentIntentId'] || '').trim() ||
+      String(record['stripePaymentIntentId'] || '').trim();
+    if (paymentIntentId) {
+      return `paymentIntent:${paymentIntentId}`;
+    }
+
+    const chargeId = String(record['stripeChargeId'] || '').trim();
+    if (chargeId) {
+      return `charge:${chargeId}`;
+    }
+
+    return `${source}:${fallbackId}`;
+  }
+
+  private resolveStripeAmount(record: Record<string, unknown>): number {
+    const centsAmount = this.toFiniteNumber(record['priceCents']) ??
+      this.toFiniteNumber(record['amountCents']) ??
+      this.toFiniteNumber(record['unitAmountCents']) ??
+      this.toFiniteNumber(record['unit_amount']) ??
+      this.toFiniteNumber(record['amount_total']);
+    if (centsAmount !== null && centsAmount > 0) {
+      return centsAmount / 100;
+    }
+
+    const dollarAmount = this.toFiniteNumber(record['amount']) ??
+      this.toFiniteNumber(record['total']) ??
+      this.toFiniteNumber(record['price']);
+    if (dollarAmount === null || dollarAmount <= 0) {
+      return 0;
+    }
+
+    return dollarAmount;
+  }
+
+  private toFiniteNumber(value: unknown): number | null {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed)) {
+      return null;
+    }
+
+    return parsed;
   }
 
   private resolveTrainerClientName(clientRecord: Record<string, unknown>): string {
@@ -617,7 +751,6 @@ export class ProfileUserPage implements OnInit, OnDestroy {
     if (hasStoredStats) {
       this.trainerStats.totalSessions = trainerBadges['athena-wisdom']?.currentValue || 0;
       this.trainerStats.totalClients = trainerBadges['zeus-mentor']?.currentValue || 0;
-      this.trainerStats.totalRevenue = trainerBadges['hermes-prosperity']?.currentValue || 0;
       this.trainerStatsFallbackLoadedUid = userId;
     } else if (this.trainerStatsFallbackLoadedUid !== userId) {
       void this.ensureTrainerFallbackStats(userId);

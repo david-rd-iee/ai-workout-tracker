@@ -43,6 +43,15 @@ interface TrainerWorkoutDraft {
   exercises?: TrainerWorkoutExerciseDraft[];
 }
 
+type StripePaymentDisplayStatus = 'paid' | 'pending' | 'failed';
+
+interface PaymentHistoryEntry {
+  amount: number;
+  date: Date | null;
+  method: string;
+  status: StripePaymentDisplayStatus;
+}
+
 @Component({
   selector: 'app-client-details',
   standalone: true,
@@ -97,7 +106,7 @@ export class ClientDetailsPage implements OnInit {
   // Appointments and payments
   upcomingAppointments: any[] = [];
   pastAppointments: any[] = [];
-  payments: any[] = [];
+  payments: PaymentHistoryEntry[] = [];
 
   isVerifyStatsModalOpen = false;
   isLoadingVerifyStats = false;
@@ -543,12 +552,30 @@ export class ClientDetailsPage implements OnInit {
       return;
     }
 
+    const trainerId = String(this.auth.currentUser?.uid || '').trim();
+    const bookingsPromise = trainerId
+      ? getDocs(query(collection(this.firestore, 'bookings'), where('trainerId', '==', trainerId)))
+      : getDocs(query(collection(this.firestore, 'bookings'), where('clientId', '==', clientId)));
+    const transactionsPromise = trainerId
+      ? getDocs(query(collection(this.firestore, 'transactions'), where('trainerId', '==', trainerId)))
+      : getDocs(query(collection(this.firestore, 'transactions'), where('clientId', '==', clientId)));
+    const checkoutSessionsPromise = trainerId
+      ? getDocs(query(collection(this.firestore, 'checkoutSessions'), where('trainerId', '==', trainerId)))
+      : getDocs(query(collection(this.firestore, 'checkoutSessions'), where('clientId', '==', clientId)));
+
     try {
-      const [clientProfileSnap, userStatsSnap, bookingsSnap, transactionsSnap] = await Promise.all([
+      const [
+        clientProfileSnap,
+        userStatsSnap,
+        bookingsSnap,
+        transactionsSnap,
+        checkoutSessionsSnap,
+      ] = await Promise.all([
         getDoc(doc(this.firestore, 'clients', clientId)),
         getDoc(doc(this.firestore, 'userStats', clientId)),
-        getDocs(query(collection(this.firestore, 'bookings'), where('clientId', '==', clientId))),
-        getDocs(query(collection(this.firestore, 'transactions'), where('clientId', '==', clientId))),
+        bookingsPromise,
+        transactionsPromise,
+        checkoutSessionsPromise,
       ]);
 
       const clientProfile = clientProfileSnap.exists() ? clientProfileSnap.data() as Record<string, any> : {};
@@ -561,8 +588,13 @@ export class ClientDetailsPage implements OnInit {
         id: transactionDoc.id,
         ...transactionDoc.data(),
       })) as Array<Record<string, any>>;
+      const checkoutSessions = checkoutSessionsSnap.docs.map((checkoutSessionDoc) => ({
+        id: checkoutSessionDoc.id,
+        ...checkoutSessionDoc.data(),
+      })) as Array<Record<string, any>>;
 
       const sortedBookings: Array<Record<string, any> & { _date: Date | null }> = bookings
+        .filter((booking) => String(booking['clientId'] || '').trim() === clientId)
         .map((booking) => ({
           ...booking,
           _date: this.getBookingDate(booking),
@@ -589,9 +621,12 @@ export class ClientDetailsPage implements OnInit {
 
       this.upcomingAppointments = upcoming.map((booking) => this.mapBookingForDisplay(booking));
       this.pastAppointments = past.map((booking) => this.mapBookingForDisplay(booking));
-      this.payments = transactions
-        .map((transaction) => this.mapPaymentForDisplay(transaction))
-        .sort((a, b) => (b.date?.getTime?.() || 0) - (a.date?.getTime?.() || 0));
+      this.payments = this.buildStripePaymentHistory(
+        clientId,
+        trainerId,
+        transactions,
+        checkoutSessions
+      );
 
       const streakData = userStats['streakData'] as Record<string, any> | undefined;
       this.currentStreak = Number(streakData?.['currentStreak'] ?? userStats['currentStreak'] ?? 0) || 0;
@@ -619,7 +654,7 @@ export class ClientDetailsPage implements OnInit {
   private buildRecentActivity(
     clientProfile: Record<string, any>,
     sortedBookings: Array<Record<string, any>>,
-    payments: Array<{ amount: number; date: Date | null; method: string; status: string }>
+    payments: PaymentHistoryEntry[]
   ): Array<{ title: string; date: Date; icon: string; color: string }> {
     const activity: Array<{ title: string; date: Date; icon: string; color: string }> = [];
 
@@ -656,17 +691,220 @@ export class ClientDetailsPage implements OnInit {
         continue;
       }
 
+      const activityColor = payment.status === 'paid'
+        ? 'success'
+        : payment.status === 'failed'
+          ? 'danger'
+          : 'warning';
       activity.push({
         title: payment.status === 'paid' ? `Payment received: $${payment.amount}` : `Payment ${payment.status}`,
         date: payment.date,
         icon: 'card',
-        color: payment.status === 'paid' ? 'success' : 'warning',
+        color: activityColor,
       });
     }
 
     return activity
       .sort((a, b) => b.date.getTime() - a.date.getTime())
       .slice(0, 5);
+  }
+
+  private buildStripePaymentHistory(
+    clientId: string,
+    trainerId: string,
+    transactions: Array<Record<string, unknown>>,
+    checkoutSessions: Array<Record<string, unknown>>
+  ): PaymentHistoryEntry[] {
+    const history: Array<PaymentHistoryEntry & { dedupeKey: string; sortDate: Date }> = [];
+    const seenKeys = new Set<string>();
+
+    for (const [index, transaction] of transactions.entries()) {
+      if (!this.matchesPaymentScope(transaction, clientId, trainerId)) {
+        continue;
+      }
+
+      const normalizedStatus = this.normalizeStripePaymentStatus(transaction['status']);
+      const amount = this.resolveStripeAmount(transaction);
+      if (amount <= 0) {
+        continue;
+      }
+
+      const date =
+        this.toDate(transaction['createdAt']) ||
+        this.toDate(transaction['date']) ||
+        this.toDate(transaction['timestamp']) ||
+        this.toDate(transaction['paidAt']) ||
+        this.toDate(transaction['updatedAt']);
+      if (!date) {
+        continue;
+      }
+
+      const dedupeKey = this.resolveRevenueDedupeKey(transaction, String(transaction['id'] || index), 'txn');
+      if (seenKeys.has(dedupeKey)) {
+        continue;
+      }
+
+      seenKeys.add(dedupeKey);
+      history.push({
+        dedupeKey,
+        sortDate: date,
+        amount,
+        date,
+        method: this.resolvePaymentMethod(transaction, 'Stripe'),
+        status: normalizedStatus,
+      });
+    }
+
+    for (const [index, checkoutSession] of checkoutSessions.entries()) {
+      if (!this.matchesPaymentScope(checkoutSession, clientId, trainerId)) {
+        continue;
+      }
+
+      const normalizedStatus = this.normalizeStripePaymentStatus(
+        checkoutSession['stripeStatus'] ?? checkoutSession['status']
+      );
+      const amount = this.resolveStripeAmount(checkoutSession);
+      if (amount <= 0) {
+        continue;
+      }
+
+      const date =
+        this.toDate(checkoutSession['createdAt']) ||
+        this.toDate(checkoutSession['updatedAt']);
+      if (!date) {
+        continue;
+      }
+
+      const dedupeKey = this.resolveRevenueDedupeKey(
+        checkoutSession,
+        String(checkoutSession['id'] || index),
+        'checkout'
+      );
+      if (seenKeys.has(dedupeKey)) {
+        continue;
+      }
+
+      seenKeys.add(dedupeKey);
+      history.push({
+        dedupeKey,
+        sortDate: date,
+        amount,
+        date,
+        method: this.resolvePaymentMethod(checkoutSession, 'Stripe Checkout'),
+        status: normalizedStatus,
+      });
+    }
+
+    return history
+      .sort((left, right) => right.sortDate.getTime() - left.sortDate.getTime())
+      .map(({ dedupeKey, sortDate, ...payment }) => payment);
+  }
+
+  private matchesPaymentScope(
+    record: Record<string, unknown>,
+    clientId: string,
+    trainerId: string
+  ): boolean {
+    const recordClientId = String(record['clientId'] || record['clientID'] || '').trim();
+    const recordTrainerId = String(record['trainerId'] || record['trainerID'] || '').trim();
+
+    if (!recordClientId || recordClientId !== clientId) {
+      return false;
+    }
+
+    if (trainerId && recordTrainerId && recordTrainerId !== trainerId) {
+      return false;
+    }
+
+    return true;
+  }
+
+  private normalizeStripePaymentStatus(value: unknown): StripePaymentDisplayStatus {
+    const status = String(value || '').trim().toLowerCase();
+    if (
+      status === 'paid' ||
+      status === 'succeeded' ||
+      status === 'complete' ||
+      status === 'completed'
+    ) {
+      return 'paid';
+    }
+
+    if (
+      status === 'failed' ||
+      status === 'canceled' ||
+      status === 'cancelled' ||
+      status === 'unpaid'
+    ) {
+      return 'failed';
+    }
+
+    return 'pending';
+  }
+
+  private resolvePaymentMethod(record: Record<string, unknown>, fallback: string): string {
+    return String(
+      record['paymentMethod'] ||
+      record['method'] ||
+      record['source'] ||
+      record['payment_method'] ||
+      fallback
+    ).trim() || fallback;
+  }
+
+  private resolveRevenueDedupeKey(
+    record: Record<string, unknown>,
+    fallbackId: string,
+    source: 'txn' | 'checkout'
+  ): string {
+    const checkoutSessionId =
+      String(record['checkoutSessionId'] || '').trim() ||
+      String(record['stripeCheckoutSessionId'] || '').trim();
+    if (checkoutSessionId) {
+      return `checkout:${checkoutSessionId}`;
+    }
+
+    const paymentIntentId =
+      String(record['paymentIntentId'] || '').trim() ||
+      String(record['stripePaymentIntentId'] || '').trim();
+    if (paymentIntentId) {
+      return `paymentIntent:${paymentIntentId}`;
+    }
+
+    const chargeId = String(record['stripeChargeId'] || '').trim();
+    if (chargeId) {
+      return `charge:${chargeId}`;
+    }
+
+    return `${source}:${fallbackId}`;
+  }
+
+  private resolveStripeAmount(record: Record<string, unknown>): number {
+    const centsAmount = this.toFiniteNumber(record['priceCents']) ??
+      this.toFiniteNumber(record['amountCents']) ??
+      this.toFiniteNumber(record['unitAmountCents']) ??
+      this.toFiniteNumber(record['unit_amount']) ??
+      this.toFiniteNumber(record['amount_total']);
+    if (centsAmount !== null && centsAmount > 0) {
+      return centsAmount / 100;
+    }
+
+    const dollarAmount = this.toFiniteNumber(record['amount']) ??
+      this.toFiniteNumber(record['total']) ??
+      this.toFiniteNumber(record['price']);
+    if (dollarAmount === null || dollarAmount <= 0) {
+      return 0;
+    }
+
+    return dollarAmount;
+  }
+
+  private toFiniteNumber(value: unknown): number | null {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed)) {
+      return null;
+    }
+    return parsed;
   }
 
   private mapBookingForDisplay(booking: Record<string, any>) {
@@ -676,16 +914,6 @@ export class ClientDetailsPage implements OnInit {
       date: (booking['_date'] as Date | null) || this.toDate(booking['date']),
       duration: Number(booking['duration'] || 60) || 60,
       status: String(booking['status'] || 'pending').toLowerCase(),
-    };
-  }
-
-  private mapPaymentForDisplay(transaction: Record<string, any>) {
-    const amount = Number(transaction['amount'] ?? transaction['total'] ?? transaction['price'] ?? 0);
-    return {
-      amount: Number.isFinite(amount) ? amount : 0,
-      date: this.toDate(transaction['createdAt']) || this.toDate(transaction['date']) || this.toDate(transaction['timestamp']),
-      method: String(transaction['paymentMethod'] || transaction['method'] || transaction['source'] || 'Atlas'),
-      status: String(transaction['status'] || 'pending').toLowerCase(),
     };
   }
 
