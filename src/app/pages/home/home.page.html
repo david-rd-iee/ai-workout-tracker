@@ -167,7 +167,7 @@
               <ion-icon name="chevron-back"></ion-icon>
             </ion-button>
             <div class="month-info">
-              <h3>{{ currentMonthData?.month | date:'MMMM yyyy' }}</h3>
+              <h3>{{ currentMonthData.month | date:'MMMM yyyy' }}</h3>
               <p *ngIf="currentMonthData?.isCurrent" class="current-badge">Current Month</p>
             </div>
             <ion-button fill="clear" (click)="nextMonth()" [disabled]="currentMonthIndex === monthlyRevenue.length - 1">
@@ -176,9 +176,9 @@
           </div>
           <div class="revenue-amount">
             <ion-icon name="cash-outline"></ion-icon>
-            <h2>${{ currentMonthData?.revenue || 0 | number }}</h2>
+            <h2>${{ currentMonthData.revenue || 0 | number }}</h2>
           </div>
-          <p class="revenue-sessions">{{ currentMonthData?.payments || 0 }} payments received</p>
+          <p class="revenue-sessions">{{ currentMonthData.payments || 0 }} payments received</p>
         </ion-card-content>
       </ion-card>
 
