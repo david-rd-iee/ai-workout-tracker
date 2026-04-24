@@ -12,7 +12,7 @@
 <ion-content class="selector-content">
   <div class="selector-shell">
   <div class="selector-header">
-    <p>Select up to {{ maxDisplayStatues }} carved statues to showcase in your divine gallery (or select none to hide statues)</p>
+    <p>Select up to {{ maxDisplayStatues }} statues to showcase in your divine gallery (or select none to hide statues)</p>
     <div class="selection-actions">
       <p class="selection-count">
         Selected: {{ selectedStatueIds.length }} / {{ maxDisplayStatues }}
@@ -100,7 +100,7 @@
   </div>
 
   <div class="empty-state" *ngIf="filteredStatues.length === 0">
-    <p>No statues carved yet in this category. Keep training to begin your divine sculptures!</p>
+    <p>No statues found in this category.</p>
   </div>
 
   <div class="button-container">

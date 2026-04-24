@@ -184,10 +184,10 @@
                 size="small"
                 fill="outline"
                 color="danger"
-                [disabled]="deletingStatueId === statue.id"
+                [disabled]="deletingDocId === statue.docId"
                 (click)="confirmDeleteStatue(statue)"
               >
-                {{ deletingStatueId === statue.id ? 'Deleting...' : 'Delete' }}
+                {{ deletingDocId === statue.docId ? 'Deleting...' : 'Delete' }}
               </ion-button>
             </div>
           </div>

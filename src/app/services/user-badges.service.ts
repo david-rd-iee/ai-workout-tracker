@@ -42,6 +42,10 @@ type WriteResult =
   | { ok: true }
   | { ok: false; error: unknown };
 
+type StatueSyncNotification =
+  | { type: 'new-statue'; godName: string }
+  | { type: 'level-up'; godName: string; currentLevel: StoredStatueLevel };
+
 @Injectable({
   providedIn: 'root',
 })
@@ -345,7 +349,10 @@ export class UserBadgesService {
       const userStatsPatch: Record<string, unknown> = {};
       const metricDistributionCache = new Map<string, number[]>();
       const writes: Promise<unknown>[] = [];
-      const notifications: Array<{ godName: string; currentLevel: StoredStatueLevel }> = [];
+      const notifications: StatueSyncNotification[] = [];
+      const existingStatueBadgeDocCount = badgeSnapshot.docs.filter((docSnap) =>
+        greekStatueIds.has(docSnap.id)
+      ).length;
       let deletedDocCount = 0;
       let updatedStatueDocCount = 0;
 
@@ -400,10 +407,24 @@ export class UserBadgesService {
         if (
           notifyLevelUps &&
           this.currentUserId === userId &&
+          !existingDoc &&
+          existingStatueBadgeDocCount > 0
+        ) {
+          notifications.push({
+            type: 'new-statue',
+            godName: statue.godName,
+          });
+          continue;
+        }
+
+        if (
+          notifyLevelUps &&
+          this.currentUserId === userId &&
           existingDoc &&
           this.isLevelUp(previousLevel, currentLevel)
         ) {
           notifications.push({
+            type: 'level-up',
             godName: statue.godName,
             currentLevel,
           });
@@ -437,6 +458,11 @@ export class UserBadgesService {
       );
 
       for (const notification of notifications) {
+        if (notification.type === 'new-statue') {
+          await this.presentNewStatueToast(notification.godName);
+          continue;
+        }
+
         await this.presentLevelUpToast(notification.godName, notification.currentLevel);
       }
     } catch (error) {
@@ -769,6 +795,16 @@ export class UserBadgesService {
       duration: 2500,
       position: 'top',
       color: 'primary',
+    });
+    await toast.present();
+  }
+
+  private async presentNewStatueToast(godName: string): Promise<void> {
+    const toast = await this.toastController.create({
+      message: `New statue added: ${godName} is now available.`,
+      duration: 3000,
+      position: 'top',
+      color: 'secondary',
     });
     await toast.present();
   }

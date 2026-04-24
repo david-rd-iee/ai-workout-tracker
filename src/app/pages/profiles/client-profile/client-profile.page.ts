@@ -271,17 +271,10 @@ export class ClientProfilePage implements OnInit {
           };
         });
 
-      // Only show statues explicitly marked as displayed and already carved.
+      // Only show statues explicitly marked as displayed.
       this.displayStatueIds = this.allStatues
-        .filter(
-          (statue) =>
-            badgeMap[statue.id]?.isDisplayed && isCarvedStatueLevel(statue.currentLevel)
-        )
-        .map(statue => statue.id)
-        .filter(id => {
-          const statue = this.allStatues.find(s => s.id === id);
-          return isCarvedStatueLevel(statue?.currentLevel);
-        });
+        .filter((statue) => badgeMap[statue.id]?.isDisplayed === true)
+        .map((statue) => statue.id);
 
       this.updateDisplayStatues();
       console.log('[ClientProfilePage] Loaded statues from Firestore:', this.allStatues);
@@ -368,11 +361,16 @@ export class ClientProfilePage implements OnInit {
   }
 
   async openBadgeSelector() {
+    const selectableStatueIdSet = new Set(this.allStatues.map((statue) => statue.id));
+    const selectedStatueIds = this.displayStatueIds.filter((id) =>
+      selectableStatueIdSet.has(id)
+    );
+
     const modal = await this.modalCtrl.create({
       component: StatueSelectorComponent,
       componentProps: {
         carvedStatues: this.allStatues,
-        selectedStatueIds: this.displayStatueIds
+        selectedStatueIds
       }
     });
 
@@ -380,8 +378,12 @@ export class ClientProfilePage implements OnInit {
 
     const { data, role } = await modal.onWillDismiss();
 
-    if (role === 'confirm' && data) {
-      this.displayStatueIds = data;
+    if (role === 'confirm') {
+      this.displayStatueIds = Array.isArray(data)
+        ? data
+            .map((id) => String(id ?? '').trim())
+            .filter((id): id is string => id.length > 0 && selectableStatueIdSet.has(id))
+        : [];
       this.updateDisplayStatues();
       await this.saveDisplayStatues();
     }

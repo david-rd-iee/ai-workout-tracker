@@ -97,6 +97,12 @@ service cloud.firestore {
         (isTrainer() && subscriptionData.trainerId == request.auth.uid)
       );
     }
+
+    function isGreekStatuesAdmin() {
+      return isSignedIn() &&
+        request.auth.token.email is string &&
+        request.auth.token.email == 'dev-account@example.com';
+    }
     
     // User profiles - trainers collection
     match /trainers/{userId} {
@@ -562,7 +568,7 @@ service cloud.firestore {
     // Greek statues reference data used across profile and badges screens
     match /GreekStatues/{statueId} {
       allow read: if isSignedIn();
-      allow write: if false;
+      allow create, update, delete: if isGreekStatuesAdmin();
     }
 
     // Exercise estimator metadata and seeded reference docs

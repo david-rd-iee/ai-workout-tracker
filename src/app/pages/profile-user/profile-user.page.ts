@@ -725,15 +725,8 @@ export class ProfileUserPage implements OnInit, OnDestroy {
       .map((statue) => this.buildStatueViewModel(statue, badgeMap[statue.id]));
 
     this.displayStatueIds = this.allStatues
-      .filter(
-        (statue) =>
-          badgeMap[statue.id]?.isDisplayed && isCarvedStatueLevel(statue.currentLevel)
-      )
-      .map((statue) => statue.id)
-      .filter((id) => {
-        const statue = this.allStatues.find((candidate) => candidate.id === id);
-        return isCarvedStatueLevel(statue?.currentLevel);
-      });
+      .filter((statue) => badgeMap[statue.id]?.isDisplayed === true)
+      .map((statue) => statue.id);
     this.updateDisplayStatues();
   }
 
@@ -763,15 +756,8 @@ export class ProfileUserPage implements OnInit, OnDestroy {
       .map((statue) => this.buildStatueViewModel(statue, trainerBadges[statue.id]));
 
     this.displayStatueIds = this.allStatues
-      .filter(
-        (statue) =>
-          trainerBadges[statue.id]?.isDisplayed && isCarvedStatueLevel(statue.currentLevel)
-      )
-      .map((statue) => statue.id)
-      .filter((id) => {
-        const statue = this.allStatues.find((candidate) => candidate.id === id);
-        return isCarvedStatueLevel(statue?.currentLevel);
-      });
+      .filter((statue) => trainerBadges[statue.id]?.isDisplayed === true)
+      .map((statue) => statue.id);
     this.updateDisplayStatues();
   }
 
@@ -892,19 +878,16 @@ export class ProfileUserPage implements OnInit, OnDestroy {
   }
 
   async openBadgeSelector() {
-    const carvedStatues = this.allStatues.filter((statue) =>
-      isCarvedStatueLevel(statue.currentLevel)
-    );
-    const carvedStatueIdSet = new Set(carvedStatues.map((statue) => statue.id));
-    const selectedCarvedIds = this.displayStatueIds.filter((id) =>
-      carvedStatueIdSet.has(id)
+    const selectableStatueIdSet = new Set(this.allStatues.map((statue) => statue.id));
+    const selectedStatueIds = this.displayStatueIds.filter((id) =>
+      selectableStatueIdSet.has(id)
     );
 
     const modal = await this.modalCtrl.create({
       component: StatueSelectorComponent,
       componentProps: {
-        carvedStatues,
-        selectedStatueIds: selectedCarvedIds
+        carvedStatues: this.allStatues,
+        selectedStatueIds,
       }
     });
 
@@ -916,7 +899,7 @@ export class ProfileUserPage implements OnInit, OnDestroy {
       const nextDisplayIds = Array.isArray(data)
         ? data
             .map((id) => String(id ?? '').trim())
-            .filter((id): id is string => id.length > 0 && carvedStatueIdSet.has(id))
+            .filter((id): id is string => id.length > 0 && selectableStatueIdSet.has(id))
         : [];
 
       this.displayStatueIds = Array.from(new Set(nextDisplayIds));

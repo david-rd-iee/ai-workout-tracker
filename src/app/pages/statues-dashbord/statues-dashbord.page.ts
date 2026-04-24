@@ -11,6 +11,7 @@ import {
   onSnapshot,
   serverTimestamp,
   setDoc,
+  updateDoc,
   Timestamp,
   type DocumentData,
   type Unsubscribe,
@@ -28,6 +29,7 @@ type StageImageMap = Record<StatueLevel, string>;
 type TierMap = Record<StatueLevel, number>;
 
 type GreekStatueAdminDoc = {
+  docId: string;
   id: string;
   godName: string;
   title: string;
@@ -153,7 +155,7 @@ export class StatuesDashbordPage implements OnInit, OnDestroy {
   isEditorOpen = false;
   loadError = '';
   savingStatus = '';
-  deletingStatueId: string | null = null;
+  deletingDocId: string | null = null;
   formMode: 'create' | 'edit' = 'create';
   editingDocId: string | null = null;
   statues: GreekStatueAdminDoc[] = [];
@@ -177,7 +179,7 @@ export class StatuesDashbordPage implements OnInit, OnDestroy {
   }
 
   trackByStatueId(_index: number, statue: GreekStatueAdminDoc): string {
-    return statue.id;
+    return statue.docId;
   }
 
   startAddingStatue(): void {
@@ -191,7 +193,7 @@ export class StatuesDashbordPage implements OnInit, OnDestroy {
 
   editStatue(statue: GreekStatueAdminDoc): void {
     this.formMode = 'edit';
-    this.editingDocId = statue.id;
+    this.editingDocId = statue.docId;
     this.isEditorOpen = true;
     this.customIconFile = null;
     this.stageImageFiles = {};
@@ -256,11 +258,13 @@ export class StatuesDashbordPage implements OnInit, OnDestroy {
         payload['customIcon'] = customIcon;
       }
 
+      const targetRef = doc(this.firestore, this.collectionName, docId);
       if (this.formMode === 'create') {
         payload['createdAt'] = serverTimestamp();
+        await setDoc(targetRef, payload, { merge: true });
+      } else {
+        await updateDoc(targetRef, payload);
       }
-
-      await setDoc(doc(this.firestore, this.collectionName, docId), payload, { merge: true });
       await this.showToast(
         this.formMode === 'create'
           ? `Created ${payload['godName'] as string}.`
@@ -351,13 +355,13 @@ export class StatuesDashbordPage implements OnInit, OnDestroy {
   }
 
   private async deleteStatue(statue: GreekStatueAdminDoc): Promise<void> {
-    this.deletingStatueId = statue.id;
+    this.deletingDocId = statue.docId;
 
     try {
       await this.deleteGreekStatueAssets(statue);
-      await deleteDoc(doc(this.firestore, this.collectionName, statue.id));
+      await deleteDoc(doc(this.firestore, this.collectionName, statue.docId));
 
-      if (this.editingDocId === statue.id) {
+      if (this.editingDocId === statue.docId) {
         this.cancelEditing();
       }
 
@@ -366,7 +370,7 @@ export class StatuesDashbordPage implements OnInit, OnDestroy {
       console.error('[StatuesDashbordPage] Failed to delete Greek statue:', error);
       await this.showToast('We could not delete that statue. Please try again.');
     } finally {
-      this.deletingStatueId = null;
+      this.deletingDocId = null;
     }
   }
 
@@ -412,6 +416,7 @@ export class StatuesDashbordPage implements OnInit, OnDestroy {
 
   private normalizeGreekStatueDoc(docId: string, data: DocumentData): GreekStatueAdminDoc {
     return {
+      docId,
       id: this.readText(data['id']) || docId,
       godName: this.readText(data['godName']),
       title: this.readText(data['title']),
@@ -467,7 +472,9 @@ export class StatuesDashbordPage implements OnInit, OnDestroy {
     let candidate = generatedBaseId;
     let duplicateIndex = 2;
 
-    while (this.statues.some((statue) => statue.id === candidate)) {
+    while (
+      this.statues.some((statue) => statue.docId === candidate || statue.id === candidate)
+    ) {
       candidate = `${generatedBaseId}-${duplicateIndex}`;
       duplicateIndex += 1;
     }
