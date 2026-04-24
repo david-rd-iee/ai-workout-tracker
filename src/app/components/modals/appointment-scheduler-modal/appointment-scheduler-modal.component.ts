@@ -194,7 +194,15 @@ export class AppointmentSchedulerModalComponent implements OnInit {
 
   requestAvailableSlots(): string[] {
     return this.availabilitySignal()
-      .filter((slot) => !slot.booked && !!slot.time)
+      .filter((slot) => {
+        if (slot.booked || !slot.time) {
+          return false;
+        }
+        if (!this.isClientRequestMode()) {
+          return true;
+        }
+        return !this.isPastTimeForDate(this.toBookingDate(this.appointment.date), slot.time);
+      })
       .map((slot) => slot.time);
   }
 
@@ -266,8 +274,22 @@ export class AppointmentSchedulerModalComponent implements OnInit {
       const formattedTime = this.formatTimeSlot(this.appointment.time);
 
       if (this.isClientRequestMode()) {
+        if (this.isPastTimeForDate(formattedDate, formattedTime)) {
+          await this.showToast('You can only request same-day sessions at or after the current time.', 'warning');
+          return;
+        }
+
         const availableSlots = this.requestAvailableSlots();
-        if (!availableSlots.includes(formattedTime)) {
+        const requestedMinutes = this.parseTimeToMinutes(formattedTime);
+        const hasMatchingSlot = availableSlots.some((slot) => {
+          const slotMinutes = this.parseTimeToMinutes(this.formatTimeSlot(slot));
+          if (Number.isFinite(requestedMinutes) && Number.isFinite(slotMinutes)) {
+            return slotMinutes === requestedMinutes;
+          }
+          return this.formatTimeSlot(slot) === formattedTime;
+        });
+
+        if (!hasMatchingSlot) {
           await this.showToast('Please choose one of your trainer\'s available time slots.', 'warning');
           return;
         }
@@ -324,6 +346,73 @@ export class AppointmentSchedulerModalComponent implements OnInit {
           : 'Failed to schedule appointment. Please try again.';
       await this.showToast(message, 'danger');
     }
+  }
+
+  private isPastTimeForDate(date: string, time: string): boolean {
+    const normalizedDate = String(date || '').trim();
+    const normalizedTime = this.formatTimeSlot(String(time || '').trim());
+    if (!normalizedDate || !normalizedTime) {
+      return false;
+    }
+
+    const now = new Date();
+    const today = this.formatLocalDate(now);
+    if (normalizedDate !== today) {
+      return false;
+    }
+
+    const requestedMinutes = this.parseTimeToMinutes(normalizedTime);
+    if (!Number.isFinite(requestedMinutes)) {
+      return false;
+    }
+
+    const nowMinutes = now.getHours() * 60 + now.getMinutes();
+    return requestedMinutes < nowMinutes;
+  }
+
+  private formatLocalDate(date: Date): string {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  private parseTimeToMinutes(time: string): number {
+    const normalized = String(time || '').trim();
+    if (!normalized) {
+      return Number.NaN;
+    }
+
+    const amPmMatch = normalized.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+    if (amPmMatch) {
+      let hour = Number.parseInt(amPmMatch[1], 10);
+      const minute = Number.parseInt(amPmMatch[2], 10);
+      const period = amPmMatch[3].toUpperCase();
+
+      if (!Number.isFinite(hour) || !Number.isFinite(minute) || hour < 1 || hour > 12 || minute < 0 || minute > 59) {
+        return Number.NaN;
+      }
+
+      if (period === 'PM' && hour < 12) {
+        hour += 12;
+      } else if (period === 'AM' && hour === 12) {
+        hour = 0;
+      }
+
+      return hour * 60 + minute;
+    }
+
+    const twentyFourHourMatch = normalized.match(/^(\d{1,2}):(\d{2})$/);
+    if (twentyFourHourMatch) {
+      const hour = Number.parseInt(twentyFourHourMatch[1], 10);
+      const minute = Number.parseInt(twentyFourHourMatch[2], 10);
+      if (!Number.isFinite(hour) || !Number.isFinite(minute) || hour < 0 || hour > 23 || minute < 0 || minute > 59) {
+        return Number.NaN;
+      }
+      return hour * 60 + minute;
+    }
+
+    return Number.NaN;
   }
 
   private async showToast(message: string, color: string = 'primary') {
