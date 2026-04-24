@@ -49,7 +49,11 @@ export class NotificationService {
 
       this.setupPushListeners();
 
-      const result = await PushNotifications.checkPermissions();
+      let result = await PushNotifications.checkPermissions();
+      if (result.receive !== 'granted') {
+        result = await PushNotifications.requestPermissions();
+      }
+
       if (result.receive === 'granted') {
         await PushNotifications.register();
       }
