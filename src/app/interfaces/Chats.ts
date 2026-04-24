@@ -38,6 +38,7 @@ export interface Chat {
     groupId?: string;
     displayName?: string;
     groupImage?: string;
+    profilepic?: string;
     isGroupChat?: boolean;
     unreadByUser?: { [userId: string]: boolean };
     unreadCountByUser?: { [userId: string]: number };

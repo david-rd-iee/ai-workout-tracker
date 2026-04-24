@@ -74,9 +74,9 @@ service cloud.firestore {
         request.resource.data.unreadMessageCount >= 0;
 
       // Trainer-owned clients subcollection
-      match /clients/{clientId} {
-        // Trainer can manage all client relationship docs under their profile
-        allow read, write: if isOwner(userId);
+        match /clients/{clientId} {
+          // Trainer can manage all client relationship docs under their profile
+          allow read, write: if isOwner(userId);
 
         // Client can read their own relationship doc
         allow read: if isOwner(clientId);
@@ -87,11 +87,11 @@ service cloud.firestore {
           get(/databases/$(database)/documents/users/$(clientId)).data.trainerId == userId &&
           request.resource.data.clientId == request.auth.uid;
 
-        allow delete: if isOwner(clientId) &&
-          get(/databases/$(database)/documents/users/$(clientId)).data.trainerId == userId;
+          allow delete: if isOwner(clientId) &&
+            get(/databases/$(database)/documents/users/$(clientId)).data.trainerId == userId;
 
-        match /videoAnalysis/{analysisId} {
-          allow read: if isOwner(userId) || isOwner(clientId);
+          match /videoAnalysis/{analysisId} {
+            allow read: if isOwner(userId) || isOwner(clientId);
 
           allow create, update: if
             isOwner(userId) ||
@@ -99,13 +99,38 @@ service cloud.firestore {
               isOwner(clientId) &&
               isClientAssignedToTrainer(clientId, userId) &&
               request.resource.data.clientId == request.auth.uid &&
-              request.resource.data.trainerId == userId
-            );
+                request.resource.data.trainerId == userId
+              );
 
           allow delete: if
             isOwner(userId) ||
             (isOwner(clientId) && isClientAssignedToTrainer(clientId, userId));
         }
+      }
+
+      // Pending client-to-trainer connection requests shown on trainer home
+      match /clientRequests/{clientId} {
+        allow read: if isOwner(userId) || isOwner(clientId);
+        allow create, update, delete: if
+          isOwner(userId) ||
+          (
+            isOwner(clientId) &&
+            request.resource.data.clientId == request.auth.uid &&
+            request.resource.data.trainerId == userId
+          );
+      }
+
+      // Historical record of trainer/client removals for the trainer side
+      match /clientRemovalHistory/{removalId} {
+        allow read: if isOwner(userId);
+        allow create: if
+          isOwner(userId) ||
+          (
+            isSignedIn() &&
+            request.resource.data.clientId == request.auth.uid &&
+            request.resource.data.trainerId == userId
+          );
+        allow update, delete: if isOwner(userId);
       }
     }
     
@@ -146,6 +171,25 @@ service cloud.firestore {
          request.resource.data.firebaseUid == request.auth.uid &&
          request.resource.data.isPartialProfile == false)
       );
+
+      // Client-visible mirror of trainer connection request status
+      match /trainerRequests/{trainerId} {
+        allow read: if isOwner(userId) || isOwner(trainerId);
+        allow create, update, delete: if isOwner(userId) || isOwner(trainerId);
+      }
+
+      // Historical record of trainer/client removals for the client side
+      match /trainerRemovalHistory/{removalId} {
+        allow read: if isOwner(userId);
+        allow create: if
+          isOwner(userId) ||
+          (
+            isSignedIn() &&
+            request.resource.data.trainerId == request.auth.uid &&
+            request.resource.data.clientId == userId
+          );
+        allow update, delete: if isOwner(userId);
+      }
     }
     
     // Agreement templates
@@ -180,8 +224,10 @@ service cloud.firestore {
     
     // Users collection for Stripe Connect accounts
     match /users/{userId} {
-      // Users can read, write and delete their own documents
-      allow read, write, delete: if isOwner(userId);
+      // App-wide user summary records are used to resolve names/photos/trainer links
+      // across chats, client details, profile views, and reviewer tooling.
+      allow read: if isSignedIn();
+      allow write, delete: if isOwner(userId);
 
       match /notifications/{notificationId} {
         allow read, update, delete: if isOwner(userId);
@@ -437,7 +483,33 @@ service cloud.firestore {
       // Only admins can write (handled through Firebase Console)
       allow write: if false;
     }
-    
+
+    // Greek statues reference data used across profile and badges screens
+    match /GreekStatues/{statueId} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+
+    // Exercise estimator metadata and seeded reference docs
+    match /systemConfig/{docId} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+
+    match /exercise_estimators/{document=**} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+
+    // Client workout plans and scheduled workouts
+    match /clientWorkouts/{clientId} {
+      allow read, write: if isOwner(clientId);
+
+      match /workouts/{workoutId} {
+        allow read, write: if isOwner(clientId);
+      }
+    }
+
     // User stats collection (for leaderboards and progress tracking)
     match /userStats/{userId} {
       // Dev-friendly: any logged-in user can read any userStats doc

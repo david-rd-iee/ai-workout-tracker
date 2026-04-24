@@ -74,6 +74,30 @@ h2.atlas-title {
   z-index: 3;
 }
 
+.notification-button {
+  overflow: visible;
+}
+
+.notification-badge {
+  position: absolute;
+  top: 4px;
+  right: 2px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #2563eb;
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1;
+  box-shadow: 0 4px 10px rgba(37, 99, 235, 0.25);
+  z-index: 4;
+}
+
 .profile-button {
   --background: transparent;
   --background-focused: transparent;

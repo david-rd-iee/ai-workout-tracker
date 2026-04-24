@@ -21,6 +21,7 @@ import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { AccountService } from '../../services/account/account.service';
 import { ProfileRepositoryService } from '../../services/account/profile-repository.service';
 import { UserService } from '../../services/account/user.service';
+import { NotificationService } from '../../services/notification.service';
 import { HeaderComponent } from '../../components/header/header.component';
 import { environment } from '../../../environments/environment';
 
@@ -53,6 +54,7 @@ export class ProfileSettingsPage implements OnInit {
   private accountService = inject(AccountService);
   private profileRepository = inject(ProfileRepositoryService);
   private userService = inject(UserService);
+  readonly notificationService = inject(NotificationService);
 
   firstName = '';
   lastName = '';

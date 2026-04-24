@@ -62,6 +62,20 @@
         >
           <ion-icon slot="icon-only" [name]="endActionIconName"></ion-icon>
         </ion-button>
+
+        <ion-button
+          (click)="goToNotifications()"
+          *ngIf="showNotificationsButton"
+          fill="clear"
+          class="header-button notification-button"
+          slot="end"
+          aria-label="Open notifications"
+        >
+          <ion-icon slot="icon-only" name="notifications-outline"></ion-icon>
+          <span class="notification-badge" *ngIf="notificationService.unreadCount() > 0">
+            {{ notificationService.unreadCount() > 99 ? '99+' : notificationService.unreadCount() }}
+          </span>
+        </ion-button>
         
         <ion-title *ngIf="!hideTitle"><h2 [class.atlas-title]="title === 'ATLAS'">{{title}}</h2></ion-title>
         
@@ -69,7 +83,7 @@
         <div
           class="button-space"
           [class.button-space-profile-large]="!showBack"
-          *ngIf="!showEndActionButton && (!showBack || (showBack && !showProfileButtonWithBack))"
+          *ngIf="!showEndActionButton && !showNotificationsButton && (!showBack || (showBack && !showProfileButtonWithBack))"
           slot="end"
         ></div>
     </ion-toolbar>

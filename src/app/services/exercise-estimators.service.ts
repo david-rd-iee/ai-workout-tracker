@@ -262,6 +262,11 @@ export class ExerciseEstimatorsService {
   ensureInitialized(): Promise<void> {
     if (!this.initPromise) {
       this.initPromise = this.seedMissingEstimatorDocs()
+        .catch((error) => {
+          if (!this.isPermissionDeniedError(error)) {
+            throw error;
+          }
+        })
         .then(() => this.listEstimatorIds())
         .then(() => undefined);
     }
@@ -325,18 +330,24 @@ export class ExerciseEstimatorsService {
   }
 
   private async seedMissingEstimatorDocs(): Promise<void> {
-    const migratedStrengthIds = await this.migrateLegacyStrengthEstimators();
-    const seededStrengthIds = await this.seedEstimatorCategory(
-      EXERCISE_ESTIMATOR_STRENGTH_CATEGORY,
-      DEFAULT_EXERCISE_ESTIMATORS
-    );
-    await this.seedEstimatorCategory(
-      EXERCISE_ESTIMATOR_CARDIO_CATEGORY,
-      DEFAULT_CARDIO_EXERCISE_ESTIMATORS
-    );
+    try {
+      const migratedStrengthIds = await this.migrateLegacyStrengthEstimators();
+      const seededStrengthIds = await this.seedEstimatorCategory(
+        EXERCISE_ESTIMATOR_STRENGTH_CATEGORY,
+        DEFAULT_EXERCISE_ESTIMATORS
+      );
+      await this.seedEstimatorCategory(
+        EXERCISE_ESTIMATOR_CARDIO_CATEGORY,
+        DEFAULT_CARDIO_EXERCISE_ESTIMATORS
+      );
 
-    await this.upsertEstimatorIdsIndex([...migratedStrengthIds, ...seededStrengthIds]);
-    this.estimatorIdsCache = null;
+      await this.upsertEstimatorIdsIndex([...migratedStrengthIds, ...seededStrengthIds]);
+      this.estimatorIdsCache = null;
+    } catch (error) {
+      if (!this.isPermissionDeniedError(error)) {
+        throw error;
+      }
+    }
   }
 
   private async seedEstimatorCategory(
@@ -447,7 +458,13 @@ export class ExerciseEstimatorsService {
       )
     );
     const ids = snapshot.docs.map((entry) => entry.id).sort((a, b) => a.localeCompare(b));
-    await this.upsertEstimatorIdsIndex(ids);
+    try {
+      await this.upsertEstimatorIdsIndex(ids);
+    } catch (error) {
+      if (!this.isPermissionDeniedError(error)) {
+        throw error;
+      }
+    }
     return ids;
   }
 
@@ -513,6 +530,12 @@ export class ExerciseEstimatorsService {
     this.estimatorIdsCache = [...this.estimatorIdsCache, normalizedId].sort((a, b) =>
       a.localeCompare(b)
     );
+  }
+
+  private isPermissionDeniedError(error: unknown): boolean {
+    const code = String((error as { code?: unknown } | null)?.code || '').trim().toLowerCase();
+    const message = String((error as { message?: unknown } | null)?.message || '').toLowerCase();
+    return code === 'permission-denied' || message.includes('insufficient permissions');
   }
 
   private toCoefficientMap(coefficients: unknown): ExerciseEstimatorCoefficientMap | null {

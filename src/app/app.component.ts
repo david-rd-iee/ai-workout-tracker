@@ -67,11 +67,13 @@ export class AppComponent implements OnInit, OnDestroy {
   private async handleAuthState() {
     const uid = (this.accountService.getCredentials()().uid || '').trim();
     if (!uid) {
+      this.notificationService.stopInAppNotifications();
       this.loadedProfileUid = null;
       return;
     }
 
     this.initializeExerciseEstimatorsAfterLogin();
+    this.notificationService.startInAppNotifications(uid);
     void this.notificationService.initPushNotifications();
 
     if (this.loadedProfileUid === uid) {

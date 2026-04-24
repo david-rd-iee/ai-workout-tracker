@@ -528,7 +528,9 @@ export class ChatsService {
         const otherUserId = participants.find((id: string) => id !== userId);
         if (otherUserId) {
           const otherUserType = userType === 'trainer' ? 'client' : 'trainer';
+          chatData.displayName = chatData.displayName || 'User';
           chatData.userProfile = this.getUserProfileSignal(otherUserId, otherUserType);
+          void this.hydrateDirectChatMetadata(chatId, otherUserId, otherUserType);
         }
       }
 
@@ -586,6 +588,55 @@ export class ChatsService {
       return bTime - aTime;
     });
     this.chatsSubject.next(chats);
+  }
+
+  private async hydrateDirectChatMetadata(
+    chatId: string,
+    otherUserId: string,
+    preferredAccountType: 'trainer' | 'client'
+  ): Promise<void> {
+    const normalizedChatId = this.normalizeString(chatId);
+    const normalizedOtherUserId = this.normalizeString(otherUserId);
+    if (!normalizedChatId || !normalizedOtherUserId) {
+      return;
+    }
+
+    try {
+      const preferredProfile = await this.userService.getUserProfileDirectly(
+        normalizedOtherUserId,
+        preferredAccountType
+      );
+      const resolvedProfile =
+        preferredProfile ??
+        await this.userService.getUserProfileDirectly(
+          normalizedOtherUserId,
+          preferredAccountType === 'trainer' ? 'client' : 'trainer'
+        );
+
+      const cachedChat = this.chatCache.get(normalizedChatId);
+      if (!cachedChat || cachedChat.isGroupChat) {
+        return;
+      }
+
+      const fullName = `${String(resolvedProfile?.firstName || '').trim()} ${String(
+        resolvedProfile?.lastName || ''
+      ).trim()}`.trim();
+      const profilepic = String(
+        resolvedProfile?.profilepic ||
+        ''
+      ).trim();
+
+      const nextChat: Chat = {
+        ...cachedChat,
+        displayName: fullName || cachedChat.displayName || 'User',
+        profilepic: profilepic || cachedChat.profilepic || '',
+      };
+
+      this.chatCache.set(normalizedChatId, nextChat);
+      this.emitChats();
+    } catch (error) {
+      console.warn('[ChatsService] Failed to hydrate direct chat metadata:', normalizedChatId, error);
+    }
   }
 
   private teardownListeners(): void {

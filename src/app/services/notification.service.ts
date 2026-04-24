@@ -1,4 +1,4 @@
-import { Injectable, inject } from '@angular/core';
+import { Injectable, inject, signal } from '@angular/core';
 import {
   Firestore,
   addDoc,
@@ -14,6 +14,8 @@ import {
   updateDoc,
 } from '@angular/fire/firestore';
 import { Functions, httpsCallable, getFunctions } from '@angular/fire/functions';
+import { Router } from '@angular/router';
+import { ToastController } from '@ionic/angular';
 import { UserService } from './account/user.service';
 import { Capacitor } from '@capacitor/core';
 import { PushNotifications } from './push-notifications.plugin';
@@ -35,7 +37,14 @@ export class NotificationService {
   private readonly CLIENTS_COLLECTION = 'clients';
   private firestore: Firestore = inject(Firestore);
   private functions: Functions = inject(Functions);
+  private toastController = inject(ToastController);
+  private router = inject(Router);
   private listenersConfigured = false;
+  readonly unreadCount = signal(0);
+  private notificationFeedUnsubscribe: (() => void) | null = null;
+  private activeNotificationFeedUserId = '';
+  private hasLoadedNotificationFeed = false;
+  private knownNotificationIds = new Set<string>();
   
   constructor(private userService: UserService) {}
   /**
@@ -88,6 +97,80 @@ export class NotificationService {
     PushNotifications.addListener('pushNotificationActionPerformed', (notification: any) => {
       void notification;
     });
+  }
+
+  startInAppNotifications(userId: string): void {
+    const normalizedUserId = String(userId || '').trim();
+    if (!normalizedUserId) {
+      this.stopInAppNotifications();
+      return;
+    }
+
+    if (
+      this.notificationFeedUnsubscribe &&
+      this.activeNotificationFeedUserId === normalizedUserId
+    ) {
+      return;
+    }
+
+    this.stopInAppNotifications();
+    this.activeNotificationFeedUserId = normalizedUserId;
+
+    const notificationsQuery = query(
+      collection(this.firestore, `users/${normalizedUserId}/notifications`),
+      orderBy('createdAt', 'desc')
+    );
+
+    this.notificationFeedUnsubscribe = onSnapshot(notificationsQuery, (snapshot) => {
+      const visibleNotifications = snapshot.docs
+        .map((notificationDoc) => this.mapNotification(notificationDoc))
+        .filter((notification) => notification.data?.['silent'] !== true);
+
+      this.unreadCount.set(
+        visibleNotifications.filter((notification) => !notification.read).length
+      );
+
+      if (!this.hasLoadedNotificationFeed) {
+        this.knownNotificationIds = new Set(visibleNotifications.map((notification) => notification.id));
+        this.hasLoadedNotificationFeed = true;
+        return;
+      }
+
+      snapshot.docChanges().forEach((change) => {
+        const notification = this.mapNotification(change.doc);
+        const isSilent = notification.data?.['silent'] === true;
+
+        if (change.type === 'removed') {
+          this.knownNotificationIds.delete(notification.id);
+          return;
+        }
+
+        if (change.type === 'modified') {
+          this.knownNotificationIds.add(notification.id);
+          return;
+        }
+
+        if (isSilent || this.knownNotificationIds.has(notification.id)) {
+          this.knownNotificationIds.add(notification.id);
+          return;
+        }
+
+        this.knownNotificationIds.add(notification.id);
+
+        if (!notification.read && !this.router.url.startsWith('/notifications')) {
+          void this.presentInAppToast(notification);
+        }
+      });
+    });
+  }
+
+  stopInAppNotifications(): void {
+    this.notificationFeedUnsubscribe?.();
+    this.notificationFeedUnsubscribe = null;
+    this.activeNotificationFeedUserId = '';
+    this.hasLoadedNotificationFeed = false;
+    this.knownNotificationIds.clear();
+    this.unreadCount.set(0);
   }
 
   observeNotifications(
@@ -305,6 +388,67 @@ export class NotificationService {
     return Capacitor.isNativePlatform() &&
       Capacitor.isPluginAvailable('PushNotifications') &&
       !!PushNotifications;
+  }
+
+  private async presentInAppToast(notification: AppNotification): Promise<void> {
+    if (this.shouldSuppressToast(notification)) {
+      return;
+    }
+
+    const toast = await this.toastController.create({
+      header: notification.title,
+      message: notification.body,
+      duration: 4500,
+      position: 'top',
+      buttons: [
+        {
+          text: 'View',
+          handler: () => {
+            void this.navigateFromNotification(notification);
+          },
+        },
+      ],
+    });
+
+    await toast.present();
+  }
+
+  private shouldSuppressToast(notification: AppNotification): boolean {
+    const type = String(notification.data?.['type'] || '').trim();
+    const chatId = String(notification.data?.['chatId'] || '').trim();
+    const currentUrl = this.router.url;
+
+    if (currentUrl.startsWith('/notifications')) {
+      return true;
+    }
+
+    if (type === 'chat' && chatId && currentUrl.startsWith(`/chat/${chatId}`)) {
+      return true;
+    }
+
+    return false;
+  }
+
+  private async navigateFromNotification(notification: AppNotification): Promise<void> {
+    const type = String(notification.data?.['type'] || '').trim();
+    const chatId = String(notification.data?.['chatId'] || '').trim();
+
+    if (type === 'chat' && chatId) {
+      await this.router.navigate(['/chat', chatId]);
+      return;
+    }
+
+    if (type === 'agreement') {
+      await this.router.navigate(['/service-agreements']);
+      return;
+    }
+
+    if (type === 'trainer_approval') {
+      await this.router.navigate(['/trainer-approval-admin']);
+      return;
+    }
+
+    await this.router.navigate(['/notifications']);
   }
 
   private mapNotification(notificationDoc: any): AppNotification {
