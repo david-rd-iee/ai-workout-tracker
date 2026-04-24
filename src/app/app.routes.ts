@@ -227,6 +227,14 @@ export const routes: Routes = [
     canActivate: [authGuard],
   },
   {
+    path: 'client-payments',
+    loadComponent: () =>
+      import('./pages/client-payments/client-payments.page').then(
+        (m) => m.ClientPaymentsPage
+      ),
+    canActivate: [authGuard],
+  },
+  {
     path: 'notifications',
     loadComponent: () =>
       import('./pages/notifications/notifications.page').then(
