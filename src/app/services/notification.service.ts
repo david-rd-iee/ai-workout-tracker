@@ -448,6 +448,15 @@ export class NotificationService {
       return;
     }
 
+    if (type === 'trainer_workout_assigned') {
+      await this.router.navigate(['/client-payments'], {
+        queryParams: {
+          panel: 'workouts',
+        },
+      });
+      return;
+    }
+
     await this.router.navigate(['/notifications']);
   }
 

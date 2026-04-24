@@ -578,10 +578,10 @@ service cloud.firestore {
 
     // Client workout plans and scheduled workouts
     match /clientWorkouts/{clientId} {
-      allow read, write: if isOwner(clientId);
+      allow read, write: if isOwner(clientId) || isClientAssignedToTrainer(clientId, request.auth.uid);
 
       match /workouts/{workoutId} {
-        allow read, write: if isOwner(clientId);
+        allow read, write: if isOwner(clientId) || isClientAssignedToTrainer(clientId, request.auth.uid);
       }
     }
 

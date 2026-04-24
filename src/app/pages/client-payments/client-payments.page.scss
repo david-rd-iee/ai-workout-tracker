@@ -73,6 +73,13 @@ $atlas-blue: #2e6ef5;
   }
 }
 
+.hero-actions {
+  margin-top: 14px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 .plans-card {
   --background: transparent;
   background: transparent;
@@ -147,6 +154,108 @@ $atlas-blue: #2e6ef5;
     font-size: 0.78rem;
     text-transform: uppercase;
     letter-spacing: 0.08em;
+  }
+}
+
+.dashboard-section {
+  @include neo-inset(20px);
+  padding: 12px;
+  display: grid;
+  gap: 10px;
+}
+
+.workouts-section-highlight {
+  border: 1px solid rgba(46, 110, 245, 0.26);
+  box-shadow:
+    inset 7px 7px 12px -10px rgba(184, 196, 214, 0.9),
+    inset -7px -7px 12px -10px rgba(249, 252, 255, 0.95),
+    0 0 0 2px rgba(46, 110, 245, 0.08);
+}
+
+.section-copy {
+  h3 {
+    margin: 0;
+    color: $atlas-text;
+    font-size: 0.98rem;
+    font-weight: 680;
+  }
+
+  p {
+    margin: 5px 0 0;
+    color: $atlas-muted;
+    font-size: 0.82rem;
+    line-height: 1.4;
+  }
+}
+
+.section-loading {
+  margin-top: 2px;
+}
+
+.workout-list {
+  display: grid;
+  gap: 10px;
+}
+
+.workout-item {
+  @include neo-raised(16px);
+  padding: 11px;
+  display: grid;
+  gap: 8px;
+}
+
+.workout-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+
+  h4 {
+    margin: 0;
+    color: $atlas-text;
+    font-size: 0.9rem;
+    font-weight: 680;
+  }
+}
+
+.status-chip {
+  @include neo-raised(999px);
+  padding: 5px 10px;
+  color: #2e5fbf;
+  font-size: 0.67rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.status-chip-complete {
+  color: #2e6b46;
+}
+
+.workout-notes {
+  margin: 0;
+  color: $atlas-muted;
+  font-size: 0.8rem;
+  line-height: 1.42;
+}
+
+.workout-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  color: $atlas-muted;
+  font-size: 0.74rem;
+
+  span {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  ion-icon {
+    color: $atlas-blue;
+    font-size: 0.85rem;
   }
 }
 
@@ -233,12 +342,6 @@ $atlas-blue: #2e6ef5;
   }
 }
 
-.action-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
 .primary-action,
 .secondary-action {
   min-height: 42px;
@@ -308,5 +411,14 @@ $atlas-blue: #2e6ef5;
   .plan-top {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .hero-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .primary-action {
+    width: 100%;
   }
 }

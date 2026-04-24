@@ -12,10 +12,36 @@ import { HomeCustomizationModalComponent } from 'src/app/components/modals/home-
 import { AgreementModalComponent } from 'src/app/components/agreements/agreement-modal/agreement-modal.component';
 import { HeaderComponent } from 'src/app/components/header/header.component';
 import { Auth } from '@angular/fire/auth';
-import { Firestore, collection, doc, getDoc, getDocs, query, setDoc, where } from '@angular/fire/firestore';
+import {
+  Firestore,
+  addDoc,
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  query,
+  serverTimestamp,
+  setDoc,
+  where
+} from '@angular/fire/firestore';
+import { NotificationService } from '../../services/notification.service';
 
 type VerifyFieldKey = 'heightMeters' | 'weightKg' | 'age';
 type VerifyChoice = 'true' | 'false' | null;
+
+interface TrainerWorkoutExerciseDraft {
+  name?: string;
+  sets?: number;
+  reps?: string;
+  weight?: string;
+  notes?: string;
+}
+
+interface TrainerWorkoutDraft {
+  name?: string;
+  description?: string;
+  exercises?: TrainerWorkoutExerciseDraft[];
+}
 
 @Component({
   selector: 'app-client-details',
@@ -57,6 +83,7 @@ export class ClientDetailsPage implements OnInit {
   private toastController = inject(ToastController);
   private auth = inject(Auth);
   private firestore = inject(Firestore);
+  private notificationService = inject(NotificationService);
 
   client: any = null;
   selectedTab: string = 'sessions';
@@ -199,7 +226,107 @@ export class ClientDetailsPage implements OnInit {
 
     await modal.present();
 
-    await modal.onWillDismiss();
+    const { data } = await modal.onWillDismiss();
+    if (!data) {
+      return;
+    }
+
+    await this.sendWorkoutToClient(data as TrainerWorkoutDraft);
+  }
+
+  private async sendWorkoutToClient(workoutDraft: TrainerWorkoutDraft): Promise<void> {
+    const clientId = String(this.client?.id || '').trim();
+    if (!clientId) {
+      await this.showToast('Missing client information for workout assignment.', 'warning');
+      return;
+    }
+
+    const trainerId = String(this.auth.currentUser?.uid || '').trim();
+    if (!trainerId) {
+      await this.showToast('Please log in to send workouts.', 'warning');
+      return;
+    }
+
+    const title = String(workoutDraft?.name || '').trim();
+    const notes = String(workoutDraft?.description || '').trim();
+    const exercises = (Array.isArray(workoutDraft?.exercises) ? workoutDraft.exercises : [])
+      .map((exercise) => ({
+        name: String(exercise?.name || '').trim(),
+        sets: Math.max(0, Number(exercise?.sets || 0) || 0),
+        reps: String(exercise?.reps || '').trim(),
+        weight: String(exercise?.weight || '').trim(),
+        notes: String(exercise?.notes || '').trim(),
+      }))
+      .filter((exercise) => !!exercise.name);
+
+    if (!title || exercises.length === 0) {
+      await this.showToast('Workout needs a title and at least one named exercise.', 'warning');
+      return;
+    }
+
+    const totalSets = exercises.reduce((sum, exercise) => sum + (exercise.sets || 0), 0);
+    const estimatedDuration = Math.max(15, Math.ceil(totalSets * 3.5));
+    const trainerName = await this.resolveTrainerDisplayName(trainerId);
+    const scheduledDate = new Date(Date.now() + (24 * 60 * 60 * 1000));
+
+    try {
+      const workoutDocRef = await addDoc(
+        collection(this.firestore, `clientWorkouts/${clientId}/workouts`),
+        {
+          title,
+          type: 'Trainer Plan',
+          duration: estimatedDuration,
+          exercises,
+          notes,
+          clientId,
+          trainerId,
+          trainerName,
+          isComplete: false,
+          scheduledDate,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        }
+      );
+
+      await this.notificationService.sendNotification(
+        clientId,
+        'New workout assigned',
+        `${trainerName} sent "${title}" to your Trainer Dashboard.`,
+        {
+          type: 'trainer_workout_assigned',
+          workoutId: workoutDocRef.id,
+          trainerId,
+          clientId,
+        }
+      );
+
+      await this.showToast('Workout sent to client dashboard.', 'success');
+    } catch (error) {
+      console.error('Failed to send workout to client:', error);
+      await this.showToast('Unable to send workout right now. Please try again.', 'danger');
+    }
+  }
+
+  private async resolveTrainerDisplayName(trainerId: string): Promise<string> {
+    try {
+      const [userDoc, trainerDoc] = await Promise.all([
+        getDoc(doc(this.firestore, 'users', trainerId)),
+        getDoc(doc(this.firestore, 'trainers', trainerId)),
+      ]);
+
+      const userData = userDoc.exists() ? userDoc.data() as Record<string, unknown> : {};
+      const trainerData = trainerDoc.exists() ? trainerDoc.data() as Record<string, unknown> : {};
+      const firstName = String(userData['firstName'] || trainerData['firstName'] || '').trim();
+      const lastName = String(userData['lastName'] || trainerData['lastName'] || '').trim();
+      const fullName = `${firstName} ${lastName}`.trim();
+      if (fullName) {
+        return fullName;
+      }
+    } catch (error) {
+      console.error('Unable to resolve trainer display name:', error);
+    }
+
+    return 'Your trainer';
   }
 
   async sendAgreement() {

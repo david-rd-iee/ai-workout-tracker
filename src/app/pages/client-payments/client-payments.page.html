@@ -1,5 +1,5 @@
 <app-header
-  [title]="'Pay Trainer'"
+  [title]="'Trainer Dashboard'"
   [hideTitle]="true"
   [transparent]="true"
   [neoBlend]="true"
@@ -12,8 +12,39 @@
 
   <div class="client-payments-page">
     <section class="hero-shell">
-      <h1>Trainer Payments</h1>
-      <p>Choose a coaching plan and continue to secure checkout.</p>
+      <h1>Trainer Dashboard</h1>
+      <p>View workouts your trainer sends, message them directly, and manage plan billing.</p>
+
+      <div class="hero-actions">
+        <ion-button
+          *ngIf="paymentContext"
+          class="primary-action"
+          [disabled]="isOpeningChat"
+          (click)="openTrainerChat()"
+        >
+          <ion-spinner
+            *ngIf="isOpeningChat"
+            slot="start"
+            name="crescent"
+          ></ion-spinner>
+          <ion-icon
+            *ngIf="!isOpeningChat"
+            slot="start"
+            name="chatbubbles-outline"
+          ></ion-icon>
+          Message Trainer
+        </ion-button>
+
+        <ion-button
+          class="secondary-action"
+          fill="outline"
+          [disabled]="isStartingCheckout || isOpeningChat"
+          (click)="refresh()"
+        >
+          <ion-icon slot="start" name="refresh-outline"></ion-icon>
+          Refresh
+        </ion-button>
+      </div>
     </section>
 
     <ion-card class="plans-card">
@@ -35,61 +66,99 @@
             </div>
           </div>
 
-          <div class="plan-list" *ngIf="paymentContext?.plans?.length; else noPlans">
-            <div class="plan-item" *ngFor="let plan of paymentContext?.plans">
-              <div class="plan-top">
-                <div>
-                  <h3>{{ plan.title }}</h3>
-                  <p>{{ plan.description }}</p>
+          <section
+            class="dashboard-section workouts-section"
+            [class.workouts-section-highlight]="highlightWorkoutsSection"
+          >
+            <div class="section-copy">
+              <h3>Assigned Workouts</h3>
+              <p>New trainer workouts land here.</p>
+            </div>
+
+            <div class="loading-shell section-loading" *ngIf="isLoadingWorkouts">
+              <ion-spinner name="crescent"></ion-spinner>
+              <span>Loading workouts...</span>
+            </div>
+
+            <div class="workout-list" *ngIf="!isLoadingWorkouts && assignedWorkouts.length > 0">
+              <article class="workout-item" *ngFor="let workout of assignedWorkouts">
+                <div class="workout-top">
+                  <h4>{{ workout.title }}</h4>
+                  <span class="status-chip" [class.status-chip-complete]="workout.isComplete">
+                    {{ workout.isComplete ? 'Complete' : 'Assigned' }}
+                  </span>
                 </div>
-                <div class="price-chip">${{ formatPrice(plan.priceCents) }}</div>
-              </div>
-
-              <div class="plan-meta">
-                <span class="billing-chip">{{ formatBillingType(plan.billingType) }}</span>
-                <span class="billing-note">
-                  {{ isRecurringType(plan.billingType) ? 'Recurring' : 'One-time' }}
-                </span>
-              </div>
-
-              <ion-button
-                class="primary-action"
-                [disabled]="isStartingCheckout"
-                (click)="startCheckout(plan)"
-              >
-                <ion-spinner
-                  *ngIf="isStartingCheckout && activePlanId === plan.planId"
-                  slot="start"
-                  name="crescent"
-                ></ion-spinner>
-                <ion-icon
-                  *ngIf="!(isStartingCheckout && activePlanId === plan.planId)"
-                  slot="start"
-                  name="cash-outline"
-                ></ion-icon>
-                {{ checkoutButtonLabel(plan.billingType) }}
-              </ion-button>
+                <p class="workout-notes" *ngIf="workout.notes">{{ workout.notes }}</p>
+                <div class="workout-meta">
+                  <span>
+                    <ion-icon name="fitness-outline"></ion-icon>
+                    {{ workout.exerciseCount }} exercises
+                  </span>
+                  <span *ngIf="workout.durationMinutes > 0">
+                    <ion-icon name="time-outline"></ion-icon>
+                    {{ workout.durationMinutes }} min
+                  </span>
+                  <span>{{ workout.assignedAtLabel }}</span>
+                </div>
+              </article>
             </div>
-          </div>
 
-          <ng-template #noPlans>
-            <div class="empty-shell">
+            <div class="empty-shell" *ngIf="!isLoadingWorkouts && assignedWorkouts.length === 0">
               <ion-icon name="close-circle-outline"></ion-icon>
-              <p>No active plans are available from your trainer yet.</p>
+              <p>No workouts have been sent by your trainer yet.</p>
             </div>
-          </ng-template>
+          </section>
 
-          <div class="action-row">
-            <ion-button
-              class="secondary-action"
-              fill="outline"
-              [disabled]="isStartingCheckout"
-              (click)="refresh()"
-            >
-              <ion-icon slot="start" name="refresh-outline"></ion-icon>
-              Refresh
-            </ion-button>
-          </div>
+          <section class="dashboard-section">
+            <div class="section-copy">
+              <h3>Billing Plans</h3>
+              <p>Choose a payment option from your assigned trainer.</p>
+            </div>
+
+            <div class="plan-list" *ngIf="paymentContext?.plans?.length; else noPlans">
+              <div class="plan-item" *ngFor="let plan of paymentContext?.plans">
+                <div class="plan-top">
+                  <div>
+                    <h3>{{ plan.title }}</h3>
+                    <p>{{ plan.description }}</p>
+                  </div>
+                  <div class="price-chip">${{ formatPrice(plan.priceCents) }}</div>
+                </div>
+
+                <div class="plan-meta">
+                  <span class="billing-chip">{{ formatBillingType(plan.billingType) }}</span>
+                  <span class="billing-note">
+                    {{ isRecurringType(plan.billingType) ? 'Recurring' : 'One-time' }}
+                  </span>
+                </div>
+
+                <ion-button
+                  class="primary-action"
+                  [disabled]="isStartingCheckout"
+                  (click)="startCheckout(plan)"
+                >
+                  <ion-spinner
+                    *ngIf="isStartingCheckout && activePlanId === plan.planId"
+                    slot="start"
+                    name="crescent"
+                  ></ion-spinner>
+                  <ion-icon
+                    *ngIf="!(isStartingCheckout && activePlanId === plan.planId)"
+                    slot="start"
+                    name="cash-outline"
+                  ></ion-icon>
+                  {{ checkoutButtonLabel(plan.billingType) }}
+                </ion-button>
+              </div>
+            </div>
+
+            <ng-template #noPlans>
+              <div class="empty-shell">
+                <ion-icon name="close-circle-outline"></ion-icon>
+                <p>No active plans are available from your trainer yet.</p>
+              </div>
+            </ng-template>
+          </section>
         </ng-container>
       </ion-card-content>
     </ion-card>

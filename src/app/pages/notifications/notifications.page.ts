@@ -105,6 +105,15 @@ export class NotificationsPage implements OnInit, OnDestroy {
 
     if (type === 'trainer_approval') {
       await this.router.navigate(['/trainer-approval-admin']);
+      return;
+    }
+
+    if (type === 'trainer_workout_assigned') {
+      await this.router.navigate(['/client-payments'], {
+        queryParams: {
+          panel: 'workouts',
+        },
+      });
     }
   }
 
