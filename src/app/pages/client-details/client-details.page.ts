@@ -5,13 +5,14 @@ import { IonContent, IonCard, IonCardContent, IonCardHeader, IonCardTitle, IonBu
 import { NavController } from '@ionic/angular';
 import { FormsModule } from '@angular/forms';
 import { addIcons } from 'ionicons';
-import { calendar, personCircle, fitness, card, createOutline, trophy, chatbubbles, barbell, heart, body, checkmarkCircle, flag, walk } from 'ionicons/icons';
+import { calendar, personCircle, fitness, card, createOutline, trophy, chatbubbles, checkmarkCircle, flag, walk, documentTextOutline } from 'ionicons/icons';
 import { WorkoutBuilderModalComponent } from 'src/app/components/modals/workout-builder-modal/workout-builder-modal.component';
 import { AppointmentSchedulerModalComponent } from 'src/app/components/modals/appointment-scheduler-modal/appointment-scheduler-modal.component';
 import { HomeCustomizationModalComponent } from 'src/app/components/modals/home-customization-modal/home-customization-modal.component';
+import { AgreementModalComponent } from 'src/app/components/agreements/agreement-modal/agreement-modal.component';
 import { HeaderComponent } from 'src/app/components/header/header.component';
 import { Auth } from '@angular/fire/auth';
-import { Firestore, doc, getDoc, setDoc } from '@angular/fire/firestore';
+import { Firestore, collection, doc, getDoc, getDocs, query, setDoc, where } from '@angular/fire/firestore';
 
 type VerifyFieldKey = 'heightMeters' | 'weightKg' | 'age';
 type VerifyChoice = 'true' | 'false' | null;
@@ -58,19 +59,12 @@ export class ClientDetailsPage implements OnInit {
   private firestore = inject(Firestore);
 
   client: any = null;
-  selectedTab: string = 'overview';
+  selectedTab: string = 'sessions';
 
   // Overview stats
   currentStreak: number = 0;
   paymentStatus: string = 'N/A';
 
-  // Progress tracking data
-  strengthProgress: number = 0;
-  cardioProgress: number = 0;
-  bodyProgress: number = 0;
-
-  activeGoals: any[] = [];
-  personalRecords: any[] = [];
   recentActivity: any[] = [];
 
   // Appointments and payments
@@ -99,7 +93,7 @@ export class ClientDetailsPage implements OnInit {
   };
 
   constructor() {
-    addIcons({ calendar, personCircle, fitness, card, createOutline, trophy, chatbubbles, barbell, heart, body, checkmarkCircle, flag, walk });
+    addIcons({ calendar, personCircle, fitness, card, createOutline, trophy, chatbubbles, checkmarkCircle, flag, walk, documentTextOutline });
 
     // Get client data from navigation state
     const navigation = this.router.getCurrentNavigation();
@@ -117,13 +111,7 @@ export class ClientDetailsPage implements OnInit {
       }
     }
 
-    // TODO: Load real data from Firebase
-    // - Client stats (currentStreak, paymentStatus)
-    // - Progress metrics (strengthProgress, cardioProgress, bodyProgress)
-    // - Active goals and personal records
-    // - Upcoming and past appointments from bookings collection
-    // - Payment history from payments/transactions collection
-    // - Recent activity feed
+    void this.loadClientDetailsData();
   }
 
   segmentChanged(event: any) {
@@ -220,6 +208,29 @@ export class ClientDetailsPage implements OnInit {
     if (data) {
       console.log('Workout created:', data);
       // TODO: Show success message
+    }
+  }
+
+  async sendAgreement() {
+    const clientId = String(this.client?.id || '').trim();
+    if (!clientId) {
+      await this.showToast('Missing client information for agreement.', 'warning');
+      return;
+    }
+
+    const modal = await this.modalController.create({
+      component: AgreementModalComponent,
+      componentProps: {
+        clientId,
+        clientName: this.client?.name || 'Client',
+      },
+    });
+
+    await modal.present();
+
+    const { data } = await modal.onWillDismiss();
+    if (data?.action === 'send') {
+      await this.showToast('Agreement sent to client.', 'success');
     }
   }
 
@@ -406,6 +417,197 @@ export class ClientDetailsPage implements OnInit {
 
     const bmi = weightKg / (heightMeters * heightMeters);
     return Number.isFinite(bmi) ? Number(bmi.toFixed(2)) : null;
+  }
+
+  private async loadClientDetailsData(): Promise<void> {
+    const clientId = String(this.client?.id || '').trim();
+    if (!clientId) {
+      return;
+    }
+
+    try {
+      const [clientProfileSnap, userStatsSnap, bookingsSnap, transactionsSnap] = await Promise.all([
+        getDoc(doc(this.firestore, 'clients', clientId)),
+        getDoc(doc(this.firestore, 'userStats', clientId)),
+        getDocs(query(collection(this.firestore, 'bookings'), where('clientId', '==', clientId))),
+        getDocs(query(collection(this.firestore, 'transactions'), where('clientId', '==', clientId))),
+      ]);
+
+      const clientProfile = clientProfileSnap.exists() ? clientProfileSnap.data() as Record<string, any> : {};
+      const userStats = userStatsSnap.exists() ? userStatsSnap.data() as Record<string, any> : {};
+      const bookings = bookingsSnap.docs.map((bookingDoc) => ({
+        id: bookingDoc.id,
+        ...bookingDoc.data(),
+      })) as Array<Record<string, any>>;
+      const transactions = transactionsSnap.docs.map((transactionDoc) => ({
+        id: transactionDoc.id,
+        ...transactionDoc.data(),
+      })) as Array<Record<string, any>>;
+
+      const sortedBookings: Array<Record<string, any> & { _date: Date | null }> = bookings
+        .map((booking) => ({
+          ...booking,
+          _date: this.getBookingDate(booking),
+        }))
+        .sort((a, b) => (b._date?.getTime() || 0) - (a._date?.getTime() || 0));
+
+      const now = new Date();
+      const upcoming = sortedBookings
+        .filter((booking) => {
+          const bookingDate = booking['_date'] as Date | null;
+          return String(booking['status'] || '').toLowerCase() !== 'cancelled' &&
+            !!bookingDate &&
+            bookingDate.getTime() >= now.getTime();
+        })
+        .sort((a, b) => (((a['_date'] as Date | null)?.getTime()) || 0) - (((b['_date'] as Date | null)?.getTime()) || 0));
+
+      const past = sortedBookings
+        .filter((booking) => {
+          const bookingDate = booking['_date'] as Date | null;
+          return String(booking['status'] || '').toLowerCase() !== 'cancelled' &&
+            !!bookingDate &&
+            bookingDate.getTime() < now.getTime();
+        });
+
+      this.upcomingAppointments = upcoming.map((booking) => this.mapBookingForDisplay(booking));
+      this.pastAppointments = past.map((booking) => this.mapBookingForDisplay(booking));
+      this.payments = transactions
+        .map((transaction) => this.mapPaymentForDisplay(transaction))
+        .sort((a, b) => (b.date?.getTime?.() || 0) - (a.date?.getTime?.() || 0));
+
+      const streakData = userStats['streakData'] as Record<string, any> | undefined;
+      this.currentStreak = Number(streakData?.['currentStreak'] ?? userStats['currentStreak'] ?? 0) || 0;
+
+      const latestPayment = this.payments[0];
+      this.paymentStatus = latestPayment
+        ? this.toTitleCase(String(latestPayment.status || 'unknown'))
+        : 'No payments';
+
+      this.recentActivity = this.buildRecentActivity(clientProfile, sortedBookings, this.payments);
+
+      this.client = {
+        ...this.client,
+        ...clientProfile,
+        totalSessions: past.filter((booking) => String(booking['status'] || '').toLowerCase() === 'confirmed').length,
+        lastWorkout: clientProfile['lastWorkout'] || past[0]?._date || this.client?.lastWorkout || null,
+        nextSession: upcoming[0]?._date || this.client?.nextSession || null,
+      };
+    } catch (error) {
+      console.error('Failed to load client details data:', error);
+      await this.showToast('Failed to load client details.', 'danger');
+    }
+  }
+
+  private buildRecentActivity(
+    clientProfile: Record<string, any>,
+    sortedBookings: Array<Record<string, any>>,
+    payments: Array<{ amount: number; date: Date | null; method: string; status: string }>
+  ): Array<{ title: string; date: Date; icon: string; color: string }> {
+    const activity: Array<{ title: string; date: Date; icon: string; color: string }> = [];
+
+    const lastWorkoutDate = this.toDate(clientProfile['lastWorkout']);
+    if (lastWorkoutDate) {
+      activity.push({
+        title: 'Logged a workout',
+        date: lastWorkoutDate,
+        icon: 'fitness',
+        color: 'success',
+      });
+    }
+
+    for (const booking of sortedBookings.slice(0, 4)) {
+      const bookingDate = booking['_date'] instanceof Date ? booking['_date'] as Date : null;
+      if (!bookingDate) {
+        continue;
+      }
+
+      const status = String(booking['status'] || '').toLowerCase();
+      const isFuture = bookingDate.getTime() >= Date.now();
+      activity.push({
+        title: isFuture
+          ? `Session ${status === 'pending' ? 'requested' : 'scheduled'}`
+          : 'Completed training session',
+        date: bookingDate,
+        icon: isFuture ? 'calendar' : 'checkmark-circle',
+        color: isFuture ? 'primary' : 'success',
+      });
+    }
+
+    for (const payment of payments.slice(0, 2)) {
+      if (!payment.date) {
+        continue;
+      }
+
+      activity.push({
+        title: payment.status === 'paid' ? `Payment received: $${payment.amount}` : `Payment ${payment.status}`,
+        date: payment.date,
+        icon: 'card',
+        color: payment.status === 'paid' ? 'success' : 'warning',
+      });
+    }
+
+    return activity
+      .sort((a, b) => b.date.getTime() - a.date.getTime())
+      .slice(0, 5);
+  }
+
+  private mapBookingForDisplay(booking: Record<string, any>) {
+    return {
+      ...booking,
+      type: String(booking['sessionType'] || booking['type'] || 'Training Session'),
+      date: (booking['_date'] as Date | null) || this.toDate(booking['date']),
+      duration: Number(booking['duration'] || 60) || 60,
+      status: String(booking['status'] || 'pending').toLowerCase(),
+    };
+  }
+
+  private mapPaymentForDisplay(transaction: Record<string, any>) {
+    const amount = Number(transaction['amount'] ?? transaction['total'] ?? transaction['price'] ?? 0);
+    return {
+      amount: Number.isFinite(amount) ? amount : 0,
+      date: this.toDate(transaction['createdAt']) || this.toDate(transaction['date']) || this.toDate(transaction['timestamp']),
+      method: String(transaction['paymentMethod'] || transaction['method'] || transaction['source'] || 'Atlas'),
+      status: String(transaction['status'] || 'pending').toLowerCase(),
+    };
+  }
+
+  private getBookingDate(booking: Record<string, any>): Date | null {
+    const rawDate = String(booking['date'] || '').trim();
+    const rawTime = String(booking['time'] || booking['startTime'] || '').trim();
+
+    if (!rawDate) {
+      return this.toDate(booking['createdAt']);
+    }
+
+    const parsedDate = rawTime ? new Date(`${rawDate} ${rawTime}`) : new Date(rawDate);
+    if (!Number.isNaN(parsedDate.getTime())) {
+      return parsedDate;
+    }
+
+    return this.toDate(rawDate);
+  }
+
+  private toDate(value: unknown): Date | null {
+    if (!value) {
+      return null;
+    }
+    if (value instanceof Date) {
+      return value;
+    }
+    if (typeof (value as any)?.toDate === 'function') {
+      const converted = (value as any).toDate();
+      return converted instanceof Date && !Number.isNaN(converted.getTime()) ? converted : null;
+    }
+    const parsed = new Date(String(value));
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
+
+  private toTitleCase(value: string): string {
+    return value
+      .split(/[\s_-]+/)
+      .filter(Boolean)
+      .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
+      .join(' ');
   }
 
   get verifyFieldKeys(): VerifyFieldKey[] {

@@ -1,12 +1,15 @@
 import { Component, OnInit, OnDestroy, signal, effect, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { IonContent, IonDatetime, IonCard, IonCardHeader, IonCardTitle, IonCardContent, IonSpinner, IonButton, IonIcon, IonInput, IonTextarea, IonList, IonItem, IonLabel, IonFab, IonFabButton, AlertController, ActionSheetController, ModalController, ToastController } from '@ionic/angular/standalone';
+import { IonContent, IonDatetime, IonCard, IonCardHeader, IonCardTitle, IonCardContent, IonSpinner, IonButton, ToastController } from '@ionic/angular/standalone';
 import { HeaderComponent } from '../../../components/header/header.component';
 import { SessionBookingService } from '../../../services/session-booking.service';
 import { UserService } from '../../../services/account/user.service';
 import { ListSessionsComponent, SessionData } from '../../../components/sessions/list-sessions/list-sessions.component';
 import { ActivatedRoute } from '@angular/router';
+import { TrainerAvailabilityService } from '../../../services/trainer-availability.service';
+import { AvailabiltyComponent } from '../../../components/availabilty/availabilty.component';
+import { DayAvailability } from '../../../Interfaces/Availability';
 
 @Component({
   selector: 'app-trainer-calendar',
@@ -23,8 +26,10 @@ import { ActivatedRoute } from '@angular/router';
     IonCardTitle,
     IonCardContent,
     IonSpinner,
+    IonButton,
     HeaderComponent,
-    ListSessionsComponent
+    ListSessionsComponent,
+    AvailabiltyComponent,
   ]
 })
 export class TrainerCalendarPage implements OnInit {
@@ -37,12 +42,18 @@ export class TrainerCalendarPage implements OnInit {
   currentMonth = new Date().getMonth();
   currentYear = new Date().getFullYear();
   highlightedDates: any[] = [];
+  weeklyAvailability: DayAvailability[] = [];
+  availabilityLoaded = signal<boolean>(false);
+  isSavingAvailability = signal<boolean>(false);
+  availabilityDirty = false;
   private lastRefreshTime = 0;
 
   constructor(
     private sessionBookingService: SessionBookingService,
     private userService: UserService,
-    private route: ActivatedRoute
+    private route: ActivatedRoute,
+    private trainerAvailabilityService: TrainerAvailabilityService,
+    private toastController: ToastController,
   ) {
     // Use effect to react to changes in the current user
     effect(() => {
@@ -52,6 +63,9 @@ export class TrainerCalendarPage implements OnInit {
         if (this.isLoading()) {
           this.loadMonthlyBookings();
           this.loadTrainings(new Date(this.selectedDate));
+        }
+        if (!this.availabilityLoaded()) {
+          void this.loadWeeklyAvailability();
         }
       } else {
         console.error('No user logged in');
@@ -89,6 +103,7 @@ export class TrainerCalendarPage implements OnInit {
     if (now - this.lastRefreshTime > refreshInterval) {
       this.isLoading.set(true);
       this.loadMonthlyBookings();
+      void this.loadWeeklyAvailability();
       
       // Also load trainings for the selected date
       const selectedDateObj = new Date(this.selectedDate);
@@ -100,6 +115,63 @@ export class TrainerCalendarPage implements OnInit {
       // Still load trainings for the selected date even if we skip the monthly refresh
       const selectedDateObj = new Date(this.selectedDate);
       this.loadTrainings(selectedDateObj);
+      if (!this.availabilityLoaded()) {
+        void this.loadWeeklyAvailability();
+      }
+    }
+  }
+
+  onAvailabilityChanged(nextAvailability: DayAvailability[]) {
+    this.weeklyAvailability = nextAvailability.map((day) => ({
+      ...day,
+      timeWindows: Array.isArray(day.timeWindows)
+        ? day.timeWindows.map((window) => ({ ...window }))
+        : [],
+    }));
+    this.availabilityDirty = true;
+  }
+
+  async saveAvailability(): Promise<void> {
+    if (!this.trainerId || !this.weeklyAvailability.length) {
+      await this.showToast('No trainer availability is ready to save yet.', 'warning');
+      return;
+    }
+
+    this.isSavingAvailability.set(true);
+    try {
+      await this.trainerAvailabilityService.saveTrainerWeeklyAvailabilityEverywhere(
+        this.trainerId,
+        this.weeklyAvailability,
+      );
+      this.availabilityDirty = false;
+      await this.showToast('Weekly availability updated.', 'success');
+    } catch (error) {
+      console.error('Error saving trainer availability:', error);
+      await this.showToast('Failed to save availability. Please try again.', 'danger');
+    } finally {
+      this.isSavingAvailability.set(false);
+    }
+  }
+
+  private async loadWeeklyAvailability(): Promise<void> {
+    if (!this.trainerId) {
+      return;
+    }
+
+    try {
+      const availability = await this.trainerAvailabilityService.getTrainerWeeklyAvailability(this.trainerId);
+      this.weeklyAvailability = availability.map((day) => ({
+        ...day,
+        timeWindows: Array.isArray(day.timeWindows)
+          ? day.timeWindows.map((window) => ({ ...window }))
+          : [],
+      }));
+      this.availabilityDirty = false;
+      this.availabilityLoaded.set(true);
+    } catch (error) {
+      console.error('Error loading trainer availability:', error);
+      this.availabilityLoaded.set(false);
+      await this.showToast('Unable to load your weekly availability right now.', 'warning');
     }
   }
 
@@ -278,5 +350,15 @@ export class TrainerCalendarPage implements OnInit {
       // Update the last refresh time
       this.lastRefreshTime = Date.now();
     }
+  }
+
+  private async showToast(message: string, color: 'success' | 'warning' | 'danger' = 'success') {
+    const toast = await this.toastController.create({
+      message,
+      duration: 2500,
+      position: 'top',
+      color,
+    });
+    await toast.present();
   }
 }

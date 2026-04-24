@@ -2,6 +2,7 @@
     <ion-toolbar
       class="title-container"
       [class.profile-button-top-right]="pinProfileButtonTopRight"
+      [class.compact-toolbar]="hideTitle"
       [class.neo-toolbar]="neoBlend"
     >
         <!-- Back button on start when enabled -->
@@ -62,7 +63,7 @@
           <ion-icon slot="icon-only" [name]="endActionIconName"></ion-icon>
         </ion-button>
         
-        <ion-title><h2 [class.atlas-title]="title === 'ATLAS'">{{title}}</h2></ion-title>
+        <ion-title *ngIf="!hideTitle"><h2 [class.atlas-title]="title === 'ATLAS'">{{title}}</h2></ion-title>
         
         <!-- Keep the title visually centered -->
         <div

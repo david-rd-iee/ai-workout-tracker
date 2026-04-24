@@ -1,7 +1,8 @@
 import { Injectable, inject } from '@angular/core';
-import { Firestore, doc, getDoc, updateDoc, setDoc } from '@angular/fire/firestore';
+import { Firestore, addDoc, collection, doc, getDoc, serverTimestamp, setDoc, updateDoc } from '@angular/fire/firestore';
 import { Functions, httpsCallable, getFunctions } from '@angular/fire/functions';
 import { UserService } from './account/user.service';
+import { Capacitor } from '@capacitor/core';
 // import { PushNotifications } from '@capacitor/push-notifications';
 const PushNotifications: any = null;
 
@@ -20,6 +21,10 @@ export class NotificationService {
    */
   async initPushNotifications() {
     try {
+      if (!this.isPushAvailable()) {
+        return;
+      }
+
       // Set up listeners FIRST, before registration
       this.setupPushListeners();
       
@@ -39,6 +44,10 @@ export class NotificationService {
    * Set up push notification listeners
    */
   private setupPushListeners() {
+    if (!this.isPushAvailable()) {
+      return;
+    }
+
     // Registration success listener
     PushNotifications.addListener('registration', (token: any) => {
       this.logTokenInfo(token.value);
@@ -174,14 +183,32 @@ export class NotificationService {
    * @returns A promise that resolves with the result of the notification send
    */
   async sendNotification(userId: string, title: string, body: string, data?: any) {
+    const normalizedUserId = String(userId || '').trim();
+    if (!normalizedUserId) {
+      throw new Error('userId is required to send a notification');
+    }
+
     try {
-      console.log(`Sending notification to user ${userId}`);
-      
+      console.log(`Sending notification to user ${normalizedUserId}`);
+
+      await this.createInAppNotification(normalizedUserId, title, body, data);
+
+      if (!this.isPushAvailable()) {
+        return {
+          deliveredInApp: true,
+          deliveredPush: false,
+          reason: 'push-unavailable',
+        };
+      }
+
       // Get the current auth user
       const currentUser = this.userService.getCurrentUser()();
       if (!currentUser) {
-        console.error('User not logged in, cannot send notification');
-        throw new Error('User not logged in');
+        return {
+          deliveredInApp: true,
+          deliveredPush: false,
+          reason: 'missing-auth-user',
+        };
       }
       
       // Get a reference to the functions in the us-central1 region (where sendApnsNotification is deployed)
@@ -204,17 +231,42 @@ export class NotificationService {
       };
       
       const result = await sendApnsNotification({
-        userId,
+        userId: normalizedUserId,
         title,
         body,
         data: enhancedData
       });
       
       console.log('Notification sent successfully:', result.data);
-      return result.data;
+      return {
+        deliveredInApp: true,
+        deliveredPush: true,
+        result: result.data,
+      };
     } catch (error) {
       console.error('Error sending notification:', error);
-      throw error;
+      return {
+        deliveredInApp: true,
+        deliveredPush: false,
+        error,
+      };
     }
+  }
+
+  private async createInAppNotification(userId: string, title: string, body: string, data?: any): Promise<void> {
+    await addDoc(collection(this.firestore, `users/${userId}/notifications`), {
+      title: String(title || '').trim() || 'Atlas Notification',
+      body: String(body || '').trim(),
+      data: data ?? null,
+      read: false,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+  }
+
+  private isPushAvailable(): boolean {
+    return Capacitor.isNativePlatform() &&
+      Capacitor.isPluginAvailable('PushNotifications') &&
+      !!PushNotifications;
   }
 }

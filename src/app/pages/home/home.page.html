@@ -90,9 +90,9 @@
         </ion-card>
       </div>
 
-      <!-- Upcoming Sessions -->
+      <!-- Sessions -->
       <div class="upcoming-sessions" *ngIf="isWidgetEnabled('upcoming-session')">
-        <h2 class="section-title">Upcoming Sessions</h2>
+        <h2 class="section-title">Sessions</h2>
         <ng-container *ngIf="upcomingSessions && upcomingSessions.length > 0; else noSessions">
           <ion-card class="session-card" *ngFor="let session of upcomingSessions" button="true" (click)="viewSessionDetails(session)">
             <ion-card-content>
@@ -110,7 +110,20 @@
                 <div class="session-info">
                   <h3>{{ session.trainerName }}</h3>
                   <p class="session-date">{{ session.date | date:'EEE, MMM d · h:mm a' }}</p>
+                  <p class="session-status" [class.pending]="session.status === 'pending'">
+                    {{ session.status === 'pending' ? 'Pending trainer approval' : 'Confirmed session' }}
+                  </p>
                   <p class="session-notes" *ngIf="session.notes">{{ session.notes }}</p>
+                  <ion-button
+                    *ngIf="session.status === 'pending'"
+                    class="cancel-session-request-button"
+                    fill="outline"
+                    color="danger"
+                    size="small"
+                    (click)="cancelSessionRequest(session, $event)"
+                  >
+                    Cancel Request
+                  </ion-button>
                 </div>
                 <ion-icon name="chevron-forward" class="chevron"></ion-icon>
               </div>
@@ -122,11 +135,25 @@
             <ion-card-content>
               <div class="no-sessions-content">
                 <ion-icon name="calendar-outline"></ion-icon>
-                <p>There are no upcoming sessions</p>
+                <p>There are no sessions yet</p>
               </div>
             </ion-card-content>
           </ion-card>
         </ng-template>
+
+        <ion-card class="secondary-action-card request-session-card" button="true" *ngIf="assignedTrainerId" (click)="requestSessionWithTrainer()">
+          <ion-card-content>
+            <div class="secondary-action-content">
+              <div class="secondary-action-icon">
+                <ion-icon name="calendar-outline"></ion-icon>
+              </div>
+              <div class="secondary-action-copy">
+                <h2>Request Session</h2>
+                <p>Pick an open slot from your trainer's availability and send it for approval.</p>
+              </div>
+            </div>
+          </ion-card-content>
+        </ion-card>
       </div>
     </ng-container>
 
@@ -170,6 +197,61 @@
         </ion-card-content>
       </ion-card>
 
+      <div class="clients-section" *ngIf="pendingClientRequests.length > 0">
+        <h2 class="section-title">Client Requests</h2>
+        <ion-card class="client-request-card" *ngFor="let request of pendingClientRequests">
+          <ion-card-content>
+            <div class="client-content">
+              <div class="client-avatar">
+                <ion-icon name="person-circle" *ngIf="!request.clientProfilepic"></ion-icon>
+                <img [src]="request.clientProfilepic" *ngIf="request.clientProfilepic" alt="{{ request.clientName }}">
+              </div>
+              <div class="client-info">
+                <h3>{{ request.clientName }}</h3>
+                <p class="request-label">Requested to work with you</p>
+                <p class="request-message" *ngIf="request.message">"{{ request.message }}"</p>
+                <div class="request-actions">
+                  <ion-button size="small" (click)="approveClientRequest(request, $event)">
+                    Accept
+                  </ion-button>
+                  <ion-button fill="outline" size="small" (click)="declineClientRequest(request, $event)">
+                    Decline
+                  </ion-button>
+                </div>
+              </div>
+            </div>
+          </ion-card-content>
+        </ion-card>
+      </div>
+
+      <div class="clients-section" *ngIf="pendingSessionRequests.length > 0">
+        <h2 class="section-title">Session Requests</h2>
+        <ion-card class="client-request-card" *ngFor="let request of pendingSessionRequests">
+          <ion-card-content>
+            <div class="client-content">
+              <div class="client-avatar">
+                <ion-icon name="person-circle" *ngIf="!request.clientProfilePic"></ion-icon>
+                <img [src]="request.clientProfilePic" *ngIf="request.clientProfilePic" alt="{{ request.clientName }}">
+              </div>
+              <div class="client-info">
+                <h3>{{ request.clientName }}</h3>
+                <p class="request-label">{{ request.date | date:'EEE, MMM d · h:mm a' }} · {{ request.duration }} min</p>
+                <p class="request-label">{{ request.sessionType }}</p>
+                <p class="request-message" *ngIf="request.notes">"{{ request.notes }}"</p>
+                <div class="request-actions">
+                  <ion-button size="small" (click)="approveSessionRequest(request, $event)">
+                    Approve
+                  </ion-button>
+                  <ion-button fill="outline" size="small" (click)="declineSessionRequest(request, $event)">
+                    Decline
+                  </ion-button>
+                </div>
+              </div>
+            </div>
+          </ion-card-content>
+        </ion-card>
+      </div>
+
       <!-- My Clients Section -->
       <div class="clients-section">
         <h2 class="section-title">My Clients</h2>
@@ -202,6 +284,15 @@
                   (click)="viewClientWorkoutVideos(client, $event)"
                 >
                   View Workout Videos
+                </ion-button>
+                <ion-button
+                  class="remove-client-button"
+                  fill="outline"
+                  color="danger"
+                  size="small"
+                  (click)="removeClient(client, $event)"
+                >
+                  Remove Client
                 </ion-button>
               </div>
               <ion-icon name="chevron-forward" class="chevron"></ion-icon>

@@ -1,6 +1,7 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {
+  AlertController,
   IonAvatar,
   IonButton,
   IonContent,
@@ -10,8 +11,9 @@ import {
 import { Auth, onAuthStateChanged } from '@angular/fire/auth';
 import {
   Firestore,
-  deleteDoc,
+  collection,
   doc,
+  getDocs,
   getDoc,
   serverTimestamp,
   setDoc,
@@ -21,12 +23,23 @@ import { User } from 'firebase/auth';
 import { UserService } from '../../services/account/user.service';
 import { ProfileRepositoryService } from '../../services/account/profile-repository.service';
 import { HeaderComponent } from '../../components/header/header.component';
+import { TrainerConnectionService } from '../../services/trainer-connection.service';
 
 interface TrainerCard {
   uid: string;
   firstName: string;
   lastName: string;
   profileImage: string;
+  specialization: string;
+  experience: string;
+  education: string;
+  description: string;
+  certifications: string[];
+  hourlyRate: string;
+  trainingFormats: string[];
+  city: string;
+  state: string;
+  visible: boolean;
 }
 
 @Component({
@@ -50,12 +63,19 @@ export class ClientFindTrainerPage implements OnInit {
   private router = inject(Router);
   private userService = inject(UserService);
   private profileRepository = inject(ProfileRepositoryService);
+  private trainerConnectionService = inject(TrainerConnectionService);
+  private alertController = inject(AlertController);
 
   trainers: TrainerCard[] = [];
   selectedTrainerUid = '';
   isLoading = false;
   isSaving = false;
   pendingTrainerUid = '';
+  pendingRequestTargetUid = '';
+  pendingRequestMessage = '';
+  declinedTrainerUid = '';
+  requestDrafts: Record<string, string> = {};
+  expandedTrainerUid = '';
   errorMessage = '';
   successMessage = '';
 
@@ -70,11 +90,25 @@ export class ClientFindTrainerPage implements OnInit {
   }
 
   isActionBlocked(trainerUid: string): boolean {
-    return !!this.selectedTrainerUid && this.selectedTrainerUid !== trainerUid;
+    const activeTrainerUid = this.selectedTrainerUid || this.pendingTrainerUid;
+    return !!activeTrainerUid && activeTrainerUid !== trainerUid;
   }
 
   isActionDisabled(trainerUid: string): boolean {
     return this.isSaving || this.isActionBlocked(trainerUid);
+  }
+
+  getRequestDraft(trainerUid: string): string {
+    return this.requestDrafts[trainerUid] || '';
+  }
+
+  updateRequestDraft(trainerUid: string, event: Event): void {
+    const target = event.target as HTMLTextAreaElement | null;
+    this.requestDrafts[trainerUid] = target?.value || '';
+  }
+
+  toggleTrainerDetails(trainerUid: string): void {
+    this.expandedTrainerUid = this.expandedTrainerUid === trainerUid ? '' : trainerUid;
   }
 
   async onTrainerAction(trainer: TrainerCard): Promise<void> {
@@ -93,24 +127,44 @@ export class ClientFindTrainerPage implements OnInit {
     }
 
     this.isSaving = true;
-    this.pendingTrainerUid = trainer.uid;
+    this.pendingRequestTargetUid = trainer.uid;
 
     try {
       if (this.selectedTrainerUid === trainer.uid) {
-        await this.removeTrainerAssignment(authUser.uid, trainer.uid);
+        const removalReason = await this.promptForRemovalReason(trainer);
+        if (removalReason === null) {
+          return;
+        }
+
+        await this.removeTrainerAssignment(authUser.uid, trainer.uid, removalReason);
         this.selectedTrainerUid = '';
+        this.declinedTrainerUid = '';
         this.successMessage = 'Trainer removed.';
+      } else if (this.pendingTrainerUid === trainer.uid) {
+        await this.trainerConnectionService.cancelConnectionRequest(authUser.uid, trainer.uid);
+        this.pendingTrainerUid = '';
+        this.pendingRequestMessage = '';
+        this.successMessage = 'Trainer request cancelled.';
       } else {
-        await this.addTrainerAssignment(authUser.uid, trainer.uid);
-        this.selectedTrainerUid = trainer.uid;
-        this.successMessage = 'Trainer added.';
+        const requestMessage = this.getRequestDraft(trainer.uid).trim();
+
+        await this.trainerConnectionService.submitConnectionRequest(
+          authUser.uid,
+          trainer.uid,
+          requestMessage
+        );
+        this.pendingTrainerUid = trainer.uid;
+        this.pendingRequestMessage = requestMessage;
+        this.requestDrafts[trainer.uid] = '';
+        this.declinedTrainerUid = '';
+        this.successMessage = 'Trainer request sent for approval.';
       }
     } catch (error) {
       console.error('[ClientFindTrainerPage] Failed to update trainer assignment:', error);
       this.errorMessage = 'Could not update trainer assignment. Please try again.';
     } finally {
       this.isSaving = false;
-      this.pendingTrainerUid = '';
+      this.pendingRequestTargetUid = '';
     }
   }
 
@@ -137,6 +191,7 @@ export class ClientFindTrainerPage implements OnInit {
 
     try {
       await this.syncExistingAssignment(authUser.uid);
+      await this.syncExistingRequestStatus(authUser.uid);
       await this.loadTrainers();
     } catch (error) {
       console.error('[ClientFindTrainerPage] Failed to load trainers:', error);
@@ -182,10 +237,16 @@ export class ClientFindTrainerPage implements OnInit {
       this.userService.syncCurrentUserSummaryPatch(clientUid, { trainerId: '' });
       this.userService.syncCurrentUserProfilePatch(clientUid, 'client', { trainerId: '' });
       this.selectedTrainerUid = '';
+      this.pendingTrainerUid = '';
+      this.pendingRequestMessage = '';
+      this.declinedTrainerUid = '';
       return;
     }
 
     this.selectedTrainerUid = assignedTrainerUid;
+    this.pendingTrainerUid = '';
+    this.pendingRequestMessage = '';
+    this.declinedTrainerUid = '';
 
     await Promise.all([
       setDoc(
@@ -202,6 +263,34 @@ export class ClientFindTrainerPage implements OnInit {
     this.profileRepository.applyProfilePatch(clientUid, 'client', { trainerId: assignedTrainerUid });
     this.userService.syncCurrentUserSummaryPatch(clientUid, { trainerId: assignedTrainerUid });
     this.userService.syncCurrentUserProfilePatch(clientUid, 'client', { trainerId: assignedTrainerUid });
+  }
+
+  private async syncExistingRequestStatus(clientUid: string): Promise<void> {
+    if (this.selectedTrainerUid) {
+      this.pendingTrainerUid = '';
+      this.pendingRequestMessage = '';
+      this.declinedTrainerUid = '';
+      return;
+    }
+
+    const requestsSnapshot = await getDocs(collection(this.firestore, `clients/${clientUid}/trainerRequests`));
+    this.pendingTrainerUid = '';
+    this.pendingRequestMessage = '';
+    this.declinedTrainerUid = '';
+
+    requestsSnapshot.forEach((requestDoc) => {
+      const requestData = requestDoc.data() as Record<string, unknown>;
+      const status = this.pickString(requestData['status']);
+
+      if (status === 'pending' && !this.pendingTrainerUid) {
+        this.pendingTrainerUid = requestDoc.id;
+        this.pendingRequestMessage = this.pickString(requestData['message']);
+      }
+
+      if (status === 'declined' && !this.declinedTrainerUid) {
+        this.declinedTrainerUid = requestDoc.id;
+      }
+    });
   }
 
   private async loadTrainers(): Promise<void> {
@@ -222,14 +311,42 @@ export class ClientFindTrainerPage implements OnInit {
           this.pickString(data['profilepic']) ||
           this.pickString(data['profilePic']) ||
           this.fallbackProfileImage;
+        const certifications = Array.isArray(data['certifications'])
+          ? (data['certifications'] as unknown[])
+              .map((value) => this.pickString(value))
+              .filter(Boolean)
+          : [];
+        const trainingLocation =
+          typeof data['trainingLocation'] === 'object' && data['trainingLocation'] !== null
+            ? (data['trainingLocation'] as Record<string, unknown>)
+            : {};
+        const trainingFormats = [
+          trainingLocation['remote'] === true ? 'Remote' : '',
+          trainingLocation['inPerson'] === true ? 'In person' : '',
+        ].filter(Boolean);
+        const hourlyRateValue =
+          typeof data['hourlyRate'] === 'number' && Number.isFinite(data['hourlyRate'])
+            ? `$${Number(data['hourlyRate']).toFixed(0)}/hr`
+            : '';
 
         return {
           uid,
           firstName,
           lastName,
           profileImage,
+          specialization: this.pickString(data['specialization']),
+          experience: this.pickString(data['experience']),
+          education: this.pickString(data['education']),
+          description: this.pickString(data['description']),
+          certifications,
+          hourlyRate: hourlyRateValue,
+          trainingFormats,
+          city: this.pickString(data['city']),
+          state: this.pickString(data['state']),
+          visible: data['visible'] !== false,
         };
       })
+      .filter((trainer) => trainer.uid && trainer.visible)
       .sort((a, b) => {
         const aName = `${a.firstName} ${a.lastName}`.trim().toLowerCase();
         const bName = `${b.firstName} ${b.lastName}`.trim().toLowerCase();
@@ -238,69 +355,59 @@ export class ClientFindTrainerPage implements OnInit {
   }
 
   private async addTrainerAssignment(clientUid: string, trainerUid: string): Promise<void> {
-    const trainerProfile = await this.userService.getUserProfileDirectly(trainerUid, 'trainer');
-    if (!trainerProfile) {
-      throw new Error('Trainer not found');
-    }
-
-    const usersRef = doc(this.firestore, 'users', clientUid);
-    const userSummary = await this.userService.getUserSummaryDirectly(clientUid);
-    const usersData = userSummary ? (userSummary as unknown as Record<string, unknown>) : {};
-
-    await Promise.all([
-      setDoc(
-        usersRef,
-        {
-          trainerId: trainerUid,
-          updatedAt: serverTimestamp(),
-        },
-        { merge: true }
-      ),
-      setDoc(
-        doc(this.firestore, 'clients', clientUid),
-        {
-          trainerId: trainerUid,
-          updatedAt: serverTimestamp(),
-        },
-        { merge: true }
-      ),
-    ]);
-    this.profileRepository.applyUserSummaryPatch(clientUid, { trainerId: trainerUid });
-    this.profileRepository.applyProfilePatch(clientUid, 'client', { trainerId: trainerUid });
-    this.userService.syncCurrentUserSummaryPatch(clientUid, { trainerId: trainerUid });
-    this.userService.syncCurrentUserProfilePatch(clientUid, 'client', { trainerId: trainerUid });
-
-    await this.ensureTrainerClientRecord(trainerUid, clientUid, usersData);
+    await this.trainerConnectionService.submitConnectionRequest(clientUid, trainerUid, '');
   }
 
-  private async removeTrainerAssignment(clientUid: string, trainerUid: string): Promise<void> {
-    const trainerClientRef = doc(this.firestore, `trainers/${trainerUid}/clients/${clientUid}`);
-    const usersRef = doc(this.firestore, 'users', clientUid);
-    const clientRef = doc(this.firestore, 'clients', clientUid);
-
-    await Promise.all([
-      deleteDoc(trainerClientRef),
-      setDoc(
-        usersRef,
-        {
-          trainerId: '',
-          updatedAt: serverTimestamp(),
-        },
-        { merge: true }
-      ),
-      setDoc(
-        clientRef,
-        {
-          trainerId: '',
-          updatedAt: serverTimestamp(),
-        },
-        { merge: true }
-      ),
-    ]);
+  private async removeTrainerAssignment(clientUid: string, trainerUid: string, reason: string): Promise<void> {
+    await this.trainerConnectionService.removeConnection(clientUid, trainerUid, reason);
     this.profileRepository.applyUserSummaryPatch(clientUid, { trainerId: '' });
     this.profileRepository.applyProfilePatch(clientUid, 'client', { trainerId: '' });
     this.userService.syncCurrentUserSummaryPatch(clientUid, { trainerId: '' });
     this.userService.syncCurrentUserProfilePatch(clientUid, 'client', { trainerId: '' });
+  }
+
+  private async promptForRemovalReason(trainer: TrainerCard): Promise<string | null> {
+    const alert = await this.alertController.create({
+      header: 'Remove Trainer',
+      message: `Let us know why you are removing ${trainer.firstName} ${trainer.lastName}.`,
+      inputs: [
+        {
+          name: 'reason',
+          type: 'textarea',
+          placeholder: 'Share your reason so it can be reviewed later.',
+          attributes: {
+            maxlength: 300,
+          },
+        },
+      ],
+      buttons: [
+        {
+          text: 'Cancel',
+          role: 'cancel',
+        },
+        {
+          text: 'Remove',
+          handler: (value) => {
+            const reason = this.pickString(value?.reason);
+            if (!reason) {
+              this.errorMessage = 'Please add a reason before removing your trainer.';
+              return false;
+            }
+
+            this.errorMessage = '';
+            return true;
+          },
+        },
+      ],
+    });
+
+    await alert.present();
+    const { role, data } = await alert.onDidDismiss();
+    if (role === 'cancel') {
+      return null;
+    }
+
+    return this.pickString(data?.values?.reason) || null;
   }
 
   private async ensureTrainerClientRecord(

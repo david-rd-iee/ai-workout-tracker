@@ -182,6 +182,11 @@ service cloud.firestore {
     match /users/{userId} {
       // Users can read, write and delete their own documents
       allow read, write, delete: if isOwner(userId);
+
+      match /notifications/{notificationId} {
+        allow read, update, delete: if isOwner(userId);
+        allow create: if isSignedIn();
+      }
     }
     
     // Chats collection

@@ -1,5 +1,6 @@
 <app-header
   [title]="'Find Trainer'"
+  [hideTitle]="true"
   [showBack]="true"
   [backHref]="'/profile-user'"
 ></app-header>
@@ -61,22 +62,112 @@
                     <div class="trainer-status-pill" *ngIf="selectedTrainerUid === trainer.uid">
                       Active
                     </div>
+                    <div class="trainer-status-pill pending" *ngIf="!selectedTrainerUid && pendingTrainerUid === trainer.uid">
+                      Pending
+                    </div>
+                    <div class="trainer-status-pill declined" *ngIf="!selectedTrainerUid && declinedTrainerUid === trainer.uid">
+                      Declined
+                    </div>
                   </div>
 
                   <div class="trainer-meta">
-                    {{ selectedTrainerUid === trainer.uid ? 'Currently linked to your profile' : 'Available to add to your support team' }}
+                    {{
+                      selectedTrainerUid === trainer.uid
+                        ? 'Currently linked to your profile'
+                        : pendingTrainerUid === trainer.uid
+                        ? 'Your request is waiting for trainer approval'
+                        : declinedTrainerUid === trainer.uid
+                        ? 'Your last request was declined. You can send a new one.'
+                        : 'Available to add to your support team'
+                    }}
+                  </div>
+                  <div class="trainer-quick-meta" *ngIf="trainer.specialization || trainer.city || trainer.hourlyRate">
+                    <span *ngIf="trainer.specialization">{{ trainer.specialization }}</span>
+                    <span *ngIf="trainer.city || trainer.state">
+                      {{ trainer.city }}<ng-container *ngIf="trainer.city && trainer.state">, </ng-container>{{ trainer.state }}
+                    </span>
+                    <span *ngIf="trainer.hourlyRate">{{ trainer.hourlyRate }}</span>
+                  </div>
+                  <div class="trainer-request-note" *ngIf="pendingTrainerUid === trainer.uid && pendingRequestMessage">
+                    Message: "{{ pendingRequestMessage }}"
                   </div>
                 </div>
               </div>
 
               <div class="trainer-icon-well" aria-hidden="true">
-                <span>{{ selectedTrainerUid === trainer.uid ? '✓' : '+' }}</span>
+                <span>{{ selectedTrainerUid === trainer.uid ? '✓' : pendingTrainerUid === trainer.uid ? '…' : '+' }}</span>
               </div>
             </div>
 
             <div class="trainer-footer">
+              <button
+                type="button"
+                class="details-toggle"
+                (click)="toggleTrainerDetails(trainer.uid)"
+              >
+                {{ expandedTrainerUid === trainer.uid ? 'Hide Trainer Info' : 'View Trainer Info' }}
+              </button>
+
+              <div class="trainer-details" *ngIf="expandedTrainerUid === trainer.uid">
+                <div class="details-grid">
+                  <div class="detail-card" *ngIf="trainer.specialization">
+                    <span class="detail-label">Specialization</span>
+                    <span class="detail-value">{{ trainer.specialization }}</span>
+                  </div>
+
+                  <div class="detail-card" *ngIf="trainer.experience">
+                    <span class="detail-label">Experience</span>
+                    <span class="detail-value">{{ trainer.experience }}</span>
+                  </div>
+
+                  <div class="detail-card" *ngIf="trainer.education">
+                    <span class="detail-label">Education</span>
+                    <span class="detail-value">{{ trainer.education }}</span>
+                  </div>
+
+                  <div class="detail-card" *ngIf="trainer.trainingFormats.length > 0">
+                    <span class="detail-label">Formats</span>
+                    <span class="detail-value">{{ trainer.trainingFormats.join(' • ') }}</span>
+                  </div>
+
+                  <div class="detail-card" *ngIf="trainer.certifications.length > 0">
+                    <span class="detail-label">Extra Certifications</span>
+                    <span class="detail-value">{{ trainer.certifications.join(', ') }}</span>
+                  </div>
+
+                  <div class="detail-card" *ngIf="trainer.hourlyRate">
+                    <span class="detail-label">Rate</span>
+                    <span class="detail-value">{{ trainer.hourlyRate }}</span>
+                  </div>
+                </div>
+
+                <div class="detail-card detail-card-full" *ngIf="trainer.description">
+                  <span class="detail-label">About</span>
+                  <span class="detail-value">{{ trainer.description }}</span>
+                </div>
+              </div>
+
               <div class="trainer-hint" *ngIf="isActionBlocked(trainer.uid)">
                 Remove your current trainer before choosing another.
+              </div>
+
+              <div
+                class="request-composer"
+                *ngIf="selectedTrainerUid !== trainer.uid && pendingTrainerUid !== trainer.uid"
+              >
+                <label class="request-label" [for]="'trainer-request-' + trainer.uid">
+                  Add a message for {{ trainer.firstName }}
+                </label>
+                <textarea
+                  class="request-textarea"
+                  [id]="'trainer-request-' + trainer.uid"
+                  rows="3"
+                  maxlength="240"
+                  placeholder="Share your goals, what you need help with, or why you'd like to work together."
+                  [value]="getRequestDraft(trainer.uid)"
+                  [disabled]="isActionDisabled(trainer.uid)"
+                  (input)="updateRequestDraft(trainer.uid, $event)"
+                ></textarea>
               </div>
 
               <ion-button
@@ -88,11 +179,15 @@
                 (click)="onTrainerAction(trainer)"
               >
                 {{
-                  pendingTrainerUid === trainer.uid
+                  pendingRequestTargetUid === trainer.uid
                     ? 'Saving...'
                     : selectedTrainerUid === trainer.uid
                     ? 'Remove as Trainer'
-                    : 'Add as Trainer'
+                    : pendingTrainerUid === trainer.uid
+                    ? 'Cancel Request'
+                    : declinedTrainerUid === trainer.uid
+                    ? 'Request Again'
+                    : 'Request Trainer'
                 }}
               </ion-button>
             </div>

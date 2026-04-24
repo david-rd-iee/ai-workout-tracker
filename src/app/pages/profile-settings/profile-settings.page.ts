@@ -13,6 +13,7 @@ import {
 import { Auth, onAuthStateChanged } from '@angular/fire/auth';
 import { Firestore } from '@angular/fire/firestore';
 import { Router } from '@angular/router';
+import { RouterModule } from '@angular/router';
 import { EmailAuthProvider, reauthenticateWithCredential, updateEmail, User, verifyBeforeUpdateEmail } from 'firebase/auth';
 import { FirebaseError } from 'firebase/app';
 import { AlertController } from '@ionic/angular';
@@ -21,6 +22,7 @@ import { AccountService } from '../../services/account/account.service';
 import { ProfileRepositoryService } from '../../services/account/profile-repository.service';
 import { UserService } from '../../services/account/user.service';
 import { HeaderComponent } from '../../components/header/header.component';
+import { environment } from '../../../environments/environment';
 
 type UnitSystem = 'metric' | 'imperial';
 
@@ -32,6 +34,7 @@ type UnitSystem = 'metric' | 'imperial';
   imports: [
     CommonModule,
     FormsModule,
+    RouterModule,
     IonContent,
     IonButton,
     IonItem,
@@ -64,6 +67,7 @@ export class ProfileSettingsPage implements OnInit {
   unitSystem: UnitSystem = 'metric';
   sex: string | number | null = null;
   isTrainer = false;
+  canManageTrainerApprovals = false;
 
   isLoading = false;
   isSaving = false;
@@ -287,6 +291,14 @@ export class ProfileSettingsPage implements OnInit {
         this.firstName = typeof userSnap.firstName === 'string' ? userSnap.firstName : '';
         this.lastName = typeof userSnap.lastName === 'string' ? userSnap.lastName : '';
         this.email = typeof userSnap.email === 'string' ? userSnap.email : '';
+        const role = String((userSnap as any).role || '').trim().toLowerCase();
+        const currentEmail = String(userSnap.email || '').trim().toLowerCase();
+        const approvedReviewerEmails = (environment.adminReviewerEmails || []).map((entry) =>
+          entry.trim().toLowerCase()
+        );
+        this.canManageTrainerApprovals =
+          role === 'admin' ||
+          (currentEmail.length > 0 && approvedReviewerEmails.includes(currentEmail));
       }
 
       if (!this.email && this.auth.currentUser?.email) {

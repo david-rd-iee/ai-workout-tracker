@@ -54,8 +54,15 @@ export class UserService {
         : this.CLIENTS_COLLECTION;
 
       // Add required fields for chat functionality
+      const isTrainerAccount = formData.accountType === 'trainer';
       const profileData = {
         ...formData,
+        ...(isTrainerAccount
+          ? {
+              approvalStatus: 'pending' as const,
+              visible: false,
+            }
+          : {}),
         unreadMessageCount: 0, // Initialize unread message count
         createdAt: new Date(),
         updatedAt: new Date()
@@ -79,7 +86,10 @@ export class UserService {
           email: authEmail ?? '',
           firstName,
           lastName,
-          isPT: formData.accountType === 'trainer',
+          isPT: false,
+          requestedAccountType: formData.accountType,
+          trainerApprovalStatus: isTrainerAccount ? 'pending' : 'approved',
+          trainerApplicationSubmittedAt: isTrainerAccount ? serverTimestamp() : null,
           updatedAt: serverTimestamp(),
         },
         { merge: true }
@@ -90,7 +100,7 @@ export class UserService {
         email: authEmail ?? '',
         firstName,
         lastName,
-        isPT: formData.accountType === 'trainer',
+        isPT: false,
       };
       this.profileRepository.primeUserSummary(userID, userSummaryPatch);
       this.profileRepository.primeProfile(userID, formData.accountType, {
@@ -150,7 +160,7 @@ export class UserService {
 
     const trainerNeedsNameCompletion = await this.ensureTrainerUsersDocIdentity(userID, email);
     if (trainerNeedsNameCompletion) {
-      this.profileCompletionRoute = '/profile-creation/trainer';
+      this.profileCompletionRoute = '/complete-profile/trainer';
       this.userInfo.set(null);
       this.loadedProfileUid = null;
       this.userBadgesService.clear();
@@ -160,6 +170,18 @@ export class UserService {
 
     let hasRequiredStats = true;
     const usersData = await this.getUserSummaryDirectly(userID);
+    const trainerApprovalStatus = String((usersData as Record<string, unknown> | null)?.['trainerApprovalStatus'] || '').trim().toLowerCase();
+    const requestedAccountType = String((usersData as Record<string, unknown> | null)?.['requestedAccountType'] || '').trim().toLowerCase();
+
+    if (requestedAccountType === 'trainer' && trainerApprovalStatus === 'pending') {
+      this.profileCompletionRoute = '/trainer-approval-pending';
+      this.userInfo.set(null);
+      this.loadedProfileUid = null;
+      this.userBadgesService.clear();
+      this.userStatsService.clear();
+      return false;
+    }
+
     if (!isTrainerProfile) {
       const userStatsDoc = await getDoc(doc(this.firestore, 'userStats', userID));
       const userStatsData = userStatsDoc.exists() ? userStatsDoc.data() : null;
@@ -180,10 +202,10 @@ export class UserService {
       const firstName = typeof usersData?.['firstName'] === 'string' ? usersData['firstName'].trim() : '';
       const lastName = typeof usersData?.['lastName'] === 'string' ? usersData['lastName'].trim() : '';
       const username = typeof usersData?.['username'] === 'string' ? usersData['username'].trim() : '';
+      const isTrainer = usersData?.['isPT'] === true;
 
-      // Keep complete-profile flow for signups until core identity fields are set.
       if (!firstName || !lastName || !username) {
-        this.profileCompletionRoute = '/complete-profile';
+        this.profileCompletionRoute = isTrainer ? '/complete-profile/trainer' : '/complete-profile';
         this.userInfo.set(null);
         this.loadedProfileUid = null;
         this.userBadgesService.clear();
@@ -192,7 +214,7 @@ export class UserService {
       }
 
       if (!hasRequiredStats) {
-        this.profileCompletionRoute = '/complete-profile';
+        this.profileCompletionRoute = '/complete-profile/client';
         this.userInfo.set(null);
         this.loadedProfileUid = null;
         this.userBadgesService.clear();
@@ -241,7 +263,7 @@ export class UserService {
     }
 
     if (!isTrainerProfile && !hasRequiredStats) {
-      this.profileCompletionRoute = '/complete-profile';
+      this.profileCompletionRoute = '/complete-profile/client';
       this.userInfo.set(null);
       this.loadedProfileUid = null;
       this.userBadgesService.clear();
@@ -393,7 +415,9 @@ export class UserService {
     }
 
     const usersData = userSnap.data() as Record<string, unknown>;
-    const isTrainer = usersData?.['isPT'] === true;
+    const isTrainer =
+      usersData?.['isPT'] === true ||
+      String(usersData?.['requestedAccountType'] || '').trim().toLowerCase() === 'trainer';
     if (!isTrainer) {
       return false;
     }

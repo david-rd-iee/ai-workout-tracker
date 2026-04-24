@@ -276,6 +276,9 @@ export class ProfileUserPage implements OnInit, OnDestroy {
     const uid = this.auth.currentUser?.uid ?? null;
     if (uid) {
       this.startUsersDocRealtimeListener(uid);
+      if (this.currentUser?.accountType === 'trainer') {
+        void this.calculateTrainerStatsFromBookings(uid);
+      }
     }
     void this.runDeferredLoads();
   }
@@ -423,41 +426,142 @@ export class ProfileUserPage implements OnInit, OnDestroy {
     this.trainerStats = {
       totalClients: 0,
       totalSessions: 0,
-      longestStandingClient: { name: '', durationDays: 0 },
-      topPerformingClient: { name: '', improvement: '' },
+      longestStandingClient: { name: 'No clients yet', durationDays: 0 },
+      topPerformingClient: { name: 'No sessions yet', improvement: '0 sessions' },
       totalRevenue: 0
     };
   }
 
   private async calculateTrainerStatsFromBookings(trainerId: string): Promise<void> {
     try {
-      // Get all bookings for this trainer
-      const bookingsRef = collection(this.firestore, 'bookings');
-      const trainerBookingsQuery = query(
-        bookingsRef,
-        where('trainerId', '==', trainerId)
-      );
-      const bookingsSnap = await getDocs(trainerBookingsQuery);
-      
-      const completedSessions = bookingsSnap.docs.filter(doc => 
-        doc.data()['status'] === 'completed'
-      );
-      this.trainerStats.totalSessions = completedSessions.length;
+      const normalizedTrainerId = String(trainerId || '').trim();
+      if (!normalizedTrainerId) {
+        this.resetTrainerStats();
+        return;
+      }
 
-      // Calculate total revenue
-      this.trainerStats.totalRevenue = completedSessions.reduce((sum, doc) => {
-        return sum + (doc.data()['price'] || 0);
+      const bookingsRef = collection(this.firestore, 'bookings');
+      const trainerBookingsQuery = query(bookingsRef, where('trainerId', '==', normalizedTrainerId));
+      const trainerClientsRef = collection(this.firestore, `trainers/${normalizedTrainerId}/clients`);
+
+      const [bookingsSnap, trainerClientsSnap] = await Promise.all([
+        getDocs(trainerBookingsQuery),
+        getDocs(trainerClientsRef),
+      ]);
+
+      const trainerClients: Array<Record<string, unknown>> = trainerClientsSnap.docs.map((clientDoc) => ({
+        id: clientDoc.id,
+        ...(clientDoc.data() as Record<string, unknown>),
+      }));
+
+      const activeBookings = bookingsSnap.docs
+        .map((bookingDoc) => bookingDoc.data() as Record<string, unknown>)
+        .filter((booking) => {
+          const status = String(booking['status'] || '').toLowerCase();
+          return status !== 'cancelled';
+        });
+
+      const completedLikeBookings = activeBookings.filter((booking) => {
+        const status = String(booking['status'] || '').toLowerCase();
+        return status === 'completed' || status === 'confirmed';
+      });
+
+      const clientSessionCounts = new Map<string, number>();
+      for (const booking of completedLikeBookings) {
+        const clientId = String(booking['clientId'] || '').trim();
+        if (!clientId) {
+          continue;
+        }
+        clientSessionCounts.set(clientId, (clientSessionCounts.get(clientId) || 0) + 1);
+      }
+
+      const totalRevenue = completedLikeBookings.reduce((sum, booking) => {
+        const amount = Number(booking['price'] ?? booking['amount'] ?? 0);
+        return sum + (Number.isFinite(amount) ? amount : 0);
       }, 0);
 
-      // Count all clients for this trainer from trainers/{trainerId}/clients
-      const trainerClientsRef = collection(this.firestore, `trainers/${trainerId}/clients`);
-      const trainerClientsSnap = await getDocs(trainerClientsRef);
-      this.trainerStats.totalClients = trainerClientsSnap.size;
-      
-      console.log('[ProfileUser] Calculated trainer stats from bookings:', this.trainerStats);
+      const longestClient = trainerClients
+        .map((clientRecord) => {
+          const joinedDate = this.toDate(
+            (clientRecord['joinedDate'] as unknown) ??
+            (clientRecord['createdAt'] as unknown) ??
+            (clientRecord['acceptedAt'] as unknown) ??
+            (clientRecord['connectedAt'] as unknown)
+          );
+          const durationDays = joinedDate
+            ? Math.max(0, Math.floor((Date.now() - joinedDate.getTime()) / 86400000))
+            : 0;
+
+          return {
+            name: this.resolveTrainerClientName(clientRecord),
+            durationDays,
+          };
+        })
+        .sort((a, b) => b.durationDays - a.durationDays)[0] || {
+        name: 'No clients yet',
+        durationDays: 0,
+      };
+
+      let topClientName = 'No sessions yet';
+      let topClientImprovement = '0 sessions';
+      let topClientSessions = 0;
+
+      for (const clientRecord of trainerClients) {
+        const clientId = String(clientRecord['clientId'] || clientRecord['id'] || '').trim();
+        const completedSessions = clientSessionCounts.get(clientId) || 0;
+        if (completedSessions > topClientSessions) {
+          topClientSessions = completedSessions;
+          topClientName = this.resolveTrainerClientName(clientRecord);
+          topClientImprovement = `${completedSessions} session${completedSessions === 1 ? '' : 's'}`;
+        }
+      }
+
+      this.trainerStats = {
+        totalClients: trainerClientsSnap.size,
+        totalSessions: completedLikeBookings.length,
+        totalRevenue,
+        longestStandingClient: longestClient,
+        topPerformingClient: {
+          name: topClientName,
+          improvement: topClientImprovement,
+        },
+      };
+
+      console.log('[ProfileUser] Calculated trainer stats from Firestore:', this.trainerStats);
     } catch (error) {
       console.error('[ProfileUser] Error calculating trainer stats from bookings:', error);
     }
+  }
+
+  private resolveTrainerClientName(clientRecord: Record<string, unknown>): string {
+    const directName = String(clientRecord['clientName'] || '').trim();
+    if (directName) {
+      return directName;
+    }
+
+    const firstName = String(clientRecord['firstName'] || '').trim();
+    const lastName = String(clientRecord['lastName'] || '').trim();
+    const combined = `${firstName} ${lastName}`.trim();
+    if (combined) {
+      return combined;
+    }
+
+    return 'Client';
+  }
+
+  private toDate(value: unknown): Date | null {
+    if (!value) {
+      return null;
+    }
+    if (value instanceof Date) {
+      return value;
+    }
+    if (typeof (value as { toDate?: () => Date }).toDate === 'function') {
+      const converted = (value as { toDate: () => Date }).toDate();
+      return converted instanceof Date && !Number.isNaN(converted.getTime()) ? converted : null;
+    }
+    const parsed = new Date(String(value));
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
   }
 
   private applyClientStatuesFromBadges(

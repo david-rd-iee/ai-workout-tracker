@@ -47,6 +47,22 @@ export const routes: Routes = [
     canActivate: [authGuard],
   },
   {
+    path: 'complete-profile/client',
+    loadComponent: () =>
+      import('./pages/complete-profile/complete-profile-client/complete-profile-client.page').then(
+        (m) => m.CompleteProfileClientPage
+      ),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'complete-profile/trainer',
+    loadComponent: () =>
+      import('./pages/complete-profile/complete-profile-trainer/complete-profile-trainer.page').then(
+        (m) => m.CompleteProfileTrainerPage
+      ),
+    canActivate: [authGuard],
+  },
+  {
     path: 'profile-creation',
     loadComponent: () =>
       import('./pages/profile-creation/profile-creation.page').then((m) => m.ProfileCreationPage),
@@ -192,6 +208,30 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./pages/client-find-trainer/client-find-trainer.page').then(
         (m) => m.ClientFindTrainerPage
+      ),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'service-agreements',
+    loadComponent: () =>
+      import('./pages/service-agreements/service-agreements.page').then(
+        (m) => m.ServiceAgreementsPage
+      ),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'trainer-approval-pending',
+    loadComponent: () =>
+      import('./pages/trainer-approval-pending/trainer-approval-pending.page').then(
+        (m) => m.TrainerApprovalPendingPage
+      ),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'trainer-approval-admin',
+    loadComponent: () =>
+      import('./pages/trainer-approval-admin/trainer-approval-admin.page').then(
+        (m) => m.TrainerApprovalAdminPage
       ),
     canActivate: [authGuard],
   },

@@ -1,0 +1,113 @@
+<ion-content [fullscreen]="true" class="auth-page-content">
+  <div class="background-gradient"></div>
+
+  <div class="auth-page-container">
+    <section class="auth-hero-card">
+      <div class="hero-media-shell">
+        <img class="hero-runner-image" src="assets/auth/runner-figure.webp" alt="Running figure" />
+      </div>
+
+      <div class="hero-copy">
+        <p class="hero-eyebrow">TRAINER SETUP</p>
+        <h1>Create Your Coach Profile</h1>
+        <p>Give trainers their own signup page instead of sending them through the old client onboarding form.</p>
+      </div>
+    </section>
+
+    <section class="auth-form-card">
+      <h2>Trainer Details</h2>
+
+      <form class="auth-form" (ngSubmit)="onSubmit()">
+        <div class="field-grid two-up">
+          <ion-item class="auth-input-item" lines="none">
+            <ion-input label="First Name" label-placement="floating" [(ngModel)]="firstName" name="firstName" placeholder="First name" required></ion-input>
+          </ion-item>
+
+          <ion-item class="auth-input-item" lines="none">
+            <ion-input label="Last Name" label-placement="floating" [(ngModel)]="lastName" name="lastName" placeholder="Last name" required></ion-input>
+          </ion-item>
+        </div>
+
+        <div class="field-grid two-up">
+          <ion-item class="auth-input-item" lines="none">
+            <ion-input label="Phone" label-placement="floating" [(ngModel)]="phone" name="phone" placeholder="Phone number" required></ion-input>
+          </ion-item>
+
+          <ion-item class="auth-input-item" lines="none">
+            <ion-input label="Hourly Rate (Optional)" label-placement="floating" type="number" inputmode="decimal" [(ngModel)]="hourlyRate" name="hourlyRate" placeholder="e.g. 75"></ion-input>
+          </ion-item>
+        </div>
+
+        <ion-item class="auth-input-item" lines="none">
+          <ion-input label="Specialization" label-placement="floating" [(ngModel)]="specialization" name="specialization" placeholder="Strength, rehab, bodybuilding, endurance..." required></ion-input>
+        </ion-item>
+
+        <div class="field-grid two-up">
+          <ion-item class="auth-input-item" lines="none">
+            <ion-input label="Experience" label-placement="floating" [(ngModel)]="experience" name="experience" placeholder="e.g. 6 years coaching" required></ion-input>
+          </ion-item>
+
+          <ion-item class="auth-input-item" lines="none">
+            <ion-input label="Education / Certifications" label-placement="floating" [(ngModel)]="education" name="education" placeholder="NASM CPT, CSCS, kinesiology..." required></ion-input>
+          </ion-item>
+        </div>
+
+        <ion-item class="auth-input-item" lines="none">
+          <ion-input label="Extra Certifications (Optional)" label-placement="floating" [(ngModel)]="certificationsInput" name="certificationsInput" placeholder="Comma-separated extras"></ion-input>
+        </ion-item>
+
+        <div class="field-grid three-up">
+          <ion-item class="auth-input-item" lines="none">
+            <ion-input label="City" label-placement="floating" [(ngModel)]="city" name="city" placeholder="City" required></ion-input>
+          </ion-item>
+
+          <ion-item class="auth-input-item" lines="none">
+            <ion-input label="State" label-placement="floating" [(ngModel)]="state" name="state" placeholder="State" required></ion-input>
+          </ion-item>
+
+          <ion-item class="auth-input-item" lines="none">
+            <ion-input label="Zip Code" label-placement="floating" [(ngModel)]="zip" name="zip" placeholder="Zip code" required></ion-input>
+          </ion-item>
+        </div>
+
+        <ion-item class="auth-input-item textarea-item" lines="none">
+          <ion-textarea label="Background and Experience" label-placement="stacked" [(ngModel)]="description" name="description" placeholder="Tell clients about your coaching background, style, and who you help best." rows="5" autoGrow="true" required></ion-textarea>
+        </ion-item>
+
+        <div class="toggle-grid">
+          <label class="toggle-card">
+            <div>
+              <strong>Remote Coaching</strong>
+              <span>Appear in searches for online coaching.</span>
+            </div>
+            <ion-checkbox [(ngModel)]="remote" name="remote"></ion-checkbox>
+          </label>
+
+          <label class="toggle-card">
+            <div>
+              <strong>In-Person Training</strong>
+              <span>Offer local sessions and booking availability.</span>
+            </div>
+            <ion-checkbox [(ngModel)]="inPerson" name="inPerson"></ion-checkbox>
+          </label>
+
+          <label class="toggle-card">
+            <div>
+              <strong>Visible in Search</strong>
+              <span>Let clients discover this trainer profile right away.</span>
+            </div>
+            <ion-checkbox [(ngModel)]="visible" name="visible"></ion-checkbox>
+          </label>
+        </div>
+
+        <ion-text class="auth-error" *ngIf="errorMessage">
+          <p>{{ errorMessage }}</p>
+        </ion-text>
+
+        <ion-button class="primary-auth-btn" expand="block" type="submit" [disabled]="isSubmitting">
+          {{ isSubmitting ? 'Creating Trainer Profile...' : 'Finish Trainer Setup' }}
+        </ion-button>
+      </form>
+    </section>
+  </div>
+</ion-content>

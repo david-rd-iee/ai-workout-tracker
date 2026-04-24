@@ -1,0 +1,26 @@
+<ion-content [fullscreen]="true" class="pending-content">
+  <div class="pending-shell">
+    <div class="pending-card">
+      <p class="eyebrow">Trainer Application Received</p>
+      <h1>We’re reviewing your trainer account.</h1>
+      <p class="supporting-copy">
+        Your trainer profile has been submitted for approval. Until it is approved, your account
+        will stay in a pending state and trainer features will stay locked.
+      </p>
+      <p class="supporting-copy">
+        Once your application is approved, come back here and tap <strong>Check Approval Status</strong>.
+      </p>
+
+      <div class="action-stack">
+        <ion-button expand="block" (click)="recheckStatus()" [disabled]="isCheckingStatus">
+          {{ isCheckingStatus ? 'Checking...' : 'Check Approval Status' }}
+        </ion-button>
+        <ion-button expand="block" fill="outline" (click)="signOut()">
+          Sign Out
+        </ion-button>
+      </div>
+
+      <p class="error-copy" *ngIf="errorMessage">{{ errorMessage }}</p>
+    </div>
+  </div>
+</ion-content>

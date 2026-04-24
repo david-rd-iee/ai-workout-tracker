@@ -13,172 +13,86 @@
 
       <div class="hero-copy">
         <p class="hero-eyebrow">ATLAS</p>
-        <h1>Complete Profile</h1>
-        <p *ngIf="!isTrainerNameOnly">Add your details before entering the app.</p>
-        <p *ngIf="isTrainerNameOnly">Please add your first and last name to continue.</p>
+        <h1>Join Atlas</h1>
+        <p>Choose your role, review the terms, and continue with the right signup flow.</p>
       </div>
     </section>
 
     <section class="auth-form-card">
-      <h2>Profile Details</h2>
+      <h2>Account Setup</h2>
 
-      <form class="auth-form" (ngSubmit)="onSubmit()">
-        <ion-item class="auth-input-item" lines="none">
-          <ion-input
-            label="First Name"
-            label-placement="floating"
-            [(ngModel)]="firstName"
-            name="firstName"
-            placeholder="First name"
-            autocomplete="given-name"
-            required
-          ></ion-input>
-        </ion-item>
+      <div class="role-grid">
+        <button
+          type="button"
+          class="role-card"
+          [class.role-card-selected]="selectedAccountType === 'trainer'"
+          (click)="selectAccountType('trainer')"
+        >
+          <span class="role-eyebrow">Coach</span>
+          <strong>Trainer</strong>
+          <span>Build your trainer profile, specialties, and client-facing presence.</span>
+        </button>
 
-        <ion-item class="auth-input-item" lines="none">
-          <ion-input
-            label="Last Name"
-            label-placement="floating"
-            [(ngModel)]="lastName"
-            name="lastName"
-            placeholder="Last name"
-            autocomplete="family-name"
-            required
-          ></ion-input>
-        </ion-item>
+        <button
+          type="button"
+          class="role-card"
+          [class.role-card-selected]="selectedAccountType === 'client'"
+          (click)="selectAccountType('client')"
+        >
+          <span class="role-eyebrow">Member</span>
+          <strong>Client</strong>
+          <span>Restore the original profile flow with age, height, weight, and onboarding details.</span>
+        </button>
+      </div>
 
-        <ion-item class="auth-input-item" lines="none" *ngIf="!isTrainerNameOnly">
-          <ion-input
-            label="Username"
-            label-placement="floating"
-            [(ngModel)]="username"
-            name="username"
-            placeholder="Username"
-            autocomplete="username"
-            required
-          ></ion-input>
-        </ion-item>
-
-        <ion-item class="auth-input-item" lines="none" *ngIf="!isTrainerNameOnly">
-          <ion-input
-            label="Age"
-            label-placement="floating"
-            type="number"
-            inputmode="numeric"
-            [(ngModel)]="age"
-            name="age"
-            placeholder="Age"
-            required
-          ></ion-input>
-        </ion-item>
-
-        <ion-item class="auth-input-item" lines="none" *ngIf="!isTrainerNameOnly">
-          <ion-select
-            label="Units"
-            label-placement="floating"
-            [(ngModel)]="unitSystem"
-            name="unitSystem"
-            interface="popover"
-            (ionChange)="onUnitSystemChange()"
-          >
-            <ion-select-option value="metric">Metric (m, kg)</ion-select-option>
-            <ion-select-option value="imperial">Imperial (ft/in, lb)</ion-select-option>
-          </ion-select>
-        </ion-item>
-
-        <p class="unit-helper" *ngIf="!isTrainerNameOnly">
-          Height and weight are always stored in meters and kilograms.
-        </p>
-
-        <ion-item class="auth-input-item" lines="none" *ngIf="!isTrainerNameOnly && unitSystem === 'metric'">
-          <ion-input
-            label="Height (m)"
-            label-placement="floating"
-            type="number"
-            inputmode="decimal"
-            [(ngModel)]="heightMeters"
-            name="heightMeters"
-            placeholder="e.g. 1.78"
-            required
-          ></ion-input>
-        </ion-item>
-
-        <div class="imperial-height-grid" *ngIf="!isTrainerNameOnly && unitSystem === 'imperial'">
-          <ion-item class="auth-input-item" lines="none">
-            <ion-input
-              label="Height (ft)"
-              label-placement="floating"
-              type="number"
-              inputmode="numeric"
-              [(ngModel)]="heightFeet"
-              name="heightFeet"
-              placeholder="e.g. 5"
-            ></ion-input>
-          </ion-item>
-
-          <ion-item class="auth-input-item" lines="none">
-            <ion-input
-              label="Height (in)"
-              label-placement="floating"
-              type="number"
-              inputmode="decimal"
-              [(ngModel)]="heightInches"
-              name="heightInches"
-              placeholder="e.g. 10"
-            ></ion-input>
-          </ion-item>
+      <section class="terms-container">
+        <div class="terms-header">
+          <h3>Terms of Service</h3>
+          <p>Review the onboarding terms before choosing your account type.</p>
         </div>
 
-        <ion-item class="auth-input-item" lines="none" *ngIf="!isTrainerNameOnly && unitSystem === 'metric'">
-          <ion-input
-            label="Weight (kg)"
-            label-placement="floating"
-            type="number"
-            inputmode="decimal"
-            [(ngModel)]="weightKg"
-            name="weightKg"
-            placeholder="e.g. 72"
-            required
-          ></ion-input>
-        </ion-item>
+        <div class="terms-content">
+          <p>
+            <strong>Terms of Use</strong><br>
+            Last Updated: Nov 11, 2025
+          </p>
+          <p>
+            By using Atlas, you agree to the platform terms, privacy practices, and onboarding requirements that govern how clients and trainers interact through the app.
+          </p>
+          <p>
+            Trainers may not use Atlas as a platform for medical, psychological, or healthcare advice. Services offered through the app are intended for fitness, wellness, and lifestyle guidance only.
+          </p>
+          <p>
+            Users must provide accurate registration information, keep their account secure, and comply with platform rules around messaging, scheduling, and off-platform solicitation.
+          </p>
+          <p>
+            Atlas may suspend or terminate accounts that violate these terms, misuse user data, or attempt to bypass platform payment, communication, or safety rules.
+          </p>
+          <p>
+            By continuing, you acknowledge that your use of the platform is subject to Atlas's full Terms of Service, including limitations of liability, dispute resolution provisions, and user conduct expectations.
+          </p>
+        </div>
+      </section>
 
-        <ion-item class="auth-input-item" lines="none" *ngIf="!isTrainerNameOnly && unitSystem === 'imperial'">
-          <ion-input
-            label="Weight (lb)"
-            label-placement="floating"
-            type="number"
-            inputmode="decimal"
-            [(ngModel)]="weightPounds"
-            name="weightPounds"
-            placeholder="e.g. 165"
-            required
-          ></ion-input>
-        </ion-item>
+      <div class="accept-terms-container">
+        <label class="checkbox-copy" for="accept-terms">
+          I have read and agree to the Terms of Service
+        </label>
+        <ion-checkbox
+          id="accept-terms"
+          [(ngModel)]="termsAccepted"
+          name="termsAccepted"
+          (ionChange)="onTermsAcceptedChange()"
+        ></ion-checkbox>
+      </div>
 
-        <ion-item class="auth-input-item" lines="none" *ngIf="!isTrainerNameOnly">
-          <ion-select
-            label="Sex"
-            label-placement="floating"
-            [(ngModel)]="sex"
-            name="sex"
-            placeholder="Select sex"
-            interface="popover"
-            required
-          >
-            <ion-select-option [value]="1">Male</ion-select-option>
-            <ion-select-option [value]="2">Female</ion-select-option>
-            <ion-select-option [value]="1.5">Other</ion-select-option>
-          </ion-select>
-        </ion-item>
+      <ion-text class="auth-error" *ngIf="errorMessage">
+        <p>{{ errorMessage }}</p>
+      </ion-text>
 
-        <ion-text class="auth-error" *ngIf="errorMessage">
-          <p>{{ errorMessage }}</p>
-        </ion-text>
-
-        <ion-button class="primary-auth-btn" expand="block" type="submit" [disabled]="isSubmitting">
-          {{ isSubmitting ? 'Saving...' : 'Continue' }}
-        </ion-button>
-      </form>
+      <ion-button class="primary-auth-btn" expand="block" (click)="onSubmit()">
+        Continue
+      </ion-button>
     </section>
   </div>
 </ion-content>

@@ -2,6 +2,7 @@ import { Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import {
+  AlertController,
   IonButton,
   IonCard,
   IonCardContent,
@@ -9,6 +10,7 @@ import {
   IonCardTitle,
   IonContent,
   IonIcon,
+  ModalController,
 } from '@ionic/angular/standalone';
 
 import { addIcons } from 'ionicons';
@@ -35,10 +37,12 @@ import { authState } from 'rxfire/auth';
 import { from, of, switchMap } from 'rxjs';
 import { Subscription } from 'rxjs';
 import { HeaderComponent } from 'src/app/components/header/header.component';
+import { AppointmentSchedulerModalComponent } from 'src/app/components/modals/appointment-scheduler-modal/appointment-scheduler-modal.component';
 import { normalizeStreakData } from '../../models/user-stats.model';
 import { UserService } from '../../services/account/user.service';
 import { ProfileRepositoryService } from '../../services/account/profile-repository.service';
 import { SessionBookingService } from '../../services/session-booking.service';
+import { TrainerConnectionService } from '../../services/trainer-connection.service';
 
 import type { AppUser } from '../../models/user.model';
 
@@ -80,6 +84,26 @@ interface UpcomingSession {
   date: Date;
   notes?: string;
   duration: number;
+  status: 'pending' | 'confirmed' | 'cancelled' | 'completed';
+}
+
+interface PendingClientRequest {
+  clientId: string;
+  clientName: string;
+  clientProfilepic: string;
+  message: string;
+}
+
+interface PendingSessionRequest {
+  bookingId: string;
+  clientId: string;
+  clientName: string;
+  clientProfilePic: string;
+  date: Date;
+  timeLabel: string;
+  duration: number;
+  sessionType: string;
+  notes: string;
 }
 
 @Component({
@@ -106,9 +130,14 @@ export class HomePage implements OnInit, OnDestroy {
   private userService = inject(UserService);
   private profileRepository = inject(ProfileRepositoryService);
   private sessionBookingService = inject(SessionBookingService);
+  private trainerConnectionService = inject(TrainerConnectionService);
+  private alertController = inject(AlertController);
+  private modalController = inject(ModalController);
 
   private userSub?: Subscription;
   private trainerClientsUnsubscribe: (() => void) | null = null;
+  private trainerRequestsUnsubscribe: (() => void) | null = null;
+  private trainerSessionRequestsUnsubscribe: (() => void) | null = null;
   private userSummaryUnsubscribe: (() => void) | null = null;
   private clientUserStatsUnsubscribe: (() => void) | null = null;
   private currentSummaryUid: string | null = null;
@@ -121,6 +150,8 @@ export class HomePage implements OnInit, OnDestroy {
   
   // Trainer-specific data
   clients: any[] = [];
+  pendingClientRequests: PendingClientRequest[] = [];
+  pendingSessionRequests: PendingSessionRequest[] = [];
   currentMonthIndex = 0;
   monthlyRevenue: any[] = [];
   totalRevenue = 0;
@@ -129,6 +160,7 @@ export class HomePage implements OnInit, OnDestroy {
   currentStreak = 0;
   nextWorkout: NextWorkout | null = null;
   upcomingSessions: UpcomingSession[] = [];
+  assignedTrainerId = '';
   homeConfig: HomePageConfig | null = null;
   customMessage: string = '';
   
@@ -182,6 +214,8 @@ export class HomePage implements OnInit, OnDestroy {
         if (!this.currentUser) {
           this.activeUserDataKey = null;
           this.stopTrainerClientsListener();
+          this.stopTrainerRequestsListener();
+          this.stopTrainerSessionRequestsListener();
           this.stopCurrentUserSummaryListener();
           this.stopClientUserStatsListener();
           this.clearRoleData();
@@ -203,9 +237,13 @@ export class HomePage implements OnInit, OnDestroy {
 
         if (this.currentUser.isPT === true) {
           this.stopClientUserStatsListener();
+          this.startTrainerRequestsListener(userId);
+          this.startTrainerSessionRequestsListener(userId);
           void this.loadTrainerClients(userId);
         } else {
           this.stopTrainerClientsListener();
+          this.stopTrainerRequestsListener();
+          this.stopTrainerSessionRequestsListener();
           void this.loadClientData(userId);
         }
       },
@@ -303,6 +341,8 @@ export class HomePage implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.userSub?.unsubscribe();
     this.stopTrainerClientsListener();
+    this.stopTrainerRequestsListener();
+    this.stopTrainerSessionRequestsListener();
     this.stopCurrentUserSummaryListener();
     this.stopClientUserStatsListener();
   }
@@ -321,14 +361,128 @@ export class HomePage implements OnInit, OnDestroy {
     this.trainerClientsUnsubscribe = null;
   }
 
+  private startTrainerRequestsListener(trainerId: string): void {
+    const normalizedTrainerId = String(trainerId || '').trim();
+    if (!normalizedTrainerId) {
+      this.stopTrainerRequestsListener();
+      return;
+    }
+
+    this.stopTrainerRequestsListener();
+    const requestsRef = collection(this.firestore, `trainers/${normalizedTrainerId}/clientRequests`);
+    this.trainerRequestsUnsubscribe = onSnapshot(
+      requestsRef,
+      (snapshot) => {
+        if (this.activeUserDataKey !== `${normalizedTrainerId}:trainer`) {
+          return;
+        }
+
+        this.pendingClientRequests = snapshot.docs
+          .map((requestDoc) => {
+            const requestData = requestDoc.data() as Record<string, unknown>;
+            if (String(requestData['status'] || '').trim() !== 'pending') {
+              return null;
+            }
+
+            return {
+              clientId: requestDoc.id,
+              clientName: String(requestData['clientName'] || '').trim() || 'Client',
+              clientProfilepic: String(requestData['clientProfilepic'] || '').trim(),
+              message: String(requestData['message'] || '').trim(),
+            } as PendingClientRequest;
+          })
+          .filter((request): request is PendingClientRequest => !!request)
+          .sort((a, b) => a.clientName.localeCompare(b.clientName));
+      },
+      (error) => {
+        console.error('Error listening to trainer connection requests:', error);
+        this.pendingClientRequests = [];
+      }
+    );
+  }
+
+  private stopTrainerRequestsListener(): void {
+    this.trainerRequestsUnsubscribe?.();
+    this.trainerRequestsUnsubscribe = null;
+    this.pendingClientRequests = [];
+  }
+
+  private startTrainerSessionRequestsListener(trainerId: string): void {
+    const normalizedTrainerId = String(trainerId || '').trim();
+    if (!normalizedTrainerId) {
+      this.stopTrainerSessionRequestsListener();
+      return;
+    }
+
+    this.stopTrainerSessionRequestsListener();
+    const bookingsRef = collection(this.firestore, 'bookings');
+    const trainerPendingBookingsQuery = query(
+      bookingsRef,
+      where('trainerId', '==', normalizedTrainerId),
+      where('status', '==', 'pending')
+    );
+
+    this.trainerSessionRequestsUnsubscribe = onSnapshot(
+      trainerPendingBookingsQuery,
+      (snapshot) => {
+        if (this.activeUserDataKey !== `${normalizedTrainerId}:trainer`) {
+          return;
+        }
+
+        this.pendingSessionRequests = snapshot.docs
+          .map((bookingDoc) => {
+            const bookingData = bookingDoc.data() as Record<string, unknown>;
+            if (String(bookingData['requestedBy'] || '').trim() !== 'client') {
+              return null;
+            }
+
+            const date = this.parseSessionDateTime(bookingData);
+            if (!date) {
+              return null;
+            }
+
+            const clientFirstName = String(bookingData['clientFirstName'] || '').trim();
+            const clientLastName = String(bookingData['clientLastName'] || '').trim();
+
+            return {
+              bookingId: bookingDoc.id,
+              clientId: String(bookingData['clientId'] || '').trim(),
+              clientName: `${clientFirstName} ${clientLastName}`.trim() || 'Client',
+              clientProfilePic: String(bookingData['clientProfilePic'] || '').trim(),
+              date,
+              timeLabel: String(bookingData['time'] || '').trim(),
+              duration: Number(bookingData['duration'] || 60) || 60,
+              sessionType: String(bookingData['sessionType'] || '').trim() || 'Training Session',
+              notes: String(bookingData['notes'] || '').trim(),
+            } as PendingSessionRequest;
+          })
+          .filter((request): request is PendingSessionRequest => !!request)
+          .sort((a, b) => a.date.getTime() - b.date.getTime());
+      },
+      (error) => {
+        console.error('Error listening to trainer session requests:', error);
+        this.pendingSessionRequests = [];
+      }
+    );
+  }
+
+  private stopTrainerSessionRequestsListener(): void {
+    this.trainerSessionRequestsUnsubscribe?.();
+    this.trainerSessionRequestsUnsubscribe = null;
+    this.pendingSessionRequests = [];
+  }
+
   private clearRoleData(): void {
     this.stopClientUserStatsListener();
     this.clients = [];
+    this.pendingClientRequests = [];
+    this.pendingSessionRequests = [];
     this.monthlyRevenue = [];
     this.totalRevenue = 0;
     this.currentStreak = 0;
     this.nextWorkout = null;
     this.upcomingSessions = [];
+    this.assignedTrainerId = '';
     this.homeConfig = null;
     this.customMessage = '';
     this.currentMonthIndex = 0;
@@ -393,7 +547,11 @@ export class HomePage implements OnInit, OnDestroy {
 
       for (const session of bookedSessions) {
         const clientId = String(session?.['clientId'] || '').trim();
-        if (!clientId || session?.['status'] === 'cancelled') {
+        if (
+          !clientId ||
+          session?.['status'] === 'cancelled' ||
+          session?.['status'] === 'pending'
+        ) {
           continue;
         }
 
@@ -522,13 +680,13 @@ export class HomePage implements OnInit, OnDestroy {
           }
 
           try {
-            const clientProfile = await this.userService.getUserProfileDirectly(clientId, 'client');
-            if (!clientProfile) {
+            const clientProfileSnap = await getDoc(doc(this.firestore, `clients/${clientId}`));
+            if (!clientProfileSnap.exists()) {
               return { clientDocId, shouldRemove: true };
             }
 
             const assignedTrainerId = String(
-              (clientProfile as unknown as Record<string, unknown>)['trainerId'] || ''
+              (clientProfileSnap.data() as Record<string, unknown>)['trainerId'] || ''
             ).trim();
             return { clientDocId, shouldRemove: assignedTrainerId !== trainerId };
           } catch (error) {
@@ -652,11 +810,31 @@ export class HomePage implements OnInit, OnDestroy {
     try {
       this.startClientUserStatsListener(clientId);
       const configRef = doc(this.firestore, `clientHomeConfigs/${clientId}`);
-      const configSnap = await getDoc(configRef);
+      const clientProfileRef = doc(this.firestore, `clients/${clientId}`);
+      const [configSnap, clientProfileSnap] = await Promise.all([
+        getDoc(configRef),
+        getDoc(clientProfileRef),
+      ]);
       
       if (configSnap.exists() && this.activeUserDataKey === roleKey) {
         this.homeConfig = configSnap.data() as HomePageConfig;
         this.customMessage = this.homeConfig.customMessage || '';
+      }
+
+      if (this.activeUserDataKey === roleKey) {
+        const clientProfileData = clientProfileSnap.exists()
+          ? (clientProfileSnap.data() as Record<string, unknown>)
+          : {};
+        this.assignedTrainerId = String(
+          clientProfileData['trainerId'] || this.currentUser?.trainerId || ''
+        ).trim();
+
+        if (this.currentUser) {
+          this.currentUser = {
+            ...this.currentUser,
+            trainerId: this.assignedTrainerId,
+          };
+        }
       }
 
       await this.loadNextWorkout(clientId);
@@ -795,6 +973,7 @@ export class HomePage implements OnInit, OnDestroy {
             date: sessionDate,
             notes: booking['notes'] || '',
             duration: booking['duration'] || 60,
+            status: (booking['status'] || 'confirmed') as UpcomingSession['status'],
           } as UpcomingSession;
         })
       );
@@ -824,6 +1003,61 @@ export class HomePage implements OnInit, OnDestroy {
     });
   }
 
+  async removeClient(client: any, event?: Event): Promise<void> {
+    event?.stopPropagation();
+
+    const trainerId = String(this.currentUser?.userId || '').trim();
+    const clientId = String(client?.id || '').trim();
+    if (!trainerId || !clientId) {
+      return;
+    }
+
+    const reason = await this.promptForClientRemovalReason(client);
+    if (reason === null) {
+      return;
+    }
+
+    try {
+      await this.trainerConnectionService.removeConnectionByTrainer(clientId, trainerId, reason);
+      this.clients = this.clients.filter((existingClient) => String(existingClient?.id || '').trim() !== clientId);
+      await this.loadTrainerClients(trainerId);
+    } catch (error) {
+      console.error('Error removing client:', error);
+    }
+  }
+
+  async approveClientRequest(request: PendingClientRequest, event?: Event): Promise<void> {
+    event?.stopPropagation();
+    const trainerId = String(this.currentUser?.userId || '').trim();
+    if (!trainerId || !request.clientId) {
+      return;
+    }
+
+    try {
+      await this.trainerConnectionService.acceptConnectionRequest(trainerId, request.clientId);
+      this.pendingClientRequests = this.pendingClientRequests.filter(
+        (pendingRequest) => pendingRequest.clientId !== request.clientId
+      );
+      await this.loadTrainerClients(trainerId);
+    } catch (error) {
+      console.error('Error approving client request:', error);
+    }
+  }
+
+  async declineClientRequest(request: PendingClientRequest, event?: Event): Promise<void> {
+    event?.stopPropagation();
+    const trainerId = String(this.currentUser?.userId || '').trim();
+    if (!trainerId || !request.clientId) {
+      return;
+    }
+
+    try {
+      await this.trainerConnectionService.declineConnectionRequest(trainerId, request.clientId);
+    } catch (error) {
+      console.error('Error declining client request:', error);
+    }
+  }
+
   viewClientWorkoutVideos(client: any, event?: Event): void {
     event?.stopPropagation();
 
@@ -836,6 +1070,49 @@ export class HomePage implements OnInit, OnDestroy {
     this.router.navigate([`/trainer-client-videos/${clientId}`], {
       queryParams: clientName ? { clientName } : {},
     });
+  }
+
+  private async promptForClientRemovalReason(client: any): Promise<string | null> {
+    const clientName = String(client?.name || 'this client').trim();
+    const alert = await this.alertController.create({
+      header: 'Remove Client',
+      message: `Why are you removing ${clientName}?`,
+      inputs: [
+        {
+          name: 'reason',
+          type: 'textarea',
+          placeholder: 'This reason will be saved for later review.',
+          attributes: {
+            maxlength: 300,
+          },
+        },
+      ],
+      buttons: [
+        {
+          text: 'Cancel',
+          role: 'cancel',
+        },
+        {
+          text: 'Remove',
+          handler: (value) => {
+            const reason = String(value?.reason || '').trim();
+            if (!reason) {
+              return false;
+            }
+            return true;
+          },
+        },
+      ],
+    });
+
+    await alert.present();
+    const { role, data } = await alert.onDidDismiss();
+    if (role === 'cancel') {
+      return null;
+    }
+
+    const reason = String(data?.values?.reason || '').trim();
+    return reason || null;
   }
   
   previousMonth() {
@@ -863,6 +1140,55 @@ export class HomePage implements OnInit, OnDestroy {
     this.router.navigate(['/workout-chatbot']);
   }
 
+  async requestSessionWithTrainer(): Promise<void> {
+    const clientId = String(this.currentUser?.userId || '').trim();
+    const trainerId = String(this.assignedTrainerId || this.currentUser?.trainerId || '').trim();
+    if (!clientId || !trainerId) {
+      return;
+    }
+
+    try {
+      const [trainerSummary, trainerProfileSnap] = await Promise.all([
+        this.userService.getUserSummaryDirectly(trainerId),
+        getDoc(doc(this.firestore, 'trainers', trainerId)),
+      ]);
+
+      const trainerProfile = trainerProfileSnap.exists()
+        ? (trainerProfileSnap.data() as Record<string, unknown>)
+        : {};
+      const trainerFirstName = String(trainerSummary?.firstName || trainerProfile['firstName'] || '').trim();
+      const trainerLastName = String(trainerSummary?.lastName || trainerProfile['lastName'] || '').trim();
+      const trainerName = `${trainerFirstName} ${trainerLastName}`.trim() || 'Your Trainer';
+      const clientFirstName = String(this.currentUser?.firstName || '').trim();
+      const clientLastName = String(this.currentUser?.lastName || '').trim();
+
+      const modal = await this.modalController.create({
+        component: AppointmentSchedulerModalComponent,
+        componentProps: {
+          mode: 'client-request',
+          trainerId,
+          trainerName,
+          trainerFirstName,
+          trainerLastName,
+          trainerProfilePic: String(trainerSummary?.profilepic || trainerProfile['profilepic'] || '').trim(),
+          clientId,
+          clientName: `${clientFirstName} ${clientLastName}`.trim() || this.userName(),
+          clientFirstName,
+          clientLastName,
+          clientProfilePic: String(this.currentUser?.profilepic || '').trim(),
+        },
+      });
+
+      await modal.present();
+      const { data } = await modal.onWillDismiss();
+      if (data?.success) {
+        await this.loadUpcomingSessions(clientId);
+      }
+    } catch (error) {
+      console.error('Error opening session request modal:', error);
+    }
+  }
+
   viewStreak() {}
 
   viewNextWorkout() {
@@ -870,4 +1196,80 @@ export class HomePage implements OnInit, OnDestroy {
   }
 
   viewSessionDetails(_session: UpcomingSession) {}
+
+  async cancelSessionRequest(session: UpcomingSession, event?: Event): Promise<void> {
+    event?.stopPropagation();
+
+    const clientId = String(this.currentUser?.userId || '').trim();
+    const bookingId = String(session?.id || '').trim();
+    if (!clientId || !bookingId || session.status !== 'pending') {
+      return;
+    }
+
+    const alert = await this.alertController.create({
+      header: 'Cancel Session Request',
+      message: `Cancel your pending session request with ${session.trainerName || 'your trainer'}?`,
+      buttons: [
+        {
+          text: 'Keep Request',
+          role: 'cancel',
+        },
+        {
+          text: 'Cancel Request',
+          role: 'destructive',
+        },
+      ],
+    });
+
+    await alert.present();
+    const { role } = await alert.onDidDismiss();
+    if (role !== 'destructive') {
+      return;
+    }
+
+    try {
+      await this.sessionBookingService.cancelPendingBookingRequestByClient(clientId, bookingId);
+      this.upcomingSessions = this.upcomingSessions.filter(
+        (upcomingSession) => String(upcomingSession?.id || '').trim() !== bookingId
+      );
+      await this.loadUpcomingSessions(clientId);
+    } catch (error) {
+      console.error('Error cancelling session request:', error);
+    }
+  }
+
+  async approveSessionRequest(request: PendingSessionRequest, event?: Event): Promise<void> {
+    event?.stopPropagation();
+    const trainerId = String(this.currentUser?.userId || '').trim();
+    if (!trainerId || !request.bookingId) {
+      return;
+    }
+
+    try {
+      await this.sessionBookingService.acceptPendingBookingRequest(trainerId, request.bookingId);
+      this.pendingSessionRequests = this.pendingSessionRequests.filter(
+        (pendingRequest) => pendingRequest.bookingId !== request.bookingId
+      );
+      await this.loadTrainerClients(trainerId);
+    } catch (error) {
+      console.error('Error approving session request:', error);
+    }
+  }
+
+  async declineSessionRequest(request: PendingSessionRequest, event?: Event): Promise<void> {
+    event?.stopPropagation();
+    const trainerId = String(this.currentUser?.userId || '').trim();
+    if (!trainerId || !request.bookingId) {
+      return;
+    }
+
+    try {
+      await this.sessionBookingService.rejectPendingBookingRequest(trainerId, request.bookingId);
+      this.pendingSessionRequests = this.pendingSessionRequests.filter(
+        (pendingRequest) => pendingRequest.bookingId !== request.bookingId
+      );
+    } catch (error) {
+      console.error('Error declining session request:', error);
+    }
+  }
 }
