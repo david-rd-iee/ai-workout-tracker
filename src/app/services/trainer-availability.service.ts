@@ -236,11 +236,7 @@ export class TrainerAvailabilityService {
             dayOfWeek
           );
           return; // Exit early if we found availability in the trainer document
-        } else {
-          console.log('DEBUG: No availability array found in trainers collection');
         }
-      } else {
-        console.log('DEBUG: No trainer document found in trainers collection');
       }
       
       // If we get here, we didn't find availability in the trainer document, so check the availability document
@@ -259,7 +255,6 @@ export class TrainerAvailabilityService {
           );
         }
       } else {
-        console.log('DEBUG: No availability document found in trainerAvailability collection');
         this.processAvailabilityFromArray(
           trainerId,
           date,
@@ -281,8 +276,6 @@ export class TrainerAvailabilityService {
     this.trainerProfileUnsubscribe = onSnapshot(
       trainerProfileRef,
       (snapshot) => {
-        console.log(`DEBUG: Real-time update from trainers/${trainerId}: ${snapshot.exists() ? 'Profile loaded' : 'Profile missing'}`);
-
         const trainerData = snapshot.exists()
           ? (snapshot.data() as Record<string, unknown>)
           : null;
@@ -304,8 +297,6 @@ export class TrainerAvailabilityService {
     );
     
     this.trainerAvailabilityUnsubscribe = onSnapshot(trainerAvailabilityRef, (snapshot) => {
-      console.log(`DEBUG: Real-time update from trainerAvailability/${trainerId}: ${snapshot.exists() ? 'Document exists' : 'Document does not exist'}`);
-      
       if (snapshot.exists()) {
         const availabilityData = snapshot.data();
         const normalizedAvailability = this.normalizeAvailabilityEntries(availabilityData['availability']);
@@ -343,33 +334,26 @@ export class TrainerAvailabilityService {
       const dayMatches = day.toLowerCase() === dayOfWeek.toLowerCase() || 
                         day.toLowerCase() === dayOfWeek.substring(0, 3).toLowerCase();
       
-      console.log(`DEBUG: Comparing day entry '${day}' with day of week '${dayOfWeek}': ${dayMatches}`);
       return dayMatches;
     });
     
     if (dayEntry) {
-      console.log('DEBUG: Found day entry:', JSON.stringify(dayEntry, null, 2));
-      
       // Check if the day is available
       if (dayEntry.available === false) {
-        console.log('DEBUG: Day is marked as not available');
         this.availableTimeSlots.set([]);
         return;
       }
       
       // Generate time slots from the availability
       const timeSlots = this.generateTimeSlotsFromArray(dayEntry);
-      console.log('DEBUG: Generated time slots:', timeSlots);
       
       if (timeSlots.length === 0) {
-        console.log('DEBUG: No time slots were generated from the day entry');
         this.availableTimeSlots.set([]);
         return;
       }
       
       this.applyBookedSessionsToTimeSlots(trainerId, date, timeSlots);
     } else {
-      console.log('No availability entry found for this day of week');
       const fallbackSlots = this.generateTimeSlotsFromArray(this.getDefaultDayEntry(dayOfWeek));
       this.applyBookedSessionsToTimeSlots(trainerId, date, fallbackSlots);
     }
@@ -382,188 +366,55 @@ export class TrainerAvailabilityService {
    */
   private generateTimeSlotsFromArray(dayEntry: any): TimeSlot[] {
     const timeSlots: TimeSlot[] = [];
-    
-    console.log('DEBUG: Generating time slots from day entry:', JSON.stringify(dayEntry, null, 2));
-    
-    // Check if we have timeWindows array (new format)
+
+    const pushRange = (startLabel: string, endLabel: string) => {
+      const startTimeParts = this.parseTime(startLabel);
+      const endTimeParts = this.parseTime(endLabel);
+      if (!startTimeParts || !endTimeParts) {
+        return;
+      }
+
+      let currentHour = startTimeParts.hour;
+      let currentMinute = startTimeParts.minute;
+      const endHour = endTimeParts.hour;
+      const endMinute = endTimeParts.minute;
+
+      while (
+        currentHour < endHour ||
+        (currentHour === endHour && currentMinute <= endMinute)
+      ) {
+        const ampm = currentHour < 12 ? 'AM' : 'PM';
+        const hour12 = currentHour % 12 || 12;
+        const minuteStr = currentMinute === 0 ? '00' : '30';
+
+        timeSlots.push({
+          time: `${hour12}:${minuteStr} ${ampm}`,
+          available: true,
+          booked: false,
+        });
+
+        currentMinute += 30;
+        if (currentMinute >= 60) {
+          currentHour += 1;
+          currentMinute = 0;
+        }
+      }
+    };
+
     if (dayEntry.timeWindows && Array.isArray(dayEntry.timeWindows)) {
-      console.log('DEBUG: Found timeWindows array with', dayEntry.timeWindows.length, 'time blocks');
-      
-      // Process each time window
       for (const timeWindow of dayEntry.timeWindows) {
         if (timeWindow.startTime && timeWindow.endTime) {
-          console.log(`DEBUG: Processing time window: ${timeWindow.startTime} to ${timeWindow.endTime}`);
-          
-          // Parse the start and end times
-          const startTimeParts = this.parseTime(timeWindow.startTime);
-          const endTimeParts = this.parseTime(timeWindow.endTime);
-          
-          console.log('DEBUG: Parsed time parts:', {
-            start: timeWindow.startTime,
-            startParsed: startTimeParts,
-            end: timeWindow.endTime,
-            endParsed: endTimeParts
-          });
-          
-          if (startTimeParts && endTimeParts) {
-            // Generate 30-minute slots between start and end times
-            let currentHour = startTimeParts.hour;
-            let currentMinute = startTimeParts.minute;
-            const endHour = endTimeParts.hour;
-            const endMinute = endTimeParts.minute;
-            
-            console.log(`DEBUG: Generating slots from ${currentHour}:${currentMinute} to ${endHour}:${endMinute}`);
-            
-            // Generate time slots in 30-minute increments
-            while (
-              currentHour < endHour || 
-              (currentHour === endHour && currentMinute <= endMinute)
-            ) {
-              const ampm = currentHour < 12 ? 'AM' : 'PM';
-              const hour12 = currentHour % 12 || 12;
-              const minuteStr = currentMinute === 0 ? '00' : '30';
-              
-              const time = `${hour12}:${minuteStr} ${ampm}`;
-              console.log(`DEBUG: Generated time slot: ${time}`);
-              
-              timeSlots.push({
-                time,
-                available: true,
-                booked: false
-              });
-              
-              // Increment by 30 minutes
-              currentMinute += 30;
-              if (currentMinute >= 60) {
-                currentHour += 1;
-                currentMinute = 0;
-              }
-            }
-          } else {
-            console.log('DEBUG: Failed to parse time strings:', { 
-              start: timeWindow.startTime, 
-              end: timeWindow.endTime,
-              startParsed: startTimeParts,
-              endParsed: endTimeParts
-            });
-          }
-        } else {
-          console.log(`DEBUG: Invalid time window, missing startTime or endTime:`, timeWindow);
+          pushRange(timeWindow.startTime, timeWindow.endTime);
         }
       }
-    } 
-    // Check if we have times array (legacy format from other components)
-    else if (dayEntry.times && Array.isArray(dayEntry.times)) {
-      console.log('DEBUG: Found legacy times array with', dayEntry.times.length, 'time blocks');
-      
-      // Each time entry should have start and end properties
+    } else if (dayEntry.times && Array.isArray(dayEntry.times)) {
       for (const timeBlock of dayEntry.times) {
         if (timeBlock.start && timeBlock.end) {
-          console.log(`DEBUG: Processing legacy time block: ${timeBlock.start} to ${timeBlock.end}`);
-          
-          // Parse the start and end times
-          const startTimeParts = this.parseTime(timeBlock.start);
-          const endTimeParts = this.parseTime(timeBlock.end);
-          
-          console.log('DEBUG: Parsed time parts:', {
-            start: timeBlock.start,
-            startParsed: startTimeParts,
-            end: timeBlock.end,
-            endParsed: endTimeParts
-          });
-          
-          if (startTimeParts && endTimeParts) {
-            // Generate 30-minute slots between start and end times
-            let currentHour = startTimeParts.hour;
-            let currentMinute = startTimeParts.minute;
-            const endHour = endTimeParts.hour;
-            const endMinute = endTimeParts.minute;
-            
-            console.log(`DEBUG: Generating slots from ${currentHour}:${currentMinute} to ${endHour}:${endMinute}`);
-            
-            // Generate time slots in 30-minute increments
-            while (
-              currentHour < endHour || 
-              (currentHour === endHour && currentMinute <= endMinute)
-            ) {
-              const ampm = currentHour < 12 ? 'AM' : 'PM';
-              const hour12 = currentHour % 12 || 12;
-              const minuteStr = currentMinute === 0 ? '00' : '30';
-              
-              const time = `${hour12}:${minuteStr} ${ampm}`;
-              console.log(`DEBUG: Generated time slot: ${time}`);
-              
-              timeSlots.push({
-                time,
-                available: true,
-                booked: false
-              });
-              
-              // Increment by 30 minutes
-              currentMinute += 30;
-              if (currentMinute >= 60) {
-                currentHour += 1;
-                currentMinute = 0;
-              }
-            }
-          }
+          pushRange(timeBlock.start, timeBlock.end);
         }
       }
-    } 
-    // Fall back to single time range if no arrays (legacy format)
-    else if (dayEntry.startTime && dayEntry.endTime) {
-      console.log(`DEBUG: Using legacy single time range: ${dayEntry.startTime} to ${dayEntry.endTime}`);
-      
-      // Parse the start and end times
-      const startTimeParts = this.parseTime(dayEntry.startTime);
-      const endTimeParts = this.parseTime(dayEntry.endTime);
-      
-      console.log('DEBUG: Parsed time parts for single range:', {
-        start: dayEntry.startTime,
-        startParsed: startTimeParts,
-        end: dayEntry.endTime,
-        endParsed: endTimeParts
-      });
-      
-      if (startTimeParts && endTimeParts) {
-        // Generate 30-minute slots between start and end times
-        let currentHour = startTimeParts.hour;
-        let currentMinute = startTimeParts.minute;
-        const endHour = endTimeParts.hour;
-        const endMinute = endTimeParts.minute;
-        
-        console.log(`DEBUG: Generating slots from ${currentHour}:${currentMinute} to ${endHour}:${endMinute}`);
-        
-        // Generate time slots in 30-minute increments
-        while (
-          currentHour < endHour || 
-          (currentHour === endHour && currentMinute <= endMinute)
-        ) {
-          const ampm = currentHour < 12 ? 'AM' : 'PM';
-          const hour12 = currentHour % 12 || 12;
-          const minuteStr = currentMinute === 0 ? '00' : '30';
-          
-          const time = `${hour12}:${minuteStr} ${ampm}`;
-          console.log(`DEBUG: Generated time slot: ${time}`);
-          
-          timeSlots.push({
-            time,
-            available: true,
-            booked: false
-          });
-          
-          // Increment by 30 minutes
-          currentMinute += 30;
-          if (currentMinute >= 60) {
-            currentHour += 1;
-            currentMinute = 0;
-          }
-        }
-      } else {
-        console.log('DEBUG: Failed to parse single time range');
-      }
-    } else {
-      console.log('DEBUG: Day entry has no recognized time format (neither timeWindows, times array, nor startTime/endTime properties)');
+    } else if (dayEntry.startTime && dayEntry.endTime) {
+      pushRange(dayEntry.startTime, dayEntry.endTime);
     }
     
     return timeSlots;
@@ -576,9 +427,6 @@ export class TrainerAvailabilityService {
    * @param useTrainerAvailabilityCollection If true, save to trainerAvailability collection instead of trainers collection
    */
   saveTrainerWeeklyAvailability(trainerId: string, availabilityData: any[], useTrainerAvailabilityCollection: boolean = false): Promise<void> {
-    console.log('DEBUG: Saving trainer availability:', JSON.stringify(availabilityData, null, 2));
-    console.log(`DEBUG: Saving to ${useTrainerAvailabilityCollection ? 'trainerAvailability' : 'trainers'} collection`);
-    
     // Determine which document to update based on the flag
     const docPath = useTrainerAvailabilityCollection ? `trainerAvailability/${trainerId}` : `trainers/${trainerId}`;
     const docRef = doc(this.firestore, docPath);
@@ -586,10 +434,8 @@ export class TrainerAvailabilityService {
     // Check if the document exists first
     return getDoc(docRef).then(docSnap => {
       if (docSnap.exists()) {
-        console.log(`DEBUG: Document exists at ${docPath}, updating it`);
         return updateDoc(docRef, { availability: availabilityData });
       } else {
-        console.log(`DEBUG: Document does not exist at ${docPath}, creating it`);
         return setDoc(docRef, { availability: availabilityData }, { merge: true });
       }
     });
@@ -639,11 +485,8 @@ export class TrainerAvailabilityService {
    */
   private parseTime(timeStr: string): { hour: number, minute: number } | null {
     if (!timeStr) {
-      console.log('No time string provided');
       return null;
     }
-    
-    console.log(`Parsing time string: '${timeStr}'`);
     
     // Try format: 'HH:MM AM/PM' with space (e.g., '8:00 AM')
     let match = timeStr.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
@@ -683,7 +526,6 @@ export class TrainerAvailabilityService {
       }
     }
     
-    console.log(`Final parsed time: ${hour}:${minute}`);
     return { hour, minute };
   }
 }

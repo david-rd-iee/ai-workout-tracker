@@ -142,7 +142,6 @@ export class AvailabiltyComponent implements OnInit {
   currentDay: DayAvailability | null = null;
 
   constructor(private modalCtrl: ModalController) {
-    console.log('AvailabiltyComponent constructor called');
     // Register Ionicons
     addIcons({ 
       'close-circle-outline': closeCircleOutline,
@@ -151,7 +150,6 @@ export class AvailabiltyComponent implements OnInit {
   }
 
   async openStartTimeModal(_modal: any, day: DayAvailability, index: number) {
-    console.log('openStartTimeModal called for day:', day);
     try {
       // Store the current day being edited
       this.currentDay = day;
@@ -167,11 +165,9 @@ export class AvailabiltyComponent implements OnInit {
       
       // Handle the modal result
       modal.onDidDismiss().then((result) => {
-        console.log('Modal dismissed with result:', result);
         if (result && result.data && result.data.value) {
           day.timeWindows[index].startTime = this.formatTimeFrom(result.data.value);
           this.availabilityChange.emit(this.availability);
-          console.log('Updated start time:', day.timeWindows[index].startTime);
         }
       });
       
@@ -182,7 +178,6 @@ export class AvailabiltyComponent implements OnInit {
   }
   
   async openEndTimeModal(_modal: any, day: DayAvailability, index: number) {
-    console.log('openEndTimeModal called for day:', day);
     try {
       // Store the current day being edited
       this.currentDay = day;
@@ -198,11 +193,9 @@ export class AvailabiltyComponent implements OnInit {
       
       // Handle the modal result
       modal.onDidDismiss().then((result) => {
-        console.log('Modal dismissed with result:', result);
         if (result && result.data && result.data.value) {
           day.timeWindows[index].endTime = this.formatTimeFrom(result.data.value);
           this.availabilityChange.emit(this.availability);
-          console.log('Updated end time:', day.timeWindows[index].endTime);
         }
       });
       

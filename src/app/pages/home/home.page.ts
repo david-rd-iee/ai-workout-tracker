@@ -32,7 +32,7 @@ import {
 } from 'ionicons/icons';
 
 import { Auth } from '@angular/fire/auth';
-import { Firestore, collection, getDoc, onSnapshot, doc, query, where, getDocs, Timestamp, limit, deleteDoc } from '@angular/fire/firestore';
+import { Firestore, collection, getDoc, onSnapshot, doc, query, where, getDocs, Timestamp, limit, deleteDoc, orderBy } from '@angular/fire/firestore';
 import { authState } from 'rxfire/auth';
 import { from, of, switchMap } from 'rxjs';
 import { Subscription } from 'rxjs';
@@ -852,7 +852,8 @@ export class HomePage implements OnInit, OnDestroy {
         workoutsRef,
         where('scheduledDate', '>=', Timestamp.now()),
         where('isComplete', '==', false),
-        limit(10)
+        orderBy('scheduledDate', 'asc'),
+        limit(1)
       );
       
       const querySnapshot = await getDocs(q);
@@ -862,12 +863,7 @@ export class HomePage implements OnInit, OnDestroy {
       }
       
       if (!querySnapshot.empty) {
-        const workoutDoc = querySnapshot.docs
-          .sort((a, b) => {
-            const aTime = a.data()['scheduledDate']?.toDate?.()?.getTime?.() ?? Number.MAX_SAFE_INTEGER;
-            const bTime = b.data()['scheduledDate']?.toDate?.()?.getTime?.() ?? Number.MAX_SAFE_INTEGER;
-            return aTime - bTime;
-          })[0];
+        const workoutDoc = querySnapshot.docs[0];
         const workoutData = workoutDoc.data();
         
         this.nextWorkout = {

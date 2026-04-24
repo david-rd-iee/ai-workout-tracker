@@ -29,9 +29,6 @@ export class FileUploadService {
    * @returns Promise with the download URL
    */
   async uploadFile(path: string, file: File): Promise<string> {
-    console.log(`Starting file upload to ${path}`);
-    console.log('File details:', file.name, file.size, 'bytes', file.type);
-
     try {
       // For iOS/Capacitor, prefer Cloud Functions when configured.
       // Fall back to direct Storage upload when base URL is missing.
@@ -64,15 +61,11 @@ export class FileUploadService {
    * @returns Promise with the download URL
    */
   async uploadVideo(path: string, file: File): Promise<string> {
-    console.log(`Starting video upload to ${path}`);
-    console.log('Video details:', file.name, file.size, 'bytes', file.type);
-
     try {
       // For iOS/Capacitor, prefer Cloud Functions when configured.
       // Fall back to direct Storage upload when base URL is missing.
       if (this.isCapacitor) {
         if (environment.cloudFunctionsBaseUrl?.trim()) {
-          console.log('Using Cloud Function for video upload on Capacitor');
           try {
             return await this.uploadViaCloudFunction(path, file);
           } catch (error) {
@@ -94,7 +87,6 @@ export class FileUploadService {
 
   private async uploadDirect(path: string, file: File): Promise<string> {
     const storageRef = ref(this.storage, path);
-    console.log('Storage reference created');
 
     const metadata = {
       contentType: file.type || 'image/jpeg',
@@ -104,15 +96,11 @@ export class FileUploadService {
       },
     };
 
-    console.log('Uploading file to Firebase Storage...');
     await uploadBytes(storageRef, file, metadata);
-    console.log('Upload completed successfully');
 
     let downloadUrl = await getDownloadURL(storageRef);
-    console.log('Download URL obtained');
 
     downloadUrl = this.addCacheBustingParam(downloadUrl);
-    console.log('Added cache-busting parameter to URL');
     return downloadUrl;
   }
 
@@ -120,12 +108,9 @@ export class FileUploadService {
    * Upload file using @capacitor-community/http plugin for iOS to avoid CORS issues
    */
   private async uploadViaCloudFunction(path: string, file: File): Promise<string> {
-    console.log('Using Cloud Function with @capacitor-community/http');
-    
     try {
       // Convert file to base64
       const base64Data = await this.fileToBase64(file);
-      console.log('File converted to base64');
       
       // Extract base64 content (remove data:image/jpeg;base64, part)
       const base64Content = base64Data.split(',')[1];
@@ -142,7 +127,6 @@ export class FileUploadService {
       
       // Get the Cloud Function URL from environment configuration
       const functionUrl = `${environment.cloudFunctionsBaseUrl}/uploadFile`;
-      console.log('Using Cloud Function URL:', functionUrl);
       
       // Get the current user's ID token for authentication
       const currentUser = this.auth.currentUser;
@@ -152,7 +136,6 @@ export class FileUploadService {
       
       // Get the Firebase ID token
       const idToken = await getIdToken(currentUser);
-      console.log('Got ID token for authentication');
       
       // Determine timeout based on file size and type
       const fileSizeMB = file.size / (1024 * 1024);
@@ -163,10 +146,7 @@ export class FileUploadService {
         ? Math.min(Math.max(fileSizeMB * 120000, 60000), 540000)
         : 30000;
       
-      console.log(`File size: ${fileSizeMB.toFixed(2)} MB, using timeout: ${timeout / 1000}s`);
-      
       // Use @capacitor-community/http to call the Cloud Function
-      console.log('Calling Cloud Function with @capacitor-community/http...');
       const response = await Http.request({
         method: 'POST',
         url: functionUrl,
@@ -187,8 +167,6 @@ export class FileUploadService {
         responseType: 'json'
       });
       
-      console.log('Cloud Function response status:', response.status);
-      
       if (response.status < 200 || response.status >= 300) {
         console.error('Cloud Function response data:', response.data);
         throw new Error(`Cloud Function call failed with status ${response.status}`);
@@ -196,7 +174,6 @@ export class FileUploadService {
       
       // Extract the download URL from the result
       const responseData = response.data;
-      console.log('Cloud Function response:', responseData);
       
       // The response should contain a downloadUrl property
       let downloadUrl = responseData.result?.downloadUrl;
@@ -204,11 +181,8 @@ export class FileUploadService {
         throw new Error('No download URL returned from Cloud Function');
       }
       
-      console.log('Download URL obtained from Cloud Function:', downloadUrl);
-      
       // Add cache-busting timestamp parameter to prevent caching issues
       downloadUrl = this.addCacheBustingParam(downloadUrl);
-      console.log('Added cache-busting parameter to URL');
       
       return downloadUrl;
     } catch (error: any) {

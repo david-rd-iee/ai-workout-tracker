@@ -87,8 +87,13 @@ export class FilePreviewComponent implements OnInit {
   
   private preparePreview() {
     try {
-      this.safeUrl = this.sanitizer.bypassSecurityTrustUrl(this.fileUrl);
-      this.safeResourceUrl = this.sanitizer.bypassSecurityTrustResourceUrl(this.fileUrl);
+      const trustedUrl = this.getTrustedUrl(this.fileUrl);
+      if (!trustedUrl) {
+        throw new Error('Untrusted file URL');
+      }
+
+      this.safeUrl = this.sanitizer.bypassSecurityTrustUrl(trustedUrl);
+      this.safeResourceUrl = this.sanitizer.bypassSecurityTrustResourceUrl(trustedUrl);
       this.isLoading = false;
     } catch (error) {
       console.error('Error preparing file preview:', error);
@@ -98,7 +103,12 @@ export class FilePreviewComponent implements OnInit {
   }
   
   openFile() {
-    window.open(this.fileUrl, '_blank');
+    const trustedUrl = this.getTrustedUrl(this.fileUrl);
+    if (!trustedUrl) {
+      return;
+    }
+
+    window.open(trustedUrl, '_blank', 'noopener');
   }
   
   /**
@@ -106,14 +116,40 @@ export class FilePreviewComponent implements OnInit {
    */
   downloadFile(event: Event) {
     event.stopPropagation();
-    if (this.fileUrl) {
+    const trustedUrl = this.getTrustedUrl(this.fileUrl);
+    if (trustedUrl) {
       const link = document.createElement('a');
-      link.href = this.fileUrl;
+      link.href = trustedUrl;
       link.download = this.fileName;
       link.target = '_blank';
+      link.rel = 'noopener';
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+    }
+  }
+
+  private getTrustedUrl(url: string): string | null {
+    const normalizedUrl = String(url || '').trim();
+    if (!normalizedUrl) {
+      return null;
+    }
+
+    if (normalizedUrl.startsWith('blob:') || normalizedUrl.startsWith('data:image/')) {
+      return normalizedUrl;
+    }
+
+    try {
+      const parsed = new URL(normalizedUrl, window.location.origin);
+      const isSameOrigin = parsed.origin === window.location.origin;
+      const isTrustedStorageHost =
+        parsed.protocol === 'https:' &&
+        (parsed.hostname === 'firebasestorage.googleapis.com' ||
+          parsed.hostname === 'storage.googleapis.com');
+
+      return isSameOrigin || isTrustedStorageHost ? parsed.toString() : null;
+    } catch {
+      return null;
     }
   }
   

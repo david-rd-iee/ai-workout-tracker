@@ -61,12 +61,12 @@ export class NotificationService {
 
     // Notification received listener
     PushNotifications.addListener('pushNotificationReceived', (notification: any) => {
-      console.log('Push notification received:', notification);
+      void notification;
     });
 
     // Notification action performed listener
     PushNotifications.addListener('pushNotificationActionPerformed', (notification: any) => {
-      console.log('Push notification action performed:', notification);
+      void notification;
     });
   }
 
@@ -80,16 +80,11 @@ export class NotificationService {
    * @param token The APNs token to log information about
    */
   private logTokenInfo(token: string): void {
-    // Log a truncated version of the token for privacy
-    const truncatedToken = `${token.substring(0, 8)}...${token.substring(token.length - 8)}`;
-    console.log(`APNs token info: ${truncatedToken}`);
-    console.log(`Token length: ${token.length}`);
-    console.log(`First few characters: ${token.substring(0, 8)}`);
+    void token;
   }
 
   async saveApnsToken(token: string) {
     try {
-      console.log('Attempting to save APNs token');
       this.logTokenInfo(token);
       
       // Get the current user - using the signal correctly
@@ -97,38 +92,28 @@ export class NotificationService {
       const currentUser = currentUserSignal();
       
       if (!currentUser) {
-        console.log('User not logged in, cannot save token');
         return;
       }
-
-      console.log('Current user found:', currentUser.uid);
       
       // Get the user profile - using the signal correctly
       const userProfileSignal = this.userService.getUserInfo();
       const userProfile = userProfileSignal();
       
       if (!userProfile) {
-        console.log('User profile not loaded, cannot save token');
         // Don't try to load the profile or retry - we'll wait for the profile to be created naturally
-        console.log('Will wait for profile creation to complete before saving token');
         return;
       }
       
       // Check if profile creation is complete by checking for accountType
       if (!userProfile.accountType) {
-        console.log('User profile exists but is incomplete (no account type), skipping token save');
         return;
       }
-
-      console.log('User profile found and complete, account type:', userProfile.accountType);
       
       const userId = currentUser.uid;
       const collectionPath = userProfile.accountType === 'trainer' 
         ? this.TRAINERS_COLLECTION 
         : this.CLIENTS_COLLECTION;
 
-      console.log(`Saving token to ${collectionPath}/${userId}`);
-      
       // Get a reference to the Firestore document
       const userDocRef = doc(this.firestore, `${collectionPath}/${userId}`);
       
@@ -136,34 +121,27 @@ export class NotificationService {
       const userDoc = await getDoc(userDocRef);
       if (userDoc.exists()) {
         const userData = userDoc.data();
-        console.log('User document exists, current data:', userData);
         
         // Create or update the apnsPushTokens array
         let apnsPushTokens = userData['apnsPushTokens'] || [];
-        console.log('Current apnsPushTokens:', apnsPushTokens);
         
         // Check if this token is already in the array
         if (!apnsPushTokens.includes(token)) {
           apnsPushTokens.push(token);
-          console.log('Adding new token to array:', apnsPushTokens);
           
           // Update the document with the new token
           try {
             await updateDoc(userDocRef, { 'apnsPushTokens': apnsPushTokens });
-            console.log('APNs token saved to user profile successfully');
           } catch (updateError) {
             console.error('Error updating document with token:', updateError);
             // Try with setDoc as a fallback if updateDoc fails
             try {
               const updatedData = { ...userData, apnsPushTokens };
               await setDoc(userDocRef, updatedData);
-              console.log('APNs token saved using setDoc as fallback');
             } catch (setDocError) {
               console.error('Fallback setDoc also failed:', setDocError);
             }
           }
-        } else {
-          console.log('APNs token already exists in user profile');
         }
       } else {
         console.error('User document not found');
@@ -189,8 +167,6 @@ export class NotificationService {
     }
 
     try {
-      console.log(`Sending notification to user ${normalizedUserId}`);
-
       await this.createInAppNotification(normalizedUserId, title, body, data);
 
       if (!this.isPushAvailable()) {
@@ -237,7 +213,6 @@ export class NotificationService {
         data: enhancedData
       });
       
-      console.log('Notification sent successfully:', result.data);
       return {
         deliveredInApp: true,
         deliveredPush: true,

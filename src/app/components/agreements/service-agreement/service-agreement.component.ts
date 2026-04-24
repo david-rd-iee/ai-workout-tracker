@@ -77,8 +77,6 @@ export class ServiceAgreementComponent implements OnInit {
   }
 
   async ngOnInit() {
-    console.log('Service Agreement Component initialized with template ID:', this.templateId, 'Agreement Name:', this.agreementName);
-    
     this.isLoading = true;
     try {
       // Load service options and policies from database
@@ -132,7 +130,7 @@ export class ServiceAgreementComponent implements OnInit {
   }
 
   info(name: string) {
-    console.log(name);
+    void name;
   }
 
   /**
@@ -154,7 +152,6 @@ export class ServiceAgreementComponent implements OnInit {
         this.policies = policies;
       }
       
-      console.log('Loaded options from database:', { serviceOptions, policies });
     } catch (error) {
       console.error('Error loading options from database:', error);
     }
@@ -282,7 +279,7 @@ export class ServiceAgreementComponent implements OnInit {
         });
         await toast.present();
         
-        console.log('File written successfully:', result.uri);
+        void result;
       } else {
         // On web, use the traditional approach
         const url = URL.createObjectURL(pdfBlob);
@@ -328,7 +325,6 @@ export class ServiceAgreementComponent implements OnInit {
         return;
       }
 
-      console.log('Saving agreement template:', this.agreementName, this.services, this.selectedPolicies, this.policies);
       // Save to Firestore
       await this.agreementService.saveAgreementTemplate(
         this.agreementName,

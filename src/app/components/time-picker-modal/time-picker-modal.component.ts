@@ -41,14 +41,10 @@ export class TimePickerModalComponent implements OnInit, AfterViewInit, OnDestro
     private platform: Platform,
     private zone: NgZone
   ) {
-    console.log('TimePickerModalComponent constructor called');
     this.isIOS = this.platform.is('ios');
-    console.log('Platform is iOS:', this.isIOS);
   }
 
   ngOnInit() {
-    console.log('TimePickerModalComponent initialized with value:', this.value);
-    
     // Ensure we have a valid time value
     if (!this.value) {
       // Default to current time if no value provided
@@ -59,13 +55,10 @@ export class TimePickerModalComponent implements OnInit, AfterViewInit, OnDestro
     
     // Optimize first-time loading
     if (!TimePickerModalComponent.isInitialized) {
-      console.log('First load of time picker, optimizing initialization');
       TimePickerModalComponent.isInitialized = true;
       
       // Preload any necessary resources
-      setTimeout(() => {
-        console.log('Time picker initialization complete');
-      }, 10);
+      setTimeout(() => undefined, 10);
     }
   }
   
@@ -75,11 +68,9 @@ export class TimePickerModalComponent implements OnInit, AfterViewInit, OnDestro
       // Use a short timeout to ensure the component is fully rendered
       this.timeoutId = setTimeout(() => {
         this.zone.run(() => {
-          console.log('Ensuring datetime is properly initialized on iOS');
           // Force a refresh of the component
           const datetimeEl = document.querySelector('ion-datetime');
           if (datetimeEl) {
-            console.log('Found datetime element, refreshing');
             // Force a refresh by triggering a layout
             (datetimeEl as any).forceUpdate?.();
           }
@@ -95,9 +86,7 @@ export class TimePickerModalComponent implements OnInit, AfterViewInit, OnDestro
   }
   
   onTimeChange(event: any) {
-    console.log('Time changed event:', event);
     const value = event.detail.value;
-    console.log('Dismissing modal with value:', value);
     
     // Immediately dismiss on iOS to improve responsiveness
     this.zone.run(() => {
@@ -108,7 +97,6 @@ export class TimePickerModalComponent implements OnInit, AfterViewInit, OnDestro
   }
 
   cancel() {
-    console.log('Cancel button clicked');
     this.modalCtrl.dismiss();
   }
 }

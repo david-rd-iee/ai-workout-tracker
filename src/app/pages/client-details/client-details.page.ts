@@ -129,11 +129,7 @@ export class ClientDetailsPage implements OnInit {
 
     await modal.present();
 
-    const { data } = await modal.onWillDismiss();
-    if (data) {
-      console.log('Home page configuration saved successfully for', this.client.name);
-      // Configuration is already saved to Firestore by the modal
-    }
+    await modal.onWillDismiss();
   }
 
   async scheduleAppointment() {
@@ -173,7 +169,6 @@ export class ClientDetailsPage implements OnInit {
 
       const { data } = await modal.onWillDismiss();
       if (data?.success) {
-        console.log('Appointment scheduled successfully:', data);
         await this.showToast('Appointment scheduled successfully!', 'success');
         // TODO: Optionally refresh appointments list if displayed on this page
       }
@@ -204,11 +199,7 @@ export class ClientDetailsPage implements OnInit {
 
     await modal.present();
 
-    const { data } = await modal.onWillDismiss();
-    if (data) {
-      console.log('Workout created:', data);
-      // TODO: Show success message
-    }
+    await modal.onWillDismiss();
   }
 
   async sendAgreement() {

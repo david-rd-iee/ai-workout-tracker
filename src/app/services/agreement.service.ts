@@ -36,6 +36,7 @@ export class AgreementService {
   private readonly storage = inject(Storage);
   private readonly auth = inject(Auth);
   private readonly chatsService = inject(ChatsService);
+  private readonly downloadUrlCache = new Map<string, { url: string; expiresAt: number }>();
 
   private readonly defaultServiceOptions: serviceOption[] = [
     { text: 'Session Duration', placeholder: 'Enter minutes', value: '', isNumeric: true },
@@ -251,7 +252,18 @@ export class AgreementService {
     if (!path) {
       return '';
     }
-    return getDownloadURL(ref(this.storage, path));
+
+    const cached = this.downloadUrlCache.get(path);
+    if (cached && cached.expiresAt > Date.now()) {
+      return cached.url;
+    }
+
+    const downloadUrl = await getDownloadURL(ref(this.storage, path));
+    this.downloadUrlCache.set(path, {
+      url: downloadUrl,
+      expiresAt: Date.now() + 5 * 60 * 1000,
+    });
+    return downloadUrl;
   }
 
   getAgreementDocumentPath(agreement: Agreement): string {

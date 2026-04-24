@@ -202,11 +202,12 @@ export class ServiceAgreementsPage implements AfterViewInit {
       const downloadUrl = await this.agreementService.resolveAgreementDownloadUrl(
         this.agreementService.getAgreementDocumentPath(agreement)
       );
-      if (!downloadUrl) {
+      const safeDocumentUrl = this.toSafeDocumentUrl(downloadUrl);
+      if (!safeDocumentUrl) {
         throw new Error('Unable to load this agreement document.');
       }
       this.selectedAgreementDocumentUrl =
-        this.sanitizer.bypassSecurityTrustResourceUrl(downloadUrl);
+        this.sanitizer.bypassSecurityTrustResourceUrl(safeDocumentUrl);
     } catch (error) {
       console.error('Error loading agreement document inline:', error);
       this.documentLoadError = 'This document could not be loaded in-app right now.';
@@ -219,8 +220,9 @@ export class ServiceAgreementsPage implements AfterViewInit {
     const downloadUrl = await this.agreementService.resolveAgreementDownloadUrl(
       this.agreementService.getAgreementDocumentPath(agreement)
     );
-    if (downloadUrl) {
-      window.open(downloadUrl, '_blank', 'noopener');
+    const safeDocumentUrl = this.toSafeDocumentUrl(downloadUrl);
+    if (safeDocumentUrl) {
+      window.open(safeDocumentUrl, '_blank', 'noopener');
     }
   }
 
@@ -318,6 +320,26 @@ export class ServiceAgreementsPage implements AfterViewInit {
       canvas.height = 180;
       this.clearSignaturePad();
     });
+  }
+
+  private toSafeDocumentUrl(url: string | null | undefined): string | null {
+    const normalizedUrl = String(url || '').trim();
+    if (!normalizedUrl) {
+      return null;
+    }
+
+    try {
+      const parsed = new URL(normalizedUrl, window.location.origin);
+      const isSameOrigin = parsed.origin === window.location.origin;
+      const isTrustedStorageHost =
+        parsed.protocol === 'https:' &&
+        (parsed.hostname === 'firebasestorage.googleapis.com' ||
+          parsed.hostname === 'storage.googleapis.com');
+
+      return isSameOrigin || isTrustedStorageHost ? parsed.toString() : null;
+    } catch {
+      return null;
+    }
   }
 
   private getCanvasPoint(canvas: HTMLCanvasElement, event: PointerEvent): { x: number; y: number } {
