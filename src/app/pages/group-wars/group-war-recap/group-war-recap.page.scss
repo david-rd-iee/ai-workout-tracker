@@ -1,11 +1,49 @@
+@mixin neo-raised($radius: 22px) {
+  background: linear-gradient(145deg, #f1f5fc, #e8eef8);
+  border-radius: $radius;
+  border: 1px solid rgba(255, 255, 255, 0.78);
+  box-shadow:
+    14px 14px 28px -14px rgba(184, 196, 214, 0.88),
+    -12px -12px 24px -14px rgba(249, 252, 255, 0.95);
+}
+
+@mixin neo-inset($radius: 18px) {
+  background: linear-gradient(145deg, #edf2fb, #e4ebf7);
+  border-radius: $radius;
+  border: 1px solid rgba(255, 255, 255, 0.56);
+  box-shadow:
+    inset 7px 7px 12px -10px rgba(184, 196, 214, 0.9),
+    inset -7px -7px 12px -10px rgba(249, 252, 255, 0.95);
+}
+
 .war-recap-page {
-  --background: #f5ecdd;
-  padding: 14px;
+  --background: #dbe3f0;
+  position: relative;
+}
+
+.background-gradient {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 14% -4%, rgba(255, 255, 255, 0.84) 0, rgba(255, 255, 255, 0) 36%),
+    radial-gradient(circle at 86% 8%, rgba(160, 179, 219, 0.34) 0, rgba(160, 179, 219, 0) 42%),
+    linear-gradient(145deg, #d5deeb 0%, #e8eef8 48%, #dbe4f1 100%);
+}
+
+.war-recap-container {
+  position: relative;
+  z-index: 1;
+  padding: 16px;
+  padding-top: 10px;
+  display: grid;
+  gap: 14px;
 }
 
 .state-message {
+  @include neo-raised(22px);
   text-align: center;
-  color: #304454;
+  color: #5a6880;
   padding: 24px 12px;
 }
 
@@ -14,65 +52,90 @@
 }
 
 .winner-banner {
-  background: linear-gradient(135deg, #255f95, #3f9b7f);
-  color: #fff;
-  border-radius: 16px;
+  @include neo-raised(26px);
   padding: 18px;
+}
 
-  h1 {
-    margin: 0;
-    font-size: 28px;
-    line-height: 1.1;
-  }
+.winner-chip {
+  margin: 0 0 10px;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  background: linear-gradient(145deg, #79a8ff, #2e6ef5);
+  color: #f7fbff;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  padding: 6px 10px;
+}
 
-  p {
-    margin: 8px 0 0;
-    font-size: 14px;
-  }
+.winner-banner h1 {
+  margin: 0;
+  color: #5a6880;
+  font-size: 2rem;
+  line-height: 1.08;
+}
+
+.winner-banner .final-score {
+  margin: 10px 0 0;
+  color: #8b9ab0;
+  font-size: 0.9rem;
 }
 
 .recap-panel {
-  margin-top: 12px;
-  background: #fff;
-  border: 1px solid #d5c4a8;
-  border-radius: 14px;
-  padding: 14px;
+  @include neo-raised(22px);
+  padding: 16px;
+  display: grid;
+  gap: 10px;
+}
 
-  h2 {
-    margin: 0 0 10px;
-    font-size: 20px;
-    color: #1f344a;
-  }
+.recap-panel h2 {
+  margin: 0;
+  color: #5a6880;
+  font-size: 1.1rem;
+  font-weight: 680;
+}
 
-  ul {
-    margin: 0;
-    padding-left: 20px;
-    color: #33485d;
-    display: grid;
-    gap: 6px;
-  }
+.recap-panel ul {
+  @include neo-inset(18px);
+  margin: 0;
+  padding: 12px 14px 12px 30px;
+  color: #5a6880;
+  display: grid;
+  gap: 6px;
 }
 
 .warrior-grid {
   display: grid;
   gap: 10px;
+}
 
-  article {
-    border-radius: 10px;
-    background: #f8f5ec;
-    padding: 10px;
+.warrior-grid article {
+  @include neo-inset(18px);
+  padding: 12px;
+}
 
-    h3 {
-      margin: 0 0 6px;
-      font-size: 16px;
-      color: #233f58;
-    }
+.warrior-grid h3 {
+  margin: 0 0 6px;
+  font-size: 0.95rem;
+  color: #2e6ef5;
+  font-weight: 700;
+}
 
-    p {
-      margin: 0;
-      color: #3b5167;
-      font-size: 14px;
-      line-height: 1.35;
-    }
+.warrior-grid p {
+  margin: 0;
+  color: #8b9ab0;
+  font-size: 0.87rem;
+  line-height: 1.4;
+}
+
+@media (max-width: 768px) {
+  .war-recap-container {
+    padding: 14px;
+    padding-top: 10px;
+  }
+
+  .winner-banner h1 {
+    font-size: 1.6rem;
   }
 }

@@ -10,13 +10,14 @@ import {
   GroupWarRecapExerciseSummary,
 } from '../../../models/group-war.model';
 import { GroupWarService } from '../../../services/group-war.service';
+import { HeaderComponent } from '../../../components/header/header.component';
 
 @Component({
   selector: 'app-group-war-recap',
   standalone: true,
   templateUrl: './group-war-recap.page.html',
   styleUrls: ['./group-war-recap.page.scss'],
-  imports: [CommonModule, IonicModule],
+  imports: [CommonModule, IonicModule, HeaderComponent],
 })
 export class GroupWarRecapPage implements OnInit, OnDestroy {
   private route = inject(ActivatedRoute);
