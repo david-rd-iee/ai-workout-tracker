@@ -205,6 +205,50 @@
         </form>
       </section>
 
+      <section class="settings-panel" *ngIf="isTrainer">
+        <h2>Trainer Payments</h2>
+        <p class="page-copy">Review Stripe setup and payout readiness for your trainer account.</p>
+
+        <div class="trainer-payment-summary" *ngIf="!isLoadingTrainerPaymentSummary; else loadingTrainerPayments">
+          <div class="trainer-payment-chip" [class.ready]="trainerPaymentsReadyForPayout">
+            {{ trainerPaymentsReadyForPayout ? 'Ready for Payouts' : 'Setup Required' }}
+          </div>
+
+          <p *ngIf="trainerPaymentSummary; else noTrainerPaymentAccount" class="trainer-payment-copy">
+            Connected account:
+            <strong>{{ formatStripeAccountId(trainerPaymentSummary.accountId) }}</strong>
+          </p>
+
+          <ng-template #noTrainerPaymentAccount>
+            <p class="trainer-payment-copy">No Stripe account connected yet.</p>
+          </ng-template>
+
+          <div class="trainer-payment-grid">
+            <div class="trainer-payment-pill" [class.ok]="trainerPaymentSummary?.detailsSubmitted === true">
+              Details Submitted
+            </div>
+            <div class="trainer-payment-pill" [class.ok]="trainerPaymentSummary?.chargesEnabled === true">
+              Charges Enabled
+            </div>
+            <div class="trainer-payment-pill" [class.ok]="trainerPaymentSummary?.payoutsEnabled === true">
+              Payouts Enabled
+            </div>
+          </div>
+        </div>
+
+        <ng-template #loadingTrainerPayments>
+          <p class="trainer-payment-copy">Loading payment status...</p>
+        </ng-template>
+
+        <ion-button
+          class="save-settings-btn"
+          [routerLink]="ROUTE_PATHS.APP.TABS.STRIPE_SETUP"
+          [disabled]="isLoading || isSaving"
+        >
+          Open Payment Dashboard
+        </ion-button>
+      </section>
+
       <section class="settings-panel">
         <h2>Account</h2>
         <p class="page-copy">Manage your session.</p>

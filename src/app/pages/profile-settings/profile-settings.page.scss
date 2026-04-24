@@ -82,6 +82,61 @@ $atlas-muted: #8b9ab0;
   gap: 12px;
 }
 
+.trainer-payment-summary {
+  margin-top: 14px;
+  @include atlas-inset(18px);
+  padding: 12px;
+  display: grid;
+  gap: 10px;
+}
+
+.trainer-payment-chip {
+  width: fit-content;
+  @include atlas-neu(999px);
+  padding: 6px 10px;
+  color: #926d20;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.trainer-payment-chip.ready {
+  color: #2a6f44;
+}
+
+.trainer-payment-copy {
+  margin: 0;
+  color: $atlas-muted;
+  font-size: 0.84rem;
+  line-height: 1.45;
+
+  strong {
+    color: $atlas-text;
+    font-weight: 700;
+  }
+}
+
+.trainer-payment-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.trainer-payment-pill {
+  @include atlas-neu(14px);
+  padding: 9px 8px;
+  text-align: center;
+  font-size: 0.73rem;
+  font-weight: 650;
+  color: #9c5a5a;
+  letter-spacing: 0.01em;
+}
+
+.trainer-payment-pill.ok {
+  color: #2a6f44;
+}
+
 .field-grid {
   display: grid;
   gap: 10px;
@@ -218,6 +273,10 @@ $atlas-muted: #8b9ab0;
   }
 
   .imperial-height-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .trainer-payment-grid {
     grid-template-columns: 1fr;
   }
 }
