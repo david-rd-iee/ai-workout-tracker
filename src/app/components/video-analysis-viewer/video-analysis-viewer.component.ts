@@ -16,6 +16,7 @@ import {
 import { Firestore } from '@angular/fire/firestore';
 import { doc, setDoc } from 'firebase/firestore';
 import { FileUploadService } from '../../services/file-upload.service';
+import { VideoPlaybackCacheService } from '../../services/video-playback-cache.service';
 import { addIcons } from 'ionicons';
 import {
   arrowBackOutline,
@@ -28,6 +29,7 @@ import {
   VideoAnalysisViewerAnalysis,
   VideoAnalysisViewerDrawing,
   VideoAnalysisViewerNote,
+  normalizePoseFrames,
 } from './video-analysis-viewer.types';
 import {
   POSE_CONNECTIONS,
@@ -64,6 +66,8 @@ type WorkoutAnalysisEvent =
       note: string;
       createdAtIso: string;
     };
+
+type VideoMode = 'recording' | 'overlay';
 
 /**
  * Maps each measurable joint to the pair of connected landmarks that define its
@@ -117,9 +121,13 @@ export class VideoAnalysisViewerComponent implements OnChanges, AfterViewChecked
   private readonly firestore = inject(Firestore);
   private readonly alertCtrl = inject(AlertController);
   private readonly fileUploadService = inject(FileUploadService);
+  private readonly videoPlaybackCacheService = inject(VideoPlaybackCacheService);
 
   analysisState: VideoAnalysisViewerAnalysis | null = null;
-  videoMode: 'recording' | 'overlay' = 'recording';
+  videoMode: VideoMode = 'recording';
+  recordingPlaybackUrl = '';
+  overlayPlaybackUrl = '';
+  playbackErrorMessage = '';
   isSwitchingVideo = false;
   isPlaying = false;
   currentTimeSeconds = 0;
@@ -151,6 +159,16 @@ export class VideoAnalysisViewerComponent implements OnChanges, AfterViewChecked
   private measureSelectionPath: CanvasPoint[] = [];
   private activePoseFrame: VideoAnalysisFrame | null = null;
   private readonly portraitPlayerGutterPx = 84;
+  private recordingFallbackUrl = '';
+  private overlayFallbackUrl = '';
+  private recordingCrossOriginEnabled = true;
+  private overlayCrossOriginEnabled = true;
+  private pendingSwitchResumeSeconds: number | null = null;
+  private pendingSwitchAutoplay = false;
+  private readonly supportProbeVideo = document.createElement('video');
+  private readonly isIPhoneDevice = /iPhone/i.test(navigator.userAgent || '');
+  private readonly canvasSafePrefetchMaxBytes = 65 * 1024 * 1024;
+  private readonly canvasSafePrefetchTimeoutMs = 45_000;
 
   constructor() {
     addIcons({
@@ -163,6 +181,10 @@ export class VideoAnalysisViewerComponent implements OnChanges, AfterViewChecked
   }
 
   ngOnChanges(changes: SimpleChanges): void {
+    if ('readonly' in changes) {
+      this.resetCrossOriginPolicy();
+    }
+
     if ('analysis' in changes) {
       const nextAnalysis = this.analysis;
       const nextId = nextAnalysis?.id || '';
@@ -172,12 +194,15 @@ export class VideoAnalysisViewerComponent implements OnChanges, AfterViewChecked
       } else if (!nextId) {
         this.lastAnalysisId = '';
         this.analysisState = null;
+        this.configurePlaybackSources();
       } else if (nextAnalysis) {
         this.analysisState = {
           ...nextAnalysis,
           notes: [...nextAnalysis.notes],
           drawings: [...nextAnalysis.drawings],
         };
+        this.configurePlaybackSources();
+        this.videoMode = this.resolvePreferredVideoMode(this.videoMode);
       }
     }
   }
@@ -209,11 +234,19 @@ export class VideoAnalysisViewerComponent implements OnChanges, AfterViewChecked
   }
 
   get canToggleOverlay(): boolean {
-    return !!this.analysisState?.overlayUrl;
+    return !!this.overlayPlaybackUrl;
   }
 
   get isRecordingMode(): boolean {
     return this.videoMode === 'recording';
+  }
+
+  get recordingVideoCrossOriginValue(): string | null {
+    return this.recordingCrossOriginEnabled ? 'anonymous' : null;
+  }
+
+  get overlayVideoCrossOriginValue(): string | null {
+    return this.overlayCrossOriginEnabled ? 'anonymous' : null;
   }
 
   get hasEvents(): boolean {
@@ -222,6 +255,16 @@ export class VideoAnalysisViewerComponent implements OnChanges, AfterViewChecked
 
   get isLandscapeMode(): boolean {
     return !this.isPortraitViewport();
+  }
+
+  get showVideoModeToggle(): boolean {
+    return !(this.isDrawingMode && this.activeCanvasTool === 'measure');
+  }
+
+  get shouldLazyLoadInactiveVideo(): boolean {
+    // Keep both sources loaded to make recording/overlay switching instant and
+    // maintain identical timestamps across modes.
+    return false;
   }
 
   get progressPercent(): number {
@@ -272,7 +315,10 @@ export class VideoAnalysisViewerComponent implements OnChanges, AfterViewChecked
           drawings: [...analysis.drawings],
         }
       : null;
-    this.videoMode = 'recording';
+    this.configurePlaybackSources();
+    this.resetCrossOriginPolicy();
+    this.videoMode = this.resolvePreferredVideoMode('recording');
+    this.playbackErrorMessage = '';
     this.isPlaying = false;
     this.currentTimeSeconds = 0;
     this.durationSeconds = 0;
@@ -449,7 +495,8 @@ export class VideoAnalysisViewerComponent implements OnChanges, AfterViewChecked
       return;
     }
 
-    if (!this.analysisState.poseFrames?.length) {
+    const hasPoseFrames = await this.ensurePoseFramesForMeasurement();
+    if (!hasPoseFrames) {
       await this.showInfoAlert(
         'Pose data unavailable',
         'Angle measurement requires pose data captured during recording. Re-record this workout to enable this tool.'
@@ -457,9 +504,10 @@ export class VideoAnalysisViewerComponent implements OnChanges, AfterViewChecked
       return;
     }
 
-    // Prefer the overlay video as canvas background when available; fall back to recording.
-    if (this.canToggleOverlay && this.videoMode !== 'overlay') {
-      await this.switchVideoMode('overlay');
+    // Always measure on the recording stream.
+    // This keeps behavior consistent and lets us control skeleton rendering ourselves.
+    if (this.videoMode !== 'recording' && this.recordingPlaybackUrl) {
+      await this.switchVideoMode('recording');
     }
 
     const activeVideo = this.getVideoElement(this.videoMode);
@@ -489,6 +537,51 @@ export class VideoAnalysisViewerComponent implements OnChanges, AfterViewChecked
     this.activePoseFrame = null;
     this.resetDrawingGestureState();
     this.pendingVideoSelectionSync = true;
+  }
+
+  private async ensurePoseFramesForMeasurement(): Promise<boolean> {
+    const analysis = this.analysisState;
+    if (!analysis) {
+      return false;
+    }
+
+    if (analysis.poseFrames?.length) {
+      return true;
+    }
+
+    const poseArtifactUrl = String(analysis.poseArtifactUrl || '').trim();
+    if (!poseArtifactUrl) {
+      return false;
+    }
+
+    try {
+      const response = await fetch(poseArtifactUrl);
+      if (!response.ok) {
+        return false;
+      }
+
+      const artifactData: unknown = await response.json();
+      const asRecord = artifactData && typeof artifactData === 'object'
+        ? (artifactData as Record<string, unknown>)
+        : null;
+
+      const normalizedFrames = normalizePoseFrames(
+        asRecord?.['bodyLandmarks'] ?? artifactData,
+        asRecord?.['poseAnalysis'] ?? artifactData,
+      );
+
+      if (!normalizedFrames.length) {
+        return false;
+      }
+
+      this.updateAnalysisState({
+        poseFrames: normalizedFrames,
+        poseArtifactUrl: undefined,
+      });
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   cancelDrawingMode(): void {
@@ -552,6 +645,11 @@ export class VideoAnalysisViewerComponent implements OnChanges, AfterViewChecked
       await this.persistDrawings(analysis.id, nextDrawings);
       this.updateAnalysisState({ drawings: nextDrawings });
       this.cancelDrawingMode();
+    } catch (error) {
+      const message = error instanceof Error
+        ? error.message
+        : 'Unable to save this drawing right now.';
+      await this.showInfoAlert('Unable to save drawing', message);
     } finally {
       this.isSavingDrawing = false;
     }
@@ -600,7 +698,7 @@ export class VideoAnalysisViewerComponent implements OnChanges, AfterViewChecked
     }
 
     this.applySilentVideoConfig(lead);
-    const videos = this.getAllVideoElements();
+    const videos = this.getPlaybackSyncTargets();
 
     if (lead.paused || lead.ended) {
       await Promise.all(videos.map(v => { this.applySilentVideoConfig(v); return v.play().catch(() => undefined); }));
@@ -627,7 +725,7 @@ export class VideoAnalysisViewerComponent implements OnChanges, AfterViewChecked
     }
 
     const nextTime = Math.max(0, Math.min((nextPercent / 100) * this.durationSeconds, this.durationSeconds));
-    this.getAllVideoElements().forEach(v => { v.currentTime = nextTime; });
+    this.getPlaybackSyncTargets().forEach(v => { v.currentTime = nextTime; });
     this.currentTimeSeconds = nextTime;
   }
 
@@ -642,15 +740,102 @@ export class VideoAnalysisViewerComponent implements OnChanges, AfterViewChecked
     this.durationSeconds = Number.isFinite(activeVideo.duration) ? activeVideo.duration : this.durationSeconds;
   }
 
-  onVideoMetadataLoaded(): void {
+  onVideoMetadataLoaded(event?: Event): void {
+    const sourceVideo = event?.target instanceof HTMLVideoElement
+      ? event.target
+      : null;
     const activeVideo = this.getVideoElement(this.videoMode);
-    if (!activeVideo) {
+    const metadataVideo = sourceVideo ?? activeVideo;
+    if (!metadataVideo) {
       return;
     }
 
-    this.applySilentVideoConfig(activeVideo);
-    this.durationSeconds = Number.isFinite(activeVideo.duration) ? activeVideo.duration : 0;
-    this.schedulePortraitFrameHeightSync(activeVideo);
+    this.applySilentVideoConfig(metadataVideo);
+    this.playbackErrorMessage = '';
+    if (activeVideo && metadataVideo === activeVideo) {
+      this.durationSeconds = Number.isFinite(activeVideo.duration) ? activeVideo.duration : 0;
+    }
+
+    if (activeVideo && this.pendingSwitchResumeSeconds !== null && metadataVideo === activeVideo) {
+      const safeTime = Math.max(
+        0,
+        Math.min(
+          this.pendingSwitchResumeSeconds,
+          Math.max((activeVideo.duration || this.pendingSwitchResumeSeconds) - 0.05, 0)
+        )
+      );
+      activeVideo.currentTime = safeTime;
+      this.currentTimeSeconds = safeTime;
+
+      if (this.pendingSwitchAutoplay) {
+        void Promise.all(
+          this.getPlaybackSyncTargets().map((video) => {
+            this.applySilentVideoConfig(video);
+            if (video.readyState >= HTMLMediaElement.HAVE_METADATA && Math.abs(video.currentTime - safeTime) > 0.1) {
+              video.currentTime = safeTime;
+            }
+            return video.play().catch(() => undefined);
+          })
+        );
+      } else {
+        this.getPlaybackSyncTargets().forEach((video) => {
+          if (video.readyState >= HTMLMediaElement.HAVE_METADATA && Math.abs(video.currentTime - safeTime) > 0.1) {
+            video.currentTime = safeTime;
+          }
+          video.pause();
+        });
+      }
+
+      this.pendingSwitchResumeSeconds = null;
+      this.pendingSwitchAutoplay = false;
+    }
+
+    this.schedulePortraitFrameHeightSync(activeVideo ?? metadataVideo);
+  }
+
+  onVideoError(mode: VideoMode): void {
+    const modeLabel = mode === 'recording' ? 'recording' : 'overlay';
+    const deviceLabel = this.isIPhoneDevice ? 'this iPhone' : 'this device';
+    const failedVideo = this.getVideoElement(mode);
+    const failedUrl = this.getPlaybackUrl(mode);
+    const fallbackUrl = this.getFallbackUrl(mode);
+    const fallbackMode: VideoMode = mode === 'recording' ? 'overlay' : 'recording';
+    const fallbackModeUrl = this.getPlaybackUrl(fallbackMode);
+    const mediaError = failedVideo?.error;
+
+    console.error(`[VideoAnalysisViewer] Failed to load ${modeLabel} video`, {
+      mode,
+      requestedUrl: failedUrl,
+      fallbackUrl,
+      crossOriginEnabled: this.isCrossOriginEnabled(mode),
+      errorCode: mediaError?.code ?? null,
+      errorMessage: mediaError?.message ?? null,
+      recordingMimeType: this.analysisState?.recordingMimeType || null,
+      overlayMimeType: this.analysisState?.overlayMimeType || null,
+    });
+
+    if (failedUrl && this.isCrossOriginEnabled(mode)) {
+      this.disableCrossOrigin(mode);
+      this.playbackErrorMessage = `Retrying ${modeLabel} in ${deviceLabel} compatibility mode.`;
+      this.reloadModeSource(mode, failedUrl);
+      return;
+    }
+
+    if (fallbackUrl && failedUrl !== fallbackUrl) {
+      this.setPlaybackUrl(mode, fallbackUrl);
+      this.playbackErrorMessage = `The ${modeLabel} format is not supported on ${deviceLabel}. Using an alternate source.`;
+      return;
+    }
+
+    if (this.videoMode === mode && fallbackModeUrl) {
+      this.videoMode = fallbackMode;
+      this.playbackErrorMessage = `The ${modeLabel} video is unavailable on ${deviceLabel}. Showing ${fallbackMode} instead.`;
+      this.schedulePortraitFrameHeightSync(this.getVideoElement(fallbackMode));
+      return;
+    }
+
+    this.playbackErrorMessage = `This analyzed video could not be played on ${deviceLabel}.`;
+    this.isPlaying = false;
   }
 
   onVideoPlay(): void {
@@ -840,19 +1025,18 @@ export class VideoAnalysisViewerComponent implements OnChanges, AfterViewChecked
   private async initializeSelectedVideoState(): Promise<void> {
     const recordingVideo = this.recordingVideoRef?.nativeElement;
     const overlayVideo = this.overlayVideoRef?.nativeElement;
-    if (!recordingVideo) {
+    const activeMode = this.resolvePreferredVideoMode(this.videoMode);
+    const activeVideo = this.getVideoElement(activeMode);
+    if (!activeVideo) {
       this.pendingVideoSelectionSync = true;
       return;
     }
+    this.videoMode = activeMode;
 
     if (this.isDrawingMode) {
-      const activeVideo = this.getVideoElement(this.videoMode);
-      if (!activeVideo) {
-        this.pendingVideoSelectionSync = true;
-        return;
+      if (recordingVideo) {
+        this.applySilentVideoConfig(recordingVideo);
       }
-
-      this.applySilentVideoConfig(recordingVideo);
       if (overlayVideo) {
         this.applySilentVideoConfig(overlayVideo);
       }
@@ -866,24 +1050,34 @@ export class VideoAnalysisViewerComponent implements OnChanges, AfterViewChecked
       return;
     }
 
-    recordingVideo.currentTime = 0;
-    recordingVideo.pause();
-    this.applySilentVideoConfig(recordingVideo);
+    if (recordingVideo) {
+      recordingVideo.currentTime = 0;
+      recordingVideo.pause();
+      this.applySilentVideoConfig(recordingVideo);
+    }
     if (overlayVideo) {
       overlayVideo.currentTime = 0;
       overlayVideo.pause();
       this.applySilentVideoConfig(overlayVideo);
     }
 
-    await this.waitForMetadata(recordingVideo).catch(() => undefined);
-    this.durationSeconds = Number.isFinite(recordingVideo.duration) ? recordingVideo.duration : 0;
     this.currentTimeSeconds = 0;
-    this.schedulePortraitFrameHeightSync(recordingVideo);
-    void Promise.all(this.getAllVideoElements().map(v => v.play().catch(() => undefined)));
+    this.durationSeconds = Number.isFinite(activeVideo.duration) ? activeVideo.duration : 0;
+    this.schedulePortraitFrameHeightSync(activeVideo);
+    void this.waitForMetadata(activeVideo)
+      .then(() => {
+        this.durationSeconds = Number.isFinite(activeVideo.duration) ? activeVideo.duration : this.durationSeconds;
+        this.schedulePortraitFrameHeightSync(activeVideo);
+      })
+      .catch(() => undefined);
+    void Promise.all(this.getPlaybackSyncTargets().map(v => v.play().catch(() => undefined)));
   }
 
-  private async switchVideoMode(targetMode: 'recording' | 'overlay'): Promise<void> {
+  private async switchVideoMode(targetMode: VideoMode): Promise<void> {
     if (!this.analysisState || this.videoMode === targetMode || this.isSwitchingVideo) {
+      return;
+    }
+    if (!this.getPlaybackUrl(targetMode)) {
       return;
     }
 
@@ -893,28 +1087,54 @@ export class VideoAnalysisViewerComponent implements OnChanges, AfterViewChecked
       return;
     }
 
-    this.isSwitchingVideo = true;
+    const resumeSeconds =
+      lead && Number.isFinite(lead.currentTime) ? lead.currentTime : this.currentTimeSeconds;
+    const shouldAutoplay = !!lead && !lead.paused && !lead.ended;
+    const safeResumeSeconds = Number.isFinite(resumeSeconds) ? resumeSeconds : 0;
 
-    try {
-      await this.waitForMetadata(targetVideo);
+    this.videoMode = targetMode;
+
+    if (targetVideo.readyState >= HTMLMediaElement.HAVE_METADATA) {
       this.applySilentVideoConfig(targetVideo);
-
-      // One-time sync in case the target video loaded at a different position.
-      if (lead && Number.isFinite(lead.currentTime)) {
-        const safeTime = Math.max(0, Math.min(lead.currentTime, Math.max((targetVideo.duration || lead.currentTime) - 0.05, 0)));
-        if (Math.abs(targetVideo.currentTime - safeTime) > 0.1) {
-          targetVideo.currentTime = safeTime;
-        }
+      const safeTime = Math.max(
+        0,
+        Math.min(resumeSeconds, Math.max((targetVideo.duration || resumeSeconds) - 0.05, 0))
+      );
+      if (Math.abs(targetVideo.currentTime - safeTime) > 0.1) {
+        targetVideo.currentTime = safeTime;
       }
+      this.durationSeconds = Number.isFinite(targetVideo.duration) ? targetVideo.duration : this.durationSeconds;
+      this.currentTimeSeconds = safeTime;
+      this.pendingSwitchResumeSeconds = null;
+      this.pendingSwitchAutoplay = false;
 
-      this.videoMode = targetMode;
-      this.schedulePortraitFrameHeightSync(targetVideo);
-    } finally {
-      this.isSwitchingVideo = false;
+      const syncTargets = this.getPlaybackSyncTargets();
+      syncTargets.forEach((video) => {
+        this.applySilentVideoConfig(video);
+        if (video.readyState >= HTMLMediaElement.HAVE_METADATA && Math.abs(video.currentTime - safeTime) > 0.1) {
+          video.currentTime = safeTime;
+        }
+      });
+
+      if (shouldAutoplay) {
+        void Promise.all(syncTargets.map((video) => video.play().catch(() => undefined)));
+      } else {
+        syncTargets.forEach((video) => video.pause());
+      }
+    } else {
+      // Target metadata not yet loaded; onVideoMetadataLoaded will apply the seek.
+      this.pendingSwitchResumeSeconds = safeResumeSeconds;
+      this.pendingSwitchAutoplay = shouldAutoplay;
+
+      if (!shouldAutoplay) {
+        lead?.pause();
+      }
     }
+
+    this.schedulePortraitFrameHeightSync(targetVideo);
   }
 
-  private getVideoElement(mode: 'recording' | 'overlay'): HTMLVideoElement | null {
+  private getVideoElement(mode: VideoMode): HTMLVideoElement | null {
     if (mode === 'overlay') {
       return this.overlayVideoRef?.nativeElement ?? null;
     }
@@ -927,6 +1147,15 @@ export class VideoAnalysisViewerComponent implements OnChanges, AfterViewChecked
       this.recordingVideoRef?.nativeElement,
       this.overlayVideoRef?.nativeElement,
     ].filter((v): v is HTMLVideoElement => v != null);
+  }
+
+  private getPlaybackSyncTargets(): HTMLVideoElement[] {
+    if (!this.shouldLazyLoadInactiveVideo) {
+      return this.getAllVideoElements();
+    }
+
+    const activeVideo = this.getVideoElement(this.videoMode);
+    return activeVideo ? [activeVideo] : [];
   }
 
   private applySilentVideoConfig(video: HTMLVideoElement): void {
@@ -943,7 +1172,7 @@ export class VideoAnalysisViewerComponent implements OnChanges, AfterViewChecked
     }
 
     await this.waitForCurrentFrame(activeVideo).catch(() => undefined);
-    const context = canvas.getContext('2d');
+    let context = canvas.getContext('2d');
     if (!context) {
       return;
     }
@@ -952,22 +1181,138 @@ export class VideoAnalysisViewerComponent implements OnChanges, AfterViewChecked
     const height = activeVideo.videoHeight || activeVideo.clientHeight || 720;
     canvas.width = width;
     canvas.height = height;
+    context = canvas.getContext('2d');
+    if (!context) {
+      return;
+    }
 
-    context.clearRect(0, 0, width, height);
-    context.drawImage(activeVideo, 0, 0, width, height);
+    let frameSourceVideo = activeVideo;
+    let canUseVideoFrameAsCanvasBase = true;
+    const resetCanvasBitmap = (): CanvasRenderingContext2D | null => {
+      canvas.width = width;
+      canvas.height = height;
+      return canvas.getContext('2d');
+    };
+    const renderFrame = async (video: HTMLVideoElement): Promise<void> => {
+      await this.waitForCurrentFrame(video).catch(() => undefined);
+      context?.clearRect(0, 0, width, height);
+      context?.drawImage(video, 0, 0, width, height);
+    };
+
+    try {
+      await renderFrame(frameSourceVideo);
+    } catch (error) {
+      try {
+        const recoveredVideo = await this.ensureCanvasSafeSource(this.videoMode);
+        if (recoveredVideo) {
+          frameSourceVideo = recoveredVideo;
+        }
+        await renderFrame(frameSourceVideo);
+      } catch (recoveryError) {
+        console.error('[VideoAnalysisViewer] Failed to render active video frame onto canvas', {
+          initialError: error,
+          recoveryError,
+        });
+        canUseVideoFrameAsCanvasBase = false;
+      }
+    }
+
+    // Avoid tainted canvas on iPhone by switching to a local cached playback URL
+    // before any readback-dependent operations (getImageData / toBlob).
+    if (canUseVideoFrameAsCanvasBase && !this.isCanvasReadbackSafe(context)) {
+      const recoveredVideo = await this.ensureCanvasSafeSource(this.videoMode);
+      if (recoveredVideo) {
+        frameSourceVideo = recoveredVideo;
+        try {
+          await renderFrame(frameSourceVideo);
+        } catch (error) {
+          console.error('[VideoAnalysisViewer] Failed to render canvas-safe source', error);
+          canUseVideoFrameAsCanvasBase = false;
+        }
+      }
+    }
+
+    if (canUseVideoFrameAsCanvasBase && !this.isCanvasReadbackSafe(context)) {
+      canUseVideoFrameAsCanvasBase = false;
+    }
+
+    if (!canUseVideoFrameAsCanvasBase) {
+      const resetContext = resetCanvasBitmap();
+      if (!resetContext) {
+        return;
+      }
+      context = resetContext;
+
+      // Keep tools usable even when iOS blocks canvas readback from remote media.
+      // We intentionally avoid painting video pixels onto this canvas.
+      context.clearRect(0, 0, width, height);
+
+      if (this.activeCanvasTool === 'measure') {
+        const timeMs = this.drawingTimestampSeconds * 1000;
+        const poseFrame = this.findNearestPoseFrame(timeMs);
+        this.activePoseFrame = poseFrame;
+
+        if (poseFrame) {
+          this.drawSkeletonOnCanvas(context, canvas, poseFrame);
+          this.measureInstruction = 'Video frame capture is blocked on iPhone. Measuring from pose skeleton.';
+        } else {
+          this.measureInstruction = 'Pose data unavailable for this frame.';
+        }
+
+        try {
+          this.measurementBaseImageData = context.getImageData(0, 0, width, height);
+        } catch (error) {
+          this.measurementBaseImageData = null;
+          this.activePoseFrame = null;
+          this.measureInstruction = 'Angle measurement is unavailable for this frame on iPhone.';
+          console.error('[VideoAnalysisViewer] Failed to initialize fallback measurement canvas snapshot', error);
+          return;
+        }
+      } else {
+        this.measurementBaseImageData = null;
+        this.activePoseFrame = null;
+      }
+
+      this.alignCanvasToVideoContent(canvas, frameSourceVideo);
+      return;
+    }
+
+    if (!this.isCanvasReadbackSafe(context)) {
+      if (this.activeCanvasTool === 'measure') {
+        this.measureInstruction = 'Angle measurement is unavailable for this frame on iPhone.';
+      }
+      return;
+    }
 
     // Position the canvas to exactly cover the video's rendered content area so
     // that canvas pixel coordinates align with the video's visible skeleton.
-    this.alignCanvasToVideoContent(canvas, activeVideo);
+    this.alignCanvasToVideoContent(canvas, frameSourceVideo);
 
     if (this.activeCanvasTool === 'measure') {
-      // Snapshot the clean video frame — used to restore canvas before each re-render.
-      this.measurementBaseImageData = context.getImageData(0, 0, width, height);
       // Find and cache the nearest pose frame for this timestamp.
       const timeMs = this.drawingTimestampSeconds * 1000;
       const poseFrame = this.findNearestPoseFrame(timeMs);
       this.activePoseFrame = poseFrame;
-      // No skeleton overlay — the video already renders one.
+
+      // Draw skeleton only when the measured frame does not already include one.
+      if (poseFrame && this.shouldDrawMeasureSkeletonOverlay()) {
+        this.drawSkeletonOnCanvas(context, canvas, poseFrame);
+      }
+
+      // Snapshot the video frame (+ skeleton if drawn above) — used to restore canvas before each re-render.
+      try {
+        this.measurementBaseImageData = context.getImageData(0, 0, width, height);
+      } catch (error) {
+        this.measurementBaseImageData = null;
+        this.activePoseFrame = null;
+        this.measureInstruction = 'Angle measurement is unavailable for this video source on iPhone.';
+        console.error('[VideoAnalysisViewer] Failed to initialize measurement canvas snapshot', error);
+        return;
+      }
+
+      if (!poseFrame) {
+        this.measureInstruction = 'Pose data unavailable for this frame.';
+      }
     } else {
       this.measurementBaseImageData = null;
     }
@@ -1140,9 +1485,9 @@ export class VideoAnalysisViewerComponent implements OnChanges, AfterViewChecked
 
     await this.waitForMetadata(lead).catch(() => undefined);
     const safeTime = Math.max(0, Math.min(timestampSeconds, Math.max((lead.duration || timestampSeconds) - 0.05, 0)));
-    this.getAllVideoElements().forEach(v => { v.currentTime = safeTime; });
+    this.getPlaybackSyncTargets().forEach(v => { v.currentTime = safeTime; });
     this.currentTimeSeconds = safeTime;
-    await Promise.all(this.getAllVideoElements().map(v => v.play().catch(() => undefined)));
+    await Promise.all(this.getPlaybackSyncTargets().map(v => v.play().catch(() => undefined)));
   }
 
   private async scrollToPlayerTopIfPortrait(): Promise<void> {
@@ -1614,6 +1959,20 @@ export class VideoAnalysisViewerComponent implements OnChanges, AfterViewChecked
     context.putImageData(this.measurementBaseImageData, 0, 0);
   }
 
+  private shouldDrawMeasureSkeletonOverlay(): boolean {
+    // Overlay mode already includes skeleton in the captured frame.
+    return this.videoMode !== 'overlay';
+  }
+
+  private isCanvasReadbackSafe(context: CanvasRenderingContext2D): boolean {
+    try {
+      context.getImageData(0, 0, 1, 1);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   private computeSmallerAngle(first: CanvasPoint, second: CanvasPoint): number {
     const dot = (first.x * second.x) + (first.y * second.y);
     const firstMagnitude = Math.hypot(first.x, first.y);
@@ -1636,14 +1995,22 @@ export class VideoAnalysisViewerComponent implements OnChanges, AfterViewChecked
 
   private async canvasToBlob(canvas: HTMLCanvasElement): Promise<Blob> {
     return new Promise<Blob>((resolve, reject) => {
-      canvas.toBlob((blob) => {
-        if (blob) {
-          resolve(blob);
-          return;
-        }
+      try {
+        canvas.toBlob((blob) => {
+          if (blob) {
+            resolve(blob);
+            return;
+          }
 
-        reject(new Error('Failed to save drawing.'));
-      }, 'image/png');
+          reject(new Error('Failed to save drawing.'));
+        }, 'image/png');
+      } catch (error) {
+        reject(
+          error instanceof Error
+            ? error
+            : new Error('Failed to save drawing.')
+        );
+      }
     });
   }
 
@@ -1655,5 +2022,281 @@ export class VideoAnalysisViewerComponent implements OnChanges, AfterViewChecked
     });
 
     await alert.present();
+  }
+
+  private configurePlaybackSources(shouldPrefetchSources = true): void {
+    const analysis = this.analysisState;
+    if (!analysis) {
+      this.recordingPlaybackUrl = '';
+      this.overlayPlaybackUrl = '';
+      this.recordingFallbackUrl = '';
+      this.overlayFallbackUrl = '';
+      return;
+    }
+
+    const recordingMimeType = this.resolveMimeType(
+      analysis.recordingMimeType,
+      analysis.recordingUrl,
+    );
+    const overlayMimeType = this.resolveMimeType(
+      analysis.overlayMimeType,
+      analysis.overlayUrl,
+    );
+
+    const recordingCandidates = this.buildPlaybackCandidates(
+      analysis.recordingUrl,
+      recordingMimeType,
+      '',
+      '',
+    );
+    const overlayCandidates = this.buildPlaybackCandidates(
+      analysis.overlayUrl,
+      overlayMimeType,
+      analysis.overlayUrl ? analysis.recordingUrl : '',
+      analysis.overlayUrl ? recordingMimeType : '',
+      false,
+    );
+
+    const recordingPlaybackCandidates = this.resolveCachedPlaybackCandidates(recordingCandidates);
+    const overlayPlaybackCandidates = this.resolveCachedPlaybackCandidates(overlayCandidates);
+
+    this.recordingPlaybackUrl = recordingPlaybackCandidates[0] ?? '';
+    this.recordingFallbackUrl = recordingPlaybackCandidates[1] ?? '';
+    this.overlayPlaybackUrl = overlayPlaybackCandidates[0] ?? '';
+    this.overlayFallbackUrl = overlayPlaybackCandidates[1] ?? '';
+
+    if (shouldPrefetchSources && this.videoPlaybackCacheService.shouldPrefetchInBackground()) {
+      void this.prefetchActiveAnalysisSources(analysis.id, [analysis.recordingUrl, analysis.overlayUrl]);
+    }
+  }
+
+  private resolveCachedPlaybackCandidates(candidates: string[]): string[] {
+    const resolved = candidates
+      .map((url) => this.videoPlaybackCacheService.resolvePlaybackUrl(url))
+      .filter((url): url is string => !!url.trim());
+
+    return Array.from(new Set(resolved));
+  }
+
+  private async prefetchActiveAnalysisSources(analysisId: string, sourceUrls: string[]): Promise<void> {
+    const urls = Array.from(
+      new Set(
+        sourceUrls
+          .map((url) => String(url || '').trim())
+          .filter((url) => !!url)
+      )
+    );
+
+    if (!urls.length) {
+      return;
+    }
+
+    const beforeCacheUrls = urls.map((url) => this.videoPlaybackCacheService.resolvePlaybackUrl(url));
+    await Promise.all(urls.map((url) => this.videoPlaybackCacheService.prefetchUrl(url)));
+
+    if (analysisId !== this.analysisState?.id) {
+      return;
+    }
+
+    if (this.isPlaying || this.isDrawingMode) {
+      return;
+    }
+
+    const afterCacheUrls = urls.map((url) => this.videoPlaybackCacheService.resolvePlaybackUrl(url));
+    const cacheStateChanged = afterCacheUrls.some((url, index) => url !== beforeCacheUrls[index]);
+    if (!cacheStateChanged) {
+      return;
+    }
+
+    this.configurePlaybackSources(false);
+  }
+
+  private buildPlaybackCandidates(
+    preferredUrl: string,
+    preferredMimeType: string,
+    alternateUrl: string,
+    alternateMimeType: string,
+    preferAlternateWhenPreferredUnsupported = true,
+  ): string[] {
+    const preferred = preferredUrl.trim();
+    const alternate = alternateUrl.trim();
+    if (!preferred && !alternate) {
+      return [];
+    }
+
+    const preferredSupport = this.getPlaybackSupport(preferredMimeType);
+    const alternateSupport = this.getPlaybackSupport(alternateMimeType);
+    const shouldPreferAlternate =
+      preferAlternateWhenPreferredUnsupported &&
+      preferredSupport === 'unsupported' &&
+      alternateSupport !== 'unsupported' &&
+      !!alternate;
+
+    const ordered = shouldPreferAlternate
+      ? [alternate, preferred]
+      : [preferred, alternate];
+
+    return Array.from(new Set(ordered.filter(url => !!url)));
+  }
+
+  private getPlaybackSupport(mimeType: string): 'supported' | 'unsupported' | 'unknown' {
+    const normalized = mimeType.trim().toLowerCase();
+    if (!normalized) {
+      return 'unknown';
+    }
+
+    if (this.isIPhoneDevice && normalized.includes('webm')) {
+      return 'unsupported';
+    }
+
+    const supportValue = this.supportProbeVideo.canPlayType(normalized);
+    if (supportValue === 'probably' || supportValue === 'maybe') {
+      return 'supported';
+    }
+
+    return supportValue ? 'unknown' : 'unsupported';
+  }
+
+  private resolveMimeType(explicitMimeType: string | undefined, videoUrl: string): string {
+    const direct = String(explicitMimeType || '').trim();
+    if (direct) {
+      return direct;
+    }
+
+    const lowerUrl = videoUrl.trim().toLowerCase();
+    if (!lowerUrl) {
+      return '';
+    }
+
+    if (lowerUrl.includes('.mp4')) {
+      return 'video/mp4';
+    }
+
+    if (lowerUrl.includes('.webm')) {
+      return 'video/webm';
+    }
+
+    return '';
+  }
+
+  private resolvePreferredVideoMode(preferred: VideoMode): VideoMode {
+    if (preferred === 'overlay' && this.overlayPlaybackUrl) {
+      return 'overlay';
+    }
+
+    if (this.recordingPlaybackUrl) {
+      return 'recording';
+    }
+
+    if (this.overlayPlaybackUrl) {
+      return 'overlay';
+    }
+
+    return 'recording';
+  }
+
+  private getPlaybackUrl(mode: VideoMode): string {
+    return mode === 'recording'
+      ? this.recordingPlaybackUrl
+      : this.overlayPlaybackUrl;
+  }
+
+  private getFallbackUrl(mode: VideoMode): string {
+    return mode === 'recording'
+      ? this.recordingFallbackUrl
+      : this.overlayFallbackUrl;
+  }
+
+  private setPlaybackUrl(mode: VideoMode, url: string): void {
+    if (mode === 'recording') {
+      this.recordingPlaybackUrl = url;
+      return;
+    }
+
+    this.overlayPlaybackUrl = url;
+  }
+
+  private async ensureCanvasSafeSource(mode: VideoMode): Promise<HTMLVideoElement | null> {
+    if (!this.analysisState) {
+      return null;
+    }
+
+    const sourceUrl = String(
+      mode === 'recording' ? this.analysisState.recordingUrl : this.analysisState.overlayUrl
+    ).trim();
+    if (!sourceUrl || sourceUrl.startsWith('blob:') || sourceUrl.startsWith('data:')) {
+      return this.getVideoElement(mode);
+    }
+
+    const localPlaybackUrl = await this.videoPlaybackCacheService.prefetchUrl(sourceUrl, {
+      force: true,
+      maxEntryBytes: this.canvasSafePrefetchMaxBytes,
+      timeoutMs: this.canvasSafePrefetchTimeoutMs,
+    });
+    if (!localPlaybackUrl || localPlaybackUrl === sourceUrl || localPlaybackUrl === this.getPlaybackUrl(mode)) {
+      return this.getVideoElement(mode);
+    }
+
+    const activeVideo = this.getVideoElement(mode);
+    const resumeSeconds =
+      activeVideo && Number.isFinite(activeVideo.currentTime)
+        ? activeVideo.currentTime
+        : this.currentTimeSeconds;
+    const shouldResumePlayback = !!activeVideo && !activeVideo.paused && !activeVideo.ended;
+
+    activeVideo?.pause();
+    this.setPlaybackUrl(mode, localPlaybackUrl);
+
+    await new Promise<void>((resolve) => setTimeout(resolve, 0));
+
+    const localVideo = this.getVideoElement(mode);
+    if (!localVideo) {
+      return null;
+    }
+
+    await this.waitForMetadata(localVideo).catch(() => undefined);
+
+    if (Number.isFinite(resumeSeconds)) {
+      const duration = Number.isFinite(localVideo.duration) ? localVideo.duration : resumeSeconds;
+      const safeSeek = Math.max(0, Math.min(resumeSeconds, Math.max(duration - 0.05, 0)));
+      localVideo.currentTime = safeSeek;
+      this.currentTimeSeconds = safeSeek;
+    }
+
+    if (shouldResumePlayback) {
+      void localVideo.play().catch(() => undefined);
+    }
+
+    return localVideo;
+  }
+
+  private resetCrossOriginPolicy(): void {
+    // iOS Safari can stall remote media with crossorigin enabled.
+    // Drawing mode lazily switches to local blob playback when frame capture is required.
+    const enableCrossOrigin = !this.readonly && !this.isIPhoneDevice;
+    this.recordingCrossOriginEnabled = enableCrossOrigin;
+    this.overlayCrossOriginEnabled = enableCrossOrigin;
+  }
+
+  private isCrossOriginEnabled(mode: VideoMode): boolean {
+    return mode === 'recording'
+      ? this.recordingCrossOriginEnabled
+      : this.overlayCrossOriginEnabled;
+  }
+
+  private disableCrossOrigin(mode: VideoMode): void {
+    if (mode === 'recording') {
+      this.recordingCrossOriginEnabled = false;
+      return;
+    }
+
+    this.overlayCrossOriginEnabled = false;
+  }
+
+  private reloadModeSource(mode: VideoMode, sourceUrl: string): void {
+    this.setPlaybackUrl(mode, '');
+    window.setTimeout(() => {
+      this.setPlaybackUrl(mode, sourceUrl);
+    }, 0);
   }
 }

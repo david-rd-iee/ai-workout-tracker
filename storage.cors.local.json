@@ -1,6 +1,10 @@
 [
   {
-    "origin": ["http://localhost:8100"],
+    "origin": [
+      "http://localhost:8100",
+      "http://localhost",
+      "capacitor://localhost"
+    ],
     "method": ["GET", "HEAD"],
     "responseHeader": [
       "Content-Type",

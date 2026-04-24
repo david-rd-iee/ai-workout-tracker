@@ -14,10 +14,46 @@ function containsSelector(element: HTMLElement | undefined, selector: string): b
   return !!element.querySelector(selector);
 }
 
-export const appNavAnimation: AnimationBuilder = (_baseEl: any, opts: any): Animation => {
+function isTabsTransition(baseEl: any): boolean {
+  if (!(baseEl instanceof HTMLElement)) {
+    return false;
+  }
+
+  return (
+    !!baseEl.closest('ion-tabs') ||
+    baseEl.hasAttribute('tabs') ||
+    baseEl.getAttribute('name') === 'tabs'
+  );
+}
+
+export const appNavAnimation: AnimationBuilder = (baseEl: any, opts: any): Animation => {
   const enteringEl = getIonPageElement(opts.enteringEl);
   const leavingEl = opts.leavingEl ? getIonPageElement(opts.leavingEl) : undefined;
   const isBack = opts.direction === 'back';
+  const slowTransitionDurationMs = 560;
+
+  const enteringAnimation = createAnimation().addElement(enteringEl);
+  const leavingAnimation = leavingEl ? createAnimation().addElement(leavingEl) : createAnimation();
+
+  // Ionic marks entering pages as invisible; remove it before animating
+  // to avoid a black flash while the leaving page moves away.
+  enteringAnimation.beforeRemoveClass('ion-page-invisible');
+
+  // Tab switches should be instant and consistent.
+  if (isTabsTransition(baseEl)) {
+    enteringAnimation
+      .beforeStyles({ transform: 'translate3d(0, 0, 0)', opacity: '1' })
+      .afterClearStyles(['transform', 'opacity']);
+
+    leavingAnimation
+      .beforeStyles({ transform: 'translate3d(0, 0, 0)', opacity: '1' })
+      .afterClearStyles(['transform', 'opacity']);
+
+    return createAnimation()
+      .duration(0)
+      .easing('linear')
+      .addAnimation([enteringAnimation, leavingAnimation]);
+  }
 
   const enteringIsProfile = containsSelector(enteringEl, 'app-profile-user');
   const leavingIsProfile = containsSelector(leavingEl, 'app-profile-user');
@@ -62,13 +98,9 @@ export const appNavAnimation: AnimationBuilder = (_baseEl: any, opts: any): Anim
   const useWorkoutHistoryVerticalTransition =
     (enteringIsWorkoutHistory || leavingIsWorkoutHistory) && !isProfileWorkoutHistoryTransition;
 
-  const rootAnimation = createAnimation().duration(420).easing('cubic-bezier(0.32, 0.72, 0, 1)');
-  const enteringAnimation = createAnimation().addElement(enteringEl);
-  const leavingAnimation = leavingEl ? createAnimation().addElement(leavingEl) : createAnimation();
-
-  // Ionic marks entering pages as invisible; remove it before animating
-  // to avoid a black flash while the leaving page moves away.
-  enteringAnimation.beforeRemoveClass('ion-page-invisible');
+  const rootAnimation = createAnimation()
+    .duration(slowTransitionDurationMs)
+    .easing('cubic-bezier(0.32, 0.72, 0, 1)');
 
   if (isSummaryToHomeTransition) {
     enteringAnimation

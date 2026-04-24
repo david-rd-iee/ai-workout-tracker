@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnDestroy, OnInit, inject } from '@angular/core';
 import {
+  AlertController,
   IonContent,
 } from '@ionic/angular/standalone';
 
@@ -40,6 +41,7 @@ export class RegionalLeaderboardPage implements OnInit, OnDestroy {
   private auth = inject(Auth);
   private firestore = inject(Firestore);
   private leaderboard = inject(LeaderboardService);
+  private alertController = inject(AlertController);
 
   private sub?: Subscription;
   private leaderboardSub?: Subscription;
@@ -194,6 +196,23 @@ export class RegionalLeaderboardPage implements OnInit, OnDestroy {
       return this.userRegion.stateName || this.userRegion.stateCode || 'Unknown state';
     }
     return this.userRegion.cityName || this.userRegion.cityId || 'Unknown city';
+  }
+
+  async showRegionalInfo(): Promise<void> {
+    const alert = await this.alertController.create({
+      mode: 'ios',
+      header: 'Regional leaderboard help',
+      subHeader: 'Compare your work score by city, state, or country',
+      message: [
+        '• Switch scope to compare against your city, state, or country.',
+        '• Change metrics to view total, strength, or cardio score.',
+        '• Tap chart points and members to highlight the same score range.'
+      ].join('\n'),
+      buttons: ['Got it'],
+      translucent: true,
+    });
+
+    await alert.present();
   }
 
   scoreFor(e: LeaderboardEntry): number {

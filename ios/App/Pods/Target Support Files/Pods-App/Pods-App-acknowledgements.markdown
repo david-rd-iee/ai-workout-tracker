@@ -208,7 +208,11 @@ OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
+<<<<<<< Updated upstream
 ## CapacitorPreferences
+=======
+## CapacitorScreenOrientation
+>>>>>>> Stashed changes
 
 Copyright 2020-present Ionic
 https://ionic.io

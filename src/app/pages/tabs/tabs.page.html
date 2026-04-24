@@ -3,17 +3,17 @@
   
   <ion-tab-bar *ngIf="showTabBar" slot="bottom" color="primary">
 
-    <ion-tab-button tab="home">
+    <ion-tab-button tab="home" routerDirection="root">
       <ion-icon name="home-outline"></ion-icon>
       <ion-label>Home</ion-label>
     </ion-tab-button>
 
-    <ion-tab-button tab="calender" [href]="calendarHref" (click)="onCalendarTabClick($event)">
+    <ion-tab-button tab="calender" routerDirection="root" [href]="calendarHref" (click)="onCalendarTabClick($event)">
       <ion-icon name="calendar-outline"></ion-icon>
       <ion-label>Calendar</ion-label>
     </ion-tab-button>
 
-    <ion-tab-button tab="chats">
+    <ion-tab-button tab="chats" routerDirection="root">
       <ion-icon name="chatbubble-ellipses-sharp"></ion-icon>
       <ion-label>Chats</ion-label>
     </ion-tab-button>

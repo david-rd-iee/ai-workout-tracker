@@ -62,18 +62,30 @@ export class FileUploadService {
    */
   async uploadVideo(path: string, file: File): Promise<string> {
     try {
-      // For iOS/Capacitor, prefer Cloud Functions when configured.
-      // Fall back to direct Storage upload when base URL is missing.
+      // For iOS/Capacitor, prefer direct Storage upload first for videos.
+      // Large portrait recordings sent through base64 Cloud Function payloads
+      // can produce decode issues on playback for some devices.
       if (this.isCapacitor) {
+<<<<<<< Updated upstream
         if (environment.cloudFunctionsBaseUrl?.trim()) {
           try {
             return await this.uploadViaCloudFunction(path, file);
           } catch (error) {
             console.warn('Cloud Function video upload failed; falling back to direct Storage upload.', error);
             return await this.uploadDirect(path, file);
+=======
+        try {
+          console.log('Using direct Storage upload for video on Capacitor');
+          return await this.uploadDirect(path, file);
+        } catch (directError) {
+          if (!environment.cloudFunctionsBaseUrl?.trim()) {
+            throw directError;
+>>>>>>> Stashed changes
           }
+
+          console.warn('Direct video upload failed on Capacitor; retrying via Cloud Function.', directError);
+          return await this.uploadViaCloudFunction(path, file);
         }
-        return await this.uploadDirect(path, file);
       }
 
       // For web, use direct Firebase Storage upload

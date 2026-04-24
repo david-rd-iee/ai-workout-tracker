@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import { TabsPage } from './tabs.page';
+import { ALLOW_LANDSCAPE_ORIENTATION_POLICY, ORIENTATION_POLICY_ROUTE_DATA_KEY } from '../../services/orientation/orientation-policy';
 
 export const routes: Routes = [
   {
@@ -30,6 +31,9 @@ export const routes: Routes = [
         path: 'chats',
         loadComponent: () =>
           import('../chats/chats.page').then(m => m.ChatsPage),
+        data: {
+          [ORIENTATION_POLICY_ROUTE_DATA_KEY]: ALLOW_LANDSCAPE_ORIENTATION_POLICY,
+        },
         children: [
           {
             path: 'client-chats',

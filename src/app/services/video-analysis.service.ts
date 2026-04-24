@@ -102,6 +102,8 @@ export class VideoAnalysisService {
   private readonly sampleRateHz = 8;
   private readonly inlineLandmarksLimitBytes = 300_000;
   private readonly inlineJointAnglesLimitBytes = 350_000;
+  private readonly isIPhoneDevice =
+    typeof navigator !== 'undefined' && /iPhone/i.test(navigator.userAgent || '');
 
   async warmPoseModel(): Promise<void> {
     await this.ensurePoseLandmarker();
@@ -265,11 +267,32 @@ export class VideoAnalysisService {
     const videoDownloadUrl = await this.fileUploadService.uploadVideo(videoPath, videoFile);
 
     options.onProgress?.('Rendering pose overlay...');
-    const overlayVideo = await this.createOverlayVideo(
-      options.recordedVideo,
+    let overlayRenderedFromPose = false;
+    let overlayFallbackReason: string | null = null;
+    let overlayVideo = await this.createOverlayVideo(
+      compressedVideo.blob,
       options.analysis,
       options.onProgress
     );
+    if (!overlayVideo && compressedVideo.blob !== options.recordedVideo) {
+      // Fallback to the original recording when overlay rendering fails on compressed media.
+      overlayVideo = await this.createOverlayVideo(
+        options.recordedVideo,
+        options.analysis,
+        options.onProgress
+      );
+    }
+    if (overlayVideo) {
+      overlayRenderedFromPose = true;
+    }
+
+    if (!overlayVideo) {
+      overlayFallbackReason = options.analysis.bodyLandmarks.length > 0
+        ? 'overlay-render-failed'
+        : 'pose-data-unavailable';
+      overlayVideo = this.buildOverlayFallbackVideo(compressedVideo);
+    }
+
     let overlayVideoPath = '';
     let overlayVideoDownloadUrl = '';
     if (overlayVideo) {
@@ -279,20 +302,21 @@ export class VideoAnalysisService {
         `overlay.${overlayVideo.fileExtension}`,
         { type: overlayVideo.mimeType }
       );
-
-      options.onProgress?.('Uploading pose overlay...');
+      options.onProgress?.(
+        overlayRenderedFromPose
+          ? 'Uploading pose overlay...'
+          : 'Uploading overlay fallback...'
+      );
       overlayVideoDownloadUrl = await this.fileUploadService.uploadVideo(overlayVideoPath, overlayFile);
     }
 
     const bodyLandmarksJson = JSON.stringify(options.analysis.bodyLandmarks);
     const jointAnglesJson = JSON.stringify(options.analysis.jointAnglesOverTime);
-    const fullAnalysisJson = JSON.stringify(options.analysis);
     const bodyLandmarksPath = `${basePath}/body-landmarks.json`;
     const jointAnglesPath = `${basePath}/joint-angles.json`;
-    const fullAnalysisPath = `${basePath}/analysis.json`;
 
     options.onProgress?.('Uploading analysis data...');
-    const [bodyLandmarksUrl, jointAnglesUrl, fullAnalysisUrl] = await Promise.all([
+    const [bodyLandmarksUrl, jointAnglesUrl] = await Promise.all([
       this.fileUploadService.uploadFile(
         bodyLandmarksPath,
         new File([bodyLandmarksJson], 'body-landmarks.json', { type: 'application/json' })
@@ -300,10 +324,6 @@ export class VideoAnalysisService {
       this.fileUploadService.uploadFile(
         jointAnglesPath,
         new File([jointAnglesJson], 'joint-angles.json', { type: 'application/json' })
-      ),
-      this.fileUploadService.uploadFile(
-        fullAnalysisPath,
-        new File([fullAnalysisJson], 'analysis.json', { type: 'application/json' })
       ),
     ]);
 
@@ -347,16 +367,16 @@ export class VideoAnalysisService {
           durationMs: options.analysis.durationMs,
         },
         artifacts: {
-          overlayVideo: overlayVideo
-            ? {
-                storagePath: overlayVideoPath,
-                downloadUrl: overlayVideoDownloadUrl,
-                mimeType: overlayVideo.mimeType,
-                sizeBytes: overlayVideo.sizeBytes,
-                width: overlayVideo.width,
-                height: overlayVideo.height,
-              }
-            : null,
+          overlayVideo: overlayVideo ? {
+            storagePath: overlayVideoPath,
+            downloadUrl: overlayVideoDownloadUrl,
+            mimeType: overlayVideo.mimeType,
+            sizeBytes: overlayVideo.sizeBytes,
+            width: overlayVideo.width,
+            height: overlayVideo.height,
+            renderedFromPose: overlayRenderedFromPose,
+            fallbackReason: overlayFallbackReason,
+          } : null,
           bodyLandmarks: {
             storagePath: bodyLandmarksPath,
             downloadUrl: bodyLandmarksUrl,
@@ -365,10 +385,7 @@ export class VideoAnalysisService {
             storagePath: jointAnglesPath,
             downloadUrl: jointAnglesUrl,
           },
-          fullAnalysis: {
-            storagePath: fullAnalysisPath,
-            downloadUrl: fullAnalysisUrl,
-          },
+          fullAnalysis: null,
         },
         analysis: analysisDocument,
       },
@@ -1297,7 +1314,7 @@ export class VideoAnalysisService {
       const width = compressionVideo.videoWidth || 0;
       const height = compressionVideo.videoHeight || 0;
       const targetDimensions = this.calculateTargetDimensions(width, height);
-      const mimeType = this.resolveCompressionMimeType();
+      const preferredMimeType = this.resolveCompressionMimeType();
       const canvas = document.createElement('canvas');
       canvas.width = targetDimensions.width;
       canvas.height = targetDimensions.height;
@@ -1307,15 +1324,35 @@ export class VideoAnalysisService {
         captureStream?: (frameRate?: number) => MediaStream;
       }).captureStream;
 
-      if (!context || typeof captureStream !== 'function' || !mimeType) {
+      if (!context || typeof captureStream !== 'function') {
         return this.originalCompressionResult(recordedVideo, width, height);
       }
 
       const renderStream = captureStream.call(canvas, 24);
-      const mediaRecorder = new MediaRecorder(renderStream, {
-        mimeType,
-        videoBitsPerSecond: this.resolveTargetBitrate(targetDimensions.width, targetDimensions.height),
-      });
+      const targetBitrate = this.resolveTargetBitrate(targetDimensions.width, targetDimensions.height);
+      let mediaRecorder: MediaRecorder;
+      try {
+        mediaRecorder = preferredMimeType
+          ? new MediaRecorder(renderStream, {
+              mimeType: preferredMimeType,
+              videoBitsPerSecond: targetBitrate,
+            })
+          : new MediaRecorder(renderStream, {
+              videoBitsPerSecond: targetBitrate,
+            });
+      } catch {
+        try {
+          mediaRecorder = new MediaRecorder(renderStream, {
+            videoBitsPerSecond: targetBitrate,
+          });
+        } catch {
+          renderStream.getTracks().forEach((track) => track.stop());
+          return this.originalCompressionResult(recordedVideo, width, height);
+        }
+      }
+      const resolvedMimeType = this.resolveRecorderOutputMimeType(
+        mediaRecorder.mimeType || preferredMimeType
+      );
       const chunks: BlobPart[] = [];
       let drawFrameId: number | null = null;
 
@@ -1370,15 +1407,15 @@ export class VideoAnalysisService {
       await recorderStopPromise;
       renderStream.getTracks().forEach((track) => track.stop());
 
-      const compressedBlob = new Blob(chunks, { type: mimeType });
+      const compressedBlob = new Blob(chunks, { type: resolvedMimeType });
       if (compressedBlob.size === 0 || compressedBlob.size >= recordedVideo.size * 0.98) {
         return this.originalCompressionResult(recordedVideo, width, height);
       }
 
       return {
         blob: compressedBlob,
-        mimeType,
-        fileExtension: this.mimeTypeToExtension(mimeType),
+        mimeType: resolvedMimeType,
+        fileExtension: this.mimeTypeToExtension(resolvedMimeType),
         sizeBytes: compressedBlob.size,
         originalSizeBytes: recordedVideo.size,
         compressed: true,
@@ -1424,7 +1461,7 @@ export class VideoAnalysisService {
       const width = overlayVideo.videoWidth || 0;
       const height = overlayVideo.videoHeight || 0;
       const targetDimensions = this.calculateTargetDimensions(width, height);
-      const mimeType = this.resolveCompressionMimeType();
+      const preferredMimeType = this.resolveCompressionMimeType();
       const canvas = document.createElement('canvas');
       canvas.width = targetDimensions.width;
       canvas.height = targetDimensions.height;
@@ -1434,18 +1471,39 @@ export class VideoAnalysisService {
         captureStream?: (frameRate?: number) => MediaStream;
       }).captureStream;
 
-      if (!context || typeof captureStream !== 'function' || !mimeType) {
+      if (!context || typeof captureStream !== 'function') {
         return null;
       }
 
-      const renderStream = captureStream.call(canvas, 24);
-      const mediaRecorder = new MediaRecorder(renderStream, {
-        mimeType,
-        videoBitsPerSecond: Math.max(
-          900_000,
-          Math.round(this.resolveTargetBitrate(targetDimensions.width, targetDimensions.height) * 0.75)
-        ),
-      });
+      const overlayFrameRate = this.resolveOverlayFrameRate();
+      const renderStream = captureStream.call(canvas, overlayFrameRate);
+      const overlayBitrate = this.resolveOverlayBitrate(
+        targetDimensions.width,
+        targetDimensions.height
+      );
+      let mediaRecorder: MediaRecorder;
+      try {
+        mediaRecorder = preferredMimeType
+          ? new MediaRecorder(renderStream, {
+              mimeType: preferredMimeType,
+              videoBitsPerSecond: overlayBitrate,
+            })
+          : new MediaRecorder(renderStream, {
+              videoBitsPerSecond: overlayBitrate,
+            });
+      } catch {
+        try {
+          mediaRecorder = new MediaRecorder(renderStream, {
+            videoBitsPerSecond: overlayBitrate,
+          });
+        } catch {
+          renderStream.getTracks().forEach((track) => track.stop());
+          return null;
+        }
+      }
+      const resolvedMimeType = this.resolveRecorderOutputMimeType(
+        mediaRecorder.mimeType || preferredMimeType
+      );
       const chunks: BlobPart[] = [];
       let drawFrameId: number | null = null;
       let lastProgressBucket = -1;
@@ -1465,10 +1523,6 @@ export class VideoAnalysisService {
       });
 
       const drawOverlayFrame = () => {
-        if (overlayVideo.paused && !overlayVideo.ended) {
-          return;
-        }
-
         context.drawImage(overlayVideo, 0, 0, canvas.width, canvas.height);
 
         const currentTimeMs = overlayVideo.currentTime * 1000;
@@ -1486,7 +1540,7 @@ export class VideoAnalysisService {
         }
       };
 
-      mediaRecorder.start(250);
+      mediaRecorder.start(500);
       await overlayVideo.play();
       drawOverlayFrame();
 
@@ -1523,15 +1577,15 @@ export class VideoAnalysisService {
       await recorderStopPromise;
       renderStream.getTracks().forEach((track) => track.stop());
 
-      const renderedBlob = new Blob(chunks, { type: mimeType });
+      const renderedBlob = new Blob(chunks, { type: resolvedMimeType });
       if (renderedBlob.size === 0) {
         return null;
       }
 
       return {
         blob: renderedBlob,
-        mimeType,
-        fileExtension: this.mimeTypeToExtension(mimeType),
+        mimeType: resolvedMimeType,
+        fileExtension: this.mimeTypeToExtension(resolvedMimeType),
         sizeBytes: renderedBlob.size,
         originalSizeBytes: recordedVideo.size,
         compressed: true,
@@ -1539,7 +1593,8 @@ export class VideoAnalysisService {
         width: targetDimensions.width,
         height: targetDimensions.height,
       };
-    } catch {
+    } catch (error) {
+      console.warn('[VideoAnalysisService] Overlay rendering failed', error);
       return null;
     } finally {
       URL.revokeObjectURL(objectUrl);
@@ -1698,11 +1753,13 @@ export class VideoAnalysisService {
 
   private calculateTargetDimensions(width: number, height: number): { width: number; height: number } {
     if (width <= 0 || height <= 0) {
-      return { width: 720, height: 960 };
+      return this.isIPhoneDevice
+        ? { width: 540, height: 960 }
+        : { width: 720, height: 960 };
     }
 
-    const maxLongEdge = 1280;
-    const maxShortEdge = 720;
+    const maxLongEdge = this.isIPhoneDevice ? 960 : 1280;
+    const maxShortEdge = this.isIPhoneDevice ? 540 : 720;
     const longEdge = Math.max(width, height);
     const shortEdge = Math.min(width, height);
     const scale = Math.min(1, maxLongEdge / longEdge, maxShortEdge / shortEdge);
@@ -1714,8 +1771,24 @@ export class VideoAnalysisService {
   }
 
   private resolveTargetBitrate(width: number, height: number): number {
-    const estimated = Math.round(width * height * 2.2);
-    return Math.min(2_500_000, Math.max(1_200_000, estimated));
+    const multiplier = this.isIPhoneDevice ? 1.5 : 2.2;
+    const estimated = Math.round(width * height * multiplier);
+    const minBitrate = this.isIPhoneDevice ? 700_000 : 1_200_000;
+    const maxBitrate = this.isIPhoneDevice ? 1_500_000 : 2_500_000;
+    return Math.min(maxBitrate, Math.max(minBitrate, estimated));
+  }
+
+  private resolveOverlayFrameRate(): number {
+    return this.isIPhoneDevice ? 12 : 24;
+  }
+
+  private resolveOverlayBitrate(width: number, height: number): number {
+    const baseBitrate = Math.round(this.resolveTargetBitrate(width, height) * 0.75);
+    if (this.isIPhoneDevice) {
+      return Math.min(1_000_000, Math.max(550_000, baseBitrate));
+    }
+
+    return Math.max(900_000, baseBitrate);
   }
 
   private resolveCompressionMimeType(): string {
@@ -1723,13 +1796,25 @@ export class VideoAnalysisService {
       return '';
     }
 
-    const candidates = [
+    const mp4FirstCandidates = [
+      'video/mp4;codecs="avc1.42E01E"',
+      'video/mp4;codecs=avc1.42E01E',
       'video/mp4;codecs=avc1',
       'video/mp4',
       'video/webm;codecs=vp9',
       'video/webm;codecs=vp8',
       'video/webm',
     ];
+    const webmFirstCandidates = [
+      'video/webm;codecs=vp9',
+      'video/webm;codecs=vp8',
+      'video/webm',
+      'video/mp4;codecs="avc1.42E01E"',
+      'video/mp4;codecs=avc1.42E01E',
+      'video/mp4;codecs=avc1',
+      'video/mp4',
+    ];
+    const candidates = this.isIPhoneDevice ? mp4FirstCandidates : webmFirstCandidates;
 
     for (const candidate of candidates) {
       if (typeof MediaRecorder.isTypeSupported === 'function' && MediaRecorder.isTypeSupported(candidate)) {
@@ -1749,6 +1834,33 @@ export class VideoAnalysisService {
       return 'mov';
     }
     return 'webm';
+  }
+
+  private resolveRecorderOutputMimeType(value: string): string {
+    const trimmed = String(value || '').trim();
+    if (trimmed) {
+      return trimmed;
+    }
+
+    return this.isIPhoneDevice ? 'video/mp4' : 'video/webm';
+  }
+
+  private buildOverlayFallbackVideo(source: VideoCompressionResult): VideoCompressionResult | null {
+    if (!source.blob || source.blob.size === 0) {
+      return null;
+    }
+
+    const mimeType = this.resolveRecorderOutputMimeType(source.mimeType);
+    return {
+      ...source,
+      mimeType,
+      fileExtension: this.mimeTypeToExtension(mimeType),
+      sizeBytes: source.blob.size,
+      originalSizeBytes: source.originalSizeBytes || source.blob.size,
+      compressionRatio: source.originalSizeBytes
+        ? source.blob.size / Math.max(1, source.originalSizeBytes)
+        : source.compressionRatio,
+    };
   }
 
   private toEvenNumber(value: number): number {

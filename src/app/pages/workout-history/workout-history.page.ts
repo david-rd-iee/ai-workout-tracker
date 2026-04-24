@@ -2,6 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import {
+  AlertController,
   IonButton,
   IonContent,
   IonIcon,
@@ -36,7 +37,6 @@ import { HeaderComponent } from '../../components/header/header.component';
 export class WorkoutHistoryPage implements OnInit {
   historyGroups: WorkoutHistoryDateGroup[] = [];
   isLoading = false;
-  pageTitle = 'Workout History';
   backHref = '/profile-user';
   private requestedUserId = '';
   private clientName = '';
@@ -45,7 +45,8 @@ export class WorkoutHistoryPage implements OnInit {
     private auth: Auth,
     private route: ActivatedRoute,
     private router: Router,
-    private workoutSummaryService: WorkoutSummaryService
+    private workoutSummaryService: WorkoutSummaryService,
+    private alertController: AlertController
   ) {
     addIcons({
       analyticsOutline,
@@ -60,7 +61,6 @@ export class WorkoutHistoryPage implements OnInit {
     try {
       this.requestedUserId = (this.route.snapshot.queryParamMap.get('userId') || '').trim();
       this.clientName = (this.route.snapshot.queryParamMap.get('clientName') || '').trim();
-      this.pageTitle = this.clientName ? `${this.clientName} Workout History` : 'Workout History';
 
       const targetUserId = this.requestedUserId || await this.resolveCurrentUserId();
       if (!targetUserId) {
@@ -114,6 +114,23 @@ export class WorkoutHistoryPage implements OnInit {
         },
       },
     });
+  }
+
+  async showHistoryInfo(): Promise<void> {
+    const alert = await this.alertController.create({
+      mode: 'ios',
+      header: 'Workout history help',
+      subHeader: 'Review and drill into past sessions',
+      message: [
+        '• Tap any day card to open the full workout summary.',
+        '• Use Workout Insights for trend analysis.',
+        '• Use View CSV to open spreadsheet-style history.'
+      ].join('\n'),
+      buttons: ['Got it'],
+      translucent: true,
+    });
+
+    await alert.present();
   }
 
   private async resolveCurrentUserId(): Promise<string> {

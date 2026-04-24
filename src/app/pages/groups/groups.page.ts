@@ -127,6 +127,24 @@ export class GroupsPage implements OnInit, OnDestroy {
     });
   }
 
+  async showGroupsInfo(): Promise<void> {
+    const alert = await this.alertCtrl.create({
+      mode: 'ios',
+      header: 'Groups quick guide',
+      subHeader: 'Use groups for friends and leaderboard challenges',
+      message: [
+        '• Switch between Friends and Training tabs at the top.',
+        '• Tap a group card to open its leaderboard.',
+        '• Group owners can manage war opt-in and challenges.',
+        '• Use the search modal to find and request new groups.'
+      ].join('\n'),
+      buttons: ['Got it'],
+      translucent: true,
+    });
+
+    await alert.present();
+  }
+
   openWarsLeaderboard(): void {
     this.navCtrl.navigateForward('/group-wars/leaderboard', {
       animated: true,

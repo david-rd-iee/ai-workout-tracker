@@ -20,7 +20,9 @@ export type VideoAnalysisViewerAnalysis = SavedVideoAnalysisRecord & {
   analyzedAtIso: string;
   workoutName: string;
   recordingUrl: string;
+  recordingMimeType?: string;
   overlayUrl: string;
+  overlayMimeType?: string;
   notes: VideoAnalysisViewerNote[];
   drawings: VideoAnalysisViewerDrawing[];
   // Unified, normalized pose frames for angle measurement.

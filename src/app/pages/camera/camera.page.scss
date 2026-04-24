@@ -98,6 +98,32 @@
   border-color: rgba(255, 255, 255, 0.45);
 }
 
+.preview-switch-button {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 2;
+  --background: linear-gradient(145deg, #eef3fb, #e1e8f4);
+  --background-hover: linear-gradient(145deg, #f5f8fd, #e8eef8);
+  --background-activated: linear-gradient(145deg, #e0e8f4, #d5deed);
+  --color: #5a6880;
+  --border-radius: 999px;
+  --box-shadow:
+    8px 8px 16px -12px rgba(184, 196, 214, 0.9),
+    -8px -8px 16px -11px rgba(249, 252, 255, 0.95);
+  min-height: 36px;
+  margin: 0;
+  font-size: 0.76rem;
+  font-weight: 700;
+  text-transform: none;
+
+  &::part(native) {
+    padding: 0 12px;
+    border-radius: 999px;
+    overflow: hidden;
+  }
+}
+
 .preview-overlay {
   position: absolute;
   inset: 0;
@@ -305,6 +331,104 @@
   color: #8b9ab0;
   font-size: 0.86rem;
   line-height: 1.4;
+}
+
+.queue-card {
+  margin-bottom: 6px;
+}
+
+.queue-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.queue-clear-button {
+  --color: #5a6880;
+  --padding-start: 0;
+  --padding-end: 0;
+  min-height: 28px;
+  margin: 0;
+  font-size: 0.76rem;
+  font-weight: 700;
+  text-transform: none;
+}
+
+.queue-subtitle {
+  margin: 0;
+  color: #5a6880;
+  font-size: 0.86rem;
+}
+
+.queue-list {
+  display: grid;
+  gap: 10px;
+}
+
+.queue-item {
+  @include neo-inset(16px);
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+}
+
+.queue-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.queue-title-row strong {
+  color: #435673;
+  font-size: 0.9rem;
+  line-height: 1.35;
+}
+
+.queue-time {
+  color: #8b9ab0;
+  font-size: 0.74rem;
+}
+
+.queue-status {
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.queue-status-queued {
+  background: rgba(68, 109, 184, 0.14);
+  color: #385892;
+}
+
+.queue-status-processing {
+  background: rgba(46, 110, 245, 0.2);
+  color: #2e6ef5;
+}
+
+.queue-status-completed {
+  background: rgba(44, 165, 109, 0.16);
+  color: #197748;
+}
+
+.queue-status-failed {
+  background: rgba(214, 75, 85, 0.14);
+  color: #b73f48;
+}
+
+.queue-message {
+  margin: 2px 0 0;
+  color: #5a6880;
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+
+.queue-message-error {
+  color: #b73f48;
 }
 
 :host ::ng-deep app-header .header-button {

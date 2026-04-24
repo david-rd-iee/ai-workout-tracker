@@ -1,13 +1,15 @@
 import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
-import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
+import { Capacitor } from '@capacitor/core';
+import { Camera, CameraResultType, CameraSource, type Photo } from '@capacitor/camera';
 import {
   AlertController,
   IonButton,
   IonContent,
   IonSpinner,
   IonText,
+  Platform,
 } from '@ionic/angular/standalone';
 import { HeaderComponent } from '../../components/header/header.component';
 import {
@@ -48,6 +50,7 @@ export class TreadmillLoggerPage {
   private readonly router = inject(Router);
   private readonly alertController = inject(AlertController);
   private readonly workoutSessionFormatter = inject(WorkoutSessionFormatterService);
+  private readonly platform = inject(Platform);
 
   readonly machineTypeOptions: MachineTypeOption[] = [
     { label: 'Treadmill', value: 'running' },
@@ -59,7 +62,7 @@ export class TreadmillLoggerPage {
   ];
 
   photoDataUrl = '';
-  statusMessage = 'Take a clear photo of your treadmill screen, then log the workout to review the summary.';
+  statusMessage = 'Take a clear photo of your treadmill screen, then send it for analysis to review the summary.';
   errorMessage = '';
   isCapturing = false;
   isAnalyzing = false;
@@ -102,7 +105,7 @@ export class TreadmillLoggerPage {
       'How to log your workout:',
       '1. Tap "Take Treadmill Photo".',
       '2. Capture the full display (time, distance, calories).',
-      '3. Tap "Analyze Photo" to generate your summary.',
+      '3. Tap "Send Photo for Analysis" to generate your summary.',
       '4. Review the details, then tap "Save Workout".',
       '',
       'If the results look off:',
@@ -121,24 +124,30 @@ export class TreadmillLoggerPage {
     this.errorMessage = '';
 
     try {
+      const hasCameraPermission = await this.ensureCameraPermission();
+      if (!hasCameraPermission) {
+        this.errorMessage = 'Camera permission is required on iPhone. Please allow access in Settings and try again.';
+        return;
+      }
+
       const photo = await Camera.getPhoto({
         quality: 80,
         allowEditing: false,
-        resultType: CameraResultType.DataUrl,
-        source: CameraSource.Camera,
+        resultType: CameraResultType.Uri,
+        source: this.isNativeIPhone() ? CameraSource.Camera : CameraSource.Prompt,
         correctOrientation: true,
         width: 1600,
-        webUseInput: true,
+        webUseInput: !Capacitor.isNativePlatform(),
       });
 
-      const dataUrl = String(photo.dataUrl ?? '').trim();
+      const dataUrl = await this.toDataUrl(photo);
       if (!dataUrl) {
         throw new Error('No image data was captured.');
       }
 
       this.photoDataUrl = dataUrl;
       this.session = this.createEmptySession();
-      this.statusMessage = 'Photo ready. Tap Log Workout to review the extracted summary.';
+      this.statusMessage = 'Photo ready. Tap Send Photo for Analysis to review the extracted summary.';
     } catch (error) {
       if (!this.isUserCancellation(error)) {
         console.error('[TreadmillLoggerPage] Failed to capture treadmill photo:', error);
@@ -147,6 +156,62 @@ export class TreadmillLoggerPage {
     } finally {
       this.isCapturing = false;
     }
+  }
+
+  private async ensureCameraPermission(): Promise<boolean> {
+    if (!this.isNativeIPhone()) {
+      return true;
+    }
+
+    const currentPermissions = await Camera.checkPermissions();
+    if (currentPermissions.camera === 'granted') {
+      return true;
+    }
+
+    const requestedPermissions = await Camera.requestPermissions({
+      permissions: ['camera'],
+    });
+    return requestedPermissions.camera === 'granted';
+  }
+
+  private async toDataUrl(photo: Photo): Promise<string> {
+    const existingDataUrl = String(photo.dataUrl ?? '').trim();
+    if (existingDataUrl) {
+      return existingDataUrl;
+    }
+
+    const base64 = String(photo.base64String ?? '').trim();
+    if (base64) {
+      return `data:image/jpeg;base64,${base64}`;
+    }
+
+    const sourcePath = String(photo.webPath ?? photo.path ?? '').trim();
+    if (!sourcePath) {
+      return '';
+    }
+
+    const response = await fetch(sourcePath);
+    if (!response.ok) {
+      throw new Error('Captured photo could not be loaded for upload.');
+    }
+
+    const blob = await response.blob();
+    return this.blobToDataUrl(blob);
+  }
+
+  private blobToDataUrl(blob: Blob): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        resolve(typeof reader.result === 'string' ? reader.result : '');
+      };
+      reader.onerror = () => reject(new Error('Failed to read captured photo data.'));
+      reader.readAsDataURL(blob);
+    });
+  }
+
+  private isNativeIPhone(): boolean {
+    return Capacitor.isNativePlatform() && this.platform.is('iphone');
   }
 
   async analyzePhoto(): Promise<void> {
@@ -177,7 +242,7 @@ export class TreadmillLoggerPage {
     } catch (error) {
       console.error('[TreadmillLoggerPage] Failed to analyze treadmill image:', error);
       this.errorMessage = 'AI analysis failed. Please try again.';
-      this.statusMessage = 'Take another treadmill photo and tap Log Workout again.';
+      this.statusMessage = 'Take another treadmill photo and tap Send Photo for Analysis again.';
     } finally {
       this.isAnalyzing = false;
     }
@@ -350,7 +415,7 @@ export class TreadmillLoggerPage {
 
     this.selectedMachineType = machineType;
     if (!this.photoDataUrl) {
-      this.statusMessage = 'Take a clear photo of your cardio machine screen, then log the workout to review the summary.';
+      this.statusMessage = 'Take a clear photo of your cardio machine screen, then send it for analysis to review the summary.';
     }
   }
 

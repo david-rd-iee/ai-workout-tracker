@@ -59,33 +59,6 @@
         </ng-template>
       </div>
 
-      <div class="stats-grid">
-        <div class="stat-card">
-          <span class="stat-label">Distance</span>
-          <strong>{{ displayDistance }}</strong>
-        </div>
-        <div class="stat-card">
-          <span class="stat-label">Time</span>
-          <strong>{{ displayDuration }}</strong>
-        </div>
-        <div class="stat-card">
-          <span class="stat-label">{{ displayMovementMetricLabel }}</span>
-          <strong>{{ displayMovementMetricValue }}</strong>
-        </div>
-        <div class="stat-card">
-          <span class="stat-label">Calories</span>
-          <strong>{{ displayCalories }} kcal</strong>
-        </div>
-        <div class="stat-card">
-          <span class="stat-label">Started</span>
-          <strong>{{ startTimeLabel }}</strong>
-        </div>
-        <div class="stat-card">
-          <span class="stat-label">{{ trackingState === 'finished' ? 'Finished' : 'Current Time' }}</span>
-          <strong>{{ currentTimeLabel }}</strong>
-        </div>
-      </div>
-
       <div class="button-stack">
         <ion-button
           expand="block"
@@ -115,6 +88,33 @@
         >
           Reset
         </ion-button>
+      </div>
+
+      <div class="stats-grid">
+        <div class="stat-card">
+          <span class="stat-label">Distance</span>
+          <strong>{{ displayDistance }}</strong>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Time</span>
+          <strong>{{ displayDuration }}</strong>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">{{ displayMovementMetricLabel }}</span>
+          <strong>{{ displayMovementMetricValue }}</strong>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Calories</span>
+          <strong>{{ displayCalories }} kcal</strong>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Started</span>
+          <strong>{{ startTimeLabel }}</strong>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">{{ trackingState === 'finished' ? 'Finished' : 'Current Time' }}</span>
+          <strong>{{ currentTimeLabel }}</strong>
+        </div>
       </div>
 
       <ion-text color="danger" *ngIf="errorMessage">

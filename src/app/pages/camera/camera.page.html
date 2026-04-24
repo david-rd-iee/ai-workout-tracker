@@ -1,11 +1,19 @@
 <app-header
+<<<<<<< Updated upstream
   [title]="'Analyze Workout'"
   [hideTitle]="true"
+=======
+  title=""
+>>>>>>> Stashed changes
   [showBack]="true"
   [backHref]="'/profile-user'"
+  [showEndActionButton]="true"
+  [endActionIconName]="'information-circle-outline'"
+  [endActionAriaLabel]="'Show analyze workout help'"
+  (endAction)="showAnalyzeWorkoutInfo()"
 ></app-header>
 
-<ion-content [fullscreen]="true" [scrollY]="false" class="camera-content">
+<ion-content [fullscreen]="true" [scrollY]="!isRecording" class="camera-content">
   <div class="background-gradient"></div>
 
   <div class="camera-page">
@@ -20,6 +28,16 @@
         <div class="preview-pill" *ngIf="hasRecordedVideo && !isRecording">
           Recorded clip
         </div>
+
+        <ion-button
+          *ngIf="showCameraSwitchButton"
+          fill="clear"
+          class="preview-switch-button"
+          [disabled]="cameraSwitchDisabled"
+          (click)="toggleCameraFacingMode()"
+        >
+          {{ cameraSwitchLabel }}
+        </ion-button>
 
         <div class="preview-overlay" *ngIf="isLoading || isAnalyzing || isUploading">
           <ion-spinner name="crescent"></ion-spinner>
@@ -95,10 +113,10 @@
           expand="block"
           class="primary-button"
           *ngIf="canShowSendButton"
-          [disabled]="isUploading || !!savedRecord"
+          [disabled]="isUploading"
           (click)="sendToTrainer()"
         >
-          {{ savedRecord ? 'Sent to Trainer' : 'Send to Trainer' }}
+          Send to Trainer
         </ion-button>
       </div>
     </section>
@@ -168,6 +186,44 @@
             </strong>
             <p>Left / right average flare</p>
           </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="summary-card queue-card" *ngIf="uploadQueueJobs.length">
+      <div class="summary-card-inner">
+        <div class="queue-header">
+          <p class="eyebrow">Background Uploads</p>
+          <ion-button
+            fill="clear"
+            class="queue-clear-button"
+            [disabled]="!canClearFinishedUploads"
+            (click)="clearFinishedUploads()"
+          >
+            Clear Finished
+          </ion-button>
+        </div>
+
+        <p class="queue-subtitle" *ngIf="activeQueueCount > 0">
+          {{ activeQueueCount }} upload{{ activeQueueCount === 1 ? '' : 's' }} currently running.
+        </p>
+
+        <div class="queue-list">
+          <article class="queue-item" *ngFor="let job of uploadQueueJobs; trackBy: trackQueueJob">
+            <div class="queue-title-row">
+              <strong>{{ uploadQueueTitle(job) }}</strong>
+              <span class="queue-status" [class]="'queue-status queue-status-' + job.status">
+                {{ job.status | titlecase }}
+              </span>
+            </div>
+            <small class="queue-time">{{ formatDateTime(job.createdAtIso) }}</small>
+            <p class="queue-message" *ngIf="job.status !== 'failed'">
+              {{ job.progressMessage || 'Waiting...' }}
+            </p>
+            <p class="queue-message queue-message-error" *ngIf="job.status === 'failed'">
+              {{ job.errorMessage || 'Upload failed.' }}
+            </p>
+          </article>
         </div>
       </div>
     </section>

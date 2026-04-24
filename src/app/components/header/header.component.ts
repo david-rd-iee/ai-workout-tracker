@@ -3,7 +3,7 @@ import { IonHeader, IonToolbar, IonButton, IonIcon, IonTitle, IonAvatar, NavCont
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { addIcons } from 'ionicons';
-import { chevronBackOutline, personOutline, personCircleOutline, settingsOutline } from 'ionicons/icons';
+import { chevronBackOutline, informationCircleOutline, personOutline, personCircleOutline, settingsOutline } from 'ionicons/icons';
 import type { AppUser } from '../../models/user.model';
 import { UserService } from '../../services/account/user.service';
 
@@ -40,6 +40,7 @@ export class HeaderComponent implements OnInit {
   constructor() {
     addIcons({
       chevronBackOutline,
+      informationCircleOutline,
       personOutline,
       personCircleOutline,
       settingsOutline

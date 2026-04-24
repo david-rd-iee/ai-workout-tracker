@@ -272,7 +272,7 @@ export class WorkoutSummaryPage implements OnInit {
   }
 
   navigateToLeaderboard(): void {
-    void this.router.navigate(['/tabs/leaderboard']);
+    void this.router.navigate(['/regional-leaderboard']);
   }
 
   navigateToHome(): void {

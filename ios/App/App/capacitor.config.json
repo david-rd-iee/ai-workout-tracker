@@ -9,7 +9,11 @@
 		"FilesystemPlugin",
 		"HapticsPlugin",
 		"KeyboardPlugin",
+<<<<<<< Updated upstream
 		"PreferencesPlugin",
+=======
+		"ScreenOrientationPlugin",
+>>>>>>> Stashed changes
 		"StatusBarPlugin",
 		"HealthPlugin"
 	]

@@ -67,7 +67,7 @@
       </div>
 
       <div class="player-frame" #playerFrame [style.height.px]="portraitPlayerFrameHeightPx">
-        <div class="video-toggle">
+        <div class="video-toggle" *ngIf="showVideoModeToggle">
           <button type="button" class="toggle-button" [class.toggle-button--active]="isRecordingMode" (click)="showRecording()">Recording</button>
           <button type="button" class="toggle-button" [class.toggle-button--active]="!isRecordingMode" [disabled]="!canToggleOverlay" (click)="showOverlay()">Overlay</button>
         </div>
@@ -94,19 +94,24 @@
           </div>
         </div>
 
+        <div class="player-error" *ngIf="playbackErrorMessage && !isDrawingMode">
+          {{ playbackErrorMessage }}
+        </div>
+
         <video
           #recordingVideo
           class="player-video"
           [class.player-video--active]="isRecordingMode"
           [class.player-video--hidden]="!isRecordingMode || isDrawingMode"
-          [src]="analysisState.recordingUrl"
-          crossorigin="anonymous"
+          [src]="shouldLazyLoadInactiveVideo && !isRecordingMode ? '' : recordingPlaybackUrl"
+          [attr.crossorigin]="recordingVideoCrossOriginValue"
           playsinline
           preload="auto"
           muted
           disablepictureinpicture
           controlslist="nofullscreen nodownload noremoteplayback"
-          (loadedmetadata)="onVideoMetadataLoaded()"
+          (loadedmetadata)="onVideoMetadataLoaded($event)"
+          (error)="onVideoError('recording')"
           (timeupdate)="onVideoTimeUpdate()"
           (play)="onVideoPlay()"
           (pause)="onVideoPause()"
@@ -120,14 +125,15 @@
           class="player-video"
           [class.player-video--active]="!isRecordingMode"
           [class.player-video--hidden]="isRecordingMode || isDrawingMode"
-          [src]="analysisState.overlayUrl"
-          crossorigin="anonymous"
+          [src]="shouldLazyLoadInactiveVideo && isRecordingMode ? '' : overlayPlaybackUrl"
+          [attr.crossorigin]="overlayVideoCrossOriginValue"
           playsinline
           preload="auto"
           muted
           disablepictureinpicture
           controlslist="nofullscreen nodownload noremoteplayback"
-          (loadedmetadata)="onVideoMetadataLoaded()"
+          (loadedmetadata)="onVideoMetadataLoaded($event)"
+          (error)="onVideoError('overlay')"
           (timeupdate)="onVideoTimeUpdate()"
           (play)="onVideoPlay()"
           (pause)="onVideoPause()"

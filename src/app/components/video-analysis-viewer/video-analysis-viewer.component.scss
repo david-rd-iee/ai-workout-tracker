@@ -438,6 +438,22 @@
   pointer-events: none;
 }
 
+.player-error {
+  position: absolute;
+  top: 68px;
+  left: 50%;
+  z-index: 5;
+  width: min(86%, 520px);
+  padding: 8px 12px;
+  transform: translateX(-50%);
+  border-radius: 12px;
+  background: rgba(44, 62, 98, 0.78);
+  color: #f7faff;
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-align: center;
+}
+
 .drawing-canvas {
   position: absolute;
   top: var(--player-portrait-gutter);

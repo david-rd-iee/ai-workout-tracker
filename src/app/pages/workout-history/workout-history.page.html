@@ -1,8 +1,16 @@
 <app-header
+<<<<<<< Updated upstream
   [title]="pageTitle"
   [hideTitle]="true"
+=======
+  title=""
+>>>>>>> Stashed changes
   [showBack]="true"
   [backHref]="backHref"
+  [showEndActionButton]="true"
+  [endActionIconName]="'information-circle-outline'"
+  [endActionAriaLabel]="'Show workout history help'"
+  (endAction)="showHistoryInfo()"
   [transparent]="true"
   [neoBlend]="true"
 ></app-header>

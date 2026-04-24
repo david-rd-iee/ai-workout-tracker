@@ -4,7 +4,11 @@
   [hideTitle]="true"
   [showBack]="true"
   backHref="/profile-user"
-  title="Regional Leaderboard"
+  title=""
+  [showEndActionButton]="true"
+  [endActionIconName]="'information-circle-outline'"
+  [endActionAriaLabel]="'Show regional leaderboard help'"
+  (endAction)="showRegionalInfo()"
 ></app-header>
 
 <ion-content [fullscreen]="true" class="lb-content">

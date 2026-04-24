@@ -1,8 +1,16 @@
 <app-header
+<<<<<<< Updated upstream
   [title]="'Log Workout'"
   [hideTitle]="true"
+=======
+  title=""
+>>>>>>> Stashed changes
   [showBack]="true"
   [backHref]="'/profile-user'"
+  [showEndActionButton]="true"
+  [endActionIconName]="'information-circle-outline'"
+  [endActionAriaLabel]="'Show workout logging help'"
+  (endAction)="showLoggingInfo()"
 ></app-header>
 
 <ion-content [fullscreen]="true" class="logging-method-routes-content">

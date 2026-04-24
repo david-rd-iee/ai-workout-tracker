@@ -161,16 +161,16 @@ h2.atlas-title {
 }
 
 ion-header.neo-header {
-  --ion-safe-area-top: env(safe-area-inset-top, 0px);
+  --neo-header-shell: var(--atlas-header-shell, rgba(231, 237, 245, 0.44));
+  --neo-header-toolbar: var(--atlas-header-toolbar, rgba(231, 237, 245, 0.82));
   backdrop-filter: saturate(112%) blur(4px);
   -webkit-backdrop-filter: saturate(112%) blur(4px);
-  background: rgba(231, 237, 245, 0.44);
-  padding-top: var(--ion-safe-area-top) !important;
+  background: var(--neo-header-shell);
   box-shadow: none !important;
 }
 
 .neo-toolbar {
-  --background: rgba(231, 237, 245, 0.82);
+  --background: var(--neo-header-toolbar);
   --min-height: 68px;
   --padding-top: 0;
   --padding-bottom: 0;
@@ -200,14 +200,7 @@ ion-header.neo-header {
   }
 }
 
-ion-header.neo-header::before,
-ion-header.neo-header::after {
-  display: none !important;
-}
-
 ion-header.neo-header ion-toolbar.title-container {
-  padding-top: 0 !important;
-  padding-bottom: 0 !important;
   min-height: var(--min-height) !important;
 }
 

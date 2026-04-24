@@ -1,5 +1,6 @@
 import { AfterViewInit, Component, ElementRef, NgZone, OnDestroy, ViewChild, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { Subscription } from 'rxjs';
 import {
   AlertController,
   IonButton,
@@ -8,10 +9,16 @@ import {
   NavController,
   ToastController,
 } from '@ionic/angular/standalone';
-import { VideoAnalysisResult, SavedVideoAnalysisRecord } from '../../models/video-analysis.model';
+import { VideoAnalysisResult } from '../../models/video-analysis.model';
 import { VideoAnalysisService } from '../../services/video-analysis.service';
+import {
+  VideoAnalysisUploadQueueJob,
+  VideoAnalysisUploadQueueService,
+} from '../../services/video-analysis-upload-queue.service';
 import { UserService } from '../../services/account/user.service';
 import { HeaderComponent } from '../../components/header/header.component';
+
+type CameraFacingMode = 'user' | 'environment';
 
 @Component({
   selector: 'app-camera',
@@ -30,6 +37,7 @@ export class CameraPage implements AfterViewInit, OnDestroy {
   @ViewChild('cameraVideo', { static: false }) cameraVideo?: ElementRef<HTMLVideoElement>;
 
   private readonly videoAnalysisService = inject(VideoAnalysisService);
+  private readonly videoAnalysisUploadQueueService = inject(VideoAnalysisUploadQueueService);
   private readonly userService = inject(UserService);
   private readonly toastCtrl = inject(ToastController);
   private readonly alertCtrl = inject(AlertController);
@@ -53,7 +61,7 @@ export class CameraPage implements AfterViewInit, OnDestroy {
   recordedVideoUrl: string | null = null;
   recordedAtMs: number | null = null;
   analysisResult: VideoAnalysisResult | null = null;
-  savedRecord: SavedVideoAnalysisRecord | null = null;
+  uploadQueueJobs: VideoAnalysisUploadQueueJob[] = [];
 
   private mediaStream: MediaStream | null = null;
   private mediaRecorder: MediaRecorder | null = null;
@@ -61,6 +69,15 @@ export class CameraPage implements AfterViewInit, OnDestroy {
   private recordingTimerId: number | null = null;
   private ignoreNextRecorderStop = false;
   private destroyed = false;
+  private queueStateSubscription: Subscription | null = null;
+  private readonly isIPhone = typeof navigator !== 'undefined' && /iPhone/i.test(navigator.userAgent);
+  cameraFacingMode: CameraFacingMode = 'environment';
+
+  constructor() {
+    this.queueStateSubscription = this.videoAnalysisUploadQueueService.state$.subscribe((state) => {
+      this.uploadQueueJobs = state.jobs;
+    });
+  }
 
   async ngAfterViewInit(): Promise<void> {
     await this.loadTrainerContext();
@@ -84,6 +101,8 @@ export class CameraPage implements AfterViewInit, OnDestroy {
     this.cancelActiveRecording();
     this.stopCamera();
     this.revokeRecordedVideoUrl();
+    this.queueStateSubscription?.unsubscribe();
+    this.queueStateSubscription = null;
   }
 
   get hasRecordedVideo(): boolean {
@@ -95,7 +114,8 @@ export class CameraPage implements AfterViewInit, OnDestroy {
       !!this.assignedTrainerId &&
       !!this.recordedVideoBlob &&
       !!this.analysisResult &&
-      !this.isAnalyzing
+      !this.isAnalyzing &&
+      !this.isUploading
     );
   }
 
@@ -104,8 +124,7 @@ export class CameraPage implements AfterViewInit, OnDestroy {
       !this.hasCameraSupport ||
       !this.hasRecordingSupport ||
       this.isLoading ||
-      this.isAnalyzing ||
-      this.isUploading
+      this.isAnalyzing
     );
   }
 
@@ -113,13 +132,73 @@ export class CameraPage implements AfterViewInit, OnDestroy {
     return this.formatDuration(this.recordingDurationMs);
   }
 
+  get showCameraSwitchButton(): boolean {
+    return this.isIPhone && !!this.mediaStream && !this.hasRecordedVideo;
+  }
+
+  get cameraSwitchDisabled(): boolean {
+    return this.isLoading || this.isRecording || this.isAnalyzing;
+  }
+
+  get cameraSwitchLabel(): string {
+    return this.cameraFacingMode === 'environment' ? 'Front' : 'Back';
+  }
+
+  get activeQueueCount(): number {
+    return this.uploadQueueJobs.filter((job) => job.status === 'queued' || job.status === 'processing').length;
+  }
+
+  get canClearFinishedUploads(): boolean {
+    return this.uploadQueueJobs.some((job) => job.status === 'completed' || job.status === 'failed');
+  }
+
   async retryCamera(): Promise<void> {
     this.stopCamera();
-    await this.startCamera();
+    await this.startCamera(this.cameraFacingMode);
   }
 
   openAnalyzedVideos(): void {
     this.navCtrl.navigateForward('/analyzed-videos');
+  }
+
+  async showAnalyzeWorkoutInfo(): Promise<void> {
+    const alert = await this.alertCtrl.create({
+      mode: 'ios',
+      header: 'Analyze workout help',
+      subHeader: 'Record one clear set for the best feedback',
+      message: [
+        '• Position your full body in frame before recording.',
+        '• Record 3 to 8 reps from a stable camera angle.',
+        '• Open Analyzed to review past uploads and coach notes.',
+        '• Use Send to Trainer after analysis is complete.'
+      ].join('\n'),
+      buttons: ['Got it'],
+      translucent: true,
+    });
+
+    await alert.present();
+  }
+
+  async toggleCameraFacingMode(): Promise<void> {
+    if (!this.showCameraSwitchButton || this.cameraSwitchDisabled) {
+      return;
+    }
+
+    const previousFacingMode = this.cameraFacingMode;
+    const nextFacingMode: CameraFacingMode =
+      previousFacingMode === 'environment' ? 'user' : 'environment';
+    this.cameraFacingMode = nextFacingMode;
+
+    this.stopCamera();
+    await this.startCamera(nextFacingMode, true);
+
+    if (this.mediaStream) {
+      return;
+    }
+
+    // Fall back to the previous camera if the requested lens is unavailable.
+    this.cameraFacingMode = previousFacingMode;
+    await this.startCamera(previousFacingMode, true);
   }
 
   async startRecording(): Promise<void> {
@@ -137,60 +216,80 @@ export class CameraPage implements AfterViewInit, OnDestroy {
 
     this.clearRecordedSession();
     this.errorMessage = '';
-    const preferredMimeType = this.resolveRecordingMimeType();
+    this.recordedChunks = [];
 
-    try {
-      this.recordedChunks = [];
-      this.mediaRecorder = preferredMimeType
-        ? new MediaRecorder(this.mediaStream, {
-            mimeType: preferredMimeType,
-            videoBitsPerSecond: 3_000_000,
-          })
-        : new MediaRecorder(this.mediaStream, {
-            videoBitsPerSecond: 3_000_000,
-          });
+    const mimeCandidates = this.buildRecordingMimeCandidates();
+    const hasTypeSupportApi =
+      typeof MediaRecorder !== 'undefined' && typeof MediaRecorder.isTypeSupported === 'function';
+    const mimeSupport = mimeCandidates.map((candidate) => ({
+      mimeType: candidate,
+      supported: hasTypeSupportApi ? MediaRecorder.isTypeSupported(candidate) : 'unknown',
+    }));
+    const supportedMimeTypes = mimeSupport
+      .filter((entry) => entry.supported === true)
+      .map((entry) => entry.mimeType);
+    const orderedAttemptMimeTypes = Array.from(
+      new Set<string>([
+        ...supportedMimeTypes,
+        ...mimeCandidates,
+        '',
+      ])
+    );
 
-      const recorder = this.mediaRecorder;
-      recorder.ondataavailable = (event: BlobEvent) => {
-        if (event.data.size > 0) {
-          this.recordedChunks.push(event.data);
-        }
-      };
-      recorder.onerror = () => {
-        this.errorMessage = 'Recording failed. Please try again.';
-        this.stopRecordingTimer();
-        this.isRecording = false;
-      };
-      recorder.onstop = () => {
-        this.ngZone.run(() => {
-          const chunks = [...this.recordedChunks];
-          this.recordedChunks = [];
-          this.stopRecordingTimer();
-          this.isRecording = false;
+    this.logCameraDebug('MediaRecorder MIME support check', {
+      isIPhone: this.isIPhone,
+      hasTypeSupportApi,
+      mimeSupport,
+      orderedAttempts: orderedAttemptMimeTypes.map((mimeType) => mimeType || '(browser-default)'),
+    });
 
-          const shouldIgnore = this.ignoreNextRecorderStop || this.destroyed;
-          this.ignoreNextRecorderStop = false;
-          if (this.mediaRecorder === recorder) {
-            this.mediaRecorder = null;
-          }
+    let startedRecorder: MediaRecorder | null = null;
+    let selectedRequestedMimeType = '';
 
-          if (shouldIgnore) {
-            return;
-          }
+    for (const requestedMimeType of orderedAttemptMimeTypes) {
+      const requestedLabel = requestedMimeType || '(browser-default)';
+      try {
+        const recorder = requestedMimeType
+          ? new MediaRecorder(this.mediaStream, {
+              mimeType: requestedMimeType,
+              videoBitsPerSecond: 3_000_000,
+            })
+          : new MediaRecorder(this.mediaStream, {
+              videoBitsPerSecond: 3_000_000,
+            });
 
-          const mimeType = recorder.mimeType || preferredMimeType || 'video/webm';
-          void this.finishRecording(chunks, mimeType);
+        this.bindRecorderEvents(recorder, requestedMimeType);
+        recorder.start(250);
+
+        startedRecorder = recorder;
+        selectedRequestedMimeType = requestedMimeType;
+        this.logCameraDebug('Recording started', {
+          requestedMimeType: requestedLabel,
+          activeMimeType: recorder.mimeType || '(empty)',
+          streamTrackSummary: this.mediaStream.getTracks().map((track) => `${track.kind}:${track.readyState}`),
         });
-      };
-
-      recorder.start(250);
-      this.isRecording = true;
-      this.recordingDurationMs = 0;
-      this.startRecordingTimer();
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Recording could not start.';
-      this.errorMessage = message;
+        break;
+      } catch (error) {
+        this.logCameraError('startRecording attempt failed', error, {
+          requestedMimeType: requestedLabel,
+          activeStream: !!this.mediaStream,
+        });
+      }
     }
+
+    if (!startedRecorder) {
+      this.errorMessage = 'Recording could not start on this iPhone/browser. Please retry.';
+      return;
+    }
+
+    this.mediaRecorder = startedRecorder;
+    this.recordingDurationMs = 0;
+    this.isRecording = true;
+    this.startRecordingTimer();
+    this.logCameraDebug('Using recorder MIME', {
+      requestedMimeType: selectedRequestedMimeType || '(browser-default)',
+      recorderMimeType: startedRecorder.mimeType || '(empty)',
+    });
   }
 
   async stopRecording(): Promise<void> {
@@ -209,7 +308,7 @@ export class CameraPage implements AfterViewInit, OnDestroy {
   }
 
   async retakeRecording(): Promise<void> {
-    if (this.isRecording || this.isAnalyzing || this.isUploading) {
+    if (this.isRecording || this.isAnalyzing) {
       return;
     }
 
@@ -218,7 +317,7 @@ export class CameraPage implements AfterViewInit, OnDestroy {
   }
 
   async sendToTrainer(): Promise<void> {
-    if (!this.canShowSendButton || this.isUploading || this.savedRecord) {
+    if (!this.canShowSendButton || this.isUploading) {
       return;
     }
 
@@ -230,7 +329,7 @@ export class CameraPage implements AfterViewInit, OnDestroy {
     }
 
     this.isUploading = true;
-    this.uploadMessage = 'Preparing upload...';
+    this.uploadMessage = 'Queueing upload...';
     this.errorMessage = '';
 
     try {
@@ -241,19 +340,18 @@ export class CameraPage implements AfterViewInit, OnDestroy {
         return;
       }
 
-      this.savedRecord = await this.videoAnalysisService.saveAnalysisToTrainer({
+      this.videoAnalysisUploadQueueService.enqueueUpload({
         clientId,
         trainerId: this.assignedTrainerId,
         recordedAtMs: this.recordedAtMs,
         recordedVideo: this.recordedVideoBlob,
         analysis: this.analysisResult,
         workoutName,
-        onProgress: (message) => {
-          this.uploadMessage = message;
-        },
       });
-      this.uploadMessage = 'Analysis sent to trainer.';
-      await this.showToast('Analysis sent to trainer.');
+      this.clearRecordedSession();
+      this.uploadMessage = '';
+      await this.startCamera();
+      await this.showToast('Upload queued in the background. You can record another video now.');
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Upload failed.';
       this.errorMessage = message;
@@ -262,6 +360,32 @@ export class CameraPage implements AfterViewInit, OnDestroy {
     } finally {
       this.isUploading = false;
     }
+  }
+
+  clearFinishedUploads(): void {
+    this.videoAnalysisUploadQueueService.clearFinishedJobs();
+  }
+
+  trackQueueJob(_index: number, job: VideoAnalysisUploadQueueJob): string {
+    return job.id;
+  }
+
+  uploadQueueTitle(job: VideoAnalysisUploadQueueJob): string {
+    return job.workoutName || `Workout ${this.formatDateTime(job.createdAtIso)}`;
+  }
+
+  formatDateTime(value: string): string {
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) {
+      return 'Unknown time';
+    }
+
+    return new Intl.DateTimeFormat('en-US', {
+      month: 'short',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    }).format(parsed);
   }
 
   private async promptForWorkoutName(): Promise<string | null> {
@@ -331,7 +455,10 @@ export class CameraPage implements AfterViewInit, OnDestroy {
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   }
 
-  private async startCamera(): Promise<void> {
+  private async startCamera(
+    preferredFacingMode: CameraFacingMode = this.cameraFacingMode,
+    preferExactFacingMode = false,
+  ): Promise<void> {
     if (
       !this.hasCameraSupport ||
       this.isLoading ||
@@ -343,24 +470,66 @@ export class CameraPage implements AfterViewInit, OnDestroy {
 
     this.isLoading = true;
     this.errorMessage = '';
+    const constraintAttempts = this.buildCameraConstraintAttempts(preferredFacingMode, preferExactFacingMode);
+    this.logCameraDebug('Requesting camera stream via getUserMedia', {
+      preferredFacingMode,
+      preferExactFacingMode,
+      attemptCount: constraintAttempts.length,
+      hasCameraSupport: this.hasCameraSupport,
+      hasRecordingSupport: this.hasRecordingSupport,
+      secureContext: typeof window !== 'undefined' ? window.isSecureContext : false,
+      isIPhone: this.isIPhone,
+    });
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: { ideal: 'environment' },
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-          frameRate: { ideal: 30, max: 30 },
-        },
-        audio: false,
-      });
+      let stream: MediaStream | null = null;
+      let selectedFacingMode: CameraFacingMode = preferredFacingMode;
+      let lastError: unknown = null;
+
+      for (const attempt of constraintAttempts) {
+        try {
+          this.logCameraDebug('Camera stream attempt', {
+            requestedFacingMode: attempt.facingMode,
+            useExactFacingMode: attempt.useExact,
+            constraints: attempt.constraints,
+          });
+          stream = await navigator.mediaDevices.getUserMedia(attempt.constraints);
+          selectedFacingMode = attempt.facingMode;
+          break;
+        } catch (error) {
+          lastError = error;
+          this.logCameraError('startCamera getUserMedia attempt failed', error, {
+            requestedFacingMode: attempt.facingMode,
+            useExactFacingMode: attempt.useExact,
+          });
+        }
+      }
+
+      if (!stream) {
+        throw lastError instanceof Error ? lastError : new Error('Unable to access the camera.');
+      }
 
       this.mediaStream = stream;
+      const videoTrackSettings = stream.getVideoTracks()[0]?.getSettings();
+      const trackFacingMode = videoTrackSettings?.facingMode;
+      if (trackFacingMode === 'user' || trackFacingMode === 'environment') {
+        this.cameraFacingMode = trackFacingMode;
+      } else {
+        this.cameraFacingMode = selectedFacingMode;
+      }
+      this.logCameraDebug('getUserMedia succeeded', {
+        trackCount: stream.getTracks().length,
+        videoTrackSettings,
+        cameraFacingMode: this.cameraFacingMode,
+      });
       await this.attachLivePreview(stream);
       void this.videoAnalysisService.warmPoseModel().catch(() => undefined);
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unable to access the camera.';
-      this.errorMessage = `Camera access failed: ${message}`;
+      this.logCameraError('startCamera getUserMedia failed', error, {
+        preferredFacingMode,
+        preferExactFacingMode,
+      });
+      this.errorMessage = this.buildCameraAccessErrorMessage(error);
       this.stopCamera();
     } finally {
       this.isLoading = false;
@@ -464,33 +633,210 @@ export class CameraPage implements AfterViewInit, OnDestroy {
     }
   }
 
-  private resolveRecordingMimeType(): string {
-    if (typeof MediaRecorder === 'undefined') {
-      return '';
-    }
-
-    const candidates = [
+  private buildRecordingMimeCandidates(): string[] {
+    const iphoneFirst = [
+      'video/mp4;codecs="avc1.42E01E"',
+      'video/mp4;codecs=avc1.42E01E',
       'video/mp4;codecs=avc1',
       'video/mp4',
       'video/webm;codecs=vp9',
       'video/webm;codecs=vp8',
       'video/webm',
     ];
+    const webmFirst = [
+      'video/webm;codecs=vp9',
+      'video/webm;codecs=vp8',
+      'video/webm',
+      'video/mp4;codecs="avc1.42E01E"',
+      'video/mp4;codecs=avc1.42E01E',
+      'video/mp4;codecs=avc1',
+      'video/mp4',
+    ];
 
-    for (const candidate of candidates) {
-      if (typeof MediaRecorder.isTypeSupported === 'function' && MediaRecorder.isTypeSupported(candidate)) {
-        return candidate;
+    return this.isIPhone ? iphoneFirst : webmFirst;
+  }
+
+  private buildCameraConstraintAttempts(
+    preferredFacingMode: CameraFacingMode,
+    preferExactFacingMode: boolean,
+  ): Array<{
+    facingMode: CameraFacingMode;
+    useExact: boolean;
+    constraints: MediaStreamConstraints;
+  }> {
+    const attempts: Array<{
+      facingMode: CameraFacingMode;
+      useExact: boolean;
+      constraints: MediaStreamConstraints;
+    }> = [];
+    const pushAttempt = (facingMode: CameraFacingMode, useExact: boolean): void => {
+      attempts.push({
+        facingMode,
+        useExact,
+        constraints: {
+          video: {
+            facingMode: useExact ? { exact: facingMode } : { ideal: facingMode },
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+            frameRate: { ideal: 30, max: 30 },
+          },
+          audio: false,
+        },
+      });
+    };
+
+    if (preferExactFacingMode) {
+      pushAttempt(preferredFacingMode, true);
+    }
+    pushAttempt(preferredFacingMode, false);
+    pushAttempt(this.getOppositeFacingMode(preferredFacingMode), false);
+
+    return attempts;
+  }
+
+  private getOppositeFacingMode(facingMode: CameraFacingMode): CameraFacingMode {
+    return facingMode === 'environment' ? 'user' : 'environment';
+  }
+
+  private bindRecorderEvents(recorder: MediaRecorder, requestedMimeType: string): void {
+    recorder.ondataavailable = (event: BlobEvent) => {
+      if (event.data.size > 0) {
+        this.recordedChunks.push(event.data);
       }
+    };
+    recorder.onerror = (event: Event) => {
+      const mediaRecorderEvent = event as Event & { error?: unknown };
+      this.logCameraError('MediaRecorder runtime error', mediaRecorderEvent.error ?? event, {
+        requestedMimeType: requestedMimeType || '(browser-default)',
+        activeMimeType: recorder.mimeType || '(empty)',
+      });
+      this.errorMessage = 'Recording failed. Please try again.';
+      this.stopRecordingTimer();
+      this.isRecording = false;
+    };
+    recorder.onstop = () => {
+      this.ngZone.run(() => {
+        const chunks = [...this.recordedChunks];
+        this.recordedChunks = [];
+        this.stopRecordingTimer();
+        this.isRecording = false;
+
+        const shouldIgnore = this.ignoreNextRecorderStop || this.destroyed;
+        this.ignoreNextRecorderStop = false;
+        if (this.mediaRecorder === recorder) {
+          this.mediaRecorder = null;
+        }
+
+        if (shouldIgnore) {
+          return;
+        }
+
+        const mimeType = recorder.mimeType || requestedMimeType || this.getRecordingFallbackMimeType();
+        this.logCameraDebug('Recorder stopped', {
+          outputMimeType: mimeType,
+          chunkCount: chunks.length,
+          requestedMimeType: requestedMimeType || '(browser-default)',
+          recorderMimeType: recorder.mimeType || '(empty)',
+        });
+        void this.finishRecording(chunks, mimeType);
+      });
+    };
+  }
+
+  private getRecordingFallbackMimeType(): string {
+    return this.isIPhone ? 'video/mp4' : 'video/webm';
+  }
+
+  private buildCameraAccessErrorMessage(error: unknown): string {
+    const errorName = this.extractErrorName(error);
+    if (errorName === 'NotAllowedError') {
+      return 'Camera access failed: permission denied. Please allow camera access in iPhone Settings.';
+    }
+    if (errorName === 'NotFoundError') {
+      return 'Camera access failed: no camera was found on this device.';
+    }
+    if (errorName === 'NotReadableError') {
+      return 'Camera access failed: the camera is already in use by another app.';
+    }
+    if (errorName === 'OverconstrainedError') {
+      return 'Camera access failed: this camera does not support the requested capture settings.';
+    }
+    if (errorName === 'SecurityError') {
+      return 'Camera access failed: this context is not allowed to use camera APIs.';
     }
 
-    return '';
+    const message = error instanceof Error ? error.message : 'Unable to access the camera.';
+    return `Camera access failed: ${message}`;
+  }
+
+  private extractErrorName(error: unknown): string {
+    if (!error || typeof error !== 'object') {
+      return '';
+    }
+    if (!('name' in error)) {
+      return '';
+    }
+
+    const name = (error as { name?: unknown }).name;
+    return typeof name === 'string' ? name : '';
+  }
+
+  private logCameraDebug(message: string, details?: Record<string, unknown>): void {
+    if (details) {
+      console.info(`[AnalyzerCamera] ${message}`, details);
+      return;
+    }
+
+    console.info(`[AnalyzerCamera] ${message}`);
+  }
+
+  private logCameraError(message: string, error: unknown, details?: Record<string, unknown>): void {
+    const normalizedError = this.normalizeCameraError(error);
+    if (details) {
+      console.error(`[AnalyzerCamera] ${message}`, {
+        ...details,
+        ...normalizedError,
+      });
+      return;
+    }
+
+    console.error(`[AnalyzerCamera] ${message}`, normalizedError);
+  }
+
+  private normalizeCameraError(error: unknown): Record<string, unknown> {
+    if (error instanceof DOMException) {
+      const maybeConstraint = error as DOMException & { constraint?: string };
+      return {
+        errorName: error.name,
+        errorMessage: error.message,
+        errorCode: error.code,
+        constraint: maybeConstraint.constraint ?? null,
+      };
+    }
+
+    if (error instanceof Error) {
+      return {
+        errorName: error.name,
+        errorMessage: error.message,
+        errorStack: error.stack ?? null,
+      };
+    }
+
+    if (typeof error === 'string') {
+      return {
+        errorMessage: error,
+      };
+    }
+
+    return {
+      errorValue: error,
+    };
   }
 
   private clearRecordedSession(): void {
     this.recordedVideoBlob = null;
     this.recordedAtMs = null;
     this.analysisResult = null;
-    this.savedRecord = null;
     this.analysisMessage = '';
     this.uploadMessage = '';
     this.errorMessage = '';

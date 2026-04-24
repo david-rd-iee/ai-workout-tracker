@@ -173,7 +173,6 @@ ion-content.map-tracking-content {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
-  margin-bottom: 16px;
 }
 
 .stat-card {
@@ -192,6 +191,7 @@ ion-content.map-tracking-content {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  margin-bottom: 16px;
 }
 
 .primary-button,

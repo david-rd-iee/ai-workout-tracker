@@ -9,6 +9,7 @@ import {
   STATUES_DASHBORD_ROUTE_PATH,
   STATUES_DASHBOARD_ALIAS_ROUTE_PATH,
 } from './pages/statues-dashbord/statues-dashbord.constants';
+import { ALLOW_LANDSCAPE_ORIENTATION_POLICY, ORIENTATION_POLICY_ROUTE_DATA_KEY } from './services/orientation/orientation-policy';
 
 // Route paths constant for type-safe navigation
 export const ROUTE_PATHS = {
@@ -155,6 +156,9 @@ export const routes: Routes = [
       import('./pages/workout-chatbot/workout-chatbot.page').then(
         (m) => m.WorkoutChatbotPage
       ),
+    data: {
+      [ORIENTATION_POLICY_ROUTE_DATA_KEY]: ALLOW_LANDSCAPE_ORIENTATION_POLICY,
+    },
     canActivate: [authGuard],
   },
   {
@@ -183,6 +187,9 @@ export const routes: Routes = [
     path: 'chat/:chatId',
     loadComponent: () =>
       import('./pages/chats/chat-detail/chat-detail.page').then((m) => m.ChatDetailPage),
+    data: {
+      [ORIENTATION_POLICY_ROUTE_DATA_KEY]: ALLOW_LANDSCAPE_ORIENTATION_POLICY,
+    },
     canActivate: [authGuard],
   },
   {
@@ -243,6 +250,9 @@ export const routes: Routes = [
   {
     path: 'camera',
     loadComponent: () => import('./pages/camera/camera.page').then((m) => m.CameraPage),
+    data: {
+      [ORIENTATION_POLICY_ROUTE_DATA_KEY]: ALLOW_LANDSCAPE_ORIENTATION_POLICY,
+    },
     canActivate: [authGuard],
   },
   {
@@ -257,6 +267,9 @@ export const routes: Routes = [
       import('./pages/client-analyzed-video/client-analyzed-video.page').then(
         (m) => m.ClientAnalyzedVideoPage
       ),
+    data: {
+      [ORIENTATION_POLICY_ROUTE_DATA_KEY]: ALLOW_LANDSCAPE_ORIENTATION_POLICY,
+    },
     canActivate: [authGuard],
   },
   {
@@ -273,6 +286,9 @@ export const routes: Routes = [
       import('./pages/trainer-workout-analyzer/trainer-workout-analyzer.page').then(
         (m) => m.TrainerWorkoutAnalyzerPage
       ),
+    data: {
+      [ORIENTATION_POLICY_ROUTE_DATA_KEY]: ALLOW_LANDSCAPE_ORIENTATION_POLICY,
+    },
     canActivate: [authGuard],
   },
   {

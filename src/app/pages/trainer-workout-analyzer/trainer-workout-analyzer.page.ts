@@ -215,8 +215,14 @@ export class TrainerWorkoutAnalyzerPage implements OnInit {
           const recordingUrl = typeof video?.['downloadUrl'] === 'string'
             ? video['downloadUrl'].trim()
             : '';
+          const recordingMimeType = typeof video?.['mimeType'] === 'string'
+            ? video['mimeType'].trim()
+            : '';
           const overlayUrl = typeof overlayVideo?.['downloadUrl'] === 'string'
             ? overlayVideo['downloadUrl'].trim()
+            : '';
+          const overlayMimeType = typeof overlayVideo?.['mimeType'] === 'string'
+            ? overlayVideo['mimeType'].trim()
             : '';
           const fallbackLabel = analyzedAtIso || String(data['recordedAt'] || '').trim() || docSnap.id;
 
@@ -236,7 +242,9 @@ export class TrainerWorkoutAnalyzerPage implements OnInit {
             analyzedAtIso: fallbackLabel,
             workoutName,
             recordingUrl,
+            recordingMimeType,
             overlayUrl,
+            overlayMimeType,
             videoStoragePath: typeof video?.['storagePath'] === 'string' ? video['storagePath'].trim() : '',
             videoDownloadUrl: recordingUrl,
             overlayVideoStoragePath:

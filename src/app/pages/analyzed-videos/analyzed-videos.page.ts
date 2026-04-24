@@ -9,6 +9,7 @@ import {
 import { Firestore } from '@angular/fire/firestore';
 import { collection, getDocs } from 'firebase/firestore';
 import { UserService } from '../../services/account/user.service';
+import { VideoPlaybackCacheService } from '../../services/video-playback-cache.service';
 import { addIcons } from 'ionicons';
 import { analyticsOutline, chevronForwardOutline } from 'ionicons/icons';
 import { HeaderComponent } from 'src/app/components/header/header.component';
@@ -18,6 +19,8 @@ type ClientAnalyzedVideoItem = {
   analyzedAtIso: string;
   recordedAt: string;
   label: string;
+  recordingUrl: string;
+  overlayUrl: string;
 };
 
 @Component({
@@ -36,6 +39,7 @@ type ClientAnalyzedVideoItem = {
 export class AnalyzedVideosPage implements OnInit {
   private readonly firestore = inject(Firestore);
   private readonly userService = inject(UserService);
+  private readonly videoPlaybackCacheService = inject(VideoPlaybackCacheService);
   private readonly navCtrl = inject(NavController);
 
   isLoading = true;
@@ -95,6 +99,9 @@ export class AnalyzedVideosPage implements OnInit {
         .map((docSnap) => {
           const data = docSnap.data() as Record<string, unknown>;
           const analysis = this.asRecord(data['analysis']);
+          const video = this.asRecord(data['video']);
+          const artifacts = this.asRecord(data['artifacts']);
+          const overlayVideo = this.asRecord(artifacts?.['overlayVideo']);
           const analyzedAtIso = typeof analysis?.['analyzedAtIso'] === 'string'
             ? analysis['analyzedAtIso'].trim()
             : '';
@@ -111,16 +118,37 @@ export class AnalyzedVideosPage implements OnInit {
             canView,
             sortValue,
             label: this.formatAnalysisDate(sortValue),
+            recordingUrl: typeof video?.['downloadUrl'] === 'string'
+              ? video['downloadUrl'].trim()
+              : '',
+            overlayUrl: typeof overlayVideo?.['downloadUrl'] === 'string'
+              ? overlayVideo['downloadUrl'].trim()
+              : '',
           };
         })
         .filter((item) => item.canView)
         .sort((left, right) => right.sortValue.localeCompare(left.sortValue))
-        .map(({ id, analyzedAtIso, recordedAt, label }) => ({
+        .map(({ id, analyzedAtIso, recordedAt, label, recordingUrl, overlayUrl }) => ({
           id,
           analyzedAtIso,
           recordedAt,
           label,
+          recordingUrl,
+          overlayUrl,
         }));
+
+      const warmCandidateUrls = this.analyzedVideos
+        .slice(0, 4)
+        .reduce<string[]>((accumulator, video) => {
+          if (video.recordingUrl) {
+            accumulator.push(video.recordingUrl);
+          }
+          if (video.overlayUrl) {
+            accumulator.push(video.overlayUrl);
+          }
+          return accumulator;
+        }, []);
+      this.videoPlaybackCacheService.prefetchUrls(warmCandidateUrls, 8);
     } catch (error) {
       console.error('[AnalyzedVideosPage] Failed to load analyzed workouts:', error);
       this.errorMessage = 'Unable to load analyzed workouts right now.';

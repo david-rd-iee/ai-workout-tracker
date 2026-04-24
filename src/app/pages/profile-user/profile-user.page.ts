@@ -34,6 +34,7 @@ import { NavController } from '@ionic/angular';
 import { Auth } from '@angular/fire/auth';
 import { Firestore } from '@angular/fire/firestore';
 import { Storage, ref, deleteObject } from '@angular/fire/storage';
+import { CameraSource } from '@capacitor/camera';
 import { collection, doc, getDocs, query, serverTimestamp, setDoc, where } from 'firebase/firestore';
 
 import { UserService } from '../../services/account/user.service';
@@ -353,19 +354,25 @@ export class ProfileUserPage implements OnInit, OnDestroy {
   }
 
   async onProfileImageClick(): Promise<void> {
-    let shouldChangeImage = false;
+    let selectedImageSource: CameraSource | null = null;
     const alert = await this.alertCtrl.create({
       header: 'Profile Picture',
-      message: 'Would you like to change your profile picture?',
+      message: 'Choose how you want to update your profile picture.',
       buttons: [
         {
           text: 'Cancel',
           role: 'cancel',
         },
         {
-          text: 'Change Image',
+          text: 'Choose from Library',
           handler: () => {
-            shouldChangeImage = true;
+            selectedImageSource = CameraSource.Photos;
+          },
+        },
+        {
+          text: 'Take Photo',
+          handler: () => {
+            selectedImageSource = CameraSource.Camera;
           },
         },
       ],
@@ -373,8 +380,8 @@ export class ProfileUserPage implements OnInit, OnDestroy {
     await alert.present();
 
     await alert.onDidDismiss();
-    if (shouldChangeImage) {
-      await this.changeProfileImage();
+    if (selectedImageSource) {
+      await this.changeProfileImage(selectedImageSource);
     }
   }
 
@@ -890,7 +897,7 @@ export class ProfileUserPage implements OnInit, OnDestroy {
     this.usersDocListenerUid = null;
   }
 
-  private async changeProfileImage(): Promise<void> {
+  private async changeProfileImage(source: CameraSource): Promise<void> {
     const accountUid = this.accountService.getCredentials()().uid || null;
     const authUid = this.auth.currentUser?.uid ?? null;
     const uid = accountUid || authUid;
@@ -900,7 +907,7 @@ export class ProfileUserPage implements OnInit, OnDestroy {
       return;
     }
 
-    const file = await this.imagePickerService.pickImageFile();
+    const file = await this.imagePickerService.pickImageFile(source);
     if (!file) {
       return;
     }

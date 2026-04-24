@@ -1,8 +1,16 @@
 <app-header
+<<<<<<< Updated upstream
   [title]="'Community'"
   [hideTitle]="true"
+=======
+  title=""
+>>>>>>> Stashed changes
   [showBack]="true"
   [backHref]="'/profile-user'"
+  [showEndActionButton]="true"
+  [endActionIconName]="'information-circle-outline'"
+  [endActionAriaLabel]="'Show groups help'"
+  (endAction)="showGroupsInfo()"
 ></app-header>
 
 <ion-content [fullscreen]="true" class="groups-page">
