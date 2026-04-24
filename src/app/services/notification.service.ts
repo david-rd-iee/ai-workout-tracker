@@ -1,10 +1,31 @@
 import { Injectable, inject } from '@angular/core';
-import { Firestore, addDoc, collection, doc, getDoc, serverTimestamp, setDoc, updateDoc } from '@angular/fire/firestore';
+import {
+  Firestore,
+  addDoc,
+  collection,
+  deleteDoc,
+  doc,
+  getDoc,
+  onSnapshot,
+  orderBy,
+  query,
+  serverTimestamp,
+  setDoc,
+  updateDoc,
+} from '@angular/fire/firestore';
 import { Functions, httpsCallable, getFunctions } from '@angular/fire/functions';
 import { UserService } from './account/user.service';
 import { Capacitor } from '@capacitor/core';
-// import { PushNotifications } from '@capacitor/push-notifications';
-const PushNotifications: any = null;
+import { PushNotifications } from './push-notifications.plugin';
+
+export interface AppNotification {
+  id: string;
+  title: string;
+  body: string;
+  read: boolean;
+  data: Record<string, unknown> | null;
+  createdAtLabel: string;
+}
 
 @Injectable({
   providedIn: 'root'
@@ -14,6 +35,7 @@ export class NotificationService {
   private readonly CLIENTS_COLLECTION = 'clients';
   private firestore: Firestore = inject(Firestore);
   private functions: Functions = inject(Functions);
+  private listenersConfigured = false;
   
   constructor(private userService: UserService) {}
   /**
@@ -25,14 +47,10 @@ export class NotificationService {
         return;
       }
 
-      // Set up listeners FIRST, before registration
       this.setupPushListeners();
-      
-      // Request permission to use push notifications
-      const result = await PushNotifications.requestPermissions();
-      
+
+      const result = await PushNotifications.checkPermissions();
       if (result.receive === 'granted') {
-        // Register with Apple / Google to receive push via APNS/FCM
         await PushNotifications.register();
       }
     } catch (error) {
@@ -44,30 +62,70 @@ export class NotificationService {
    * Set up push notification listeners
    */
   private setupPushListeners() {
-    if (!this.isPushAvailable()) {
+    if (!this.isPushAvailable() || this.listenersConfigured) {
       return;
     }
 
-    // Registration success listener
+    this.listenersConfigured = true;
+
     PushNotifications.addListener('registration', (token: any) => {
       this.logTokenInfo(token.value);
-      this.saveApnsToken(token.value);
+      void this.saveApnsToken(token.value);
     });
 
-    // Registration error listener
     PushNotifications.addListener('registrationError', (error: any) => {
       console.error('Push registration error:', error);
     });
 
-    // Notification received listener
     PushNotifications.addListener('pushNotificationReceived', (notification: any) => {
       void notification;
     });
 
-    // Notification action performed listener
     PushNotifications.addListener('pushNotificationActionPerformed', (notification: any) => {
       void notification;
     });
+  }
+
+  observeNotifications(
+    userId: string,
+    callback: (notifications: AppNotification[]) => void
+  ): () => void {
+    const notificationsQuery = query(
+      collection(this.firestore, `users/${userId}/notifications`),
+      orderBy('createdAt', 'desc')
+    );
+
+    return onSnapshot(notificationsQuery, (snapshot) => {
+      callback(snapshot.docs.map((notificationDoc) => this.mapNotification(notificationDoc)));
+    });
+  }
+
+  async markNotificationAsRead(userId: string, notificationId: string): Promise<void> {
+    await updateDoc(doc(this.firestore, `users/${userId}/notifications/${notificationId}`), {
+      read: true,
+      updatedAt: serverTimestamp(),
+    });
+  }
+
+  async markAllNotificationsAsRead(userId: string): Promise<void> {
+    const notificationsRef = collection(this.firestore, `users/${userId}/notifications`);
+    const unsubscribe = onSnapshot(notificationsRef, async (snapshot) => {
+      unsubscribe();
+      await Promise.all(
+        snapshot.docs
+          .filter((notificationDoc) => notificationDoc.data()['read'] !== true)
+          .map((notificationDoc) =>
+            updateDoc(notificationDoc.ref, {
+              read: true,
+              updatedAt: serverTimestamp(),
+            })
+          )
+      );
+    });
+  }
+
+  async deleteNotification(userId: string, notificationId: string): Promise<void> {
+    await deleteDoc(doc(this.firestore, `users/${userId}/notifications/${notificationId}`));
   }
 
   /**
@@ -243,5 +301,27 @@ export class NotificationService {
     return Capacitor.isNativePlatform() &&
       Capacitor.isPluginAvailable('PushNotifications') &&
       !!PushNotifications;
+  }
+
+  private mapNotification(notificationDoc: any): AppNotification {
+    const data = notificationDoc.data() as Record<string, unknown>;
+    return {
+      id: notificationDoc.id,
+      title: String(data['title'] || 'Atlas Notification'),
+      body: String(data['body'] || ''),
+      read: data['read'] === true,
+      data: (data['data'] as Record<string, unknown> | null) ?? null,
+      createdAtLabel: this.toDate(data['createdAt']).toLocaleString(),
+    };
+  }
+
+  private toDate(value: unknown): Date {
+    const timestampValue = value as { toDate?: () => Date };
+    if (timestampValue?.toDate instanceof Function) {
+      return timestampValue.toDate();
+    }
+
+    const parsedDate = new Date(String(value || ''));
+    return Number.isNaN(parsedDate.getTime()) ? new Date() : parsedDate;
   }
 }

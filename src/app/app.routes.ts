@@ -227,6 +227,14 @@ export const routes: Routes = [
     canActivate: [authGuard],
   },
   {
+    path: 'notifications',
+    loadComponent: () =>
+      import('./pages/notifications/notifications.page').then(
+        (m) => m.NotificationsPage
+      ),
+    canActivate: [authGuard],
+  },
+  {
     path: 'trainer-approval-pending',
     loadComponent: () =>
       import('./pages/trainer-approval-pending/trainer-approval-pending.page').then(

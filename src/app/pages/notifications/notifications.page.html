@@ -1,0 +1,67 @@
+<app-header
+  [title]="'Notifications'"
+  [hideTitle]="true"
+  [transparent]="true"
+  [neoBlend]="true"
+  [showBack]="true"
+  backHref="/user-settings"
+></app-header>
+
+<ion-content [fullscreen]="true" class="notifications-content">
+  <div class="background-gradient"></div>
+
+  <div class="notifications-page">
+    <section class="notifications-shell">
+      <div class="notifications-toolbar" *ngIf="notifications.length > 0">
+        <ion-button fill="outline" class="toolbar-button" (click)="markAllAsRead()">
+          Mark All Read
+        </ion-button>
+      </div>
+
+      <div class="state-card" *ngIf="isLoading">
+        <ion-spinner name="crescent"></ion-spinner>
+        <p>Loading notifications...</p>
+      </div>
+
+      <div class="state-card" *ngIf="!isLoading && notifications.length === 0">
+        <ion-icon name="notifications-outline"></ion-icon>
+        <p>No notifications yet.</p>
+      </div>
+
+      <ion-list class="notifications-list" *ngIf="!isLoading && notifications.length > 0">
+        <ion-item
+          lines="none"
+          class="notification-item"
+          [class.notification-item-unread]="!notification.read"
+          *ngFor="let notification of notifications"
+          button
+          detail="false"
+          (click)="openNotification(notification)"
+        >
+          <ion-label class="ion-text-wrap">
+            <div class="notification-row">
+              <div class="notification-copy">
+                <h3>{{ notification.title }}</h3>
+                <p>{{ notification.body }}</p>
+                <small>{{ notification.createdAtLabel }}</small>
+              </div>
+
+              <div class="notification-actions">
+                <span class="unread-dot" *ngIf="!notification.read"></span>
+                <ion-button
+                  fill="clear"
+                  class="delete-button"
+                  (click)="deleteNotification(notification, $event)"
+                  aria-label="Delete notification"
+                >
+                  <ion-icon slot="icon-only" name="trash-outline"></ion-icon>
+                </ion-button>
+                <ion-icon name="chevron-forward-outline"></ion-icon>
+              </div>
+            </div>
+          </ion-label>
+        </ion-item>
+      </ion-list>
+    </section>
+  </div>
+</ion-content>
