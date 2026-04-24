@@ -14,7 +14,7 @@ import {
   setDoc,
   where,
 } from 'firebase/firestore';
-import { Observable, combineLatest, from, map, of, switchMap } from 'rxjs';
+import { Observable, catchError, combineLatest, from, map, of, switchMap } from 'rxjs';
 import {
   UserStats,
   Region,
@@ -102,14 +102,6 @@ export class LeaderboardService {
       : metric === 'strength'
       ? 'userScore.strengthScore.totalStrengthScore'
       : 'userScore.totalScore';
-  }
-
-  private metricToAddedScoreField(metric: Metric): string {
-    return metric === 'cardio'
-      ? 'cardioScoreAddedToday'
-      : metric === 'strength'
-      ? 'strengthScoreAddedToday'
-      : 'totalScoreAddedToday';
   }
 
   private toNumber(value: unknown): number {
@@ -395,11 +387,133 @@ export class LeaderboardService {
   }
 
   private normalizeDateKey(value: unknown): string {
+    if (value instanceof Date) {
+      return Number.isNaN(value.getTime()) ? '' : this.toLocalDateKey(value);
+    }
+
+    if (
+      value &&
+      typeof value === 'object' &&
+      typeof (value as { toDate?: unknown }).toDate === 'function'
+    ) {
+      const timestampDate = (value as { toDate: () => Date }).toDate();
+      return timestampDate instanceof Date && !Number.isNaN(timestampDate.getTime())
+        ? this.toLocalDateKey(timestampDate)
+        : '';
+    }
+
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      const maybeMillis = Math.abs(value) < 1e11 ? value * 1000 : value;
+      const parsed = new Date(maybeMillis);
+      return Number.isNaN(parsed.getTime()) ? '' : this.toLocalDateKey(parsed);
+    }
+
     const candidate = String(value ?? '').trim();
+    if (!candidate) {
+      return '';
+    }
+
     if (/^\d{4}-\d{2}-\d{2}$/.test(candidate)) {
       return candidate;
     }
+
+    const parsed = new Date(candidate);
+    if (!Number.isNaN(parsed.getTime())) {
+      return this.toLocalDateKey(parsed);
+    }
+
     return '';
+  }
+
+  private readAddedScoreValueForMetric(
+    docEntry: Record<string, unknown>,
+    metric: Metric
+  ): number {
+    const readByKeys = (
+      keys: string[]
+    ): { found: boolean; value: number } => {
+      for (const key of keys) {
+        if (!Object.prototype.hasOwnProperty.call(docEntry, key)) {
+          continue;
+        }
+
+        return {
+          found: true,
+          value: this.toNumber(docEntry[key]),
+        };
+      }
+
+      return {
+        found: false,
+        value: 0,
+      };
+    };
+
+    const cardio = readByKeys([
+      'cardioScoreAddedToday',
+      'cardioAddedScoreToday',
+      'cardioAddedScore',
+      'cardioScoreAdded',
+      'cardio_score_added_today',
+      'cardio_added_score',
+    ]);
+    const strength = readByKeys([
+      'strengthScoreAddedToday',
+      'strengthAddedScoreToday',
+      'strengthAddedScore',
+      'strengthScoreAdded',
+      'strength_score_added_today',
+      'strength_added_score',
+    ]);
+    const total = readByKeys([
+      'totalScoreAddedToday',
+      'totalAddedScoreToday',
+      'totalAddedScore',
+      'totalScoreAdded',
+      'total_score_added_today',
+      'total_added_score',
+      'addedScore',
+      'added_score',
+    ]);
+
+    if (metric === 'cardio') {
+      return cardio.found ? cardio.value : 0;
+    }
+
+    if (metric === 'strength') {
+      return strength.found ? strength.value : 0;
+    }
+
+    if (total.found) {
+      return total.value;
+    }
+
+    return cardio.value + strength.value;
+  }
+
+  private resolveTrendPointDateKey(
+    docEntry: Record<string, unknown> & { docId?: string },
+    index: number,
+    totalDocs: number
+  ): string {
+    const candidateValues: unknown[] = [
+      docEntry['date'],
+      docEntry['dateKey'],
+      docEntry['day'],
+      docEntry['updatedAt'],
+      docEntry['createdAt'],
+      docEntry['docId'],
+    ];
+
+    for (const candidateValue of candidateValues) {
+      const dateKey = this.normalizeDateKey(candidateValue);
+      if (dateKey.length > 0) {
+        return dateKey;
+      }
+    }
+
+    const dayOffset = totalDocs - index - 1;
+    return this.shiftDateKey(this.toLocalDateKey(new Date()), -dayOffset);
   }
 
   private sortDateKeys(keys: Iterable<string>): string[] {
@@ -612,24 +726,37 @@ export class LeaderboardService {
       return of([]);
     }
 
-    const addedScoreField = this.metricToAddedScoreField(metric);
     const entryStreams = uniqueEntries.map((entry) => {
       const addedScoreRef = collection(this.firestore, 'userStats', entry.userId, 'addedScore');
-      const addedScoreQuery = query(addedScoreRef, orderBy('date', 'asc'));
 
       return watchQueryData<Record<string, unknown> & { docId?: string }>(
-        addedScoreQuery,
+        addedScoreRef,
         { idField: 'docId' }
       ).pipe(
         map((docs) => ({
           entry,
           points: docs
-            .map((docEntry) => ({
-              dateKey: this.normalizeDateKey(docEntry['date'] ?? docEntry['docId']),
-              value: this.toNumber(docEntry[addedScoreField]),
+            .map((docEntry, index) => ({
+              dateKey: this.resolveTrendPointDateKey(docEntry, index, docs.length),
+              value: this.readAddedScoreValueForMetric(docEntry, metric),
             }))
             .filter((point) => point.dateKey.length > 0),
-        }))
+        })),
+        map((row) => ({
+          ...row,
+          points: [...row.points].sort((left, right) => left.dateKey.localeCompare(right.dateKey)),
+        })),
+        catchError((error) => {
+          console.warn('[LeaderboardService] Failed to read addedScore trend data', {
+            userId: entry.userId,
+            error,
+          });
+
+          return of({
+            entry,
+            points: [] as Array<{ dateKey: string; value: number }>,
+          });
+        })
       );
     });
 

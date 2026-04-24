@@ -838,14 +838,14 @@ export class GroupsPage implements OnInit, OnDestroy {
   }
 
   private syncTrainingChartOptionsByPopulation(): void {
-    if (this.trainingEntries.length <= GroupsPage.SMALL_POPULATION_THRESHOLD) {
-      this.trainingAvailableChartModes = ['trend'];
-      this.trainingChartMode = 'trend';
-      return;
+    this.trainingAvailableChartModes = ['distribution', 'trend'];
+    if (!this.trainingAvailableChartModes.includes(this.trainingChartMode)) {
+      this.trainingChartMode = 'distribution';
     }
 
-    this.trainingAvailableChartModes = ['distribution', 'trend'];
-    this.trainingChartMode = 'distribution';
+    if (this.trainingEntries.length === 0) {
+      this.trainingChartMode = 'distribution';
+    }
   }
 
   private syncTrainingChartForCurrentMode(): void {
@@ -876,13 +876,31 @@ export class GroupsPage implements OnInit, OnDestroy {
       .watchAddedScoreTrend(this.trainingEntries, this.trainingMetric)
       .subscribe({
         next: (series) => {
+          if (series.length === 0 && this.trainingEntries.length > 0) {
+            this.fallbackTrainingChartToDistribution();
+            return;
+          }
           this.trainingTrendSeries = series;
         },
         error: (error) => {
           console.warn('[GroupsPage] Failed to load training trend data', error);
-          this.trainingTrendSeries = [];
+          this.fallbackTrainingChartToDistribution();
         },
       });
+  }
+
+  private fallbackTrainingChartToDistribution(): void {
+    if (this.trainingChartMode !== 'trend') {
+      this.trainingTrendSeries = [];
+      return;
+    }
+
+    this.trainingTrendSub?.unsubscribe();
+    this.trainingTrendSub = undefined;
+    this.trainingTrendSeries = [];
+    this.trainingChartMode = 'distribution';
+    this.trainingAvailableChartModes = ['distribution', 'trend'];
+    this.buildTrainingDistributionChart();
   }
 
   private clearTrainingDistributionChart(): void {
