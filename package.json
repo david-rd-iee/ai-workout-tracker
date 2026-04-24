@@ -33,11 +33,8 @@
     "@capacitor/haptics": "7.0.2",
     "@capacitor/ios": "7.4.4",
     "@capacitor/keyboard": "7.0.3",
-<<<<<<< Updated upstream
     "@capacitor/preferences": "^7.0.4",
-=======
     "@capacitor/screen-orientation": "^7.0.1",
->>>>>>> Stashed changes
     "@capacitor/status-bar": "7.0.3",
     "@capgo/capacitor-health": "^7.2.15",
     "@dataconnect/generated": "file:src/dataconnect-generated",

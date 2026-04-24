@@ -158,7 +158,9 @@ export class TrainerApprovalAdminPage implements OnInit {
     const userSnap = await getDoc(doc(this.firestore, 'users', uid));
     const userData = userSnap.exists() ? (userSnap.data() as Record<string, unknown>) : {};
     const role = String(userData['role'] || '').trim().toLowerCase();
-    const approvedEmails = (environment.adminReviewerEmails || []).map((email) => email.trim().toLowerCase());
+    const approvedEmails = (
+      (environment as { adminReviewerEmails?: string[] }).adminReviewerEmails || []
+    ).map((email: string) => email.trim().toLowerCase());
     const isAuthorized =
       role === 'admin' ||
       (currentEmail.length > 0 && approvedEmails.includes(currentEmail));

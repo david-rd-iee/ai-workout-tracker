@@ -293,9 +293,9 @@ export class ProfileSettingsPage implements OnInit {
         this.email = typeof userSnap.email === 'string' ? userSnap.email : '';
         const role = String((userSnap as any).role || '').trim().toLowerCase();
         const currentEmail = String(userSnap.email || '').trim().toLowerCase();
-        const approvedReviewerEmails = (environment.adminReviewerEmails || []).map((entry) =>
-          entry.trim().toLowerCase()
-        );
+        const approvedReviewerEmails = (
+          (environment as { adminReviewerEmails?: string[] }).adminReviewerEmails || []
+        ).map((entry: string) => entry.trim().toLowerCase());
         this.canManageTrainerApprovals =
           role === 'admin' ||
           (currentEmail.length > 0 && approvedReviewerEmails.includes(currentEmail));

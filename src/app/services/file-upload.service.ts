@@ -66,21 +66,12 @@ export class FileUploadService {
       // Large portrait recordings sent through base64 Cloud Function payloads
       // can produce decode issues on playback for some devices.
       if (this.isCapacitor) {
-<<<<<<< Updated upstream
-        if (environment.cloudFunctionsBaseUrl?.trim()) {
-          try {
-            return await this.uploadViaCloudFunction(path, file);
-          } catch (error) {
-            console.warn('Cloud Function video upload failed; falling back to direct Storage upload.', error);
-            return await this.uploadDirect(path, file);
-=======
         try {
           console.log('Using direct Storage upload for video on Capacitor');
           return await this.uploadDirect(path, file);
         } catch (directError) {
           if (!environment.cloudFunctionsBaseUrl?.trim()) {
             throw directError;
->>>>>>> Stashed changes
           }
 
           console.warn('Direct video upload failed on Capacitor; retrying via Cloud Function.', directError);

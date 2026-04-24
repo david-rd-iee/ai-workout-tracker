@@ -37,6 +37,7 @@ import { HeaderComponent } from '../../components/header/header.component';
 export class WorkoutHistoryPage implements OnInit {
   historyGroups: WorkoutHistoryDateGroup[] = [];
   isLoading = false;
+  pageTitle = 'Workout History';
   backHref = '/profile-user';
   private requestedUserId = '';
   private clientName = '';
@@ -61,6 +62,9 @@ export class WorkoutHistoryPage implements OnInit {
     try {
       this.requestedUserId = (this.route.snapshot.queryParamMap.get('userId') || '').trim();
       this.clientName = (this.route.snapshot.queryParamMap.get('clientName') || '').trim();
+      if (this.clientName) {
+        this.pageTitle = `${this.clientName}'s History`;
+      }
 
       const targetUserId = this.requestedUserId || await this.resolveCurrentUserId();
       if (!targetUserId) {
