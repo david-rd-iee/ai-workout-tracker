@@ -184,11 +184,8 @@ if [[ "$CONFIGURATION" == "Debug" ]]; then
   install_framework "${BUILT_PRODUCTS_DIR}/CapacitorFilesystem/CapacitorFilesystem.framework"
   install_framework "${BUILT_PRODUCTS_DIR}/CapacitorHaptics/CapacitorHaptics.framework"
   install_framework "${BUILT_PRODUCTS_DIR}/CapacitorKeyboard/CapacitorKeyboard.framework"
-<<<<<<< Updated upstream
   install_framework "${BUILT_PRODUCTS_DIR}/CapacitorPreferences/CapacitorPreferences.framework"
-=======
   install_framework "${BUILT_PRODUCTS_DIR}/CapacitorScreenOrientation/CapacitorScreenOrientation.framework"
->>>>>>> Stashed changes
   install_framework "${BUILT_PRODUCTS_DIR}/CapacitorStatusBar/CapacitorStatusBar.framework"
   install_framework "${BUILT_PRODUCTS_DIR}/CapgoCapacitorHealth/CapgoCapacitorHealth.framework"
   install_framework "${PODS_XCFRAMEWORKS_BUILD_DIR}/IONFilesystemLib/IONFilesystemLib.framework"
@@ -202,11 +199,8 @@ if [[ "$CONFIGURATION" == "Release" ]]; then
   install_framework "${BUILT_PRODUCTS_DIR}/CapacitorFilesystem/CapacitorFilesystem.framework"
   install_framework "${BUILT_PRODUCTS_DIR}/CapacitorHaptics/CapacitorHaptics.framework"
   install_framework "${BUILT_PRODUCTS_DIR}/CapacitorKeyboard/CapacitorKeyboard.framework"
-<<<<<<< Updated upstream
   install_framework "${BUILT_PRODUCTS_DIR}/CapacitorPreferences/CapacitorPreferences.framework"
-=======
   install_framework "${BUILT_PRODUCTS_DIR}/CapacitorScreenOrientation/CapacitorScreenOrientation.framework"
->>>>>>> Stashed changes
   install_framework "${BUILT_PRODUCTS_DIR}/CapacitorStatusBar/CapacitorStatusBar.framework"
   install_framework "${BUILT_PRODUCTS_DIR}/CapgoCapacitorHealth/CapgoCapacitorHealth.framework"
   install_framework "${PODS_XCFRAMEWORKS_BUILD_DIR}/IONFilesystemLib/IONFilesystemLib.framework"

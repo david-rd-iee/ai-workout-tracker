@@ -16,7 +16,8 @@ PODS:
   - CapacitorKeyboard (7.0.3):
     - Capacitor
   - CapacitorPreferences (7.0.4):
-  - CapacitorScreenOrientation (7.0.1):
+    - Capacitor
+  - CapacitorScreenOrientation (7.0.4):
     - Capacitor
   - CapacitorStatusBar (7.0.3):
     - Capacitor
@@ -78,11 +79,11 @@ SPEC CHECKSUMS:
   CapacitorHaptics: b3fb2869e72c4466e18ce9ccbeb60a3d8723b3d4
   CapacitorKeyboard: 62f36104f26d53d8b3a2a43f2a69fe714f1777d5
   CapacitorPreferences: 69d9991307507aeab8ef8019c10b9babfda0e9ca
-  CapacitorScreenOrientation: 6d989dff97440c7bfa78deee13952d7fb03c27f3
+  CapacitorScreenOrientation: a128ea5394d31a12d77f7f6bcb497010945ecda8
   CapacitorStatusBar: 0659ddc7b1713764a05831463d215b177a15d054
   CapgoCapacitorHealth: 03b829ed77af08a98cc87eff8f14be2db6b6284e
   IONFilesystemLib: 89258b8e3e85465da93127d25d7ce37f977e8a6f
 
-PODFILE CHECKSUM: 36c11b72e9f21f31bfe59f9576bd6b3719d5e34b
+PODFILE CHECKSUM: f4fd16234c9b7b3383ce9c5ff236631ccbf2c8a5
 
 COCOAPODS: 1.16.2
