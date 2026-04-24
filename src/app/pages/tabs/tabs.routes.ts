@@ -23,6 +23,11 @@ export const routes: Routes = [
           import('../calender/client-calendar/client-calendar.page').then(m => m.ClientCalendarPage),
       },
       {
+        path: 'calender/trainer/availability',
+        loadComponent: () =>
+          import('../calender/trainer-availability/trainer-availability.page').then(m => m.TrainerAvailabilityPage),
+      },
+      {
         path: 'calender/trainer',
         loadComponent: () =>
           import('../calender/trainer-calendar/trainer-calendar.page').then(m => m.TrainerCalendarPage),

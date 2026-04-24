@@ -1,4 +1,4 @@
-.page-content {
+.availability-page-content {
   --background: #dbe3f0;
   position: relative;
 }
@@ -22,45 +22,68 @@
     -12px -12px 24px -14px rgba(249, 252, 255, 0.95);
 }
 
-.calendar-shell {
+.availability-page {
   position: relative;
   z-index: 1;
   max-width: 960px;
   margin: 0 auto;
   padding: 16px;
   padding-top: 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
 }
 
-.loading-container {
-  position: relative;
-  z-index: 1;
-  margin: 16px;
-  padding: 18px;
-  text-align: center;
+.availability-card {
+  --background: transparent;
+  background: transparent;
+  box-shadow: none;
+  margin: 0;
+}
+
+.availability-card ion-card-header,
+.availability-card ion-card-content {
+  @include neo-raised(26px);
+}
+
+.availability-card ion-card-header {
+  padding: 18px 20px 10px;
+  margin-bottom: 10px;
+}
+
+.availability-card ion-card-content {
+  padding: 16px 18px 18px;
+}
+
+.availability-card ion-card-title {
+  color: #5a6880;
+  font-size: 1.1rem;
+  font-weight: 680;
+}
+
+.availability-copy {
+  margin: 0 0 12px;
   color: #8b9ab0;
-  @include neo-raised(22px);
+  font-size: 0.9rem;
+}
+
+.availability-loading {
+  display: grid;
+  place-items: center;
+  gap: 10px;
+  padding: 22px 0 14px;
+  color: #8b9ab0;
 
   ion-spinner {
     color: #2e6ef5;
   }
 
   p {
-    margin: 10px 0 0;
+    margin: 0;
     font-size: 0.9rem;
     font-weight: 600;
   }
 }
 
-.calendar-actions {
-  display: flex;
-  justify-content: flex-end;
-}
-
-.availability-link-button {
-  margin: 0;
+.save-availability-button {
+  margin-top: 14px;
   --color: #f8fbff;
   --box-shadow: none;
   font-weight: 700;
@@ -73,6 +96,7 @@
       12px 12px 22px -14px rgba(138, 156, 184, 0.9),
       -9px -9px 18px -14px rgba(255, 255, 255, 0.92);
     transition: transform 170ms ease, box-shadow 170ms ease, background 170ms ease;
+    overflow: hidden;
   }
 
   &:active::part(native) {
@@ -84,62 +108,8 @@
   }
 }
 
-.calendar-card,
-.summary-card,
-.empty-card {
-  --background: transparent;
-  background: transparent;
-  box-shadow: none;
-  margin: 0;
-}
-
-.calendar-card ion-card-content,
-.summary-card ion-card-header,
-.empty-card ion-card-content {
-  @include neo-raised(26px);
-}
-
-.calendar-card ion-card-content {
-  padding: 18px;
-}
-
-.summary-card ion-card-header,
-.empty-card ion-card-content {
-  padding: 18px 20px;
-}
-
-.summary-card ion-card-title {
-  font-size: 1.1rem;
-  line-height: 1.3;
-  color: #5a6880;
-  font-weight: 680;
-  letter-spacing: 0.01em;
-}
-
-.empty-card p {
-  margin: 0;
-  color: #8b9ab0;
-  line-height: 1.5;
-}
-
-.trainings-container {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-ion-datetime {
-  width: 100%;
-  --background: transparent;
-  --title-color: #5a6880;
-  --wheel-highlight-background: rgba(46, 110, 245, 0.12);
-  --wheel-fade-background-rgb: 232, 238, 248;
-  --ion-color-primary: #2e6ef5;
-  border-radius: 20px;
-}
-
 @media (max-width: 768px) {
-  .calendar-shell {
+  .availability-page {
     padding: 14px;
     padding-top: 10px;
   }

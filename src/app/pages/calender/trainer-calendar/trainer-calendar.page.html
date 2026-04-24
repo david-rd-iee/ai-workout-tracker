@@ -1,8 +1,6 @@
+<app-header [neoBlend]="true"></app-header>
 
-<app-header></app-header>
-
-
-<ion-content [fullscreen]="true">
+<ion-content [fullscreen]="true" class="page-content">
   <div class="background-gradient"></div>
 
   <!-- Loading spinner -->
@@ -12,33 +10,11 @@
   </div>
 
   <div class="calendar-shell">
-    <ion-card class="availability-card">
-      <ion-card-header>
-        <ion-card-title>Weekly Availability</ion-card-title>
-      </ion-card-header>
-      <ion-card-content>
-        <app-availabilty
-          *ngIf="availabilityLoaded()"
-          [availability]="weeklyAvailability"
-          (availabilityChange)="onAvailabilityChanged($event)">
-        </app-availabilty>
-
-        <div class="availability-loading" *ngIf="!availabilityLoaded()">
-          <ion-spinner name="circles"></ion-spinner>
-          <p>Loading your weekly schedule...</p>
-        </div>
-
-        <div class="availability-actions">
-          <ion-button
-            expand="block"
-            class="save-availability-button"
-            [disabled]="isSavingAvailability() || !availabilityLoaded() || !availabilityDirty"
-            (click)="saveAvailability()">
-            {{ isSavingAvailability() ? 'Saving Availability...' : 'Save Availability' }}
-          </ion-button>
-        </div>
-      </ion-card-content>
-    </ion-card>
+    <div class="calendar-actions">
+      <ion-button class="availability-link-button" (click)="openWeeklyAvailability()">
+        Weekly Availability
+      </ion-button>
+    </div>
 
     <ion-card class="calendar-card">
       <ion-card-content>

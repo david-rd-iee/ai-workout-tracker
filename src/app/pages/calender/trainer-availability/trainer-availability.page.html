@@ -1,0 +1,44 @@
+<app-header
+  [title]="'Weekly Availability'"
+  [showBack]="true"
+  [backHref]="'/tabs/calender/trainer'"
+  [neoBlend]="true"
+  [showNotificationsButton]="false"
+></app-header>
+
+<ion-content [fullscreen]="true" class="availability-page-content">
+  <div class="background-gradient"></div>
+
+  <div class="availability-page">
+    <ion-card class="availability-card">
+      <ion-card-header>
+        <ion-card-title>Weekly Availability</ion-card-title>
+      </ion-card-header>
+      <ion-card-content>
+        <p class="availability-copy">
+          Select the days and time windows clients can request.
+        </p>
+
+        <app-availabilty
+          *ngIf="availabilityLoaded()"
+          [availability]="weeklyAvailability"
+          (availabilityChange)="onAvailabilityChanged($event)"
+        ></app-availabilty>
+
+        <div class="availability-loading" *ngIf="!availabilityLoaded()">
+          <ion-spinner name="circles"></ion-spinner>
+          <p>Loading your weekly schedule...</p>
+        </div>
+
+        <ion-button
+          expand="block"
+          class="save-availability-button"
+          [disabled]="isSavingAvailability() || !availabilityLoaded() || !availabilityDirty"
+          (click)="saveAvailability()"
+        >
+          {{ isSavingAvailability() ? 'Saving Availability...' : 'Save Availability' }}
+        </ion-button>
+      </ion-card-content>
+    </ion-card>
+  </div>
+</ion-content>
