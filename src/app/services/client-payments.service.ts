@@ -10,36 +10,36 @@ import {
   where,
 } from '@angular/fire/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
-import { environment } from '../../environments/environment';
+import { AgreementPaymentInterval, AgreementPaymentStatus, AgreementPaymentType } from '../Interfaces/Agreement';
 
-export type ClientTrainerPlanBillingType = 'weekly' | 'monthly' | 'quarterly' | 'yearly';
-
-export interface ClientTrainerPlan {
-  planId: string;
+export interface ClientAgreementPricingSummary {
+  agreementId: string;
+  agreementName: string;
   trainerId: string;
-  title: string;
+  trainerName: string;
+  status: string;
+  paymentStatus: AgreementPaymentStatus;
+  amountCents: number;
+  currency: 'usd';
+  type: AgreementPaymentType;
+  interval?: AgreementPaymentInterval;
   description: string;
-  priceCents: number;
-  billingType: ClientTrainerPlanBillingType;
-  isActive: boolean;
+  dateUpdated: Date;
 }
 
 export interface ClientTrainerPaymentContext {
   clientId: string;
   trainerId: string;
   trainerName: string;
-  plans: ClientTrainerPlan[];
+  currentAgreementPricing: ClientAgreementPricingSummary | null;
 }
 
-interface CreateCheckoutSessionRequest {
-  planId: string;
-  successUrl: string;
-  cancelUrl: string;
+interface CreateAgreementCheckoutSessionRequest {
+  agreementId: string;
 }
 
-export interface CreateCheckoutSessionResponse {
-  sessionId: string;
-  checkoutUrl: string;
+interface CreateAgreementCheckoutSessionResponse {
+  url: string;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -67,9 +67,9 @@ export class ClientPaymentsService {
       throw new Error('You need an assigned trainer before making payments.');
     }
 
-    const [trainerSnap, directPlanSnap] = await Promise.all([
+    const [trainerSnap, agreementsSnapshot] = await Promise.all([
       getDoc(doc(this.firestore, `trainers/${trainerId}`)),
-      this.readDirectTrainerPlan(trainerId),
+      this.readClientAgreements(clientId),
     ]);
 
     const trainerData = trainerSnap.exists() ? toRecord(trainerSnap.data()) : {};
@@ -77,96 +77,95 @@ export class ClientPaymentsService {
     const trainerLastName = normalizeString(trainerData['lastName']);
     const trainerName = `${trainerFirstName} ${trainerLastName}`.trim() || 'Assigned Trainer';
 
-    const directPlan = directPlanSnap?.exists() ?
-      this.mapPlanRecord(directPlanSnap.id, toRecord(directPlanSnap.data()), trainerId) :
-      null;
-    const queryPlanDocs = directPlan ?
-      [] :
-      await this.readTrainerPlanFallbackDocs(trainerId);
-    const queryPlans = queryPlanDocs
-      .filter((docSnap) => docSnap.id !== trainerId)
-      .map((docSnap) => this.mapPlanRecord(docSnap.id, toRecord(docSnap.data()), trainerId));
-    const plans = (directPlan ? [directPlan] : queryPlans)
-      .filter((plan): plan is ClientTrainerPlan => plan !== null && plan.isActive)
-      .sort((left, right) => left.priceCents - right.priceCents);
+    const currentAgreementPricing = agreementsSnapshot
+      .map((agreementDoc) => this.mapAgreementPricingRecord(agreementDoc.id, toRecord(agreementDoc.data()), trainerId, trainerName))
+      .filter((agreement): agreement is ClientAgreementPricingSummary => agreement !== null)
+      .sort((left, right) => right.dateUpdated.getTime() - left.dateUpdated.getTime())[0] ?? null;
 
     return {
       clientId,
       trainerId,
       trainerName,
-      plans,
+      currentAgreementPricing,
     };
   }
 
-  async createCheckoutSession(planId: string): Promise<CreateCheckoutSessionResponse> {
-    const normalizedPlanId = normalizeString(planId);
-    if (!normalizedPlanId) {
-      throw new Error('A valid plan is required.');
+  async createAgreementCheckoutSession(agreementId: string): Promise<CreateAgreementCheckoutSessionResponse> {
+    const normalizedAgreementId = normalizeString(agreementId);
+    if (!normalizedAgreementId) {
+      throw new Error('A valid agreement is required.');
     }
 
-    const successUrl = this.resolveRedirectUrl('/client-payments?checkout=success');
-    const cancelUrl = this.resolveRedirectUrl('/client-payments?checkout=cancel');
-    const callable = httpsCallable<CreateCheckoutSessionRequest, CreateCheckoutSessionResponse>(
+    const callable = httpsCallable<CreateAgreementCheckoutSessionRequest, CreateAgreementCheckoutSessionResponse>(
       getFunctions(undefined, 'us-central1'),
-      'createCheckoutSession'
+      'createAgreementCheckoutSession'
     );
 
     const response = await callable({
-      planId: normalizedPlanId,
-      successUrl,
-      cancelUrl,
+      agreementId: normalizedAgreementId,
     });
 
     return response.data;
   }
 
-  private mapPlanRecord(
-    planId: string,
-    planData: Record<string, unknown>,
-    expectedTrainerId: string
-  ): ClientTrainerPlan | null {
-    const trainerId = normalizeString(planData['trainerId']) || normalizeString(planData['trainerID']);
-    const title = normalizeString(planData['title']);
-    const description = normalizeString(planData['description']);
-    const billingType = normalizeBillingType(planData['billingType']);
-    const priceCents = toPositiveInteger(planData['priceCents']);
-    const isActive = planData['isActive'] !== false;
+  private async readClientAgreements(clientId: string) {
+    try {
+      const agreementsSnapshot = await getDocs(
+        query(
+          collection(this.firestore, 'agreements'),
+          where('clientId', '==', clientId)
+        )
+      );
+      return agreementsSnapshot.docs;
+    } catch (error) {
+      if (isPermissionDeniedError(error)) {
+        return [];
+      }
+      throw error;
+    }
+  }
 
-    if (
-      !trainerId ||
-      trainerId !== expectedTrainerId ||
-      !title ||
-      !description ||
-      !billingType ||
-      priceCents === null
-    ) {
+  private mapAgreementPricingRecord(
+    agreementId: string,
+    agreementData: Record<string, unknown>,
+    expectedTrainerId: string,
+    fallbackTrainerName: string
+  ): ClientAgreementPricingSummary | null {
+    const trainerId = normalizeString(agreementData['trainerId']);
+    if (!trainerId || trainerId !== expectedTrainerId) {
       return null;
     }
 
+    const paymentTerms = toRecord(agreementData['paymentTerms']);
+    const paymentRequired = paymentTerms['required'] === true;
+    const amountCents = toPositiveInteger(paymentTerms['amountCents']);
+    if (!paymentRequired || amountCents === null) {
+      return null;
+    }
+
+    const type = normalizePaymentType(paymentTerms['type']);
+    if (!type) {
+      return null;
+    }
+
+    const interval = normalizePaymentInterval(paymentTerms['interval']);
+    const status = normalizeString(agreementData['status']).toLowerCase() || 'pending';
+    const paymentStatus = normalizePaymentStatus(agreementData['paymentStatus']);
+
     return {
-      planId: normalizeString(planData['planId']) || planId,
+      agreementId,
+      agreementName: normalizeString(agreementData['name']) || 'Training Agreement',
       trainerId,
-      title,
-      description,
-      priceCents,
-      billingType,
-      isActive,
+      trainerName: normalizeString(agreementData['trainerName']) || fallbackTrainerName,
+      status,
+      paymentStatus,
+      amountCents,
+      currency: 'usd',
+      type,
+      interval: type === 'subscription' ? interval || 'month' : undefined,
+      description: normalizeString(paymentTerms['description']) || 'Training services',
+      dateUpdated: toDate(agreementData['dateUpdated']),
     };
-  }
-
-  private resolveRedirectUrl(path: string): string {
-    const normalizedPath = path.startsWith('/') ? path : `/${path}`;
-    const browserOrigin = normalizeString(typeof window !== 'undefined' ? window.location.origin : '');
-    if (isAllowedRedirectOrigin(browserOrigin)) {
-      return `${browserOrigin}${normalizedPath}`;
-    }
-
-    const authDomain = normalizeString(environment.firebaseConfig?.authDomain);
-    if (authDomain) {
-      return `https://${authDomain}${normalizedPath}`;
-    }
-
-    return `https://ai-fitness-f8ed4.web.app${normalizedPath}`;
   }
 
   private resolveClientUid(): string {
@@ -175,46 +174,6 @@ export class ClientPaymentsService {
       throw new Error('You must be logged in to make trainer payments.');
     }
     return uid;
-  }
-
-  private async readDirectTrainerPlan(trainerId: string) {
-    try {
-      return await getDoc(doc(this.firestore, `trainerPlans/${trainerId}`));
-    } catch (error) {
-      if (isPermissionDeniedError(error)) {
-        return null;
-      }
-      throw error;
-    }
-  }
-
-  private async readTrainerPlanFallbackDocs(trainerId: string) {
-    const primaryPlans = await this.readTrainerPlanDocsByField(trainerId, 'trainerId');
-    if (primaryPlans.length > 0) {
-      return primaryPlans;
-    }
-
-    return this.readTrainerPlanDocsByField(trainerId, 'trainerID');
-  }
-
-  private async readTrainerPlanDocsByField(
-    trainerId: string,
-    fieldName: 'trainerId' | 'trainerID'
-  ) {
-    try {
-      const trainerPlansSnap = await getDocs(
-        query(
-          collection(this.firestore, 'trainerPlans'),
-          where(fieldName, '==', trainerId)
-        )
-      );
-      return trainerPlansSnap.docs;
-    } catch (error) {
-      if (isPermissionDeniedError(error)) {
-        return [];
-      }
-      throw error;
-    }
   }
 }
 
@@ -239,26 +198,51 @@ function toPositiveInteger(value: unknown): number | null {
   return rounded > 0 ? rounded : null;
 }
 
-function normalizeBillingType(value: unknown): ClientTrainerPlanBillingType | '' {
-  const normalized = normalizeString(value).toLowerCase();
-  const allowed: ClientTrainerPlanBillingType[] = ['weekly', 'monthly', 'quarterly', 'yearly'];
-  return allowed.includes(normalized as ClientTrainerPlanBillingType) ?
-    normalized as ClientTrainerPlanBillingType :
-    '';
+function toDate(value: unknown): Date {
+  if (value instanceof Date) {
+    return value;
+  }
+
+  if (value && typeof value === 'object' && typeof (value as { toDate?: () => Date }).toDate === 'function') {
+    return (value as { toDate: () => Date }).toDate();
+  }
+
+  const parsed = new Date(String(value || ''));
+  return Number.isNaN(parsed.getTime()) ? new Date(0) : parsed;
 }
 
-function isAllowedRedirectOrigin(origin: string): boolean {
-  if (!origin) {
-    return false;
+function normalizePaymentType(value: unknown): AgreementPaymentType | '' {
+  const normalized = normalizeString(value).toLowerCase();
+  if (normalized === 'one_time' || normalized === 'subscription') {
+    return normalized;
   }
 
-  try {
-    const parsed = new URL(origin);
-    const isLocalHost = parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1';
-    return parsed.protocol === 'https:' || (isLocalHost && parsed.protocol === 'http:');
-  } catch {
-    return false;
+  return '';
+}
+
+function normalizePaymentInterval(value: unknown): AgreementPaymentInterval | '' {
+  const normalized = normalizeString(value).toLowerCase();
+  if (normalized === 'week' || normalized === 'month' || normalized === 'year') {
+    return normalized;
   }
+
+  return '';
+}
+
+function normalizePaymentStatus(value: unknown): AgreementPaymentStatus {
+  const normalized = normalizeString(value).toLowerCase();
+  const allowed: AgreementPaymentStatus[] = [
+    'not_required',
+    'not_started',
+    'checkout_started',
+    'paid',
+    'active',
+    'failed',
+    'canceled',
+  ];
+  return allowed.includes(normalized as AgreementPaymentStatus) ?
+    normalized as AgreementPaymentStatus :
+    'not_started';
 }
 
 function resolveClientAssignedTrainerId(clientData: Record<string, unknown>): string {

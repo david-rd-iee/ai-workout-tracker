@@ -1,6 +1,7 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
+import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { IonContent, IonCard, IonCardContent, IonCardHeader, IonCardTitle, IonButton, IonIcon, IonSegment, IonSegmentButton, IonLabel, ModalController, ToastController } from '@ionic/angular/standalone';
 import { NavController } from '@ionic/angular';
 import { FormsModule } from '@angular/forms';
@@ -25,6 +26,8 @@ import {
   where
 } from '@angular/fire/firestore';
 import { NotificationService } from '../../services/notification.service';
+import { AgreementService } from '../../services/agreement.service';
+import { Agreement } from 'src/app/Interfaces/Agreement';
 
 type VerifyFieldKey = 'heightMeters' | 'weightKg' | 'age';
 type VerifyChoice = 'true' | 'false' | null;
@@ -93,6 +96,8 @@ export class ClientDetailsPage implements OnInit {
   private auth = inject(Auth);
   private firestore = inject(Firestore);
   private notificationService = inject(NotificationService);
+  private agreementService = inject(AgreementService);
+  private sanitizer = inject(DomSanitizer);
 
   client: any = null;
   selectedTab: string = 'sessions';
@@ -107,6 +112,12 @@ export class ClientDetailsPage implements OnInit {
   upcomingAppointments: any[] = [];
   pastAppointments: any[] = [];
   payments: PaymentHistoryEntry[] = [];
+  currentAgreement: Agreement | null = null;
+  isLoadingCurrentAgreement = false;
+  isLoadingCurrentAgreementPreview = false;
+  currentAgreementPreviewUrl: SafeResourceUrl | null = null;
+  currentAgreementPreviewError = '';
+  isAgreementPreviewOpen = false;
 
   isVerifyStatsModalOpen = false;
   isLoadingVerifyStats = false;
@@ -358,7 +369,19 @@ export class ClientDetailsPage implements OnInit {
     const { data } = await modal.onWillDismiss();
     if (data?.action === 'send') {
       await this.showToast('Agreement sent to client.', 'success');
+      await this.loadClientDetailsData();
     }
+  }
+
+  openCurrentAgreementPreview(): void {
+    if (!this.currentAgreementPreviewUrl) {
+      return;
+    }
+    this.isAgreementPreviewOpen = true;
+  }
+
+  closeCurrentAgreementPreview(): void {
+    this.isAgreementPreviewOpen = false;
   }
 
   viewMessages() {
@@ -645,9 +668,114 @@ export class ClientDetailsPage implements OnInit {
         lastWorkout: clientProfile['lastWorkout'] || past[0]?._date || this.client?.lastWorkout || null,
         nextSession: upcoming[0]?._date || this.client?.nextSession || null,
       };
+
+      await this.loadCurrentAgreement(clientId, trainerId);
     } catch (error) {
       console.error('Failed to load client details data:', error);
       await this.showToast('Failed to load client details.', 'danger');
+    }
+  }
+
+  private async loadCurrentAgreement(clientId: string, trainerId: string): Promise<void> {
+    this.isLoadingCurrentAgreement = true;
+    this.currentAgreement = null;
+    this.currentAgreementPreviewUrl = null;
+    this.currentAgreementPreviewError = '';
+    this.isLoadingCurrentAgreementPreview = false;
+
+    if (!trainerId) {
+      this.isLoadingCurrentAgreement = false;
+      return;
+    }
+
+    try {
+      const agreementsSnap = await getDocs(
+        query(
+          collection(this.firestore, 'agreements'),
+          where('trainerId', '==', trainerId),
+          where('clientId', '==', clientId)
+        )
+      );
+
+      const signedStatuses = new Set(['signed', 'completed', 'partially_signed']);
+      const signedAgreements = agreementsSnap.docs
+        .map((agreementDoc) => {
+          const data = agreementDoc.data() as Record<string, any>;
+          const status = String(data['status'] || '').trim().toLowerCase();
+          return {
+            id: agreementDoc.id,
+            name: String(data['name'] || 'Agreement'),
+            trainerId: String(data['trainerId'] || ''),
+            clientId: String(data['clientId'] || ''),
+            status,
+            dateCreated: this.toDate(data['dateCreated']) || this.toDate(data['createdAt']) || new Date(0),
+            dateUpdated: this.toDate(data['dateUpdated']) || this.toDate(data['updatedAt']) || new Date(0),
+            signedAgreementStoragePath: String(data['signedAgreementStoragePath'] || ''),
+            agreementStoragePath: String(data['agreementStoragePath'] || ''),
+          } as Agreement;
+        })
+        .filter((agreement) => signedStatuses.has(String(agreement.status || '').toLowerCase()))
+        .sort((left, right) => right.dateUpdated.getTime() - left.dateUpdated.getTime());
+
+      this.currentAgreement = signedAgreements[0] || null;
+      if (this.currentAgreement) {
+        await this.loadCurrentAgreementPreview(this.currentAgreement);
+      }
+    } catch (error) {
+      console.error('Failed to load current agreement:', error);
+      this.currentAgreement = null;
+    } finally {
+      this.isLoadingCurrentAgreement = false;
+    }
+  }
+
+  private async loadCurrentAgreementPreview(agreement: Agreement): Promise<void> {
+    const storagePath = String(
+      agreement.signedAgreementStoragePath || agreement.agreementStoragePath || ''
+    ).trim();
+    if (!storagePath) {
+      this.currentAgreementPreviewUrl = null;
+      this.currentAgreementPreviewError = 'Agreement file is unavailable.';
+      return;
+    }
+
+    this.isLoadingCurrentAgreementPreview = true;
+    this.currentAgreementPreviewError = '';
+
+    try {
+      const downloadUrl = await this.agreementService.resolveAgreementDownloadUrl(storagePath);
+      const safeDocumentUrl = this.toSafeDocumentUrl(downloadUrl);
+      if (!safeDocumentUrl) {
+        throw new Error('Unable to load agreement preview URL.');
+      }
+      this.currentAgreementPreviewUrl =
+        this.sanitizer.bypassSecurityTrustResourceUrl(safeDocumentUrl);
+    } catch (error) {
+      console.error('Failed to load current agreement preview:', error);
+      this.currentAgreementPreviewUrl = null;
+      this.currentAgreementPreviewError = 'Could not load agreement preview.';
+    } finally {
+      this.isLoadingCurrentAgreementPreview = false;
+    }
+  }
+
+  private toSafeDocumentUrl(url: string): string | null {
+    const normalizedUrl = String(url || '').trim();
+    if (!normalizedUrl) {
+      return null;
+    }
+
+    try {
+      const parsed = new URL(normalizedUrl, window.location.origin);
+      const isSameOrigin = parsed.origin === window.location.origin;
+      const isTrustedStorageHost =
+        parsed.protocol === 'https:' &&
+        (parsed.hostname === 'firebasestorage.googleapis.com' ||
+          parsed.hostname === 'storage.googleapis.com');
+
+      return isSameOrigin || isTrustedStorageHost ? parsed.toString() : null;
+    } catch {
+      return null;
     }
   }
 

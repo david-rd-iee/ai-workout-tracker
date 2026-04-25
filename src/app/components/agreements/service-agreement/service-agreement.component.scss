@@ -63,6 +63,47 @@
   font-style: italic;
 }
 
+.payment-terms-grid {
+  margin-top: 12px;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.payment-field {
+  display: grid;
+  gap: 6px;
+}
+
+.payment-field label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--ion-color-primary);
+}
+
+.payment-field-full {
+  grid-column: 1 / -1;
+}
+
+.recurring-setup-check {
+  margin-top: 10px;
+  display: grid;
+  gap: 8px;
+}
+
+.recurring-setup-status {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--ion-color-medium);
+}
+
+.recurring-setup-warning {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--ion-color-warning-shade);
+  font-weight: 600;
+}
+
 ion-card {
   margin: 0;
 }

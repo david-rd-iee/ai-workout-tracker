@@ -1,0 +1,80 @@
+.agreement-payment-content {
+  --background: transparent;
+}
+
+.background-gradient {
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(circle at top right, rgba(0, 122, 255, 0.2), transparent 52%),
+    radial-gradient(circle at bottom left, rgba(46, 204, 113, 0.18), transparent 48%),
+    #f6f8ff;
+  z-index: -1;
+}
+
+.agreement-payment-page {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 108px 16px 28px;
+}
+
+.payment-card {
+  border-radius: 22px;
+  box-shadow: 0 16px 36px rgba(20, 40, 90, 0.12);
+}
+
+.loading-shell,
+.error-shell {
+  display: grid;
+  gap: 10px;
+  justify-items: center;
+  text-align: center;
+  padding: 20px 6px;
+}
+
+.error-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+h1 {
+  margin: 0;
+  color: #15345e;
+  font-size: 1.35rem;
+}
+
+.sub-copy {
+  margin: 6px 0 14px;
+  color: #527095;
+}
+
+.payment-detail-grid {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.detail-item {
+  background: #f2f7ff;
+  border: 1px solid #dce8ff;
+  border-radius: 12px;
+  padding: 10px 12px;
+  display: grid;
+  gap: 4px;
+}
+
+.detail-item span {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #5f7aa0;
+}
+
+.detail-item strong {
+  color: #183d69;
+}
+
+.checkout-button {
+  width: 100%;
+}

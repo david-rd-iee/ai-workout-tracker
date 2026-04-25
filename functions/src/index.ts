@@ -33,6 +33,7 @@ export {
 export { createTrainerOnboardingLink } from "./trainerStripeOnboarding";
 export { createTrainerPlan } from "./trainerPlans";
 export { createCheckoutSession } from "./clientCheckout";
+export { createAgreementCheckoutSession } from "./agreementCheckout";
 export { stripeWebhook } from "./stripeWebhook";
 export { acceptTrainerClientRequest } from "./trainerClientRequests";
 export { requestSessionBooking } from "./sessionBookingRequests";

@@ -350,6 +350,10 @@ export class ChatDetailPage implements OnInit, OnDestroy {
     return message.type === 'workout_summary';
   }
 
+  isAgreementEventMessage(message: Message): boolean {
+    return message.type === 'agreement_event';
+  }
+
   getWorkoutSummaryCard(message: Message): WorkoutSummaryCardModel {
     const cacheKey = `${message.messageId || message.timestamp || ''}:${message.text || ''}`;
     const cached = this.workoutSummaryCardCache.get(cacheKey);
@@ -550,6 +554,10 @@ export class ChatDetailPage implements OnInit, OnDestroy {
   getRescheduleRequestId(message: Message): string {
     if (!this.isRescheduleMessage(message)) return '';
     return message.text.replace('reschedule/', '');
+  }
+
+  async openServiceAgreements(): Promise<void> {
+    await this.router.navigate(['/service-agreements']);
   }
 
   private isWorkoutSummaryDetailLine(line: string): boolean {

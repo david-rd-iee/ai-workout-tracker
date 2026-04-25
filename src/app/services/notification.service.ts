@@ -95,7 +95,7 @@ export class NotificationService {
     });
 
     PushNotifications.addListener('pushNotificationActionPerformed', (notification: any) => {
-      void notification;
+      void this.navigateFromPushAction(notification);
     });
   }
 
@@ -414,8 +414,8 @@ export class NotificationService {
   }
 
   private shouldSuppressToast(notification: AppNotification): boolean {
-    const type = String(notification.data?.['type'] || '').trim();
-    const chatId = String(notification.data?.['chatId'] || '').trim();
+    const type = this.resolveNotificationType(notification.data);
+    const chatId = this.resolveNotificationChatId(notification.data);
     const currentUrl = this.router.url;
 
     if (currentUrl.startsWith('/notifications')) {
@@ -430,16 +430,16 @@ export class NotificationService {
   }
 
   private async navigateFromNotification(notification: AppNotification): Promise<void> {
-    const type = String(notification.data?.['type'] || '').trim();
-    const chatId = String(notification.data?.['chatId'] || '').trim();
+    const type = this.resolveNotificationType(notification.data);
+    const chatId = this.resolveNotificationChatId(notification.data);
 
-    if (type === 'chat' && chatId) {
-      await this.router.navigate(['/chat', chatId]);
+    if (type === 'agreement' || type === 'agreement_event') {
+      await this.router.navigate(['/service-agreements']);
       return;
     }
 
-    if (type === 'agreement') {
-      await this.router.navigate(['/service-agreements']);
+    if (type === 'chat' && chatId) {
+      await this.router.navigate(['/chat', chatId]);
       return;
     }
 
@@ -458,6 +458,52 @@ export class NotificationService {
     }
 
     await this.router.navigate(['/notifications']);
+  }
+
+  private async navigateFromPushAction(notificationAction: unknown): Promise<void> {
+    const actionPayload = this.asRecord(notificationAction);
+    const actionNotification = this.asRecord(actionPayload?.['notification']);
+    const data = this.asRecord(actionNotification?.['data']);
+
+    const type = this.resolveNotificationType(data);
+    const chatId = this.resolveNotificationChatId(data);
+
+    if (type === 'agreement' || type === 'agreement_event') {
+      await this.router.navigate(['/service-agreements']);
+      return;
+    }
+
+    if (type === 'chat' && chatId) {
+      await this.router.navigate(['/chat', chatId]);
+      return;
+    }
+  }
+
+  private resolveNotificationType(data: Record<string, unknown> | null | undefined): string {
+    const directType = String(data?.['type'] || '').trim();
+    if (directType) {
+      return directType;
+    }
+
+    const nested = this.asRecord(data?.['data']);
+    return String(nested?.['type'] || '').trim();
+  }
+
+  private resolveNotificationChatId(data: Record<string, unknown> | null | undefined): string {
+    const directChatId = String(data?.['chatId'] || '').trim();
+    if (directChatId) {
+      return directChatId;
+    }
+
+    const nested = this.asRecord(data?.['data']);
+    return String(nested?.['chatId'] || '').trim();
+  }
+
+  private asRecord(value: unknown): Record<string, unknown> | null {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+      return null;
+    }
+    return value as Record<string, unknown>;
   }
 
   private mapNotification(notificationDoc: any): AppNotification {

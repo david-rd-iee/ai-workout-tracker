@@ -112,6 +112,14 @@
             </ng-container>
             <ng-template #plainMessage>
               <p>{{ message.text }}</p>
+              <ion-button
+                *ngIf="isAgreementEventMessage(message)"
+                size="small"
+                class="invite-action-btn"
+                (click)="openServiceAgreements()"
+              >
+                View Agreements
+              </ion-button>
             </ng-template>
           </ng-template>
         </ng-template>

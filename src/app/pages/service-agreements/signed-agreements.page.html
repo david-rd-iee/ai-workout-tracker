@@ -1,0 +1,100 @@
+<app-header
+  [title]="'Signed Agreements'"
+  [hideTitle]="true"
+  [showBack]="true"
+  [backHref]="'/service-agreements'"
+  [transparent]="true"
+  [neoBlend]="true"
+></app-header>
+
+<ion-content [fullscreen]="true" class="agreements-content">
+  <div class="background-gradient"></div>
+
+  <div class="agreements-shell">
+    <div class="loading-state" *ngIf="isLoading">
+      <ion-spinner name="crescent"></ion-spinner>
+      <p>Loading signed agreements...</p>
+    </div>
+
+    <ng-container *ngIf="!isLoading">
+      <ion-card class="panel-card">
+        <ion-card-header>
+          <ion-card-title>Signed Agreements</ion-card-title>
+        </ion-card-header>
+        <ion-card-content>
+          <div class="empty-state" *ngIf="signedAgreements.length === 0">
+            No signed agreements yet.
+          </div>
+
+          <button
+            type="button"
+            class="list-card agreement-card"
+            *ngFor="let agreement of signedAgreements"
+            (click)="openAgreement(agreement)"
+            [class.selected]="selectedAgreement?.id === agreement.id"
+            [attr.aria-pressed]="selectedAgreement?.id === agreement.id"
+          >
+            <div>
+              <strong>{{ agreement.name }}</strong>
+              <span>
+                {{ isTrainer ? (agreement.clientName || 'Client') : (agreement.trainerName || 'Trainer') }}
+                • Signed {{ agreement.dateUpdated | date:'MMM d, yyyy' }}
+              </span>
+            </div>
+            <span class="status-pill signed">Signed</span>
+          </button>
+        </ion-card-content>
+      </ion-card>
+
+      <ion-card class="panel-card detail-card" *ngIf="selectedAgreement">
+        <ion-card-header>
+          <ion-card-title>{{ selectedAgreement.name }}</ion-card-title>
+        </ion-card-header>
+        <ion-card-content>
+          <div class="detail-meta">
+            <div>
+              <span class="meta-label">{{ isTrainer ? 'Client' : 'Trainer' }}</span>
+              <strong>{{ isTrainer ? (selectedAgreement.clientName || 'Client') : (selectedAgreement.trainerName || 'Trainer') }}</strong>
+            </div>
+            <div>
+              <span class="meta-label">Status</span>
+              <strong>Signed</strong>
+            </div>
+          </div>
+
+          <div class="detail-actions">
+            <ion-button fill="outline" (click)="openAgreementPdf(selectedAgreement)">
+              <ion-icon name="eye-outline" slot="start"></ion-icon>
+              View Document
+            </ion-button>
+            <ion-button fill="clear" (click)="openAgreementInBrowser(selectedAgreement)">
+              Open in Browser
+            </ion-button>
+            <ion-button fill="clear" (click)="clearSelectedAgreement()">Close</ion-button>
+          </div>
+
+          <div class="document-viewer-shell" *ngIf="isLoadingDocument || selectedAgreementDocumentUrl || documentLoadError">
+            <div class="document-viewer-state" *ngIf="isLoadingDocument">
+              <ion-spinner name="crescent"></ion-spinner>
+              <p>Loading agreement document...</p>
+            </div>
+
+            <div class="document-viewer-state error" *ngIf="!isLoadingDocument && documentLoadError">
+              <p>{{ documentLoadError }}</p>
+              <ion-button fill="outline" size="small" (click)="openAgreementInBrowser(selectedAgreement)">
+                Open in Browser
+              </ion-button>
+            </div>
+
+            <iframe
+              *ngIf="!isLoadingDocument && selectedAgreementDocumentUrl"
+              class="document-viewer-frame"
+              [attr.title]="selectedAgreement.name"
+              [src]="selectedAgreementDocumentUrl"
+            ></iframe>
+          </div>
+        </ion-card-content>
+      </ion-card>
+    </ng-container>
+  </div>
+</ion-content>

@@ -100,6 +100,12 @@ async function routeStripeEvent(event: any, stripe: any): Promise<void> {
       event
     );
     return;
+  case "payment_intent.payment_failed":
+    await handlePaymentIntentFailed(
+      event.data.object,
+      event
+    );
+    return;
   default:
     logger.info("[StripeWebhook] Ignoring event.", {
       eventId: event.id,
@@ -113,6 +119,12 @@ async function handleCheckoutCompleted(
   stripe: any,
   event: any
 ): Promise<void> {
+  const agreementId = await resolveAgreementIdForCheckoutSession(session);
+  if (agreementId) {
+    await handleAgreementCheckoutCompleted(session, agreementId, event);
+    return;
+  }
+
   const sessionId = normalizeString(session.id);
   const subscriptionId = resolveSubscriptionId(session.subscription);
   if (!subscriptionId) {
@@ -163,6 +175,72 @@ async function handleCheckoutCompleted(
   });
 }
 
+async function handleAgreementCheckoutCompleted(
+  session: any,
+  agreementId: string,
+  event: any
+): Promise<void> {
+  const mode = normalizeString(session.mode);
+  const sessionId = normalizeString(session.id);
+  const paymentIntentId = resolveStripeObjectId(session.payment_intent);
+  const subscriptionId = resolveSubscriptionId(session.subscription);
+  const customerId = resolveStripeObjectId(session.customer);
+  const paymentStatus = mode === "subscription" ? "active" : "paid";
+
+  await db.doc(`agreements/${agreementId}`).set({
+    paymentStatus,
+    stripeCheckoutSessionId: sessionId,
+    stripePaymentIntentId: paymentIntentId,
+    stripeSubscriptionId: subscriptionId,
+    stripeCustomerId: customerId,
+    dateUpdated: admin.firestore.FieldValue.serverTimestamp(),
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  }, {merge: true});
+
+  if (sessionId) {
+    await db.doc(`checkoutSessions/${sessionId}`).set({
+      stripeStatus: "complete",
+      agreementId,
+      stripePaymentIntentId: paymentIntentId,
+      stripeSubscriptionId: subscriptionId,
+      stripeCustomerId: customerId,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    }, {merge: true});
+  }
+
+  const amountTotal = toPositiveInteger(session.amount_total ?? session.amount_subtotal);
+  const currency = normalizeString(session.currency).toLowerCase() || "usd";
+  if (amountTotal !== null && amountTotal > 0) {
+    await db.doc(`transactions/agreement_${agreementId}_${event.id}`).set({
+      transactionId: `agreement_${agreementId}_${event.id}`,
+      agreementId,
+      stripeCheckoutSessionId: sessionId,
+      stripePaymentIntentId: paymentIntentId,
+      stripeSubscriptionId: subscriptionId,
+      stripeCustomerId: customerId,
+      amountCents: amountTotal,
+      amount: amountTotal / 100,
+      currency,
+      status: paymentStatus === "active" ? "active" : "paid",
+      source: "stripe_agreement",
+      paymentMethod: "stripe",
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      lastEventId: event.id,
+      lastEventType: event.type,
+    }, {merge: true});
+  }
+
+  logger.info("[StripeWebhook] Agreement checkout completed.", {
+    eventId: event.id,
+    agreementId,
+    mode,
+    sessionId,
+    paymentIntentId,
+    subscriptionId,
+  });
+}
+
 async function handleSubscriptionUpdated(
   subscription: any,
   event: any
@@ -201,6 +279,21 @@ async function handleSubscriptionDeleted(
 ): Promise<void> {
   const subscriptionId = normalizeString(subscription.id);
   if (!subscriptionId) {
+    return;
+  }
+
+  const agreementId = await resolveAgreementIdForSubscription(
+    subscriptionId,
+    toRecord(subscription.metadata)
+  );
+  if (agreementId) {
+    await db.doc(`agreements/${agreementId}`).set({
+      paymentStatus: "canceled",
+      stripeSubscriptionId: subscriptionId,
+      stripeCustomerId: resolveStripeObjectId(subscription.customer),
+      dateUpdated: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    }, {merge: true});
     return;
   }
 
@@ -259,6 +352,32 @@ async function handleInvoicePaymentFailed(
     latestInvoiceId: normalizeString(invoice.id),
     lastEventId: event.id,
     lastEventType: event.type,
+  });
+}
+
+async function handlePaymentIntentFailed(
+  paymentIntent: any,
+  event: any
+): Promise<void> {
+  const metadata = toRecord(paymentIntent.metadata);
+  const agreementId = normalizeString(metadata["agreementId"]);
+  if (!agreementId) {
+    return;
+  }
+
+  const paymentIntentId = normalizeString(paymentIntent.id);
+  await db.doc(`agreements/${agreementId}`).set({
+    paymentStatus: "failed",
+    stripePaymentIntentId: paymentIntentId,
+    stripeCustomerId: resolveStripeObjectId(paymentIntent.customer),
+    dateUpdated: admin.firestore.FieldValue.serverTimestamp(),
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  }, {merge: true});
+
+  logger.info("[StripeWebhook] Agreement payment intent failed.", {
+    eventId: event.id,
+    agreementId,
+    paymentIntentId,
   });
 }
 
@@ -360,6 +479,60 @@ async function resolveIdentityForCheckoutSession(
   }
 
   return await readIdentityFromExistingSubscriptionDoc(subscriptionId);
+}
+
+async function resolveAgreementIdForCheckoutSession(
+  session: any
+): Promise<string> {
+  const metadataAgreementId = normalizeString(toRecord(session.metadata)["agreementId"]);
+  if (metadataAgreementId) {
+    return metadataAgreementId;
+  }
+
+  const sessionId = normalizeString(session.id);
+  if (!sessionId) {
+    return "";
+  }
+
+  const checkoutSessionSnapshot = await db.doc(`checkoutSessions/${sessionId}`).get();
+  if (!checkoutSessionSnapshot.exists) {
+    return "";
+  }
+
+  return normalizeString(toRecord(checkoutSessionSnapshot.data())["agreementId"]);
+}
+
+async function resolveAgreementIdForSubscription(
+  subscriptionId: string,
+  metadataRecord: Record<string, unknown>
+): Promise<string> {
+  const metadataAgreementId = normalizeString(metadataRecord["agreementId"]);
+  if (metadataAgreementId) {
+    return metadataAgreementId;
+  }
+
+  const matchingCheckoutSnapshot = await db.collection("checkoutSessions")
+    .where("stripeSubscriptionId", "==", subscriptionId)
+    .limit(1)
+    .get();
+  if (!matchingCheckoutSnapshot.empty) {
+    const agreementId = normalizeString(
+      toRecord(matchingCheckoutSnapshot.docs[0].data())["agreementId"]
+    );
+    if (agreementId) {
+      return agreementId;
+    }
+  }
+
+  const matchingAgreementSnapshot = await db.collection("agreements")
+    .where("stripeSubscriptionId", "==", subscriptionId)
+    .limit(1)
+    .get();
+  if (matchingAgreementSnapshot.empty) {
+    return "";
+  }
+
+  return matchingAgreementSnapshot.docs[0].id;
 }
 
 async function resolveIdentityForSubscription(

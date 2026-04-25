@@ -91,6 +91,16 @@ service cloud.firestore {
       return isSignedIn() && (request.auth.uid == agreementData.trainerId || request.auth.uid == agreementData.clientId);
     }
 
+    function areAgreementPaymentFieldsUnchanged() {
+      return (
+        request.resource.data.paymentStatus == resource.data.paymentStatus &&
+        request.resource.data.stripeCheckoutSessionId == resource.data.stripeCheckoutSessionId &&
+        request.resource.data.stripePaymentIntentId == resource.data.stripePaymentIntentId &&
+        request.resource.data.stripeSubscriptionId == resource.data.stripeSubscriptionId &&
+        request.resource.data.stripeCustomerId == resource.data.stripeCustomerId
+      );
+    }
+
     function canReadTrainerSubscription(subscriptionData) {
       return isSignedIn() && (
         (isClient() && subscriptionData.clientId == request.auth.uid) ||
@@ -242,6 +252,13 @@ service cloud.firestore {
       // Only trainers can access their own templates
       allow read, write: if isOwner(userId) && isTrainer();
     }
+
+    // Current agreement templates collection used by the app
+    match /agreementTemplates/{templateId} {
+      allow read: if isSignedIn() && isTrainer() && resource.data.trainerId == request.auth.uid;
+      allow create: if isSignedIn() && isTrainer() && request.resource.data.trainerId == request.auth.uid;
+      allow update, delete: if isSignedIn() && isTrainer() && resource.data.trainerId == request.auth.uid;
+    }
     
     // Agreements
     match /agreements/{agreementId} {
@@ -256,13 +273,22 @@ service cloud.firestore {
         // Trainer can update agreement details, but paymentStatus is server-managed only.
         (isTrainer() && 
          resource.data.trainerId == request.auth.uid &&
-         request.resource.data.paymentStatus == resource.data.paymentStatus) ||
+         areAgreementPaymentFieldsUnchanged()) ||
         
         // Client can only update specific fields related to their signature and pending signature
         (isClient() && 
          resource.data.clientId == request.auth.uid && 
          request.resource.data.diff(resource.data).affectedKeys()
-           .hasOnly(['signatures', 'clientSigned', 'status', 'date_updated', 'dateUpdated', 'signedPdfStoragePath', 'pendingClientSignature']))
+           .hasOnly([
+             'signatures',
+             'clientSigned',
+             'status',
+             'date_updated',
+             'dateUpdated',
+             'signedAgreementStoragePath',
+             'pendingClientSignature',
+             'updatedAt'
+           ]))
       );
     }
     

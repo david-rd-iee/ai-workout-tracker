@@ -1,18 +1,12 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
 import {
   IonButton,
   IonCard,
   IonCardContent,
   IonContent,
   IonIcon,
-  IonInput,
-  IonItem,
-  IonSelect,
-  IonSelectOption,
   IonSpinner,
-  IonTextarea,
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
 import {
@@ -21,17 +15,13 @@ import {
   cashOutline,
   checkmarkCircleOutline,
   closeCircleOutline,
-  createOutline,
-  documentTextOutline,
   linkOutline,
-  pricetagOutline,
   refreshOutline,
   warningOutline,
 } from 'ionicons/icons';
 import { HeaderComponent } from '../../components/header/header.component';
 import {
   TrainerPaymentDashboardData,
-  TrainerPlanBillingType,
   TrainerPaymentsService,
   TrainerStripeConnectSummary,
 } from '../../services/trainer-payments.service';
@@ -43,18 +33,12 @@ import {
   styleUrls: ['./stripe-setup.page.scss'],
   imports: [
     CommonModule,
-    FormsModule,
     IonContent,
     IonCard,
     IonCardContent,
     IonButton,
     IonIcon,
-    IonInput,
-    IonItem,
-    IonSelect,
-    IonSelectOption,
     IonSpinner,
-    IonTextarea,
     HeaderComponent,
   ],
 })
@@ -66,15 +50,6 @@ export class StripeSetupPage implements OnInit {
   errorMessage = '';
   successMessage = '';
   dashboardData: TrainerPaymentDashboardData | null = null;
-  isCreatingPlan = false;
-  planErrorMessage = '';
-  planSuccessMessage = '';
-  latestCreatedPlanId = '';
-  planTitle = 'Monthly Coaching';
-  planDescription = 'Workout programming + weekly check-ins';
-  planPriceCents: number | null = 7500;
-  planBillingType: TrainerPlanBillingType = 'monthly';
-  readonly billingTypeOptions: TrainerPlanBillingType[] = ['weekly', 'monthly', 'quarterly', 'yearly'];
 
   constructor() {
     addIcons({
@@ -82,13 +57,10 @@ export class StripeSetupPage implements OnInit {
       cardOutline,
       analyticsOutline,
       linkOutline,
-      pricetagOutline,
-      documentTextOutline,
       refreshOutline,
       warningOutline,
       checkmarkCircleOutline,
       closeCircleOutline,
-      createOutline,
     });
   }
 
@@ -149,30 +121,6 @@ export class StripeSetupPage implements OnInit {
 
   async refreshDashboard(): Promise<void> {
     await this.loadDashboard();
-  }
-
-  async createPlan(): Promise<void> {
-    this.planErrorMessage = '';
-    this.planSuccessMessage = '';
-    this.latestCreatedPlanId = '';
-    this.isCreatingPlan = true;
-
-    try {
-      const result = await this.trainerPaymentsService.createTrainerPlan({
-        title: this.planTitle,
-        description: this.planDescription,
-        priceCents: Number(this.planPriceCents ?? 0),
-        billingType: this.planBillingType,
-      });
-      this.latestCreatedPlanId = result.planId;
-      this.planSuccessMessage = `Plan created successfully (${result.planId}).`;
-      await this.loadDashboard();
-    } catch (error) {
-      console.error('[StripeSetupPage] Failed to create trainer plan:', error);
-      this.planErrorMessage = this.resolveErrorMessage(error);
-    } finally {
-      this.isCreatingPlan = false;
-    }
   }
 
   formatAccountId(accountId: string): string {

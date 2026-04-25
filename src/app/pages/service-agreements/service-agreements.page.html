@@ -1,10 +1,21 @@
-<app-header [title]="pageTitle" [hideTitle]="true" [showBack]="true" [backHref]="'/user-settings'"></app-header>
+<app-header
+  [title]="pageTitle"
+  [hideTitle]="true"
+  [showBack]="true"
+  [backHref]="'/user-settings'"
+  [transparent]="true"
+  [neoBlend]="true"
+></app-header>
 
 <ion-content [fullscreen]="true" class="agreements-content">
   <div class="background-gradient"></div>
 
   <div class="agreements-shell">
     <div class="page-actions">
+      <ion-button fill="outline" *ngIf="!isTrainer" (click)="openSignedAgreements()">
+        <ion-icon name="document-text-outline" slot="start"></ion-icon>
+        Signed Agreements
+      </ion-button>
       <ion-button fill="solid" *ngIf="isTrainer" (click)="startNewTemplate()">
         <ion-icon name="create-outline" slot="start"></ion-icon>
         Create Template
@@ -73,7 +84,7 @@
         </ion-card>
       </section>
 
-      <section class="content-grid" *ngIf="!isTrainer">
+      <section class="content-grid pending-only" *ngIf="!isTrainer">
         <ion-card class="panel-card">
           <ion-card-header>
             <ion-card-title>Pending Agreements</ion-card-title>
@@ -88,36 +99,14 @@
               class="list-card agreement-card"
               *ngFor="let agreement of pendingAgreements"
               (click)="openAgreement(agreement)"
+              [class.selected]="selectedAgreement?.id === agreement.id"
+              [attr.aria-pressed]="selectedAgreement?.id === agreement.id"
             >
               <div>
                 <strong>{{ agreement.name }}</strong>
                 <span>{{ agreement.trainerName || 'Trainer' }} • Sent {{ agreement.dateCreated | date:'MMM d, yyyy' }}</span>
               </div>
               <span class="status-pill pending">Pending signature</span>
-            </button>
-          </ion-card-content>
-        </ion-card>
-
-        <ion-card class="panel-card">
-          <ion-card-header>
-            <ion-card-title>Signed Agreements</ion-card-title>
-          </ion-card-header>
-          <ion-card-content>
-            <div class="empty-state" *ngIf="signedAgreements.length === 0">
-              No signed agreements yet.
-            </div>
-
-            <button
-              type="button"
-              class="list-card agreement-card"
-              *ngFor="let agreement of signedAgreements"
-              (click)="openAgreement(agreement)"
-            >
-              <div>
-                <strong>{{ agreement.name }}</strong>
-                <span>{{ agreement.trainerName || 'Trainer' }} • Signed {{ agreement.dateUpdated | date:'MMM d, yyyy' }}</span>
-              </div>
-              <span class="status-pill signed">Signed</span>
             </button>
           </ion-card-content>
         </ion-card>
@@ -162,6 +151,16 @@
               Open in Browser
             </ion-button>
             <ion-button fill="clear" (click)="clearSelectedAgreement()">Close</ion-button>
+          </div>
+
+          <div
+            class="payment-cta-shell"
+            *ngIf="!isTrainer && selectedAgreement.status !== 'pending' && selectedAgreement.paymentTerms?.required"
+          >
+            <p>Agreement signed. Continue to complete payment.</p>
+            <ion-button (click)="continueToPayment(selectedAgreement)">
+              Continue to Payment
+            </ion-button>
           </div>
 
           <div class="document-viewer-shell" *ngIf="isLoadingDocument || selectedAgreementDocumentUrl || documentLoadError">

@@ -227,10 +227,26 @@ export const routes: Routes = [
     canActivate: [authGuard],
   },
   {
+    path: 'service-agreements/signed',
+    loadComponent: () =>
+      import('./pages/service-agreements/signed-agreements.page').then(
+        (m) => m.SignedAgreementsPage
+      ),
+    canActivate: [authGuard],
+  },
+  {
     path: 'client-payments',
     loadComponent: () =>
       import('./pages/client-payments/client-payments.page').then(
         (m) => m.ClientPaymentsPage
+      ),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'agreement-payment/:agreementId',
+    loadComponent: () =>
+      import('./pages/agreement-payment/agreement-payment.page').then(
+        (m) => m.AgreementPaymentPage
       ),
     canActivate: [authGuard],
   },

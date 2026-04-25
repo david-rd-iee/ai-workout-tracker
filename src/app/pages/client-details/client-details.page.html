@@ -105,6 +105,59 @@
           <p *ngIf="recentActivity.length === 0" style="text-align: center; color: var(--ion-color-medium); padding: 20px;">No recent activity</p>
         </ion-card-content>
       </ion-card>
+
+      <ion-card class="panel-card">
+        <ion-card-header>
+          <ion-card-title>Current Agreement</ion-card-title>
+        </ion-card-header>
+        <ion-card-content>
+          <div *ngIf="isLoadingCurrentAgreement" class="agreement-loading">
+            Loading current agreement...
+          </div>
+
+          <div *ngIf="!isLoadingCurrentAgreement && currentAgreement" class="current-agreement">
+            <p class="current-agreement-name">{{ currentAgreement.name }}</p>
+            <p class="current-agreement-meta">
+              Signed {{ currentAgreement.dateUpdated | date:'MMM d, yyyy' }}
+            </p>
+
+            <div class="current-agreement-preview-shell">
+              <p class="current-agreement-preview-loading" *ngIf="isLoadingCurrentAgreementPreview">
+                Loading agreement preview...
+              </p>
+              <p class="current-agreement-preview-error" *ngIf="!isLoadingCurrentAgreementPreview && currentAgreementPreviewError">
+                {{ currentAgreementPreviewError }}
+              </p>
+
+              <button
+                type="button"
+                class="current-agreement-preview"
+                *ngIf="!isLoadingCurrentAgreementPreview && currentAgreementPreviewUrl"
+                (click)="openCurrentAgreementPreview()"
+                aria-label="Open full agreement preview"
+              >
+                <iframe
+                  [src]="currentAgreementPreviewUrl"
+                  title="Current agreement preview"
+                ></iframe>
+                <span class="current-agreement-preview-hint">Tap to view full agreement</span>
+              </button>
+            </div>
+
+            <ion-button fill="outline" size="small" (click)="sendAgreement()">
+              Send New Agreement
+            </ion-button>
+          </div>
+
+          <div *ngIf="!isLoadingCurrentAgreement && !currentAgreement" class="current-agreement-empty">
+            <p>No signed agreement found for this client yet.</p>
+            <ion-button fill="outline" (click)="sendAgreement()">
+              <ion-icon name="document-text-outline" slot="start"></ion-icon>
+              Send Agreement
+            </ion-button>
+          </div>
+        </ion-card-content>
+      </ion-card>
     </div>
 
     <section class="segment-shell">
@@ -192,6 +245,30 @@
       </ion-card>
     </div>
 
+  </div>
+
+  <div *ngIf="isAgreementPreviewOpen" class="agreement-preview-overlay">
+    <button
+      class="agreement-preview-backdrop"
+      type="button"
+      (click)="closeCurrentAgreementPreview()"
+      aria-label="Close agreement preview"
+    ></button>
+
+    <div class="agreement-preview-modal" role="dialog" aria-modal="true" aria-label="Agreement preview">
+      <div class="agreement-preview-header">
+        <h3>{{ currentAgreement?.name || 'Agreement' }}</h3>
+        <ion-button fill="clear" color="medium" (click)="closeCurrentAgreementPreview()">
+          Close
+        </ion-button>
+      </div>
+      <iframe
+        class="agreement-preview-frame"
+        *ngIf="currentAgreementPreviewUrl"
+        [src]="currentAgreementPreviewUrl"
+        [title]="currentAgreement?.name || 'Agreement preview'"
+      ></iframe>
+    </div>
   </div>
 
   <div *ngIf="isVerifyStatsModalOpen" class="verify-stats-overlay">

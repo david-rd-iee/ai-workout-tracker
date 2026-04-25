@@ -45,6 +45,27 @@ export interface agreementData {
     services: service[];
 }
 
+export type AgreementPaymentType = 'one_time' | 'subscription';
+export type AgreementPaymentInterval = 'week' | 'month' | 'year';
+export type AgreementCurrency = 'usd';
+export type AgreementPaymentStatus =
+    'not_required' |
+    'not_started' |
+    'checkout_started' |
+    'paid' |
+    'active' |
+    'failed' |
+    'canceled';
+
+export interface AgreementPaymentTerms {
+    required: boolean;
+    type: AgreementPaymentType;
+    amountCents: number;
+    currency: AgreementCurrency;
+    interval?: AgreementPaymentInterval;
+    description: string;
+}
+
 export interface AgreementTemplate {
     id: string;
     name: string;
@@ -52,6 +73,7 @@ export interface AgreementTemplate {
     date_created: Date;
     date_updated: Date;
     recurring?: boolean;
+    paymentTerms?: AgreementPaymentTerms;
 }
 
 export interface Agreement {
@@ -70,5 +92,10 @@ export interface Agreement {
     recurring?: boolean;
     chatId?: string;
     signedAgreementStoragePath?: string;
+    paymentTerms?: AgreementPaymentTerms;
+    paymentStatus?: AgreementPaymentStatus;
+    stripeCheckoutSessionId?: string;
+    stripePaymentIntentId?: string;
+    stripeSubscriptionId?: string;
+    stripeCustomerId?: string;
 }
-

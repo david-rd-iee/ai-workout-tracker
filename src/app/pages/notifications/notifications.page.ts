@@ -93,13 +93,13 @@ export class NotificationsPage implements OnInit, OnDestroy {
     const type = String(notification.data?.['type'] || '').trim();
     const chatId = String(notification.data?.['chatId'] || '').trim();
 
-    if (type === 'chat' && chatId) {
-      await this.router.navigate(['/chat', chatId]);
+    if (type === 'agreement' || type === 'agreement_event') {
+      await this.router.navigate(['/service-agreements']);
       return;
     }
 
-    if (type === 'agreement') {
-      await this.router.navigate(['/service-agreements']);
+    if (type === 'chat' && chatId) {
+      await this.router.navigate(['/chat', chatId]);
       return;
     }
 

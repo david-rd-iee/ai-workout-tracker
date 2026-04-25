@@ -13,7 +13,7 @@
   <div class="client-payments-page">
     <section class="hero-shell">
       <h1>Trainer Dashboard</h1>
-      <p>View workouts your trainer sends, message them directly, and manage plan billing.</p>
+      <p>View workouts your trainer sends, message them directly, and manage agreement billing.</p>
 
       <div class="hero-actions">
         <ion-button
@@ -51,7 +51,7 @@
       <ion-card-content>
         <div class="loading-shell" *ngIf="isLoading">
           <ion-spinner name="crescent"></ion-spinner>
-          <span>Loading trainer plans...</span>
+          <span>Loading agreement pricing...</span>
         </div>
 
         <ng-container *ngIf="!isLoading">
@@ -111,51 +111,49 @@
 
           <section class="dashboard-section">
             <div class="section-copy">
-              <h3>Billing Plans</h3>
-              <p>Choose a payment option from your assigned trainer.</p>
+              <h3>Current Agreement Pricing</h3>
+              <p>Pricing is pulled from your most recent payment-required agreement.</p>
             </div>
 
-            <div class="plan-list" *ngIf="paymentContext?.plans?.length; else noPlans">
-              <div class="plan-item" *ngFor="let plan of paymentContext?.plans">
+            <div class="plan-list" *ngIf="paymentContext?.currentAgreementPricing as pricing; else noPricing">
+              <div class="plan-item">
                 <div class="plan-top">
                   <div>
-                    <h3>{{ plan.title }}</h3>
-                    <p>{{ plan.description }}</p>
+                    <h3>{{ pricing.agreementName }}</h3>
+                    <p>{{ pricing.description }}</p>
                   </div>
-                  <div class="price-chip">${{ formatPrice(plan.priceCents) }}</div>
+                  <div class="price-chip">${{ formatPrice(pricing.amountCents) }}</div>
                 </div>
 
                 <div class="plan-meta">
-                  <span class="billing-chip">{{ formatBillingType(plan.billingType) }}</span>
-                  <span class="billing-note">
-                    {{ isRecurringType(plan.billingType) ? 'Recurring' : 'One-time' }}
-                  </span>
+                  <span class="billing-chip">{{ formatBillingType(pricing) }}</span>
+                  <span class="billing-note">{{ checkoutStatusLabel(pricing) }}</span>
                 </div>
 
                 <ion-button
                   class="primary-action"
-                  [disabled]="isStartingCheckout"
-                  (click)="startCheckout(plan)"
+                  [disabled]="isStartingCheckout || !canCheckout(pricing)"
+                  (click)="startCheckout(pricing)"
                 >
                   <ion-spinner
-                    *ngIf="isStartingCheckout && activePlanId === plan.planId"
+                    *ngIf="isStartingCheckout && activeAgreementId === pricing.agreementId"
                     slot="start"
                     name="crescent"
                   ></ion-spinner>
                   <ion-icon
-                    *ngIf="!(isStartingCheckout && activePlanId === plan.planId)"
+                    *ngIf="!(isStartingCheckout && activeAgreementId === pricing.agreementId)"
                     slot="start"
                     name="cash-outline"
                   ></ion-icon>
-                  {{ checkoutButtonLabel(plan.billingType) }}
+                  {{ checkoutButtonLabel(pricing) }}
                 </ion-button>
               </div>
             </div>
 
-            <ng-template #noPlans>
+            <ng-template #noPricing>
               <div class="empty-shell">
                 <ion-icon name="close-circle-outline"></ion-icon>
-                <p>No active plans are available from your trainer yet.</p>
+                <p>No payment-required agreement pricing is available yet.</p>
               </div>
             </ng-template>
           </section>

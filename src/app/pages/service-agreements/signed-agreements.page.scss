@@ -37,23 +37,6 @@
   padding: 20px;
 }
 
-.page-actions,
-.detail-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-}
-
-.page-actions {
-  justify-content: flex-end;
-}
-
-.template-actions {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
 .loading-state,
 .empty-state {
   color: #7b8aa1;
@@ -65,16 +48,6 @@
   justify-items: center;
   gap: 10px;
   padding: 24px;
-}
-
-.content-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
-}
-
-.content-grid.pending-only {
-  grid-template-columns: 1fr;
 }
 
 .list-card {
@@ -120,10 +93,6 @@
   font-size: 0.9rem;
 }
 
-.agreement-card {
-  align-items: flex-start;
-}
-
 .agreement-card:hover {
   transform: translateY(-1px);
   box-shadow:
@@ -155,16 +124,11 @@
   align-self: center;
   padding: 8px 12px;
   border-radius: 999px;
-  background: rgba(245, 179, 52, 0.16);
-  color: #9d6a00;
+  background: rgba(45, 176, 119, 0.16);
+  color: #247b57;
   font-size: 0.8rem;
   font-weight: 700;
   white-space: nowrap;
-}
-
-.status-pill.signed {
-  background: rgba(45, 176, 119, 0.16);
-  color: #247b57;
 }
 
 .meta-label {
@@ -183,15 +147,10 @@
   gap: 12px;
 }
 
-.signature-panel {
-  margin-top: 20px;
-  padding: 18px;
-  border-radius: 22px;
-  background: linear-gradient(145deg, #edf2fb, #e4ebf7);
-  border: 1px solid rgba(255, 255, 255, 0.56);
-  box-shadow:
-    inset 7px 7px 12px -10px rgba(184, 196, 214, 0.9),
-    inset -7px -7px 12px -10px rgba(249, 252, 255, 0.95);
+.detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
 }
 
 .document-viewer-shell {
@@ -233,56 +192,7 @@
     -10px -10px 22px -18px rgba(255, 255, 255, 0.92);
 }
 
-.signature-panel h3 {
-  margin: 0 0 8px;
-  color: #4a5970;
-}
-
-.signature-panel p {
-  margin: 0 0 14px;
-  color: #7b8aa1;
-}
-
-.signature-canvas-shell {
-  margin-top: 14px;
-  border-radius: 20px;
-  overflow: hidden;
-  background: #edf3ff;
-  border: 1px solid rgba(255, 255, 255, 0.7);
-}
-
-.signature-canvas {
-  width: 100%;
-  display: block;
-  touch-action: none;
-}
-
-.signature-actions {
-  justify-content: flex-end;
-}
-
-.payment-cta-shell {
-  margin-top: 14px;
-  padding: 14px;
-  border-radius: 16px;
-  background: linear-gradient(145deg, #edf4ff, #dfe9fb);
-  border: 1px solid rgba(46, 110, 245, 0.22);
-  display: grid;
-  gap: 10px;
-}
-
-.payment-cta-shell p {
-  margin: 0;
-  color: #35507c;
-  font-size: 0.9rem;
-}
-
-.close-editor {
-  margin-top: 14px;
-}
-
 @media (max-width: 760px) {
-  .content-grid,
   .detail-meta {
     grid-template-columns: 1fr;
   }

@@ -35,6 +35,11 @@ export interface TrainerPaymentDashboardData {
   revenue: TrainerRevenueSummary;
 }
 
+export interface TrainerPlanSummary {
+  planId: string;
+  isActive: boolean;
+}
+
 export type TrainerPlanBillingType = 'weekly' | 'monthly' | 'quarterly' | 'yearly';
 
 export interface TrainerPlanInput {
@@ -187,6 +192,28 @@ export class TrainerPaymentsService {
     return response.data;
   }
 
+  async getActiveTrainerPlans(userId?: string): Promise<TrainerPlanSummary[]> {
+    const uid = this.resolveUid(userId);
+    const directPlan = await this.readDirectTrainerPlan(uid);
+    if (directPlan?.exists()) {
+      const parsed = this.parseTrainerPlanSummary(directPlan.id, toRecord(directPlan.data()), uid);
+      return parsed && parsed.isActive ? [parsed] : [];
+    }
+
+    const fallbackDocs = await this.readTrainerPlanFallbackDocs(uid);
+    const summaries = fallbackDocs
+      .filter((planDoc) => planDoc.id !== uid)
+      .map((planDoc) => this.parseTrainerPlanSummary(planDoc.id, toRecord(planDoc.data()), uid))
+      .filter((plan): plan is TrainerPlanSummary => !!plan && plan.isActive);
+
+    return summaries;
+  }
+
+  async hasActiveTrainerPlan(userId?: string): Promise<boolean> {
+    const activePlans = await this.getActiveTrainerPlans(userId);
+    return activePlans.length > 0;
+  }
+
   private parseStripeSummary(userData: Record<string, unknown>): TrainerStripeConnectSummary | null {
     const stripeConnect = toRecord(userData['stripeConnect']);
     const accountId =
@@ -266,6 +293,64 @@ export class TrainerPaymentsService {
 
     return candidate;
   }
+
+  private parseTrainerPlanSummary(
+    planId: string,
+    planData: Record<string, unknown>,
+    expectedTrainerId: string
+  ): TrainerPlanSummary | null {
+    const trainerId =
+      normalizeString(planData['trainerId']) ||
+      normalizeString(planData['trainerID']);
+    if (!trainerId || trainerId !== expectedTrainerId) {
+      return null;
+    }
+
+    return {
+      planId: normalizeString(planData['planId']) || planId,
+      isActive: planData['isActive'] !== false,
+    };
+  }
+
+  private async readDirectTrainerPlan(trainerId: string) {
+    try {
+      return await getDoc(doc(this.firestore, `trainerPlans/${trainerId}`));
+    } catch (error) {
+      if (isPermissionDeniedError(error)) {
+        return null;
+      }
+      throw error;
+    }
+  }
+
+  private async readTrainerPlanFallbackDocs(trainerId: string) {
+    const primaryPlans = await this.readTrainerPlanDocsByField(trainerId, 'trainerId');
+    if (primaryPlans.length > 0) {
+      return primaryPlans;
+    }
+
+    return this.readTrainerPlanDocsByField(trainerId, 'trainerID');
+  }
+
+  private async readTrainerPlanDocsByField(
+    trainerId: string,
+    fieldName: 'trainerId' | 'trainerID'
+  ) {
+    try {
+      const trainerPlansSnap = await getDocs(
+        query(
+          collection(this.firestore, 'trainerPlans'),
+          where(fieldName, '==', trainerId)
+        )
+      );
+      return trainerPlansSnap.docs;
+    } catch (error) {
+      if (isPermissionDeniedError(error)) {
+        return [];
+      }
+      throw error;
+    }
+  }
 }
 
 function toRecord(value: unknown): Record<string, unknown> {
@@ -278,6 +363,20 @@ function toRecord(value: unknown): Record<string, unknown> {
 
 function normalizeString(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
+}
+
+function isPermissionDeniedError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') {
+    return false;
+  }
+
+  const code = String((error as { code?: unknown }).code || '').trim().toLowerCase();
+  if (code === 'permission-denied' || code === 'firestore/permission-denied') {
+    return true;
+  }
+
+  const message = String((error as { message?: unknown }).message || '').toLowerCase();
+  return message.includes('missing or insufficient permissions');
 }
 
 function toNumber(value: unknown): number | null {

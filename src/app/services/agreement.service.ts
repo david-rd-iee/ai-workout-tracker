@@ -15,8 +15,12 @@ import {
   where,
 } from '@angular/fire/firestore';
 import { Storage, getDownloadURL, ref, uploadString } from '@angular/fire/storage';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 import {
   Agreement,
+  AgreementPaymentInterval,
+  AgreementPaymentStatus,
+  AgreementPaymentTerms,
   AgreementTemplate,
   agreementData,
   policy,
@@ -27,6 +31,14 @@ import {
 import { ChatsService } from './chats.service';
 
 type AgreementRole = 'trainer' | 'client';
+
+interface CreateAgreementCheckoutSessionRequest {
+  agreementId: string;
+}
+
+interface CreateAgreementCheckoutSessionResponse {
+  url: string;
+}
 
 @Injectable({
   providedIn: 'root',
@@ -99,6 +111,7 @@ export class AgreementService {
         date_created: this.toDate(data['date_created']),
         date_updated: this.toDate(data['date_updated']),
         recurring: Boolean(data['recurring']),
+        paymentTerms: this.normalizePaymentTerms(data['paymentTerms'] ?? data['payment_terms']),
       };
     });
   }
@@ -135,6 +148,7 @@ export class AgreementService {
     services: service[],
     policies: policy[],
     recurring: boolean,
+    paymentTerms?: AgreementPaymentTerms,
     templateId?: string
   ): Promise<string> {
     const trainerId = this.getRequiredCurrentUserId();
@@ -144,6 +158,7 @@ export class AgreementService {
 
     const existingTemplate = await getDoc(templateRef);
     const now = new Date();
+    const normalizedPaymentTerms = this.normalizePaymentTerms(paymentTerms);
 
     await setDoc(
       templateRef,
@@ -155,6 +170,7 @@ export class AgreementService {
           policies: this.clonePolicies(policies),
         },
         recurring: Boolean(recurring),
+        ...(normalizedPaymentTerms ? { paymentTerms: normalizedPaymentTerms } : {}),
         date_created: existingTemplate.exists() ? existingTemplate.data()?.['date_created'] ?? now : now,
         date_updated: now,
         updatedAt: serverTimestamp(),
@@ -180,12 +196,16 @@ export class AgreementService {
     policies: policy[],
     trainerName: string,
     storagePath: string,
-    recurring = false
+    recurring = false,
+    paymentTerms?: AgreementPaymentTerms
   ): Promise<string> {
     const trainerId = this.getRequiredCurrentUserId();
     const clientProfile = await this.getClientProfileName(clientId);
     const agreementRef = doc(collection(this.firestore, 'agreements'));
     const now = new Date();
+
+    const normalizedPaymentTerms = this.normalizePaymentTerms(paymentTerms);
+    const paymentStatus: AgreementPaymentStatus = normalizedPaymentTerms?.required ? 'not_started' : 'not_required';
 
     await setDoc(doc(this.firestore, 'agreements', agreementRef.id), {
       id: agreementRef.id,
@@ -201,6 +221,8 @@ export class AgreementService {
       },
       agreementStoragePath: storagePath,
       recurring: Boolean(recurring),
+      ...(normalizedPaymentTerms ? { paymentTerms: normalizedPaymentTerms } : {}),
+      paymentStatus,
       dateCreated: now,
       dateUpdated: now,
       signatures: {
@@ -215,7 +237,7 @@ export class AgreementService {
     await this.postAgreementChatEvent(
       trainerId,
       clientId,
-      `${agreementName.trim() || 'A new agreement'} has been sent to you for review and signature.`
+      `${agreementName.trim() || 'A new agreement'} has been sent to you for your review and signature.`
     );
 
     return agreementRef.id;
@@ -320,10 +342,35 @@ export class AgreementService {
     );
   }
 
+  async createAgreementCheckoutSession(agreementId: string): Promise<string> {
+    const normalizedAgreementId = String(agreementId || '').trim();
+    if (!normalizedAgreementId) {
+      throw new Error('A valid agreement is required.');
+    }
+
+    const callable = httpsCallable<
+      CreateAgreementCheckoutSessionRequest,
+      CreateAgreementCheckoutSessionResponse
+    >(
+      getFunctions(undefined, 'us-central1'),
+      'createAgreementCheckoutSession'
+    );
+
+    const response = await callable({
+      agreementId: normalizedAgreementId,
+    });
+    const checkoutUrl = String(response.data?.url || '').trim();
+    if (!checkoutUrl) {
+      throw new Error('Unable to start Stripe checkout right now.');
+    }
+
+    return checkoutUrl;
+  }
+
   private async postAgreementChatEvent(senderId: string, recipientId: string, message: string): Promise<void> {
     try {
       const chatId = await this.chatsService.findOrCreateDirectChat(senderId, recipientId);
-      await this.chatsService.sendMessage(chatId, senderId, message);
+      await this.chatsService.sendAgreementEventMessage(chatId, senderId, message);
     } catch (error) {
       console.error('Error posting agreement chat event:', error);
     }
@@ -351,6 +398,9 @@ export class AgreementService {
   }
 
   private mapAgreementDoc(agreementId: string, data: Record<string, any>): Agreement {
+    const paymentTerms = this.normalizePaymentTerms(data['paymentTerms'] ?? data['payment_terms']);
+    const paymentStatus = this.normalizePaymentStatus(data['paymentStatus']);
+
     return {
       id: agreementId,
       name: String(data['name'] || 'Agreement'),
@@ -367,6 +417,12 @@ export class AgreementService {
       recurring: Boolean(data['recurring']),
       chatId: String(data['chatId'] || ''),
       signedAgreementStoragePath: String(data['signedAgreementStoragePath'] || ''),
+      paymentTerms,
+      paymentStatus,
+      stripeCheckoutSessionId: String(data['stripeCheckoutSessionId'] || ''),
+      stripePaymentIntentId: String(data['stripePaymentIntentId'] || ''),
+      stripeSubscriptionId: String(data['stripeSubscriptionId'] || ''),
+      stripeCustomerId: String(data['stripeCustomerId'] || ''),
     };
   }
 
@@ -376,6 +432,56 @@ export class AgreementService {
       return normalized as Agreement['status'];
     }
     return 'pending';
+  }
+
+  private normalizePaymentStatus(status: unknown): AgreementPaymentStatus {
+    const normalized = String(status || '').trim().toLowerCase();
+    const allowed: AgreementPaymentStatus[] = [
+      'not_required',
+      'not_started',
+      'checkout_started',
+      'paid',
+      'active',
+      'failed',
+      'canceled',
+    ];
+    return allowed.includes(normalized as AgreementPaymentStatus) ?
+      normalized as AgreementPaymentStatus :
+      'not_required';
+  }
+
+  private normalizePaymentTerms(value: unknown): AgreementPaymentTerms | undefined {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+      return undefined;
+    }
+
+    const terms = value as Record<string, unknown>;
+    const required = terms['required'] === true;
+    const type = String(terms['type'] || '').trim().toLowerCase();
+    const normalizedType = type === 'subscription' ? 'subscription' : 'one_time';
+    const amountCentsRaw = Number(terms['amountCents']);
+    const amountCents = Number.isFinite(amountCentsRaw) && amountCentsRaw > 0 ?
+      Math.trunc(amountCentsRaw) :
+      0;
+    const intervalRaw = String(terms['interval'] || '').trim().toLowerCase();
+    const interval: AgreementPaymentInterval | undefined = (
+      intervalRaw === 'week' || intervalRaw === 'month' || intervalRaw === 'year'
+    ) ? intervalRaw : undefined;
+    const description = String(terms['description'] || '').trim();
+
+    const normalizedTerms: AgreementPaymentTerms = {
+      required,
+      type: normalizedType,
+      amountCents: required ? amountCents : 0,
+      currency: 'usd',
+      description,
+    };
+
+    if (normalizedType === 'subscription' && interval) {
+      normalizedTerms.interval = interval;
+    }
+
+    return normalizedTerms;
   }
 
   private toDate(value: any): Date {
@@ -453,9 +559,7 @@ export class AgreementService {
     const policySections = (agreement.agreementData?.policies || [])
       .map((policyEntry) => this.renderPolicySection(policyEntry))
       .join('');
-    const recurringSection = agreement.recurring
-      ? '<p class="recurring-charge-text">This agreement includes a monthly recurring charge.</p>'
-      : '<p class="recurring-charge-text">This agreement does not include a monthly recurring charge.</p>';
+    const paymentSection = this.renderPaymentTermsSection(agreement);
     const trainerSignedAt = agreement.signatures?.trainer?.signedAt
       ? this.formatSignedDate(agreement.signatures.trainer.signedAt)
       : this.formatSignedDate(agreement.dateCreated);
@@ -597,7 +701,7 @@ export class AgreementService {
 
             <section>
               <h2>Payment Terms</h2>
-              <div class="card">${recurringSection}</div>
+              <div class="card">${paymentSection}</div>
             </section>
 
             <div class="footnote">
@@ -741,6 +845,30 @@ export class AgreementService {
         ${description ? `<p>${description}</p>` : ''}
         ${selectedOptions ? `<ul>${selectedOptions}</ul>` : '<p class="muted">No additional policy details were selected.</p>'}
       </div>
+    `;
+  }
+
+  private renderPaymentTermsSection(agreement: Agreement): string {
+    const terms = agreement.paymentTerms;
+    if (!terms?.required || !Number.isFinite(terms.amountCents) || terms.amountCents <= 0) {
+      if (agreement.recurring) {
+        return '<p class="recurring-charge-text">This agreement includes a monthly recurring charge.</p>';
+      }
+      return '<p class="recurring-charge-text">No payment is required for this agreement.</p>';
+    }
+
+    const amount = `$${(terms.amountCents / 100).toFixed(2)}`;
+    const paymentType = terms.type === 'subscription' ? 'Subscription' : 'One-time payment';
+    const interval = terms.type === 'subscription' && terms.interval ? ` every ${terms.interval}` : '';
+    const description = terms.description ? this.escapeHtml(terms.description) : 'Training services';
+
+    return `
+      <div class="label">Payment description</div>
+      <div class="value">${description}</div>
+      <div class="label" style="margin-top: 14px;">Billing</div>
+      <div class="value">${this.escapeHtml(paymentType)}${this.escapeHtml(interval)}</div>
+      <div class="label" style="margin-top: 14px;">Amount</div>
+      <div class="value">${this.escapeHtml(amount)} ${this.escapeHtml((terms.currency || 'usd').toUpperCase())}</div>
     `;
   }
 

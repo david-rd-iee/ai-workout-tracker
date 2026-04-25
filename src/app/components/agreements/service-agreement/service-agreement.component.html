@@ -127,15 +127,78 @@
     </ul>
   </div>
 
-  <!-- Recurring Payment Option -->
+  <!-- Payment Terms -->
   <div class="recurring-payment-section">
     <h3>Payment Terms</h3>
     <div class="recurring-checkbox-container removePDF">
-      <ion-checkbox [(ngModel)]="recurring" class="recurring-checkbox"></ion-checkbox>
-      <ion-label class="recurring-label">Make this a monthly recurring payment</ion-label>
+      <ion-checkbox [(ngModel)]="paymentRequired" (ngModelChange)="onPaymentRequirementToggle()" class="recurring-checkbox"></ion-checkbox>
+      <ion-label class="recurring-label">Payment is required</ion-label>
     </div>
-    <p class="recurring-description removePDF">Check this box if you want to set up automatic recurring payments for ongoing services.</p>
-    <p *ngIf="recurring" class="recurring-charge-text">* This is a monthly recurring charge</p>
+    <p class="recurring-description removePDF">Define billing terms directly in this agreement.</p>
+
+    <div class="payment-terms-grid removePDF" *ngIf="paymentRequired">
+      <div class="payment-field">
+        <label>Payment Type</label>
+        <ion-select [(ngModel)]="paymentType" (ionChange)="onPaymentTypeChange()">
+          <ion-select-option value="one_time">One-time</ion-select-option>
+          <ion-select-option value="subscription">Subscription</ion-select-option>
+        </ion-select>
+      </div>
+
+      <div class="payment-field">
+        <label>Amount (USD)</label>
+        <ion-input
+          type="number"
+          inputmode="decimal"
+          min="0"
+          step="0.01"
+          placeholder="0.00"
+          [(ngModel)]="paymentAmount"
+        ></ion-input>
+      </div>
+
+      <div class="payment-field" *ngIf="paymentType === 'subscription'">
+        <label>Billing Interval</label>
+        <ion-select [(ngModel)]="paymentInterval" (ionChange)="onPaymentTypeChange()">
+          <ion-select-option value="week">Weekly</ion-select-option>
+          <ion-select-option value="month">Monthly</ion-select-option>
+          <ion-select-option value="year">Yearly</ion-select-option>
+        </ion-select>
+      </div>
+
+      <div class="payment-field payment-field-full">
+        <label>Payment Description</label>
+        <ion-textarea
+          autoGrow="true"
+          rows="3"
+          placeholder="Example: Monthly coaching subscription with 4 live sessions."
+          [(ngModel)]="paymentDescription"
+        ></ion-textarea>
+      </div>
+    </div>
+
+    <p *ngIf="paymentRequired && paymentType === 'subscription'" class="recurring-charge-text">* This agreement includes a recurring charge.</p>
+    <p *ngIf="!paymentRequired" class="recurring-charge-text">* No payment is required.</p>
+
+    <div
+      *ngIf="mode === 'client' && (paymentRequired || recurringSetupWarning || isCheckingRecurringPaymentSetup)"
+      class="recurring-setup-check"
+    >
+      <p *ngIf="isCheckingRecurringPaymentSetup" class="recurring-setup-status">
+        Checking Stripe requirements...
+      </p>
+      <p *ngIf="!isCheckingRecurringPaymentSetup && recurringSetupWarning" class="recurring-setup-warning">
+        {{ recurringSetupWarning }}
+      </p>
+      <ion-button
+        *ngIf="showRecurringSetupAction"
+        size="small"
+        fill="outline"
+        (click)="openStripeSetup()"
+      >
+        Open Stripe Setup
+      </ion-button>
+    </div>
   </div>
 
   <p>By typing your name below, you acknowledge that you have read, understood, and agree to the terms and conditions outlined in this agreement.</p>

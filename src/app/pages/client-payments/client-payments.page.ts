@@ -23,10 +23,9 @@ import {
 import { HeaderComponent } from '../../components/header/header.component';
 import { ChatsService } from '../../services/chats.service';
 import {
+  ClientAgreementPricingSummary,
   ClientPaymentsService,
   ClientTrainerPaymentContext,
-  ClientTrainerPlan,
-  ClientTrainerPlanBillingType,
 } from '../../services/client-payments.service';
 
 interface AssignedTrainerWorkout {
@@ -71,7 +70,7 @@ export class ClientPaymentsPage implements OnInit {
   successMessage = '';
   highlightWorkoutsSection = false;
   paymentContext: ClientTrainerPaymentContext | null = null;
-  activePlanId = '';
+  activeAgreementId = '';
   assignedWorkouts: AssignedTrainerWorkout[] = [];
 
   constructor() {
@@ -102,29 +101,29 @@ export class ClientPaymentsPage implements OnInit {
     await this.loadPaymentContext();
   }
 
-  async startCheckout(plan: ClientTrainerPlan): Promise<void> {
-    const planId = String(plan?.planId || '').trim();
-    if (!planId) {
+  async startCheckout(agreementPricing: ClientAgreementPricingSummary): Promise<void> {
+    const agreementId = String(agreementPricing?.agreementId || '').trim();
+    if (!agreementId) {
       return;
     }
 
     this.errorMessage = '';
     this.successMessage = '';
-    this.activePlanId = planId;
+    this.activeAgreementId = agreementId;
     this.isStartingCheckout = true;
 
     try {
-      const result = await this.clientPaymentsService.createCheckoutSession(planId);
-      const checkoutWindow = window.open(result.checkoutUrl, '_blank', 'noopener');
+      const result = await this.clientPaymentsService.createAgreementCheckoutSession(agreementId);
+      const checkoutWindow = window.open(result.url, '_blank', 'noopener');
       if (!checkoutWindow) {
-        window.location.assign(result.checkoutUrl);
+        window.location.assign(result.url);
       }
     } catch (error) {
       console.error('[ClientPaymentsPage] Failed to start checkout:', error);
       this.errorMessage = this.resolveErrorMessage(error);
     } finally {
       this.isStartingCheckout = false;
-      this.activePlanId = '';
+      this.activeAgreementId = '';
     }
   }
 
@@ -159,25 +158,43 @@ export class ClientPaymentsPage implements OnInit {
     return (cents / 100).toFixed(2);
   }
 
-  formatBillingType(billingType: ClientTrainerPlanBillingType): string {
-    if (billingType === 'quarterly') {
-      return 'Every 3 Months';
+  formatBillingType(agreementPricing: ClientAgreementPricingSummary): string {
+    if (agreementPricing.type === 'one_time') {
+      return 'One-time';
     }
-    if (billingType === 'yearly') {
+
+    if (agreementPricing.interval === 'week') {
+      return 'Weekly';
+    }
+    if (agreementPricing.interval === 'year') {
       return 'Yearly';
     }
-    return billingType === 'weekly' ? 'Weekly' : 'Monthly';
+    return 'Monthly';
   }
 
-  checkoutButtonLabel(billingType: ClientTrainerPlanBillingType): string {
-    return this.isRecurringType(billingType) ? 'Subscribe' : 'Pay Trainer';
+  checkoutButtonLabel(agreementPricing: ClientAgreementPricingSummary): string {
+    return agreementPricing.type === 'subscription' ? 'Subscribe' : 'Pay with Stripe';
   }
 
-  isRecurringType(billingType: ClientTrainerPlanBillingType): boolean {
-    return billingType === 'weekly' ||
-      billingType === 'monthly' ||
-      billingType === 'quarterly' ||
-      billingType === 'yearly';
+  canCheckout(agreementPricing: ClientAgreementPricingSummary): boolean {
+    const agreementStatus = String(agreementPricing.status || '').toLowerCase();
+    const paymentStatus = String(agreementPricing.paymentStatus || '').toLowerCase();
+    const isSigned = agreementStatus === 'signed';
+    const alreadyPaid = paymentStatus === 'paid' || paymentStatus === 'active';
+    return isSigned && !alreadyPaid;
+  }
+
+  checkoutStatusLabel(agreementPricing: ClientAgreementPricingSummary): string {
+    const agreementStatus = String(agreementPricing.status || '').toLowerCase();
+    const paymentStatus = String(agreementPricing.paymentStatus || '').toLowerCase();
+    if (paymentStatus === 'paid' || paymentStatus === 'active') {
+      return 'Paid';
+    }
+    if (agreementStatus !== 'signed') {
+      return 'Awaiting Signature';
+    }
+
+    return 'Ready for Payment';
   }
 
   private async loadPaymentContext(): Promise<void> {
@@ -205,7 +222,7 @@ export class ClientPaymentsPage implements OnInit {
   private applyCheckoutMessageFromQueryParams(): void {
     const checkoutResult = String(this.route.snapshot.queryParamMap.get('checkout') || '').trim().toLowerCase();
     if (checkoutResult === 'success') {
-      this.successMessage = 'Payment checkout completed. Your subscription should appear shortly.';
+      this.successMessage = 'Payment checkout completed successfully.';
       return;
     }
 

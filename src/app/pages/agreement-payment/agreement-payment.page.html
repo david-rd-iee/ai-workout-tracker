@@ -1,0 +1,63 @@
+<app-header
+  [title]="'Agreement Payment'"
+  [hideTitle]="true"
+  [transparent]="true"
+  [neoBlend]="true"
+  [showBack]="true"
+  backHref="/service-agreements"
+></app-header>
+
+<ion-content [fullscreen]="true" class="agreement-payment-content">
+  <div class="background-gradient"></div>
+
+  <div class="agreement-payment-page">
+    <ion-card class="payment-card">
+      <ion-card-content>
+        <div class="loading-shell" *ngIf="isLoading">
+          <ion-spinner name="crescent"></ion-spinner>
+          <span>Loading agreement payment details...</span>
+        </div>
+
+        <ng-container *ngIf="!isLoading">
+          <div class="error-shell" *ngIf="errorMessage">
+            <ion-icon name="alert-circle-outline"></ion-icon>
+            <p>{{ errorMessage }}</p>
+            <div class="error-actions">
+              <ion-button fill="outline" (click)="refresh()">
+                <ion-icon slot="start" name="refresh-outline"></ion-icon>
+                Retry
+              </ion-button>
+              <ion-button fill="clear" (click)="goBackToAgreements()">Back to Agreements</ion-button>
+            </div>
+          </div>
+
+          <ng-container *ngIf="!errorMessage && agreement as loadedAgreement">
+            <h1>{{ loadedAgreement.name }}</h1>
+            <p class="sub-copy">{{ loadedAgreement.trainerName || 'Trainer' }}</p>
+
+            <div class="payment-detail-grid">
+              <div class="detail-item">
+                <span>Service</span>
+                <strong>{{ loadedAgreement.paymentTerms?.description || 'Training services' }}</strong>
+              </div>
+              <div class="detail-item">
+                <span>Billing</span>
+                <strong>{{ billingLabel(loadedAgreement) }}</strong>
+              </div>
+              <div class="detail-item">
+                <span>Amount</span>
+                <strong>${{ formatAmount(loadedAgreement.paymentTerms?.amountCents || 0) }} {{ (loadedAgreement.paymentTerms?.currency || 'usd').toUpperCase() }}</strong>
+              </div>
+            </div>
+
+            <ion-button class="checkout-button" [disabled]="isStartingCheckout" (click)="startCheckout()">
+              <ion-spinner *ngIf="isStartingCheckout" slot="start" name="crescent"></ion-spinner>
+              <ion-icon *ngIf="!isStartingCheckout" slot="start" name="cash-outline"></ion-icon>
+              {{ isStartingCheckout ? 'Redirecting to Stripe...' : 'Pay with Stripe' }}
+            </ion-button>
+          </ng-container>
+        </ng-container>
+      </ion-card-content>
+    </ion-card>
+  </div>
+</ion-content>

@@ -160,11 +160,15 @@ export class ChatsService {
     await this.sendChatMessage(chatId, senderId, text, 'workout_summary');
   }
 
+  async sendAgreementEventMessage(chatId: string, senderId: string, text: string): Promise<void> {
+    await this.sendChatMessage(chatId, senderId, text, 'agreement_event');
+  }
+
   private async sendChatMessage(
     chatId: string,
     senderId: string,
     text: string,
-    type: 'text' | 'workout_summary'
+    type: 'text' | 'workout_summary' | 'agreement_event'
   ): Promise<void> {
     const messageRef = ref(this.db, `${this.chatsRoot}/${chatId}/messages`);
     const newMessageRef = push(messageRef);
@@ -181,9 +185,7 @@ export class ChatsService {
     await set(newMessageRef, message);
 
     // Update last message
-    const lastMessagePreview = type === 'workout_summary'
-      ? 'Workout summary shared'
-      : text;
+    const lastMessagePreview = type === 'workout_summary' ? 'Workout summary shared' : text;
     await set(ref(this.db, `${this.chatsRoot}/${chatId}/lastMessage`), lastMessagePreview);
     await set(ref(this.db, `${this.chatsRoot}/${chatId}/lastMessageTime`), timestamp);
     
@@ -233,7 +235,7 @@ export class ChatsService {
                 ? 'Shared a workout summary'
                 : (text.length > 100 ? `${text.substring(0, 97)}...` : text),
               {
-                type: 'chat',
+                type: type === 'agreement_event' ? 'agreement' : 'chat',
                 chatId,
                 senderId,
                 timestamp,

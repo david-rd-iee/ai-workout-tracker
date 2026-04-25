@@ -1,17 +1,19 @@
 import { ChangeDetectorRef, Component, EventEmitter, Input, OnInit, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { IonButton, IonCheckbox, IonIcon, IonInput, IonLabel, LoadingController, ToastController } from '@ionic/angular/standalone';
+import { Router } from '@angular/router';
+import { IonButton, IonCheckbox, IonIcon, IonInput, IonLabel, IonSelect, IonSelectOption, IonTextarea, LoadingController, ToastController } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
 import { add, chevronDownOutline, chevronUpOutline, informationCircleOutline, remove } from 'ionicons/icons';
 import { TruncatePipe } from 'src/app/pipes/truncate.pipe';
 import { AgreementService } from 'src/app/services/agreement.service';
-import { policy, service } from 'src/app/Interfaces/Agreement';
+import { AgreementPaymentInterval, AgreementPaymentTerms, policy, service } from 'src/app/Interfaces/Agreement';
 import { UserService } from 'src/app/services/account/user.service';
 import { trainerProfile } from 'src/app/Interfaces/Profiles/Trainer';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { Capacitor } from '@capacitor/core';
 import { FileUploadService } from 'src/app/services/file-upload.service';
+import { TrainerPaymentsService } from 'src/app/services/trainer-payments.service';
 
 @Component({
   selector: 'app-service-agreement',
@@ -26,6 +28,9 @@ import { FileUploadService } from 'src/app/services/file-upload.service';
     IonInput,
     IonIcon,
     IonLabel,
+    IonSelect,
+    IonSelectOption,
+    IonTextarea,
     TruncatePipe
   ]
 })
@@ -55,11 +60,22 @@ export class ServiceAgreementComponent implements OnInit {
   selectedPolicies: policy[] = [];
   policies: policy[] = [];
   recurring: boolean = false;
+  paymentRequired = false;
+  paymentType: 'one_time' | 'subscription' = 'one_time';
+  paymentAmount = '';
+  paymentInterval: AgreementPaymentInterval = 'month';
+  paymentDescription = '';
+  isCheckingRecurringPaymentSetup = false;
+  recurringSetupWarning = '';
+  showRecurringSetupAction = false;
+  hasValidatedRecurringSetup = false;
   constructor(
     private cdr: ChangeDetectorRef,
     private agreementService: AgreementService,
     private fileUploadService: FileUploadService,
+    private trainerPaymentsService: TrainerPaymentsService,
     private loadingController: LoadingController,
+    private router: Router,
     private userService: UserService,
     private toastController: ToastController
   ) {
@@ -89,11 +105,36 @@ export class ServiceAgreementComponent implements OnInit {
         // Only set a default name if no name was provided via input
         this.agreementName = 'New Agreement';
       }
+
+      if (this.mode === 'client') {
+        await this.validateRecurringPaymentSetup();
+      }
     } catch (error) {
       console.error('Error initializing service agreement component:', error);
     } finally {
       this.isLoading = false;
     }
+  }
+
+  onPaymentRequirementToggle(): void {
+    this.recurring = this.paymentRequired && this.paymentType === 'subscription';
+    if (!this.paymentRequired) {
+      this.resetRecurringSetupState();
+      return;
+    }
+
+    if (this.mode === 'client') {
+      void this.validateRecurringPaymentSetup();
+    }
+  }
+
+  onPaymentTypeChange(): void {
+    this.recurring = this.paymentRequired && this.paymentType === 'subscription';
+    if (!this.paymentRequired || this.mode !== 'client') {
+      return;
+    }
+
+    void this.validateRecurringPaymentSetup();
   }
 
   async loadTemplate() {
@@ -117,9 +158,15 @@ export class ServiceAgreementComponent implements OnInit {
           }
         }
         
-        // Load recurring field if it exists
-        if ((template as any).recurring !== undefined) {
+        const savedPaymentTerms = this.normalizePaymentTerms(
+          (template as any).paymentTerms || (template as any).payment_terms
+        );
+        if (savedPaymentTerms) {
+          this.applyPaymentTermsToForm(savedPaymentTerms);
+        } else if ((template as any).recurring !== undefined) {
           this.recurring = (template as any).recurring;
+          this.paymentRequired = this.recurring;
+          this.paymentType = this.recurring ? 'subscription' : 'one_time';
         }
       }
     } catch (error) {
@@ -331,6 +378,7 @@ export class ServiceAgreementComponent implements OnInit {
         this.services,
         this.selectedPolicies,
         this.recurring,
+        this.buildPaymentTerms(),
         this.templateId || undefined
       );
 
@@ -405,6 +453,25 @@ export class ServiceAgreementComponent implements OnInit {
         return;
       }
 
+      const stripeSetupValidForSending = await this.validateRecurringPaymentSetup();
+      if (!stripeSetupValidForSending) {
+        const toast = await this.toastController.create({
+          message: 'Complete Stripe setup before sending agreements.',
+          duration: 3200,
+          position: 'bottom',
+          color: 'warning'
+        });
+        await toast.present();
+        return;
+      }
+
+      const paymentTermsValid = await this.validatePaymentTerms();
+      if (!paymentTermsValid) {
+        return;
+      }
+
+      this.recurring = this.paymentRequired && this.paymentType === 'subscription';
+
       // Get trainer's name from profile
       const userInfo = this.userService.getUserInfo()() as trainerProfile;
       if (!userInfo || !userInfo.firstName || !userInfo.lastName) {
@@ -438,7 +505,8 @@ export class ServiceAgreementComponent implements OnInit {
         this.selectedPolicies,
         trainerName,
         fileName,
-        this.recurring
+        this.recurring,
+        this.buildPaymentTerms()
       );
 
       // Emit event with agreement ID and storage path
@@ -471,9 +539,7 @@ export class ServiceAgreementComponent implements OnInit {
     const policySections = this.selectedPolicies
       .map((policyEntry) => this.renderPolicySection(policyEntry))
       .join('');
-    const recurringSection = this.recurring
-      ? '<p class="recurring-charge-text">This agreement includes a monthly recurring charge.</p>'
-      : '<p class="recurring-charge-text">This agreement does not include a monthly recurring charge.</p>';
+    const recurringSection = this.renderPaymentTermsHtml();
 
     return `
       <!DOCTYPE html>
@@ -742,5 +808,187 @@ export class ServiceAgreementComponent implements OnInit {
 
     const byteArray = new Uint8Array(byteNumbers);
     return new File([byteArray], fileName, { type: contentType });
+  }
+
+  openStripeSetup(): void {
+    void this.router.navigate(['/tabs/stripe-setup']);
+  }
+
+  private resetRecurringSetupState(): void {
+    this.recurringSetupWarning = '';
+    this.showRecurringSetupAction = false;
+    this.hasValidatedRecurringSetup = false;
+    this.isCheckingRecurringPaymentSetup = false;
+  }
+
+  private async validateRecurringPaymentSetup(): Promise<boolean> {
+    if (this.mode !== 'client') {
+      return true;
+    }
+
+    this.isCheckingRecurringPaymentSetup = true;
+    this.recurringSetupWarning = '';
+    this.showRecurringSetupAction = false;
+
+    try {
+      const stripeSummary = await this.trainerPaymentsService.getStripeSummary();
+      const hasActivePlan = this.recurring ?
+        await this.trainerPaymentsService.hasActiveTrainerPlan() :
+        true;
+
+      const stripeReady = Boolean(
+        stripeSummary?.accountId &&
+        stripeSummary.detailsSubmitted &&
+        stripeSummary.chargesEnabled &&
+        stripeSummary.payoutsEnabled &&
+        stripeSummary.onboardingStatus === 'complete'
+      );
+
+      if (!stripeReady && !hasActivePlan && this.recurring) {
+        this.recurringSetupWarning =
+          'Stripe onboarding and an active trainer plan are required before sending a recurring agreement.';
+        this.showRecurringSetupAction = true;
+        return false;
+      }
+
+      if (!stripeReady) {
+        this.recurringSetupWarning = !this.paymentRequired ?
+          'Stripe onboarding is required before sending agreements. Complete setup to continue.' :
+          this.recurring ?
+          'Stripe onboarding is incomplete. Finish setup before sending a recurring agreement.' :
+          'Stripe onboarding is incomplete. Finish setup before sending a payment-required agreement.';
+        this.showRecurringSetupAction = true;
+        return false;
+      }
+
+      if (this.recurring && !hasActivePlan) {
+        this.recurringSetupWarning =
+          'Create at least one active trainer plan before sending a recurring agreement.';
+        this.showRecurringSetupAction = true;
+        return false;
+      }
+
+      this.recurringSetupWarning = '';
+      this.showRecurringSetupAction = false;
+      this.hasValidatedRecurringSetup = true;
+      return true;
+    } catch (error) {
+      console.error('Error validating recurring payment setup:', error);
+      this.recurringSetupWarning =
+        'Could not verify Stripe setup right now. Please check Stripe Setup before sending.';
+      this.showRecurringSetupAction = true;
+      this.hasValidatedRecurringSetup = false;
+      return false;
+    } finally {
+      this.isCheckingRecurringPaymentSetup = false;
+      this.cdr.markForCheck();
+    }
+  }
+
+  private buildPaymentTerms(): AgreementPaymentTerms | undefined {
+    if (!this.paymentRequired) {
+      return {
+        required: false,
+        type: 'one_time',
+        amountCents: 0,
+        currency: 'usd',
+        description: '',
+      };
+    }
+
+    const normalizedAmount = Number(String(this.paymentAmount || '').trim());
+    const amountCents = Number.isFinite(normalizedAmount) ?
+      Math.round(normalizedAmount * 100) :
+      0;
+    const description = String(this.paymentDescription || '').trim();
+
+    return {
+      required: true,
+      type: this.paymentType,
+      amountCents,
+      currency: 'usd',
+      interval: this.paymentType === 'subscription' ? this.paymentInterval : undefined,
+      description,
+    };
+  }
+
+  private async validatePaymentTerms(): Promise<boolean> {
+    if (!this.paymentRequired) {
+      return true;
+    }
+
+    const amount = Number(String(this.paymentAmount || '').trim());
+    if (!Number.isFinite(amount) || amount <= 0) {
+      const toast = await this.toastController.create({
+        message: 'Enter a payment amount greater than 0.',
+        duration: 2800,
+        position: 'bottom',
+        color: 'warning',
+      });
+      await toast.present();
+      return false;
+    }
+
+    if (this.paymentType === 'subscription' && !this.paymentInterval) {
+      const toast = await this.toastController.create({
+        message: 'Select a billing interval for subscriptions.',
+        duration: 2800,
+        position: 'bottom',
+        color: 'warning',
+      });
+      await toast.present();
+      return false;
+    }
+
+    return true;
+  }
+
+  private applyPaymentTermsToForm(paymentTerms: AgreementPaymentTerms): void {
+    this.paymentRequired = paymentTerms.required === true;
+    this.paymentType = paymentTerms.type === 'subscription' ? 'subscription' : 'one_time';
+    this.paymentAmount = paymentTerms.amountCents > 0 ? (paymentTerms.amountCents / 100).toFixed(2) : '';
+    this.paymentInterval = paymentTerms.interval || 'month';
+    this.paymentDescription = String(paymentTerms.description || '');
+    this.recurring = this.paymentRequired && this.paymentType === 'subscription';
+  }
+
+  private normalizePaymentTerms(value: unknown): AgreementPaymentTerms | undefined {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+      return undefined;
+    }
+
+    const terms = value as Record<string, unknown>;
+    return {
+      required: terms['required'] === true,
+      type: String(terms['type'] || '').trim().toLowerCase() === 'subscription' ? 'subscription' : 'one_time',
+      amountCents: Number.isFinite(Number(terms['amountCents'])) ? Math.max(0, Math.trunc(Number(terms['amountCents']))) : 0,
+      currency: 'usd',
+      interval: ((): AgreementPaymentInterval | undefined => {
+        const interval = String(terms['interval'] || '').trim().toLowerCase();
+        return interval === 'week' || interval === 'month' || interval === 'year' ?
+          interval :
+          undefined;
+      })(),
+      description: String(terms['description'] || ''),
+    };
+  }
+
+  private renderPaymentTermsHtml(): string {
+    const paymentTerms = this.buildPaymentTerms();
+    if (!paymentTerms?.required || paymentTerms.amountCents <= 0) {
+      return '<p class="recurring-charge-text">No payment is required for this agreement.</p>';
+    }
+
+    const amountLabel = `$${(paymentTerms.amountCents / 100).toFixed(2)} ${paymentTerms.currency.toUpperCase()}`;
+    const intervalLabel = paymentTerms.type === 'subscription' && paymentTerms.interval ?
+      ` every ${paymentTerms.interval}` :
+      '';
+    const description = this.escapeHtml(paymentTerms.description || 'Training services');
+
+    return `
+      <p class="recurring-charge-text">${this.escapeHtml(paymentTerms.type === 'subscription' ? 'Subscription' : 'One-time payment')}${this.escapeHtml(intervalLabel)}</p>
+      <p class="recurring-charge-text">Amount: ${this.escapeHtml(amountLabel)}</p>
+      <p class="recurring-charge-text">Description: ${description}</p>
+    `;
   }
 }

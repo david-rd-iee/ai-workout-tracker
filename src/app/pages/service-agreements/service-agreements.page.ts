@@ -5,10 +5,12 @@ import {
   ElementRef,
   Signal,
   ViewChild,
+  effect,
   inject,
 } from '@angular/core';
 import { SafeResourceUrl, DomSanitizer } from '@angular/platform-browser';
 import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
 import {
   IonButton,
   IonCard,
@@ -20,6 +22,7 @@ import {
   IonInput,
   IonSpinner,
 } from '@ionic/angular/standalone';
+import { ToastController } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import {
   checkmarkCircle,
@@ -63,6 +66,8 @@ export class ServiceAgreementsPage implements AfterViewInit {
 
   private readonly agreementService = inject(AgreementService);
   private readonly sanitizer = inject(DomSanitizer);
+  private readonly router = inject(Router);
+  private readonly toastController = inject(ToastController);
   readonly user = inject(UserService).getUserInfo() as Signal<trainerProfile | clientProfile | null>;
 
   isLoading = true;
@@ -89,11 +94,24 @@ export class ServiceAgreementsPage implements AfterViewInit {
       trashOutline,
     });
 
-    this.refreshData();
+    void this.refreshData();
+
+    effect(() => {
+      const currentUser = this.user();
+      if (!currentUser) {
+        return;
+      }
+
+      void this.refreshData();
+    });
   }
 
   ngAfterViewInit(): void {
     this.queueCanvasSetup();
+  }
+
+  ionViewWillEnter(): void {
+    void this.refreshData();
   }
 
   get isTrainer(): boolean {
@@ -112,6 +130,18 @@ export class ServiceAgreementsPage implements AfterViewInit {
     return this.agreements.filter((agreement) => agreement.status !== 'pending');
   }
 
+  openSignedAgreements(): void {
+    void this.router.navigate(['/service-agreements/signed']);
+  }
+
+  continueToPayment(agreement: Agreement): void {
+    if (!agreement?.id) {
+      return;
+    }
+
+    void this.router.navigate(['/agreement-payment', agreement.id]);
+  }
+
   async refreshData(): Promise<void> {
     const currentUser = this.user();
     if (!currentUser) {
@@ -122,18 +152,22 @@ export class ServiceAgreementsPage implements AfterViewInit {
     this.isLoading = true;
     try {
       if (currentUser.accountType === 'trainer') {
-        const [templates, agreements] = await Promise.all([
-          this.agreementService.getAgreementTemplates(),
-          this.agreementService.getAgreementsForRole('trainer', String((currentUser as any)?.id || '')),
-        ]);
-        this.templates = templates;
-        this.agreements = agreements;
+        try {
+          this.templates = await this.agreementService.getAgreementTemplates();
+        } catch (error) {
+          console.error('Error loading agreement templates:', error);
+          this.templates = [];
+        }
+
+        try {
+          this.agreements = await this.agreementService.getAgreementsForRole('trainer');
+        } catch (error) {
+          console.error('Error loading sent agreements:', error);
+          this.agreements = [];
+        }
       } else {
         this.templates = [];
-        this.agreements = await this.agreementService.getAgreementsForRole(
-          'client',
-          String((currentUser as any)?.id || '')
-        );
+        this.agreements = await this.agreementService.getAgreementsForRole('client');
         if (!this.signerName) {
           this.signerName = `${currentUser.firstName || ''} ${currentUser.lastName || ''}`.trim();
         }
@@ -301,11 +335,38 @@ export class ServiceAgreementsPage implements AfterViewInit {
 
     this.isSubmittingSignature = true;
     try {
+      const signedAgreementId = this.selectedAgreement.id;
+      const selectedAgreementBeforeSign = this.selectedAgreement;
       await this.agreementService.signAgreement(this.selectedAgreement.id, signerName, canvas.toDataURL('image/png'));
       await this.refreshData();
+
+      const requiresPayment = selectedAgreementBeforeSign.paymentTerms?.required === true;
+      const paymentStatus = String(selectedAgreementBeforeSign.paymentStatus || '').toLowerCase();
+      const alreadySettled = paymentStatus === 'paid' || paymentStatus === 'active';
+      if (requiresPayment && !alreadySettled) {
+        await this.router.navigate(['/agreement-payment', signedAgreementId]);
+      }
+    } catch (error) {
+      console.error('Error signing agreement:', error);
+      await this.presentSignErrorToast(error);
     } finally {
       this.isSubmittingSignature = false;
     }
+  }
+
+  private async presentSignErrorToast(error: unknown): Promise<void> {
+    const errorCode = String((error as { code?: string })?.code || '').toLowerCase();
+    const message = errorCode.includes('permission-denied') || errorCode.includes('unauthorized')
+      ? 'You do not have permission to sign this agreement right now.'
+      : 'Could not sign this agreement. Please try again.';
+
+    const toast = await this.toastController.create({
+      message,
+      duration: 3200,
+      color: 'danger',
+      position: 'top',
+    });
+    await toast.present();
   }
 
   private queueCanvasSetup(): void {
