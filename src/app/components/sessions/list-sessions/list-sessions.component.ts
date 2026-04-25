@@ -1,6 +1,6 @@
 import { Component, Input, OnInit, Signal, Output, EventEmitter, OnChanges } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
-import { IonAvatar, IonIcon, IonSkeletonText, ModalController } from '@ionic/angular/standalone';
+import { IonAvatar, IonIcon, IonSkeletonText, ModalController, IonButton } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
 import { timeOutline, personOutline, closeOutline } from 'ionicons/icons';
 // import { AgreementModalComponent } from '../../agreements/agreement-modal/agreement-modal.component';
@@ -37,6 +37,7 @@ export interface SessionData {
     CommonModule,
     IonAvatar,
     IonIcon,
+    IonButton,
     IonSkeletonText,
     DatePipe,
     ListSessionNotesComponent
@@ -48,6 +49,7 @@ export class ListSessionsComponent implements OnInit, OnChanges {
   @Input() noSessionsFound: boolean = false;
   @Input() userType: 'trainer' | 'client' = 'client';
   @Output() sessionChanged = new EventEmitter<{action: string, sessionId: string}>();
+  @Output() requestSession = new EventEmitter<void>();
   
   // Cache for user profiles to avoid redundant calls
   private profileCache: { [key: string]: trainerProfile | clientProfile } = {};
@@ -358,5 +360,9 @@ export class ListSessionsComponent implements OnInit, OnChanges {
         }
       }
     }
+  }
+
+  onRequestSession(): void {
+    this.requestSession.emit();
   }
 }

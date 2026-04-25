@@ -20,6 +20,13 @@
   <!-- No sessions found -->
   <div *ngIf="!isLoading && noSessionsFound" class="no-sessions">
     <p>You don't have any sessions scheduled.</p>
+    <ion-button
+      *ngIf="userType === 'client'"
+      class="request-session-empty-button"
+      (click)="onRequestSession()"
+    >
+      Request Session
+    </ion-button>
   </div>
   
   <!-- Sessions list -->

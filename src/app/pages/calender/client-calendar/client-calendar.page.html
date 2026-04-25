@@ -39,7 +39,8 @@
         [noSessionsFound]="trainings.length === 0"
         [userType]="'client'"
         [attr.data-refresh]="forceRefresh"
-        (sessionChanged)="onSessionChanged($event)">
+        (sessionChanged)="onSessionChanged($event)"
+        (requestSession)="requestSessionWithTrainer()">
       </app-list-sessions>
       
       <ion-card class="empty-card" *ngIf="allTrainings.length === 0 && !isLoading()">

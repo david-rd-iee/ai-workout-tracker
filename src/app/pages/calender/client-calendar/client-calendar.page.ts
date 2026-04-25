@@ -1,13 +1,14 @@
-import { Component, OnInit, signal, effect, Injector, runInInjectionContext } from '@angular/core';
+import { Component, OnInit, signal, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { IonContent, IonDatetime, IonCard, IonCardHeader, IonCardTitle, IonCardContent, IonSpinner } from '@ionic/angular/standalone';
+import { IonContent, IonDatetime, IonCard, IonCardHeader, IonCardTitle, IonCardContent, IonSpinner, ModalController, ToastController } from '@ionic/angular/standalone';
 import { HeaderComponent } from '../../../components/header/header.component';
 import { SessionBookingService } from '../../../services/session-booking.service';
 import { UserService } from '../../../services/account/user.service';
-import { trainerProfile } from '../../../Interfaces/Profiles/Trainer';
-import { ListSessionsComponent, SessionData } from '../../../components/sessions/list-sessions/list-sessions.component';
+import { ListSessionsComponent } from '../../../components/sessions/list-sessions/list-sessions.component';
 import { ActivatedRoute } from '@angular/router';
+import { AppointmentSchedulerModalComponent } from 'src/app/components/modals/appointment-scheduler-modal/appointment-scheduler-modal.component';
+import { Firestore, doc, getDoc } from '@angular/fire/firestore';
 
 @Component({
   selector: 'app-client-calendar',
@@ -41,22 +42,27 @@ export class ClientCalendarPage implements OnInit {
   highlightedDates: any[] = [];
   // Force refresh when needed
   forceRefresh = 0;
+  private currentUserRecord: Record<string, unknown> | null = null;
 
   constructor(
     private sessionBookingService: SessionBookingService,
     private userService: UserService,
-    private injector: Injector,
-    private route: ActivatedRoute
+    private route: ActivatedRoute,
+    private modalController: ModalController,
+    private toastController: ToastController,
+    private firestore: Firestore,
   ) {
     // Use effect to react to changes in the current user
     effect(() => {
       const user = this.userService.getCurrentUser()();
       if (user) {
+        this.currentUserRecord = user as unknown as Record<string, unknown>;
         this.clientId = user.uid;
         if (this.isLoading()) {
           this.loadMonthlyBookings();
         }
       } else {
+        this.currentUserRecord = null;
         console.error('No user logged in');
         this.isLoading.set(false);
       }
@@ -228,5 +234,96 @@ export class ClientCalendarPage implements OnInit {
       // Note: loadMonthlyBookings already calls loadTrainings internally
       // so we don't need to call it again here
     }
+  }
+
+  async requestSessionWithTrainer(): Promise<void> {
+    const clientId = String(this.clientId || '').trim();
+    if (!clientId) {
+      await this.showToast('Please log in to request a session.', 'warning');
+      return;
+    }
+
+    const trainerId = await this.getAssignedTrainerId(clientId);
+    if (!trainerId) {
+      await this.showToast('Assign a trainer before requesting a session.', 'warning');
+      return;
+    }
+
+    try {
+      const [trainerSummary, trainerProfileSnap, clientSummary] = await Promise.all([
+        this.userService.getUserSummaryDirectly(trainerId),
+        getDoc(doc(this.firestore, 'trainers', trainerId)),
+        this.userService.getUserSummaryDirectly(clientId),
+      ]);
+
+      const trainerProfile = trainerProfileSnap.exists()
+        ? (trainerProfileSnap.data() as Record<string, unknown>)
+        : {};
+
+      const trainerFirstName = String(trainerSummary?.firstName || trainerProfile['firstName'] || '').trim();
+      const trainerLastName = String(trainerSummary?.lastName || trainerProfile['lastName'] || '').trim();
+      const trainerName = `${trainerFirstName} ${trainerLastName}`.trim() || 'Your Trainer';
+
+      const clientFirstName = String(clientSummary?.firstName || this.currentUserRecord?.['firstName'] || '').trim();
+      const clientLastName = String(clientSummary?.lastName || this.currentUserRecord?.['lastName'] || '').trim();
+      const clientDisplayName = `${clientFirstName} ${clientLastName}`.trim() || 'Client';
+
+      const modal = await this.modalController.create({
+        component: AppointmentSchedulerModalComponent,
+        componentProps: {
+          mode: 'client-request',
+          trainerId,
+          trainerName,
+          trainerFirstName,
+          trainerLastName,
+          trainerProfilePic: String(trainerSummary?.profilepic || trainerProfile['profilepic'] || '').trim(),
+          clientId,
+          clientName: clientDisplayName,
+          clientFirstName,
+          clientLastName,
+          clientProfilePic: String(clientSummary?.profilepic || this.currentUserRecord?.['profilepic'] || '').trim(),
+        },
+      });
+
+      await modal.present();
+      const { data } = await modal.onWillDismiss();
+      if (data?.success) {
+        await this.loadMonthlyBookings();
+      }
+    } catch (error) {
+      console.error('Error opening session request modal from client calendar:', error);
+      await this.showToast('Unable to open session request right now.', 'danger');
+    }
+  }
+
+  private async getAssignedTrainerId(clientId: string): Promise<string> {
+    const fromUserRecord = String(
+      this.currentUserRecord?.['trainerId'] || this.currentUserRecord?.['trainerID'] || ''
+    ).trim();
+    if (fromUserRecord) {
+      return fromUserRecord;
+    }
+
+    try {
+      const clientSnap = await getDoc(doc(this.firestore, 'clients', clientId));
+      if (!clientSnap.exists()) {
+        return '';
+      }
+      const data = clientSnap.data() as Record<string, unknown>;
+      return String(data['trainerId'] || data['trainerID'] || '').trim();
+    } catch (error) {
+      console.error('Error resolving assigned trainer for client calendar:', error);
+      return '';
+    }
+  }
+
+  private async showToast(message: string, color: 'success' | 'warning' | 'danger' = 'success') {
+    const toast = await this.toastController.create({
+      message,
+      duration: 2500,
+      position: 'top',
+      color,
+    });
+    await toast.present();
   }
 }

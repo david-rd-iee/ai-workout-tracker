@@ -37,6 +37,17 @@ $atlas-muted: #5b6473;
     text-align: center;
     font-size: 16px;
     color: $atlas-muted;
+
+    p {
+      margin: 0 0 12px;
+    }
+
+    .request-session-empty-button {
+      --border-radius: 16px;
+      --box-shadow: none;
+      margin: 0;
+      font-weight: 700;
+    }
   }
   
   .sessions-list {
