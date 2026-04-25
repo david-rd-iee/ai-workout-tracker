@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, Input, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { IonButton, IonButtons, IonContent, IonHeader, IonItem, IonLabel, IonList, IonTitle, IonToolbar, ModalController } from '@ionic/angular/standalone';
-import { AgreementTemplate } from 'src/app/Interfaces/Agreement';
+import { AgreementPaymentTerms, AgreementTemplate } from 'src/app/Interfaces/Agreement';
 import { ServiceAgreementComponent } from 'src/app/components/agreements/service-agreement/service-agreement.component';
 import { AgreementService } from 'src/app/services/agreement.service';
 import { UserService } from 'src/app/services/account/user.service';
@@ -31,6 +31,10 @@ import { trainerProfile } from 'src/app/Interfaces/Profiles/Trainer';
 export class AgreementModalComponent implements OnInit {
   @Input() clientId: string | null = null;
   @Input() clientName: string = '';
+  @Input() sourceAgreementId: string | null = null;
+  @Input() initialPaymentTerms: AgreementPaymentTerms | null = null;
+  @Input() initialAgreementName: string = '';
+  @Input() sendButtonLabel: string = '';
 
   templates: AgreementTemplate[] = [];
   selectedTemplateId: string | null = null;
@@ -46,8 +50,13 @@ export class AgreementModalComponent implements OnInit {
   ) {}
 
   ngOnInit() {
+    if (this.isAmendmentFlow) {
+      this.createNew();
+      return;
+    }
+
     // Load templates from your service
-    this.loadTemplates();
+    void this.loadTemplates();
   }
 
   async loadTemplates() {
@@ -120,5 +129,9 @@ export class AgreementModalComponent implements OnInit {
 
   dismiss() {
     this.modalCtrl.dismiss();
+  }
+
+  get isAmendmentFlow(): boolean {
+    return !!String(this.sourceAgreementId || '').trim();
   }
 }

@@ -41,7 +41,7 @@ import {
 } from '@angular/fire/firestore';
 import { NotificationService } from '../../services/notification.service';
 import { AgreementService } from '../../services/agreement.service';
-import { Agreement } from 'src/app/Interfaces/Agreement';
+import { Agreement, AgreementPaymentTerms } from 'src/app/Interfaces/Agreement';
 import {
   TrainerClientVideoAnalysisItem,
   TrainerClientVideoAnalysisService,
@@ -387,6 +387,70 @@ export class ClientDetailsPage implements OnInit {
   }
 
   async sendAgreement() {
+    await this.openAgreementComposer();
+  }
+
+  async editPaymentTerms(): Promise<void> {
+    const paymentTerms = this.currentAgreementPaymentTerms;
+    if (!paymentTerms) {
+      await this.showToast('No active payment terms found to edit.', 'warning');
+      return;
+    }
+
+    const sourceAgreementId = String(
+      this.currentAgreement?.sourceAgreementId || this.currentAgreement?.id || ''
+    ).trim();
+    await this.openAgreementComposer({
+      sourceAgreementId: sourceAgreementId || undefined,
+      initialPaymentTerms: paymentTerms,
+      initialAgreementName: this.buildPaymentTermsAmendmentName(),
+      sendButtonLabel: 'Send Payment Terms Update',
+    });
+  }
+
+  get currentAgreementPaymentTerms(): AgreementPaymentTerms | null {
+    return this.normalizePaymentTerms(
+      this.currentAgreement?.activePaymentTerms || this.currentAgreement?.paymentTerms
+    );
+  }
+
+  get currentAgreementPaymentTypeLabel(): string {
+    const terms = this.currentAgreementPaymentTerms;
+    if (!terms || !terms.required) {
+      return 'No payment required';
+    }
+    return terms.type === 'subscription' ? 'Subscription' : 'One-time payment';
+  }
+
+  get currentAgreementPaymentAmountLabel(): string {
+    const terms = this.currentAgreementPaymentTerms;
+    if (!terms || !terms.required || terms.amountCents <= 0) {
+      return '$0.00';
+    }
+    return `$${(terms.amountCents / 100).toFixed(2)} ${String(terms.currency || 'usd').toUpperCase()}`;
+  }
+
+  get currentAgreementPaymentIntervalLabel(): string {
+    const terms = this.currentAgreementPaymentTerms;
+    if (!terms || !terms.required || terms.type !== 'subscription' || !terms.interval) {
+      return 'N/A';
+    }
+
+    if (terms.interval === 'week') {
+      return 'Weekly';
+    }
+    if (terms.interval === 'year') {
+      return 'Yearly';
+    }
+    return 'Monthly';
+  }
+
+  private async openAgreementComposer(options?: {
+    sourceAgreementId?: string;
+    initialPaymentTerms?: AgreementPaymentTerms;
+    initialAgreementName?: string;
+    sendButtonLabel?: string;
+  }): Promise<void> {
     const clientId = String(this.client?.id || '').trim();
     if (!clientId) {
       await this.showToast('Missing client information for agreement.', 'warning');
@@ -398,6 +462,10 @@ export class ClientDetailsPage implements OnInit {
       componentProps: {
         clientId,
         clientName: this.client?.name || 'Client',
+        sourceAgreementId: options?.sourceAgreementId || null,
+        initialPaymentTerms: options?.initialPaymentTerms || null,
+        initialAgreementName: options?.initialAgreementName || '',
+        sendButtonLabel: options?.sendButtonLabel || '',
       },
     });
 
@@ -405,7 +473,12 @@ export class ClientDetailsPage implements OnInit {
 
     const { data } = await modal.onWillDismiss();
     if (data?.action === 'send') {
-      await this.showToast('Agreement sent to client.', 'success');
+      await this.showToast(
+        options?.sourceAgreementId
+          ? 'Payment terms update sent for client signature.'
+          : 'Agreement sent to client.',
+        'success'
+      );
       await this.loadClientDetailsData();
     }
   }
@@ -835,17 +908,21 @@ export class ClientDetailsPage implements OnInit {
       const signedAgreements = agreementsSnap.docs
         .map((agreementDoc) => {
           const data = agreementDoc.data() as Record<string, any>;
-          const status = String(data['status'] || '').trim().toLowerCase();
+          const status = String(data['agreementStatus'] || data['status'] || '').trim().toLowerCase();
           return {
             id: agreementDoc.id,
             name: String(data['name'] || 'Agreement'),
             trainerId: String(data['trainerId'] || ''),
             clientId: String(data['clientId'] || ''),
             status,
+            agreementStatus: status,
             dateCreated: this.toDate(data['dateCreated']) || this.toDate(data['createdAt']) || new Date(0),
             dateUpdated: this.toDate(data['dateUpdated']) || this.toDate(data['updatedAt']) || new Date(0),
+            sourceAgreementId: String(data['sourceAgreementId'] || agreementDoc.id),
             signedAgreementStoragePath: String(data['signedAgreementStoragePath'] || ''),
             agreementStoragePath: String(data['agreementStoragePath'] || ''),
+            activePaymentTerms: this.normalizePaymentTerms(data['activePaymentTerms']) || undefined,
+            paymentTerms: this.normalizePaymentTerms(data['paymentTerms'] || data['payment_terms']) || undefined,
           } as Agreement;
         })
         .filter((agreement) => signedStatuses.has(String(agreement.status || '').toLowerCase()))
@@ -1208,6 +1285,33 @@ export class ClientDetailsPage implements OnInit {
     }
     const parsed = new Date(String(value));
     return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
+
+  private buildPaymentTermsAmendmentName(): string {
+    const baseName = String(this.currentAgreement?.name || '').trim() || 'Training Agreement';
+    return `${baseName} - Payment Terms Update`;
+  }
+
+  private normalizePaymentTerms(value: unknown): AgreementPaymentTerms | null {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+      return null;
+    }
+
+    const terms = value as Record<string, unknown>;
+    const type = String(terms['type'] || '').trim().toLowerCase();
+    const interval = String(terms['interval'] || '').trim().toLowerCase();
+    const rawAmountCents = Number(terms['amountCents']);
+
+    return {
+      required: terms['required'] === true,
+      type: type === 'subscription' ? 'subscription' : 'one_time',
+      amountCents: Number.isFinite(rawAmountCents) ? Math.max(0, Math.trunc(rawAmountCents)) : 0,
+      currency: 'usd',
+      interval: interval === 'week' || interval === 'month' || interval === 'year'
+        ? interval
+        : undefined,
+      description: String(terms['description'] || '').trim(),
+    };
   }
 
   private toTitleCase(value: string): string {

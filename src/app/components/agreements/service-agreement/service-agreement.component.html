@@ -213,7 +213,7 @@
 
   <!-- Show Send To Client button in client mode -->
   <ion-button *ngIf="mode === 'client' && clientId" expand="block" (click)="sendAgreement()">
-    Send Agreement to Client
+    {{ sendButtonLabel || 'Send Agreement to Client' }}
   </ion-button>
 
   <!-- Show both buttons if needed (optional) -->

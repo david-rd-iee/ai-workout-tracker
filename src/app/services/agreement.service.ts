@@ -3,6 +3,7 @@ import { Auth } from '@angular/fire/auth';
 import {
   Firestore,
   collection,
+  deleteField,
   doc,
   deleteDoc,
   getDoc,
@@ -197,7 +198,8 @@ export class AgreementService {
     trainerName: string,
     storagePath: string,
     recurring = false,
-    paymentTerms?: AgreementPaymentTerms
+    paymentTerms?: AgreementPaymentTerms,
+    sourceAgreementId?: string
   ): Promise<string> {
     const trainerId = this.getRequiredCurrentUserId();
     const clientProfile = await this.getClientProfileName(clientId);
@@ -206,6 +208,7 @@ export class AgreementService {
 
     const normalizedPaymentTerms = this.normalizePaymentTerms(paymentTerms);
     const paymentStatus: AgreementPaymentStatus = normalizedPaymentTerms?.required ? 'not_started' : 'not_required';
+    const normalizedSourceAgreementId = String(sourceAgreementId || '').trim() || agreementRef.id;
 
     await setDoc(doc(this.firestore, 'agreements', agreementRef.id), {
       id: agreementRef.id,
@@ -215,13 +218,15 @@ export class AgreementService {
       trainerName: trainerName.trim(),
       clientName: clientProfile,
       status: 'pending',
+      agreementStatus: 'pending',
       agreement_data: {
         services: this.cloneServices(services),
         policies: this.clonePolicies(policies),
       },
       agreementStoragePath: storagePath,
+      sourceAgreementId: normalizedSourceAgreementId,
       recurring: Boolean(recurring),
-      ...(normalizedPaymentTerms ? { paymentTerms: normalizedPaymentTerms } : {}),
+      ...(normalizedPaymentTerms ? { pendingPaymentTerms: normalizedPaymentTerms } : {}),
       paymentStatus,
       dateCreated: now,
       dateUpdated: now,
@@ -303,7 +308,8 @@ export class AgreementService {
       throw new Error('Only the assigned client can sign this agreement.');
     }
 
-    if (agreement.status === 'signed') {
+    const normalizedStatus = String(agreement.agreementStatus || agreement.status || '').trim().toLowerCase();
+    if (normalizedStatus === 'signed' || normalizedStatus === 'completed' || normalizedStatus === 'partially_signed') {
       throw new Error('This agreement has already been signed.');
     }
 
@@ -320,8 +326,15 @@ export class AgreementService {
       { contentType: 'text/html;charset=utf-8' }
     );
 
-    await updateDoc(doc(this.firestore, 'agreements', agreementId), {
+    const activePaymentTerms = this.resolveAgreementBillingTerms(agreement, {
+      includePendingWhenNoActive: true,
+    });
+
+    const agreementUpdatePayload: Record<string, unknown> = {
       status: 'signed',
+      agreementStatus: 'signed',
+      signedAt,
+      effectiveAt: signedAt,
       dateUpdated: signedAt,
       signedAgreementStoragePath: signedDocumentPath,
       signatures: {
@@ -332,8 +345,13 @@ export class AgreementService {
           signatureStoragePath: signaturePath,
         },
       },
+      pendingPaymentTerms: deleteField(),
+      activePaymentTerms: activePaymentTerms ?? deleteField(),
+      paymentTerms: activePaymentTerms ?? deleteField(),
       updatedAt: serverTimestamp(),
-    });
+    };
+
+    await updateDoc(doc(this.firestore, 'agreements', agreementId), agreementUpdatePayload);
 
     await this.postAgreementChatEvent(
       clientId,
@@ -398,7 +416,14 @@ export class AgreementService {
   }
 
   private mapAgreementDoc(agreementId: string, data: Record<string, any>): Agreement {
-    const paymentTerms = this.normalizePaymentTerms(data['paymentTerms'] ?? data['payment_terms']);
+    const status = this.normalizeStatus(data['agreementStatus'] ?? data['status']);
+    const legacyPaymentTerms = this.normalizePaymentTerms(data['paymentTerms'] ?? data['payment_terms']);
+    const activePaymentTerms =
+      this.normalizePaymentTerms(data['activePaymentTerms']) ??
+      (status !== 'pending' ? legacyPaymentTerms : undefined);
+    const pendingPaymentTerms =
+      this.normalizePaymentTerms(data['pendingPaymentTerms']) ??
+      (status === 'pending' ? legacyPaymentTerms : undefined);
     const paymentStatus = this.normalizePaymentStatus(data['paymentStatus']);
 
     return {
@@ -408,16 +433,22 @@ export class AgreementService {
       clientId: String(data['clientId'] || ''),
       trainerName: String(data['trainerName'] || ''),
       clientName: String(data['clientName'] || ''),
-      status: this.normalizeStatus(data['status']),
+      status,
+      agreementStatus: status,
       agreementData: data['agreement_data'],
       agreementStoragePath: String(data['agreementStoragePath'] || ''),
       dateCreated: this.toDate(data['dateCreated']),
       dateUpdated: this.toDate(data['dateUpdated']),
+      signedAt: this.toOptionalDate(data['signedAt']),
+      effectiveAt: this.toOptionalDate(data['effectiveAt']),
+      sourceAgreementId: String(data['sourceAgreementId'] || agreementId),
       signatures: data['signatures'],
       recurring: Boolean(data['recurring']),
       chatId: String(data['chatId'] || ''),
       signedAgreementStoragePath: String(data['signedAgreementStoragePath'] || ''),
-      paymentTerms,
+      activePaymentTerms,
+      pendingPaymentTerms,
+      paymentTerms: activePaymentTerms ?? legacyPaymentTerms,
       paymentStatus,
       stripeCheckoutSessionId: String(data['stripeCheckoutSessionId'] || ''),
       stripePaymentIntentId: String(data['stripePaymentIntentId'] || ''),
@@ -493,6 +524,39 @@ export class AgreementService {
     }
     const parsed = new Date(value);
     return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
+  }
+
+  private toOptionalDate(value: unknown): Date | undefined {
+    if (value === null || value === undefined || value === '') {
+      return undefined;
+    }
+
+    if (value instanceof Date) {
+      return Number.isNaN(value.getTime()) ? undefined : value;
+    }
+
+    if (value && typeof value === 'object' && typeof (value as { toDate?: () => Date }).toDate === 'function') {
+      const converted = (value as { toDate: () => Date }).toDate();
+      return Number.isNaN(converted.getTime()) ? undefined : converted;
+    }
+
+    const parsed = new Date(String(value));
+    return Number.isNaN(parsed.getTime()) ? undefined : parsed;
+  }
+
+  private resolveAgreementBillingTerms(
+    agreement: Agreement,
+    options: { includePendingWhenNoActive?: boolean } = {}
+  ): AgreementPaymentTerms | undefined {
+    if (agreement.activePaymentTerms) {
+      return this.normalizePaymentTerms(agreement.activePaymentTerms);
+    }
+
+    if (options.includePendingWhenNoActive && agreement.pendingPaymentTerms) {
+      return this.normalizePaymentTerms(agreement.pendingPaymentTerms);
+    }
+
+    return this.normalizePaymentTerms(agreement.paymentTerms);
   }
 
   private cloneServices(services: service[]): service[] {
@@ -849,7 +913,9 @@ export class AgreementService {
   }
 
   private renderPaymentTermsSection(agreement: Agreement): string {
-    const terms = agreement.paymentTerms;
+    const terms = this.resolveAgreementBillingTerms(agreement, {
+      includePendingWhenNoActive: true,
+    });
     if (!terms?.required || !Number.isFinite(terms.amountCents) || terms.amountCents <= 0) {
       if (agreement.recurring) {
         return '<p class="recurring-charge-text">This agreement includes a monthly recurring charge.</p>';

@@ -46,43 +46,6 @@
         <p>No workouts saved yet for this client.</p>
       </div>
 
-      <section class="report-shell" *ngIf="historyGroups.length > 0">
-        <div class="report-head">
-          <h2>
-            <ion-icon name="document-text-outline" aria-hidden="true"></ion-icon>
-            Excel-Style Report Preview
-          </h2>
-          <ion-item class="type-select" lines="none">
-            <ion-label>Table</ion-label>
-            <ion-select interface="popover" [(ngModel)]="selectedType" (ionChange)="refreshPreview()">
-              <ion-select-option value="Strength">Strength</ion-select-option>
-              <ion-select-option value="Cardio">Cardio</ion-select-option>
-              <ion-select-option value="Other">Other</ion-select-option>
-            </ion-select>
-          </ion-item>
-        </div>
-
-        <div class="csv-preview-wrap" *ngIf="previewHasRows; else noPreviewRows">
-          <table class="csv-table">
-            <thead>
-              <tr>
-                <th *ngFor="let heading of tableHeaders">{{ heading }}</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr *ngFor="let row of tableRows">
-                <td *ngFor="let cell of row">{{ cell }}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-        <ng-template #noPreviewRows>
-          <div class="status-card compact">
-            <p>No rows available for this table type yet.</p>
-          </div>
-        </ng-template>
-      </section>
-
       <ion-list class="history-list" *ngIf="historyGroups.length > 0">
         <ion-item
           class="day-card"

@@ -37,6 +37,10 @@ import { TrainerPaymentsService } from 'src/app/services/trainer-payments.servic
 export class ServiceAgreementComponent implements OnInit {
   @Input() templateId: string | null = null;
   @Input() agreementName: string = '';
+  @Input() initialAgreementName: string = '';
+  @Input() initialPaymentTerms: AgreementPaymentTerms | null = null;
+  @Input() sourceAgreementId: string | null = null;
+  @Input() sendButtonLabel: string = '';
   
   @Output() onSave = new EventEmitter<any>();
   @Output() onSend = new EventEmitter<{ id: string; name: string; storagePath: string }>();
@@ -104,6 +108,14 @@ export class ServiceAgreementComponent implements OnInit {
       } else if (!this.agreementName) {
         // Only set a default name if no name was provided via input
         this.agreementName = 'New Agreement';
+      }
+
+      if (this.initialAgreementName.trim()) {
+        this.agreementName = this.initialAgreementName.trim();
+      }
+
+      if (this.initialPaymentTerms) {
+        this.applyPaymentTermsToForm(this.initialPaymentTerms);
       }
 
       if (this.mode === 'client') {
@@ -506,7 +518,8 @@ export class ServiceAgreementComponent implements OnInit {
         trainerName,
         fileName,
         this.recurring,
-        this.buildPaymentTerms()
+        this.buildPaymentTerms(),
+        this.sourceAgreementId || undefined
       );
 
       // Emit event with agreement ID and storage path

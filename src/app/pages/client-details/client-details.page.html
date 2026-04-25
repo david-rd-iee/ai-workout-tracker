@@ -184,6 +184,27 @@
               Signed {{ currentAgreement.dateUpdated | date:'MMM d, yyyy' }}
             </p>
 
+            <div class="payment-terms-overview">
+              <p class="payment-terms-title">Payment Terms</p>
+              <div class="payment-terms-grid" *ngIf="currentAgreementPaymentTerms; else noPaymentTerms">
+                <p><strong>Type:</strong> {{ currentAgreementPaymentTypeLabel }}</p>
+                <p><strong>Amount:</strong> {{ currentAgreementPaymentAmountLabel }}</p>
+                <p><strong>Interval:</strong> {{ currentAgreementPaymentIntervalLabel }}</p>
+                <p *ngIf="currentAgreementPaymentTerms?.description">
+                  <strong>Description:</strong> {{ currentAgreementPaymentTerms?.description }}
+                </p>
+              </div>
+              <ng-template #noPaymentTerms>
+                <p class="payment-terms-empty">
+                  No active payment terms found in the signed agreement.
+                </p>
+              </ng-template>
+              <ion-button fill="outline" size="small" (click)="editPaymentTerms()">
+                <ion-icon name="create-outline" slot="start"></ion-icon>
+                Edit Payment Terms
+              </ion-button>
+            </div>
+
             <div class="current-agreement-preview-shell">
               <p class="current-agreement-preview-loading" *ngIf="isLoadingCurrentAgreementPreview">
                 Loading agreement preview...

@@ -48,6 +48,7 @@ export interface agreementData {
 export type AgreementPaymentType = 'one_time' | 'subscription';
 export type AgreementPaymentInterval = 'week' | 'month' | 'year';
 export type AgreementCurrency = 'usd';
+export type AgreementStatus = 'pending' | 'signed' | 'completed' | 'partially_signed';
 export type AgreementPaymentStatus =
     'not_required' |
     'not_started' |
@@ -81,17 +82,24 @@ export interface Agreement {
     name: string;
     trainerId: string;
     clientId: string;
-    status: 'pending' | 'signed' | 'completed' | 'partially_signed';
+    status: AgreementStatus;
+    agreementStatus: AgreementStatus;
     agreementData?: agreementData;
     agreementStoragePath: string;
     trainerName?: string;
     clientName?: string;
     dateCreated: Date;
     dateUpdated: Date;
+    signedAt?: Date;
+    effectiveAt?: Date;
+    sourceAgreementId?: string;
     signatures?: SignatureData;
     recurring?: boolean;
     chatId?: string;
     signedAgreementStoragePath?: string;
+    activePaymentTerms?: AgreementPaymentTerms;
+    pendingPaymentTerms?: AgreementPaymentTerms;
+    // Legacy mirror for older reads. Prefer activePaymentTerms for billing decisions.
     paymentTerms?: AgreementPaymentTerms;
     paymentStatus?: AgreementPaymentStatus;
     stripeCheckoutSessionId?: string;

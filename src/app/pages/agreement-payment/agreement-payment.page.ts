@@ -108,7 +108,12 @@ export class AgreementPaymentPage {
         throw new Error('Agreement not found.');
       }
 
-      if (agreement.status !== 'signed') {
+      const agreementStatus = String(agreement.agreementStatus || agreement.status || '').toLowerCase();
+      const isSigned =
+        agreementStatus === 'signed' ||
+        agreementStatus === 'completed' ||
+        agreementStatus === 'partially_signed';
+      if (!isSigned) {
         throw new Error('Agreement must be signed before payment can begin.');
       }
 

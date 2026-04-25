@@ -179,7 +179,9 @@ export class ClientPaymentsPage implements OnInit {
   canCheckout(agreementPricing: ClientAgreementPricingSummary): boolean {
     const agreementStatus = String(agreementPricing.status || '').toLowerCase();
     const paymentStatus = String(agreementPricing.paymentStatus || '').toLowerCase();
-    const isSigned = agreementStatus === 'signed';
+    const isSigned = agreementStatus === 'signed' ||
+      agreementStatus === 'completed' ||
+      agreementStatus === 'partially_signed';
     const alreadyPaid = paymentStatus === 'paid' || paymentStatus === 'active';
     return isSigned && !alreadyPaid;
   }
@@ -190,7 +192,11 @@ export class ClientPaymentsPage implements OnInit {
     if (paymentStatus === 'paid' || paymentStatus === 'active') {
       return 'Paid';
     }
-    if (agreementStatus !== 'signed') {
+    if (
+      agreementStatus !== 'signed' &&
+      agreementStatus !== 'completed' &&
+      agreementStatus !== 'partially_signed'
+    ) {
       return 'Awaiting Signature';
     }
 

@@ -22,6 +22,7 @@ type AgreementPaymentStatus =
   | "active"
   | "failed"
   | "canceled";
+type AgreementStatus = "pending" | "signed" | "completed" | "partially_signed";
 
 interface AgreementPaymentTerms {
   required: boolean;
@@ -64,9 +65,11 @@ export const createAgreementCheckoutSession = onCall(
     const agreementData = toRecord(agreementSnapshot.data());
     const agreementClientId = normalizeString(agreementData["clientId"]);
     const trainerId = normalizeString(agreementData["trainerId"]);
-    const agreementStatus = normalizeString(agreementData["status"]).toLowerCase();
+    const agreementStatus = normalizeAgreementStatus(
+      agreementData["agreementStatus"] ?? agreementData["status"]
+    );
     const paymentStatus = normalizePaymentStatus(agreementData["paymentStatus"]);
-    const paymentTerms = normalizePaymentTerms(agreementData["paymentTerms"] ?? agreementData["payment_terms"]);
+    const paymentTerms = resolveActivePaymentTerms(agreementData, agreementStatus);
 
     if (!agreementClientId || !trainerId) {
       throw new HttpsError("failed-precondition", "Agreement is missing client or trainer information.");
@@ -76,7 +79,7 @@ export const createAgreementCheckoutSession = onCall(
       throw new HttpsError("permission-denied", "Only the assigned client can pay this agreement.");
     }
 
-    if (agreementStatus !== "signed") {
+    if (!isSignedAgreementStatus(agreementStatus)) {
       throw new HttpsError("failed-precondition", "Agreement must be signed before checkout.");
     }
 
@@ -296,6 +299,40 @@ function normalizePaymentStatus(value: unknown): AgreementPaymentStatus {
   return allowed.includes(normalized as AgreementPaymentStatus) ?
     normalized as AgreementPaymentStatus :
     "not_required";
+}
+
+function normalizeAgreementStatus(value: unknown): AgreementStatus {
+  const normalized = normalizeString(value).toLowerCase();
+  if (
+    normalized === "signed" ||
+    normalized === "completed" ||
+    normalized === "partially_signed"
+  ) {
+    return normalized;
+  }
+
+  return "pending";
+}
+
+function isSignedAgreementStatus(status: AgreementStatus): boolean {
+  return status === "signed" || status === "completed" || status === "partially_signed";
+}
+
+function resolveActivePaymentTerms(
+  agreementData: Record<string, unknown>,
+  agreementStatus: AgreementStatus
+): AgreementPaymentTerms | null {
+  const activePaymentTerms = normalizePaymentTerms(agreementData["activePaymentTerms"]);
+  if (activePaymentTerms) {
+    return activePaymentTerms;
+  }
+
+  // Backward compatibility for previously signed agreements that stored only paymentTerms.
+  if (isSignedAgreementStatus(agreementStatus)) {
+    return normalizePaymentTerms(agreementData["paymentTerms"] ?? agreementData["payment_terms"]);
+  }
+
+  return null;
 }
 
 function normalizePaymentTerms(value: unknown): AgreementPaymentTerms | null {

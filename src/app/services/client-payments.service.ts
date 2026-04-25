@@ -10,7 +10,7 @@ import {
   where,
 } from '@angular/fire/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
-import { AgreementPaymentInterval, AgreementPaymentStatus, AgreementPaymentType } from '../Interfaces/Agreement';
+import { AgreementPaymentInterval, AgreementPaymentStatus, AgreementPaymentType, AgreementStatus } from '../Interfaces/Agreement';
 
 export interface ClientAgreementPricingSummary {
   agreementId: string;
@@ -136,7 +136,14 @@ export class ClientPaymentsService {
       return null;
     }
 
-    const paymentTerms = toRecord(agreementData['paymentTerms']);
+    const status = normalizeAgreementStatus(
+      agreementData['agreementStatus'] ?? agreementData['status']
+    );
+    if (!isSignedAgreementStatus(status)) {
+      return null;
+    }
+
+    const paymentTerms = resolveActivePaymentTermsRecord(agreementData, status);
     const paymentRequired = paymentTerms['required'] === true;
     const amountCents = toPositiveInteger(paymentTerms['amountCents']);
     if (!paymentRequired || amountCents === null) {
@@ -149,7 +156,6 @@ export class ClientPaymentsService {
     }
 
     const interval = normalizePaymentInterval(paymentTerms['interval']);
-    const status = normalizeString(agreementData['status']).toLowerCase() || 'pending';
     const paymentStatus = normalizePaymentStatus(agreementData['paymentStatus']);
 
     return {
@@ -243,6 +249,39 @@ function normalizePaymentStatus(value: unknown): AgreementPaymentStatus {
   return allowed.includes(normalized as AgreementPaymentStatus) ?
     normalized as AgreementPaymentStatus :
     'not_started';
+}
+
+function normalizeAgreementStatus(value: unknown): AgreementStatus {
+  const normalized = normalizeString(value).toLowerCase();
+  if (
+    normalized === 'signed' ||
+    normalized === 'completed' ||
+    normalized === 'partially_signed'
+  ) {
+    return normalized;
+  }
+  return 'pending';
+}
+
+function isSignedAgreementStatus(status: AgreementStatus): boolean {
+  return status === 'signed' || status === 'completed' || status === 'partially_signed';
+}
+
+function resolveActivePaymentTermsRecord(
+  agreementData: Record<string, unknown>,
+  status: AgreementStatus
+): Record<string, unknown> {
+  const activeTerms = toRecord(agreementData['activePaymentTerms']);
+  if (Object.keys(activeTerms).length > 0) {
+    return activeTerms;
+  }
+
+  // Backward compatibility: older signed docs used paymentTerms as the billable terms.
+  if (isSignedAgreementStatus(status)) {
+    return toRecord(agreementData['paymentTerms'] ?? agreementData['payment_terms']);
+  }
+
+  return {};
 }
 
 function resolveClientAssignedTrainerId(clientData: Record<string, unknown>): string {

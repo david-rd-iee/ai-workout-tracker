@@ -23,6 +23,7 @@ service cloud.firestore {
 
     function isClientAssignedToTrainer(clientId, trainerId) {
       return isSignedIn() && (
+        exists(/databases/$(database)/documents/trainers/$(trainerId)/clients/$(clientId)) ||
         (
           exists(/databases/$(database)/documents/users/$(clientId)) &&
           (
@@ -283,6 +284,12 @@ service cloud.firestore {
              'signatures',
              'clientSigned',
              'status',
+             'agreementStatus',
+             'signedAt',
+             'effectiveAt',
+             'activePaymentTerms',
+             'pendingPaymentTerms',
+             'paymentTerms',
              'date_updated',
              'dateUpdated',
              'signedAgreementStoragePath',
@@ -304,9 +311,7 @@ service cloud.firestore {
       // Trainers can only read summaries for clients assigned to them.
       // Writes remain owner-only (trainers cannot write client summaries).
       match /workoutSummaries/{summaryId} {
-        allow read: if isOwner(userId) || (
-          isTrainer() && isClientAssignedToTrainer(userId, request.auth.uid)
-        );
+        allow read: if request.auth.uid == userId || isClientAssignedToTrainer(userId, request.auth.uid);
         allow create, update, delete: if isOwner(userId);
       }
 

@@ -4,21 +4,20 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { Auth } from '@angular/fire/auth';
 import { Firestore, doc, getDoc } from '@angular/fire/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
-import { FormsModule } from '@angular/forms';
+import { Capacitor } from '@capacitor/core';
+import { Directory, Filesystem } from '@capacitor/filesystem';
+import { Share } from '@capacitor/share';
 import {
   IonButton,
   IonContent,
   IonIcon,
   IonItem,
-  IonLabel,
   IonList,
-  IonSelect,
-  IonSelectOption,
+  IonLabel,
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
 import {
   chevronForwardOutline,
-  documentTextOutline,
   downloadOutline,
   gridOutline,
 } from 'ionicons/icons';
@@ -37,7 +36,6 @@ type CsvTableType = 'Strength' | 'Cardio' | 'Other';
   styleUrls: ['./trainer-client-workout-history.page.scss'],
   imports: [
     CommonModule,
-    FormsModule,
     HeaderComponent,
     IonContent,
     IonList,
@@ -45,24 +43,18 @@ type CsvTableType = 'Strength' | 'Cardio' | 'Other';
     IonLabel,
     IonButton,
     IonIcon,
-    IonSelect,
-    IonSelectOption,
   ],
 })
 export class TrainerClientWorkoutHistoryPage implements OnInit {
   historyGroups: WorkoutHistoryDateGroup[] = [];
   isLoading = false;
   pageTitle = 'Client Workout History';
-  backHref = '/tabs/home';
+  backHref?: string;
   clientId = '';
   clientName = '';
 
   isAuthorized = false;
   accessError = '';
-
-  selectedType: CsvTableType = 'Strength';
-  tableHeaders: string[] = [];
-  tableRows: string[][] = [];
 
   constructor(
     private auth: Auth,
@@ -73,7 +65,6 @@ export class TrainerClientWorkoutHistoryPage implements OnInit {
   ) {
     addIcons({
       chevronForwardOutline,
-      documentTextOutline,
       downloadOutline,
       gridOutline,
     });
@@ -113,7 +104,6 @@ export class TrainerClientWorkoutHistoryPage implements OnInit {
 
       const summaries = await this.workoutSummaryService.listRecentWorkoutSummaries(this.clientId, 30);
       this.historyGroups = summaries.map((summary) => this.workoutSummaryService.toHistoryGroup(summary));
-      this.refreshPreview();
     } catch (error) {
       console.error('[TrainerClientWorkoutHistoryPage] Failed loading history:', error);
       this.accessError = 'Failed to load client workout history.';
@@ -161,13 +151,7 @@ export class TrainerClientWorkoutHistoryPage implements OnInit {
     });
   }
 
-  refreshPreview(): void {
-    const model = this.buildTableModel(this.selectedType);
-    this.tableHeaders = model.header;
-    this.tableRows = model.rows;
-  }
-
-  exportCsv(): void {
+  async exportCsv(): Promise<void> {
     if (this.historyGroups.length === 0) {
       return;
     }
@@ -179,19 +163,41 @@ export class TrainerClientWorkoutHistoryPage implements OnInit {
     ];
 
     const csv = sections.join('\n\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const dateTag = new Date().toISOString().slice(0, 10);
-    const clientSlug = this.clientName
-      ? this.clientName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
-      : this.clientId;
-    const filename = `${clientSlug || 'client'}_workout_history_${dateTag}.csv`;
+    const filename = this.buildCsvFilename();
 
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement('a');
-    anchor.href = url;
-    anchor.download = filename;
-    anchor.click();
-    URL.revokeObjectURL(url);
+    if (!Capacitor.isNativePlatform()) {
+      this.downloadCsvOnWeb(csv, filename);
+      return;
+    }
+
+    try {
+      const relativePath = `exports/${filename}`;
+      const writeResult = await Filesystem.writeFile({
+        path: relativePath,
+        data: this.toBase64(csv),
+        directory: Directory.Cache,
+        recursive: true,
+      });
+
+      const fileUri = writeResult.uri || (
+        await Filesystem.getUri({
+          path: relativePath,
+          directory: Directory.Cache,
+        })
+      ).uri;
+
+      await Share.share({
+        title: 'Workout history CSV',
+        text: this.clientName
+          ? `${this.clientName} workout history`
+          : 'Client workout history',
+        url: fileUri,
+        dialogTitle: 'Share workout history CSV',
+      });
+    } catch (error) {
+      console.error('[TrainerClientWorkoutHistoryPage] Native CSV share failed. Falling back to download.', error);
+      this.downloadCsvOnWeb(csv, filename);
+    }
   }
 
   private buildSectionCsv(label: string, type: CsvTableType): string {
@@ -345,7 +351,34 @@ export class TrainerClientWorkoutHistoryPage implements OnInit {
     }
   }
 
-  get previewHasRows(): boolean {
-    return this.tableRows.length > 0;
+  private buildCsvFilename(): string {
+    const dateTag = new Date().toISOString().slice(0, 10);
+    const clientSlug = this.clientName
+      ? this.clientName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
+      : this.clientId;
+    return `${clientSlug || 'client'}_workout_history_${dateTag}.csv`;
+  }
+
+  private downloadCsvOnWeb(csv: string, filename: string): void {
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = filename;
+    anchor.click();
+    URL.revokeObjectURL(url);
+  }
+
+  private toBase64(text: string): string {
+    const bytes = new TextEncoder().encode(text);
+    let binary = '';
+    const chunkSize = 0x8000;
+
+    for (let index = 0; index < bytes.length; index += chunkSize) {
+      const chunk = bytes.subarray(index, index + chunkSize);
+      binary += String.fromCharCode(...chunk);
+    }
+
+    return btoa(binary);
   }
 }

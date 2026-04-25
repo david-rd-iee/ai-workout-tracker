@@ -1,6 +1,6 @@
 <ion-header>
   <ion-toolbar>
-    <ion-title>Agreement Templates</ion-title>
+    <ion-title>{{ isAmendmentFlow ? 'Edit Payment Terms' : 'Agreement Templates' }}</ion-title>
     <ion-buttons slot="end">
       <ion-button (click)="dismiss()">Close</ion-button>
     </ion-buttons>
@@ -10,7 +10,7 @@
 <ion-content class="ion-padding">
   <div *ngIf="!showContent && !isCreatingNew">
     <div class="template-selection">
-      <h2>Select a Template</h2>
+      <h2>{{ isAmendmentFlow ? 'Create Amendment' : 'Select a Template' }}</h2>
       
       <div *ngIf="isLoading" class="loading-container">
         <p>Loading templates...</p>
@@ -25,7 +25,7 @@
       </div>
       
       <ion-button expand="block" (click)="createNew()" class="ion-margin-top">
-        Create New Agreement
+        {{ isAmendmentFlow ? 'Create Payment Terms Amendment' : 'Create New Agreement' }}
       </ion-button>
     </div>
   </div>
@@ -37,6 +37,10 @@
       [mode]="'client'"
       [clientId]="clientId"
       [clientName]="clientName"
+      [sourceAgreementId]="sourceAgreementId"
+      [initialPaymentTerms]="initialPaymentTerms"
+      [initialAgreementName]="initialAgreementName"
+      [sendButtonLabel]="sendButtonLabel"
       (onSave)="saveNewAgreement($event)" 
       (onSend)="sendAgreement($event)">
     </app-service-agreement>
@@ -48,6 +52,10 @@
     [mode]="'client'"
     [clientId]="clientId"
     [clientName]="clientName"
+    [sourceAgreementId]="sourceAgreementId"
+    [initialPaymentTerms]="initialPaymentTerms"
+    [initialAgreementName]="initialAgreementName"
+    [sendButtonLabel]="sendButtonLabel"
     [templateId]="'new'" 
     (onSave)="saveNewAgreement($event)"
     (onSend)="sendAgreement($event)">
