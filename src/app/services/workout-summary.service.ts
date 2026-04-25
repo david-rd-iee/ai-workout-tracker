@@ -3,6 +3,7 @@ import {
   Firestore,
   collection,
   doc,
+  documentId,
   getDoc,
   getDocs,
   limit,
@@ -40,9 +41,18 @@ export class WorkoutSummaryService {
     }
 
     const summariesRef = collection(this.firestore, `users/${normalizedUserId}/workoutSummaries`);
-    const snapshot = await getDocs(
-      query(summariesRef, orderBy('date', 'desc'), limit(maxResults))
+    // Canonical docs are keyed by YYYY-MM-DD doc ids. Sorting by doc id is resilient
+    // even when legacy docs are missing a top-level "date" field.
+    let snapshot = await getDocs(
+      query(summariesRef, orderBy(documentId(), 'desc'), limit(maxResults))
     );
+
+    // Fallback for projects that do not allow documentId ordering in existing indexes.
+    if (snapshot.empty) {
+      snapshot = await getDocs(
+        query(summariesRef, orderBy('date', 'desc'), limit(maxResults))
+      );
+    }
 
     return snapshot.docs.map((docSnap) => {
       const data = docSnap.data() as Record<string, unknown>;

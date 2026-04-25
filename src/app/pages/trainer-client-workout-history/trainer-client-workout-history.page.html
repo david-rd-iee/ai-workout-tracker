@@ -1,0 +1,148 @@
+<app-header
+  [title]="pageTitle"
+  [hideTitle]="true"
+  [showBack]="true"
+  [backHref]="backHref"
+  [transparent]="true"
+  [neoBlend]="true"
+></app-header>
+
+<ion-content [fullscreen]="true" class="history-content">
+  <div class="background-gradient"></div>
+
+  <div class="history-page">
+    <div class="status-card" *ngIf="isLoading">
+      <p>Loading client workout history...</p>
+    </div>
+
+    <div class="status-card" *ngIf="!isLoading && !isAuthorized">
+      <p>{{ accessError || 'Unable to access this client history.' }}</p>
+    </div>
+
+    <ng-container *ngIf="!isLoading && isAuthorized">
+      <div class="actions-grid">
+        <ion-button
+          class="action-button csv-button"
+          expand="block"
+          (click)="openCsvPage()"
+          [disabled]="historyGroups.length === 0"
+        >
+          <ion-icon slot="start" name="grid-outline"></ion-icon>
+          Open CSV Page
+        </ion-button>
+
+        <ion-button
+          class="action-button export-button"
+          expand="block"
+          (click)="exportCsv()"
+          [disabled]="historyGroups.length === 0"
+        >
+          <ion-icon slot="start" name="download-outline"></ion-icon>
+          Export CSV
+        </ion-button>
+      </div>
+
+      <div class="status-card" *ngIf="historyGroups.length === 0">
+        <p>No workouts saved yet for this client.</p>
+      </div>
+
+      <section class="report-shell" *ngIf="historyGroups.length > 0">
+        <div class="report-head">
+          <h2>
+            <ion-icon name="document-text-outline" aria-hidden="true"></ion-icon>
+            Excel-Style Report Preview
+          </h2>
+          <ion-item class="type-select" lines="none">
+            <ion-label>Table</ion-label>
+            <ion-select interface="popover" [(ngModel)]="selectedType" (ionChange)="refreshPreview()">
+              <ion-select-option value="Strength">Strength</ion-select-option>
+              <ion-select-option value="Cardio">Cardio</ion-select-option>
+              <ion-select-option value="Other">Other</ion-select-option>
+            </ion-select>
+          </ion-item>
+        </div>
+
+        <div class="csv-preview-wrap" *ngIf="previewHasRows; else noPreviewRows">
+          <table class="csv-table">
+            <thead>
+              <tr>
+                <th *ngFor="let heading of tableHeaders">{{ heading }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let row of tableRows">
+                <td *ngFor="let cell of row">{{ cell }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <ng-template #noPreviewRows>
+          <div class="status-card compact">
+            <p>No rows available for this table type yet.</p>
+          </div>
+        </ng-template>
+      </section>
+
+      <ion-list class="history-list" *ngIf="historyGroups.length > 0">
+        <ion-item
+          class="day-card"
+          lines="none"
+          button
+          [detail]="false"
+          *ngFor="let day of historyGroups"
+          (click)="openSummary(day.date)"
+        >
+          <ion-label class="ion-text-wrap">
+            <div class="day-header">
+              <div class="day-info">
+                <h2>{{ day.date }}</h2>
+                <p class="tap-hint">Tap to open full read-only summary</p>
+              </div>
+
+              <div class="day-meta">
+                <p class="calorie-pill">{{ day.totalCaloriesBurned }} kcal</p>
+                <span class="chevron-well" aria-hidden="true">
+                  <ion-icon name="chevron-forward-outline"></ion-icon>
+                </span>
+              </div>
+            </div>
+
+            <div class="section-block" *ngIf="day.strength.length > 0">
+              <h3>Strength</h3>
+              <div class="entry" *ngFor="let entry of day.strength">
+                <p class="entry-title">{{ entry.exercise }}</p>
+                <p>Sets: {{ entry.sets }}</p>
+                <p>Reps: {{ entry.reps }}</p>
+                <p>Weight: {{ entry.weights }}</p>
+                <p>Calories: {{ entry.caloriesBurned }}</p>
+              </div>
+            </div>
+
+            <div class="section-block" *ngIf="day.cardio.length > 0">
+              <h3>Cardio</h3>
+              <div class="entry" *ngFor="let entry of day.cardio">
+                <p class="entry-title">{{ entry.exercise }}</p>
+                <p>Distance: {{ entry.distance || 'N/A' }}</p>
+                <p>Time: {{ entry.time || 'N/A' }}</p>
+                <p>Calories: {{ entry.caloriesBurned }}</p>
+              </div>
+            </div>
+
+            <div class="section-block" *ngIf="day.other.length > 0">
+              <h3>Other</h3>
+              <div class="entry" *ngFor="let entry of day.other">
+                <p class="entry-title">{{ entry.exercise }}</p>
+                <p>Details: {{ entry.details || 'Activity logged' }}</p>
+                <p>Calories: {{ entry.caloriesBurned }}</p>
+              </div>
+            </div>
+
+            <div class="notes-well" *ngIf="day.trainerNotes">
+              <p><strong>Trainer note:</strong> {{ day.trainerNotes }}</p>
+            </div>
+          </ion-label>
+        </ion-item>
+      </ion-list>
+    </ng-container>
+  </div>
+</ion-content>

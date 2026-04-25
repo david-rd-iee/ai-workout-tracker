@@ -3,6 +3,7 @@ import {
   authChildGuard,
   authGuard,
   authMatchGuard,
+  clientPaymentsGuard,
   statuesDashbordGuard,
 } from './services/account/auth.guard';
 import {
@@ -240,7 +241,7 @@ export const routes: Routes = [
       import('./pages/client-payments/client-payments.page').then(
         (m) => m.ClientPaymentsPage
       ),
-    canActivate: [authGuard],
+    canActivate: [authGuard, clientPaymentsGuard],
   },
   {
     path: 'agreement-payment/:agreementId',
@@ -348,7 +349,15 @@ export const routes: Routes = [
     path: 'workout-history',
     loadComponent: () =>
       import('./pages/workout-history/workout-history.page').then(
-        (m) => m.WorkoutHistoryPage
+        (m) => m.ClientSelfWorkoutHistoryPage
+      ),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'trainer/client/:clientId/workout-history',
+    loadComponent: () =>
+      import('./pages/trainer-client-workout-history/trainer-client-workout-history.page').then(
+        (m) => m.TrainerClientWorkoutHistoryPage
       ),
     canActivate: [authGuard],
   },

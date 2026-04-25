@@ -2,22 +2,15 @@ import { Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute } from '@angular/router';
 import { IonContent, IonIcon, IonSpinner, NavController } from '@ionic/angular/standalone';
-import { Firestore, collection, getDocs } from '@angular/fire/firestore';
 import { AccountService } from '../../services/account/account.service';
 import { VideoPlaybackCacheService } from '../../services/video-playback-cache.service';
+import {
+  TrainerClientVideoAnalysisItem,
+  TrainerClientVideoAnalysisService,
+} from '../../services/trainer-client-video-analysis.service';
 import { addIcons } from 'ionicons';
 import { analyticsOutline, chevronForwardOutline } from 'ionicons/icons';
 import { HeaderComponent } from 'src/app/components/header/header.component';
-
-type TrainerClientVideoItem = {
-  id: string;
-  workoutName: string;
-  recordedAtLabel: string;
-  sortEpochMs: number;
-  recordingUrl: string;
-  overlayUrl: string;
-  canView: boolean;
-};
 
 @Component({
   selector: 'app-trainer-client-videos',
@@ -34,16 +27,16 @@ type TrainerClientVideoItem = {
 })
 export class TrainerClientVideosPage implements OnInit, OnDestroy {
   private readonly route = inject(ActivatedRoute);
-  private readonly firestore = inject(Firestore);
   private readonly accountService = inject(AccountService);
   private readonly videoPlaybackCacheService = inject(VideoPlaybackCacheService);
+  private readonly trainerClientVideoAnalysisService = inject(TrainerClientVideoAnalysisService);
   private readonly navCtrl = inject(NavController);
 
   isLoading = true;
   errorMessage = '';
   clientId = '';
   clientName = '';
-  videos: TrainerClientVideoItem[] = [];
+  videos: TrainerClientVideoAnalysisItem[] = [];
   private videosLoadToken = 0;
 
   constructor() {
@@ -63,7 +56,7 @@ export class TrainerClientVideosPage implements OnInit, OnDestroy {
     this.videosLoadToken = 0;
   }
 
-  openVideo(video: TrainerClientVideoItem): void {
+  openVideo(video: TrainerClientVideoAnalysisItem): void {
     if (!this.clientId) {
       return;
     }
@@ -99,45 +92,10 @@ export class TrainerClientVideosPage implements OnInit, OnDestroy {
     try {
       const loadToken = Date.now();
       this.videosLoadToken = loadToken;
-      const analysesRef = collection(
-        this.firestore,
-        `trainers/${trainerId}/clients/${this.clientId}/videoAnalysis`
+      const allVideos = await this.trainerClientVideoAnalysisService.listClientVideoAnalyses(
+        trainerId,
+        this.clientId
       );
-      const snapshot = await getDocs(analysesRef);
-
-      const allVideos = snapshot.docs
-        .map((docSnap) => {
-          const data = docSnap.data() as Record<string, unknown>;
-          const analysis = this.asRecord(data['analysis']);
-          const video = this.asRecord(data['video']);
-          const artifacts = this.asRecord(data['artifacts']);
-          const overlayVideo = this.asRecord(artifacts?.['overlayVideo']);
-          const analyzedAtIso = typeof analysis?.['analyzedAtIso'] === 'string'
-            ? analysis['analyzedAtIso'].trim()
-            : '';
-          const workoutName = typeof data['workoutName'] === 'string'
-            ? data['workoutName'].trim()
-            : '';
-          const recordingUrl = typeof video?.['downloadUrl'] === 'string'
-            ? video['downloadUrl'].trim()
-            : '';
-          const recordedAtRaw = this.readPossibleDateString(data['recordedAt']);
-          const sortDate = this.resolveMostRecentDate(analyzedAtIso, recordedAtRaw);
-
-          return {
-            id: docSnap.id,
-            workoutName: workoutName || 'Workout Video',
-            recordingUrl,
-            overlayUrl: typeof overlayVideo?.['downloadUrl'] === 'string'
-              ? overlayVideo['downloadUrl'].trim()
-              : '',
-            canView: Boolean(data['canView']),
-            sortEpochMs: sortDate?.getTime() ?? 0,
-            recordedAtLabel: this.formatDateLabel(sortDate, analyzedAtIso || recordedAtRaw),
-          };
-        })
-        .filter((video) => !!video.recordingUrl)
-        .sort((left, right) => right.sortEpochMs - left.sortEpochMs);
 
       const sharedVideos = allVideos.filter((video) => video.canView);
       const pendingVideos = allVideos.filter((video) => !video.canView);
@@ -168,7 +126,7 @@ export class TrainerClientVideosPage implements OnInit, OnDestroy {
   }
 
   private async revealPendingVideosOnceCached(
-    pendingVideos: TrainerClientVideoItem[],
+    pendingVideos: TrainerClientVideoAnalysisItem[],
     loadToken: number,
   ): Promise<void> {
     for (const video of pendingVideos) {
@@ -205,62 +163,5 @@ export class TrainerClientVideosPage implements OnInit, OnDestroy {
 
       this.videos = [...this.videos, video].sort((left, right) => right.sortEpochMs - left.sortEpochMs);
     }
-  }
-
-  private asRecord(value: unknown): Record<string, unknown> | null {
-    return value && typeof value === 'object' ? (value as Record<string, unknown>) : null;
-  }
-
-  private resolveMostRecentDate(analyzedAtIso: string, recordedAtRaw: string): Date | null {
-    const analyzedDate = this.parseDate(analyzedAtIso);
-    const recordedDate = this.parseDate(recordedAtRaw);
-
-    if (analyzedDate && recordedDate) {
-      return analyzedDate.getTime() >= recordedDate.getTime() ? analyzedDate : recordedDate;
-    }
-
-    return analyzedDate || recordedDate;
-  }
-
-  private parseDate(value: string): Date | null {
-    const trimmed = value.trim();
-    if (!trimmed) {
-      return null;
-    }
-
-    const parsed = new Date(trimmed);
-    return Number.isNaN(parsed.getTime()) ? null : parsed;
-  }
-
-  private readPossibleDateString(value: unknown): string {
-    if (typeof value === 'string') {
-      return value.trim();
-    }
-
-    if (value && typeof value === 'object' && 'toDate' in (value as Record<string, unknown>)) {
-      const toDate = (value as { toDate?: () => Date }).toDate;
-      if (typeof toDate === 'function') {
-        const date = toDate.call(value);
-        if (date instanceof Date && !Number.isNaN(date.getTime())) {
-          return date.toISOString();
-        }
-      }
-    }
-
-    return '';
-  }
-
-  private formatDateLabel(parsedDate: Date | null, fallbackValue: string): string {
-    if (!parsedDate) {
-      return fallbackValue || 'Unknown date';
-    }
-
-    return new Intl.DateTimeFormat('en-US', {
-      month: 'short',
-      day: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    }).format(parsedDate);
   }
 }

@@ -267,6 +267,98 @@ ion-segment-button {
   }
 }
 
+.client-videos-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.client-videos-head p {
+  margin: 0;
+  color: $atlas-muted;
+  font-size: 0.84rem;
+}
+
+.client-videos-list {
+  display: grid;
+  gap: 10px;
+}
+
+.client-video-row {
+  @include trainer-inset(16px);
+  padding: 12px;
+  display: grid;
+  gap: 10px;
+}
+
+.client-video-copy h3 {
+  margin: 0;
+  color: $atlas-text;
+  font-size: 0.95rem;
+  font-weight: 640;
+}
+
+.client-video-exercise,
+.client-video-date,
+.client-video-iso,
+.client-videos-empty,
+.client-videos-loading p,
+.client-videos-error,
+.client-video-published-at {
+  margin: 0;
+  color: $atlas-muted;
+}
+
+.client-video-exercise {
+  margin-top: 2px;
+  font-size: 0.82rem;
+}
+
+.client-video-date {
+  margin-top: 4px;
+  font-size: 0.8rem;
+}
+
+.client-video-iso {
+  margin-top: 2px;
+  font-size: 0.72rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  opacity: 0.84;
+}
+
+.client-video-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.client-video-published-at {
+  font-size: 0.76rem;
+}
+
+.client-video-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.client-video-actions ion-button {
+  margin: 0;
+  text-transform: none;
+  font-weight: 600;
+}
+
+.client-videos-empty,
+.client-videos-loading p,
+.client-videos-error {
+  padding: 6px 0;
+  font-size: 0.84rem;
+}
+
 .activity-list {
   display: grid;
 }
@@ -761,6 +853,15 @@ ion-segment-button {
 
   .segment-label {
     font-size: 0.78rem;
+  }
+
+  .client-videos-head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .client-video-actions {
+    flex-direction: column;
   }
 
   .verify-stats-grid {

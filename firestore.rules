@@ -299,6 +299,17 @@ service cloud.firestore {
       allow read: if isSignedIn();
       allow write, delete: if isOwner(userId);
 
+      // Canonical workout summary projection docs keyed by date.
+      // Clients can read their own summaries.
+      // Trainers can only read summaries for clients assigned to them.
+      // Writes remain owner-only (trainers cannot write client summaries).
+      match /workoutSummaries/{summaryId} {
+        allow read: if isOwner(userId) || (
+          isTrainer() && isClientAssignedToTrainer(userId, request.auth.uid)
+        );
+        allow create, update, delete: if isOwner(userId);
+      }
+
       match /notifications/{notificationId} {
         allow read, update, delete: if isOwner(userId);
         allow create: if isSignedIn();

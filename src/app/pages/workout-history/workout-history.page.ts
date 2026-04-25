@@ -34,7 +34,7 @@ import { HeaderComponent } from '../../components/header/header.component';
     IonIcon,
   ],
 })
-export class WorkoutHistoryPage implements OnInit {
+export class ClientSelfWorkoutHistoryPage implements OnInit {
   historyGroups: WorkoutHistoryDateGroup[] = [];
   isLoading = false;
   pageTitle = 'Workout History';
@@ -60,16 +60,24 @@ export class WorkoutHistoryPage implements OnInit {
     this.isLoading = true;
 
     try {
-      this.requestedUserId = (this.route.snapshot.queryParamMap.get('userId') || '').trim();
+      const requestedUserId = (this.route.snapshot.queryParamMap.get('userId') || '').trim();
       this.clientName = (this.route.snapshot.queryParamMap.get('clientName') || '').trim();
       if (this.clientName) {
         this.pageTitle = `${this.clientName}'s History`;
       }
 
-      const targetUserId = this.requestedUserId || await this.resolveCurrentUserId();
+      const signedInUserId = await this.resolveCurrentUserId();
+      const targetUserId = signedInUserId;
       if (!targetUserId) {
         this.historyGroups = [];
         return;
+      }
+      this.requestedUserId = targetUserId;
+
+      if (requestedUserId && requestedUserId !== signedInUserId) {
+        console.warn(
+          '[ClientSelfWorkoutHistoryPage] Ignoring query userId that does not match signed-in user.'
+        );
       }
 
       const summaries = await this.workoutSummaryService.listRecentWorkoutSummaries(targetUserId, 20);

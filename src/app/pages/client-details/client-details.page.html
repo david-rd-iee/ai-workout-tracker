@@ -88,6 +88,69 @@
 
       <ion-card class="panel-card">
         <ion-card-header>
+          <ion-card-title>Client Videos</ion-card-title>
+        </ion-card-header>
+        <ion-card-content>
+          <div class="client-videos-head">
+            <p>Latest analyzed videos for this client.</p>
+            <ion-button fill="outline" size="small" (click)="openClientVideosLibrary()">
+              Open Library
+            </ion-button>
+          </div>
+
+          <div class="client-videos-loading" *ngIf="isLoadingClientVideos">
+            <p>Loading analyzed videos...</p>
+          </div>
+
+          <p class="client-videos-error" *ngIf="!isLoadingClientVideos && clientVideosErrorMessage">
+            {{ clientVideosErrorMessage }}
+          </p>
+
+          <div class="client-videos-list" *ngIf="!isLoadingClientVideos && !clientVideosErrorMessage && latestClientVideo as video">
+            <div class="client-video-row">
+              <div class="client-video-copy">
+                <h3>{{ video.title }}</h3>
+                <p *ngIf="video.exercise" class="client-video-exercise">{{ video.exercise }}</p>
+                <p class="client-video-date">Analyzed: {{ video.analyzedAtLabel }}</p>
+                <p class="client-video-iso" *ngIf="video.analyzedAtIso">{{ video.analyzedAtIso }}</p>
+              </div>
+
+              <div class="client-video-meta">
+                <span class="status-badge" [class.paid]="video.canView" [class.pending]="!video.canView">
+                  {{ video.canView ? 'Shared' : 'Not shared' }}
+                </span>
+                <small *ngIf="video.publishedToClientAt" class="client-video-published-at">
+                  Shared {{ video.publishedToClientAt | date:'MMM d, h:mm a' }}
+                </small>
+              </div>
+
+              <div class="client-video-actions">
+                <ion-button fill="outline" size="small" (click)="viewClientVideoAnalysis(video)">
+                  <ion-icon name="analytics-outline" slot="start"></ion-icon>
+                  View Analysis
+                </ion-button>
+                <ion-button
+                  fill="outline"
+                  size="small"
+                  color="primary"
+                  [disabled]="video.canView || isPublishingVideo(video.id)"
+                  (click)="sendVideoToClient(video)"
+                >
+                  <ion-icon name="send-outline" slot="start"></ion-icon>
+                  {{ isPublishingVideo(video.id) ? 'Sending...' : (video.canView ? 'Sent to Client' : 'Send to Client') }}
+                </ion-button>
+              </div>
+            </div>
+          </div>
+
+          <p *ngIf="!isLoadingClientVideos && !clientVideosErrorMessage && !latestClientVideo" class="client-videos-empty">
+            No analyzed videos found for this client yet.
+          </p>
+        </ion-card-content>
+      </ion-card>
+
+      <ion-card class="panel-card">
+        <ion-card-header>
           <ion-card-title>Recent Activity</ion-card-title>
         </ion-card-header>
         <ion-card-content>

@@ -6,7 +6,21 @@ import { IonContent, IonCard, IonCardContent, IonCardHeader, IonCardTitle, IonBu
 import { NavController } from '@ionic/angular';
 import { FormsModule } from '@angular/forms';
 import { addIcons } from 'ionicons';
-import { calendar, personCircle, fitness, card, createOutline, trophy, chatbubbles, checkmarkCircle, flag, walk, documentTextOutline } from 'ionicons/icons';
+import {
+  analyticsOutline,
+  calendar,
+  card,
+  chatbubbles,
+  checkmarkCircle,
+  createOutline,
+  documentTextOutline,
+  fitness,
+  flag,
+  personCircle,
+  sendOutline,
+  trophy,
+  walk,
+} from 'ionicons/icons';
 import { WorkoutBuilderModalComponent } from 'src/app/components/modals/workout-builder-modal/workout-builder-modal.component';
 import { AppointmentSchedulerModalComponent } from 'src/app/components/modals/appointment-scheduler-modal/appointment-scheduler-modal.component';
 import { HomeCustomizationModalComponent } from 'src/app/components/modals/home-customization-modal/home-customization-modal.component';
@@ -28,6 +42,10 @@ import {
 import { NotificationService } from '../../services/notification.service';
 import { AgreementService } from '../../services/agreement.service';
 import { Agreement } from 'src/app/Interfaces/Agreement';
+import {
+  TrainerClientVideoAnalysisItem,
+  TrainerClientVideoAnalysisService,
+} from '../../services/trainer-client-video-analysis.service';
 
 type VerifyFieldKey = 'heightMeters' | 'weightKg' | 'age';
 type VerifyChoice = 'true' | 'false' | null;
@@ -97,6 +115,7 @@ export class ClientDetailsPage implements OnInit {
   private firestore = inject(Firestore);
   private notificationService = inject(NotificationService);
   private agreementService = inject(AgreementService);
+  private trainerClientVideoAnalysisService = inject(TrainerClientVideoAnalysisService);
   private sanitizer = inject(DomSanitizer);
 
   client: any = null;
@@ -112,6 +131,10 @@ export class ClientDetailsPage implements OnInit {
   upcomingAppointments: any[] = [];
   pastAppointments: any[] = [];
   payments: PaymentHistoryEntry[] = [];
+  clientVideos: TrainerClientVideoAnalysisItem[] = [];
+  isLoadingClientVideos = false;
+  clientVideosErrorMessage = '';
+  activeVideoPublishId = '';
   currentAgreement: Agreement | null = null;
   isLoadingCurrentAgreement = false;
   isLoadingCurrentAgreementPreview = false;
@@ -140,7 +163,21 @@ export class ClientDetailsPage implements OnInit {
   };
 
   constructor() {
-    addIcons({ calendar, personCircle, fitness, card, createOutline, trophy, chatbubbles, checkmarkCircle, flag, walk, documentTextOutline });
+    addIcons({
+      analyticsOutline,
+      calendar,
+      card,
+      chatbubbles,
+      checkmarkCircle,
+      createOutline,
+      documentTextOutline,
+      fitness,
+      flag,
+      personCircle,
+      sendOutline,
+      trophy,
+      walk,
+    });
 
     // Get client data from navigation state
     const navigation = this.router.getCurrentNavigation();
@@ -395,14 +432,86 @@ export class ClientDetailsPage implements OnInit {
       return;
     }
 
-    this.navCtrl.navigateForward('/workout-history', {
+    this.navCtrl.navigateForward(`/trainer/client/${clientId}/workout-history`, {
       animated: true,
       animationDirection: 'forward',
       queryParams: {
-        userId: clientId,
         clientName: this.client?.name || 'Client',
       },
     });
+  }
+
+  openClientVideosLibrary(): void {
+    const clientId = String(this.client?.id || '').trim();
+    if (!clientId) {
+      return;
+    }
+
+    this.navCtrl.navigateForward(`/trainer-client-videos/${clientId}`, {
+      animated: true,
+      animationDirection: 'forward',
+      queryParams: {
+        clientName: this.client?.name || 'Client',
+      },
+    });
+  }
+
+  viewClientVideoAnalysis(video: TrainerClientVideoAnalysisItem): void {
+    const clientId = String(this.client?.id || '').trim();
+    const analysisId = String(video?.id || '').trim();
+    if (!clientId || !analysisId) {
+      return;
+    }
+
+    this.navCtrl.navigateForward(`/trainer-workout-analyzer/${clientId}`, {
+      animated: true,
+      animationDirection: 'forward',
+      queryParams: {
+        clientName: this.client?.name || 'Client',
+        analysisId,
+      },
+    });
+  }
+
+  async sendVideoToClient(video: TrainerClientVideoAnalysisItem): Promise<void> {
+    const trainerId = String(this.auth.currentUser?.uid || '').trim();
+    const clientId = String(this.client?.id || '').trim();
+    const analysisId = String(video?.id || '').trim();
+    if (!trainerId || !clientId || !analysisId) {
+      return;
+    }
+
+    if (video.canView || this.activeVideoPublishId) {
+      return;
+    }
+
+    this.activeVideoPublishId = analysisId;
+    try {
+      await this.trainerClientVideoAnalysisService.sendAnalysisToClient(trainerId, clientId, analysisId);
+      this.clientVideos = this.clientVideos.map((entry) =>
+        entry.id === analysisId
+          ? {
+              ...entry,
+              canView: true,
+              publishedToClientAt: new Date().toISOString(),
+            }
+          : entry
+      );
+      await this.showToast('Video sent to client.', 'success');
+    } catch (error) {
+      console.error('Failed to send video to client:', error);
+      await this.showToast('Unable to send this video right now.', 'danger');
+    } finally {
+      this.activeVideoPublishId = '';
+    }
+  }
+
+  isPublishingVideo(videoId: string): boolean {
+    return this.activeVideoPublishId === String(videoId || '').trim();
+  }
+
+  get latestClientVideo(): TrainerClientVideoAnalysisItem | null {
+    return this.clientVideos[0] || null;
   }
 
   async openVerifyStatsModal() {
@@ -669,10 +778,35 @@ export class ClientDetailsPage implements OnInit {
         nextSession: upcoming[0]?._date || this.client?.nextSession || null,
       };
 
+      await this.loadClientVideos(clientId, trainerId);
       await this.loadCurrentAgreement(clientId, trainerId);
     } catch (error) {
       console.error('Failed to load client details data:', error);
       await this.showToast('Failed to load client details.', 'danger');
+    }
+  }
+
+  private async loadClientVideos(clientId: string, trainerId: string): Promise<void> {
+    if (!clientId || !trainerId) {
+      this.clientVideos = [];
+      this.clientVideosErrorMessage = '';
+      this.isLoadingClientVideos = false;
+      return;
+    }
+
+    this.isLoadingClientVideos = true;
+    this.clientVideosErrorMessage = '';
+    try {
+      this.clientVideos = await this.trainerClientVideoAnalysisService.listClientVideoAnalyses(
+        trainerId,
+        clientId
+      );
+    } catch (error) {
+      console.error('Failed to load client videos:', error);
+      this.clientVideos = [];
+      this.clientVideosErrorMessage = 'Unable to load analyzed videos right now.';
+    } finally {
+      this.isLoadingClientVideos = false;
     }
   }
 
