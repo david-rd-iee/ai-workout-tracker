@@ -1,6 +1,98 @@
+.agreement-content-shell {
+  --background: #dbe3f0;
+  position: relative;
+}
+
+.background-gradient {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 14% -4%, rgba(255, 255, 255, 0.84) 0, rgba(255, 255, 255, 0) 36%),
+    radial-gradient(circle at 86% 8%, rgba(160, 179, 219, 0.34) 0, rgba(160, 179, 219, 0) 42%),
+    linear-gradient(145deg, #d5deeb 0%, #e8eef8 48%, #dbe4f1 100%);
+}
+
 .agreement-content {
-    white-space: pre-wrap;
-    padding: 16px;
-    background: #f7f7f7;
-    border-radius: 8px;
+  position: relative;
+  z-index: 1;
+  padding: 16px;
+  padding-top: 10px;
+}
+
+.agreement-header {
+  background: rgba(231, 237, 245, 0.44);
+}
+
+.agreement-toolbar {
+  --background: rgba(231, 237, 245, 0.82);
+  --color: #5a6880;
+}
+
+.template-selection {
+  background: linear-gradient(145deg, #f1f5fc, #e8eef8);
+  border-radius: 22px;
+  border: 1px solid rgba(255, 255, 255, 0.78);
+  box-shadow:
+    14px 14px 28px -14px rgba(184, 196, 214, 0.88),
+    -12px -12px 24px -14px rgba(249, 252, 255, 0.95);
+  padding: 18px;
+}
+
+.template-selection h2 {
+  margin: 0 0 14px;
+  color: #5a6880;
+  font-size: 1.1rem;
+  font-weight: 680;
+}
+
+.template-list {
+  background: transparent;
+  padding: 0;
+}
+
+.template-item {
+  --background: linear-gradient(145deg, #edf2fb, #e4ebf7);
+  --border-color: transparent;
+  --color: #5a6880;
+  border-radius: 18px;
+  margin-bottom: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.56);
+  box-shadow:
+    inset 7px 7px 12px -10px rgba(184, 196, 214, 0.9),
+    inset -7px -7px 12px -10px rgba(249, 252, 255, 0.95);
+  cursor: pointer;
+}
+
+.primary-action,
+.secondary-action {
+  margin-top: 14px;
+  text-transform: none;
+  font-weight: 700;
+}
+
+.primary-action {
+  --background: linear-gradient(145deg, #79a8ff, #2e6ef5);
+  --background-hover: linear-gradient(145deg, #8eb6ff, #4a83f8);
+  --background-activated: linear-gradient(145deg, #4f88f5, #1f55cb);
+  --border-radius: 16px;
+}
+
+.secondary-action {
+  --background: linear-gradient(145deg, #eef3fb, #e1e8f4);
+  --color: #5a6880;
+  --border-radius: 16px;
+}
+
+.primary-action::part(native),
+.secondary-action::part(native) {
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+@media (max-width: 768px) {
+  .agreement-content {
+    padding: 14px;
+    padding-top: 10px;
   }
+}

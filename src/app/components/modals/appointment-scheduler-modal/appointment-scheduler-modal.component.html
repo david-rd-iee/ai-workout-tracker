@@ -123,7 +123,7 @@
         </div>
       </ion-card-header>
       <ion-card-content>
-        <ion-item lines="none">
+        <ion-item lines="none" *ngIf="!hasAgreementPricing">
           <ion-label position="stacked">Price ($)</ion-label>
           <ion-input 
             [(ngModel)]="appointment.price" 
@@ -131,6 +131,24 @@
             placeholder="75"
           ></ion-input>
         </ion-item>
+
+        <div class="agreement-price-summary" *ngIf="hasAgreementPricing">
+          <p class="agreement-price-type" *ngIf="isSubscriptionAgreement">
+            {{ agreementSubscriptionLabel }}
+          </p>
+          <p class="agreement-price-type" *ngIf="isOneTimeAgreement">
+            One-time payment
+          </p>
+          <p class="agreement-price-amount" *ngIf="isOneTimeAgreement">
+            {{ agreementPriceLabel }}
+          </p>
+          <p class="agreement-price-status" *ngIf="isSubscriptionAgreement">
+            {{ agreementSubscriptionStatusLabel }}
+          </p>
+          <p class="agreement-price-amount" *ngIf="!isOneTimeAgreement && !isSubscriptionAgreement">
+            {{ agreementPriceLabel }}
+          </p>
+        </div>
       </ion-card-content>
     </ion-card>
 

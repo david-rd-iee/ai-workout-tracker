@@ -1,6 +1,5 @@
 <app-header
   [title]="'Trainer Dashboard'"
-  [hideTitle]="true"
   [transparent]="true"
   [neoBlend]="true"
   [showBack]="true"
@@ -12,29 +11,84 @@
 
   <div class="client-payments-page">
     <section class="hero-shell">
-      <h1>Trainer Dashboard</h1>
-      <p>View workouts your trainer sends, message them directly, and manage agreement billing.</p>
+      <div class="section-copy">
+        <span class="section-kicker">Current Trainer</span>
+        <p>Profile details for the trainer connected to your account.</p>
+      </div>
+
+      <div class="trainer-loading" *ngIf="isLoadingTrainer || (!paymentContext && isLoading)">
+        <ion-spinner name="crescent"></ion-spinner>
+        <span>Loading trainer profile...</span>
+      </div>
+
+      <div class="trainer-shell" *ngIf="paymentContext && !isLoadingTrainer">
+        <ng-container *ngIf="connectedTrainer as trainer; else noTrainerDetails">
+          <div class="trainer-avatar">
+            <img
+              *ngIf="trainer.profilepic; else trainerFallback"
+              [src]="trainer.profilepic"
+              alt="Trainer profile photo"
+            />
+            <ng-template #trainerFallback>
+              <span>{{ trainerAvatarInitial() }}</span>
+            </ng-template>
+          </div>
+
+          <div class="trainer-copy">
+            <h2>{{ trainer.displayName || paymentContext.trainerName }}</h2>
+
+            <ion-button
+              class="primary-action message-trainer-button"
+              [disabled]="isOpeningChat"
+              (click)="openTrainerChat()"
+            >
+              <ion-spinner
+                *ngIf="isOpeningChat"
+                slot="start"
+                name="crescent"
+              ></ion-spinner>
+              <ion-icon
+                *ngIf="!isOpeningChat"
+                slot="start"
+                name="chatbubbles-outline"
+              ></ion-icon>
+              Message Trainer
+            </ion-button>
+
+            <div class="trainer-meta">
+              <span *ngIf="trainer.specialization">
+                <ion-icon name="fitness-outline"></ion-icon>
+                {{ trainer.specialization }}
+              </span>
+              <span *ngIf="trainer.experience">
+                <ion-icon name="ribbon-outline"></ion-icon>
+                {{ trainer.experience }}
+              </span>
+              <span *ngIf="trainerLocationLabel">
+                <ion-icon name="location-outline"></ion-icon>
+                {{ trainerLocationLabel }}
+              </span>
+              <span *ngIf="trainer.hourlyRate !== null">
+                <ion-icon name="cash-outline"></ion-icon>
+                ${{ formatHourlyRate(trainer.hourlyRate) }}/hr
+              </span>
+            </div>
+
+            <p class="trainer-description" *ngIf="trainer.education">
+              {{ trainer.education }}
+            </p>
+          </div>
+        </ng-container>
+      </div>
+
+      <div class="empty-shell" *ngIf="!paymentContext && !isLoadingTrainer && !isLoading">
+        <ion-icon name="close-circle-outline"></ion-icon>
+        <p>No trainer is connected to this account yet.</p>
+      </div>
+
+      <ng-template #noTrainerDetails></ng-template>
 
       <div class="hero-actions">
-        <ion-button
-          *ngIf="paymentContext"
-          class="primary-action"
-          [disabled]="isOpeningChat"
-          (click)="openTrainerChat()"
-        >
-          <ion-spinner
-            *ngIf="isOpeningChat"
-            slot="start"
-            name="crescent"
-          ></ion-spinner>
-          <ion-icon
-            *ngIf="!isOpeningChat"
-            slot="start"
-            name="chatbubbles-outline"
-          ></ion-icon>
-          Message Trainer
-        </ion-button>
-
         <ion-button
           class="secondary-action"
           fill="outline"
@@ -57,14 +111,6 @@
         <ng-container *ngIf="!isLoading">
           <p class="feedback feedback-error" *ngIf="errorMessage">{{ errorMessage }}</p>
           <p class="feedback feedback-success" *ngIf="successMessage">{{ successMessage }}</p>
-
-          <div class="trainer-shell" *ngIf="paymentContext">
-            <ion-icon name="card-outline"></ion-icon>
-            <div class="trainer-copy">
-              <h2>{{ paymentContext.trainerName }}</h2>
-              <p>Assigned trainer</p>
-            </div>
-          </div>
 
           <section
             class="dashboard-section workouts-section"

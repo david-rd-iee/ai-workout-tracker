@@ -209,21 +209,20 @@
               <p class="current-agreement-preview-loading" *ngIf="isLoadingCurrentAgreementPreview">
                 Loading agreement preview...
               </p>
-              <p class="current-agreement-preview-error" *ngIf="!isLoadingCurrentAgreementPreview && currentAgreementPreviewError">
+              <p class="current-agreement-preview-error" *ngIf="shouldShowAgreementPreviewError">
                 {{ currentAgreementPreviewError }}
               </p>
 
               <button
                 type="button"
                 class="current-agreement-preview"
-                *ngIf="!isLoadingCurrentAgreementPreview && currentAgreementPreviewUrl"
+                *ngIf="shouldShowAgreementPreviewButton"
                 (click)="openCurrentAgreementPreview()"
                 aria-label="Open full agreement preview"
               >
-                <iframe
-                  [src]="currentAgreementPreviewUrl"
-                  title="Current agreement preview"
-                ></iframe>
+                <div class="current-agreement-preview-cta">
+                  Open Agreement Preview
+                </div>
                 <span class="current-agreement-preview-hint">Tap to view full agreement</span>
               </button>
             </div>
@@ -278,24 +277,7 @@
         </ion-card-content>
       </ion-card>
 
-      <!-- Past Sessions -->
-      <h2 class="section-title">Past Sessions</h2>
-      <p *ngIf="pastAppointments.length === 0" style="text-align: center; color: var(--ion-color-medium); padding: 20px;">No past sessions</p>
-      <ion-card *ngFor="let appointment of pastAppointments" class="appointment-card past">
-        <ion-card-content>
-          <div class="appointment-content">
-            <div class="appointment-icon">
-              <ion-icon name="fitness"></ion-icon>
-            </div>
-            <div class="appointment-info">
-              <h3>{{ appointment.type }}</h3>
-              <p class="appointment-date">{{ appointment.date | date:'EEE, MMM d · h:mm a' }}</p>
-              <p class="appointment-duration">{{ appointment.duration }} minutes</p>
-            </div>
-            <ion-icon name="checkmark-circle" color="success"></ion-icon>
-          </div>
-        </ion-card-content>
-      </ion-card>
+      <app-past-sessions [sessions]="pastAppointments"></app-past-sessions>
     </div>
 
     <!-- Payments Tab -->
@@ -352,6 +334,12 @@
         [src]="currentAgreementPreviewUrl"
         [title]="currentAgreement?.name || 'Agreement preview'"
       ></iframe>
+      <p class="current-agreement-preview-loading" *ngIf="isLoadingCurrentAgreementPreview">
+        Loading agreement preview...
+      </p>
+      <p class="current-agreement-preview-error" *ngIf="shouldShowAgreementPreviewError">
+        {{ currentAgreementPreviewError }}
+      </p>
     </div>
   </div>
 

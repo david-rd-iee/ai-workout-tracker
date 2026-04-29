@@ -1,0 +1,46 @@
+<h2 class="section-title">Past Sessions</h2>
+
+<p *ngIf="sortedSessions.length === 0" class="empty-state">No past sessions</p>
+
+<button
+  *ngIf="sortedSessions.length > 0"
+  class="past-sessions-trigger"
+  type="button"
+  (click)="open()"
+  aria-label="Open past sessions"
+>
+  <span>View All Past Sessions</span>
+  <span class="count-pill">{{ sortedSessions.length }}</span>
+</button>
+
+<div *ngIf="isOpen" class="overlay">
+  <button class="backdrop" type="button" (click)="close()" aria-label="Close past sessions"></button>
+
+  <div class="modal" role="dialog" aria-modal="true" aria-label="Past sessions">
+    <div class="header-row">
+      <h3>Past Sessions</h3>
+      <ion-button fill="clear" color="medium" (click)="close()">
+        <ion-icon name="close" slot="start"></ion-icon>
+        Close
+      </ion-button>
+    </div>
+
+    <div class="list">
+      <ion-card *ngFor="let appointment of sortedSessions" class="appointment-card past">
+        <ion-card-content>
+          <div class="appointment-content">
+            <div class="appointment-icon">
+              <ion-icon name="checkmark-circle" color="success"></ion-icon>
+            </div>
+            <div class="appointment-info">
+              <h3>{{ appointment.type }}</h3>
+              <p class="appointment-date">{{ appointment.date | date:'EEE, MMM d · h:mm a' }}</p>
+              <p class="appointment-duration">{{ appointment.duration }} minutes</p>
+            </div>
+          </div>
+        </ion-card-content>
+      </ion-card>
+    </div>
+  </div>
+</div>
+

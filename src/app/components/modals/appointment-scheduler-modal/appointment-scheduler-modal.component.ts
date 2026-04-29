@@ -28,6 +28,10 @@ import { close, calendarOutline, fitnessOutline, cashOutline, documentTextOutlin
 import { SessionBookingService } from 'src/app/services/session-booking.service';
 import { TrainerAvailabilityService } from 'src/app/services/trainer-availability.service';
 import { TimeSlot } from 'src/app/Interfaces/Calendar';
+import {
+  AgreementPaymentStatus,
+  AgreementPaymentTerms,
+} from 'src/app/Interfaces/Agreement';
 
 interface AppointmentData {
   clientId: string;
@@ -80,6 +84,8 @@ export class AppointmentSchedulerModalComponent implements OnInit {
   @Input() clientFirstName?: string;
   @Input() clientLastName?: string;
   @Input() clientProfilePic?: string;
+  @Input() agreementPaymentTerms: AgreementPaymentTerms | null = null;
+  @Input() agreementPaymentStatus: AgreementPaymentStatus | '' = '';
 
   private sessionBookingService = inject(SessionBookingService);
   private trainerAvailabilityService = inject(TrainerAvailabilityService);
@@ -145,10 +151,26 @@ export class AppointmentSchedulerModalComponent implements OnInit {
   ngOnInit() {
     this.appointment.clientId = this.clientId;
     this.appointment.clientName = this.clientName;
+    this.applyAgreementPricingDefaults();
     this.generateTimeSlots();
     if (this.isClientRequestMode()) {
       this.loadTrainerAvailabilityForSelectedDate();
     }
+  }
+
+  private applyAgreementPricingDefaults(): void {
+    const terms = this.agreementPaymentTerms;
+    if (!terms || terms.required !== true) {
+      return;
+    }
+
+    const agreementPrice = Math.max(0, Number(terms.amountCents || 0)) / 100;
+    if (terms.type === 'one_time') {
+      this.appointment.price = agreementPrice;
+      return;
+    }
+
+    this.appointment.price = 0;
   }
 
   generateTimeSlots() {
@@ -190,6 +212,46 @@ export class AppointmentSchedulerModalComponent implements OnInit {
 
   get confirmButtonLabel(): string {
     return this.isClientRequestMode() ? 'Send Session Request' : 'Confirm Session';
+  }
+
+  get hasAgreementPricing(): boolean {
+    return !!this.agreementPaymentTerms;
+  }
+
+  get isSubscriptionAgreement(): boolean {
+    return this.agreementPaymentTerms?.required === true &&
+      this.agreementPaymentTerms?.type === 'subscription';
+  }
+
+  get isOneTimeAgreement(): boolean {
+    return this.agreementPaymentTerms?.required === true &&
+      this.agreementPaymentTerms?.type === 'one_time';
+  }
+
+  get agreementPriceLabel(): string {
+    const terms = this.agreementPaymentTerms;
+    if (!terms || terms.required !== true) {
+      return 'No payment required by agreement';
+    }
+
+    const amount = Math.max(0, Number(terms.amountCents || 0)) / 100;
+    const currency = String(terms.currency || 'usd').toUpperCase();
+    return `$${amount.toFixed(2)} ${currency}`;
+  }
+
+  get agreementSubscriptionLabel(): string {
+    const interval = String(this.agreementPaymentTerms?.interval || 'month').toLowerCase();
+    const intervalLabel = interval === 'week' ? 'weekly' : interval === 'year' ? 'yearly' : 'monthly';
+    return `Subscription (${intervalLabel})`;
+  }
+
+  get isClientSubscribedToAgreement(): boolean {
+    const normalizedStatus = String(this.agreementPaymentStatus || '').trim().toLowerCase();
+    return normalizedStatus === 'active' || normalizedStatus === 'paid';
+  }
+
+  get agreementSubscriptionStatusLabel(): string {
+    return this.isClientSubscribedToAgreement ? 'Client subscribed' : 'Client not subscribed';
   }
 
   requestAvailableSlots(): string[] {
@@ -309,7 +371,7 @@ export class AppointmentSchedulerModalComponent implements OnInit {
         date: formattedDate,
         time: formattedTime,
         duration: this.appointment.duration,
-        price: this.appointment.price || 75,
+        price: this.resolveBookingPrice(),
         status: bookingStatus,
         createdAt: new Date(),
         sessionType: this.appointment.sessionType,
@@ -346,6 +408,16 @@ export class AppointmentSchedulerModalComponent implements OnInit {
           : 'Failed to schedule appointment. Please try again.';
       await this.showToast(message, 'danger');
     }
+  }
+
+  private resolveBookingPrice(): number {
+    if (this.isOneTimeAgreement) {
+      return Math.max(0, Number(this.agreementPaymentTerms?.amountCents || 0)) / 100;
+    }
+    if (this.isSubscriptionAgreement) {
+      return 0;
+    }
+    return this.appointment.price || 75;
   }
 
   private isPastTimeForDate(date: string, time: string): boolean {

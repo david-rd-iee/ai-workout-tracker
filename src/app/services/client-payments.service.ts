@@ -2,6 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { Auth } from '@angular/fire/auth';
 import {
   Firestore,
+  collectionGroup,
   collection,
   doc,
   getDoc,
@@ -60,22 +61,24 @@ export class ClientPaymentsService {
 
     const clientUserData = toRecord(clientUserSnap.data());
     const clientProfileData = clientProfileSnap.exists() ? toRecord(clientProfileSnap.data()) : {};
-    const trainerId =
-      resolveClientAssignedTrainerId(clientUserData) ||
-      resolveClientAssignedTrainerId(clientProfileData);
+    const trainerId = await this.resolveClientAssignedTrainerId(
+      clientId,
+      clientUserData,
+      clientProfileData
+    );
     if (!trainerId) {
       throw new Error('You need an assigned trainer before making payments.');
     }
 
-    const [trainerSnap, agreementsSnapshot] = await Promise.all([
+    const [trainerUserSnap, trainerProfileSnap, agreementsSnapshot] = await Promise.all([
+      getDoc(doc(this.firestore, `users/${trainerId}`)),
       getDoc(doc(this.firestore, `trainers/${trainerId}`)),
       this.readClientAgreements(clientId),
     ]);
 
-    const trainerData = trainerSnap.exists() ? toRecord(trainerSnap.data()) : {};
-    const trainerFirstName = normalizeString(trainerData['firstName']);
-    const trainerLastName = normalizeString(trainerData['lastName']);
-    const trainerName = `${trainerFirstName} ${trainerLastName}`.trim() || 'Assigned Trainer';
+    const trainerUserData = trainerUserSnap.exists() ? toRecord(trainerUserSnap.data()) : {};
+    const trainerProfileData = trainerProfileSnap.exists() ? toRecord(trainerProfileSnap.data()) : {};
+    const trainerName = this.resolveTrainerName(trainerUserData, trainerProfileData);
 
     const currentAgreementPricing = agreementsSnapshot
       .map((agreementDoc) => this.mapAgreementPricingRecord(agreementDoc.id, toRecord(agreementDoc.data()), trainerId, trainerName))
@@ -121,6 +124,61 @@ export class ClientPaymentsService {
       if (isPermissionDeniedError(error)) {
         return [];
       }
+      throw error;
+    }
+  }
+
+  private async resolveClientAssignedTrainerId(
+    clientId: string,
+    userData: Record<string, unknown>,
+    profileData: Record<string, unknown>
+  ): Promise<string> {
+    const userTrainerId = resolveClientAssignedTrainerId(userData);
+    const profileTrainerId = resolveClientAssignedTrainerId(profileData);
+    const candidateIds = [profileTrainerId, userTrainerId].filter(Boolean);
+
+    const verifiedTrainerId = await this.resolveTrainerIdFromClientRelationship(clientId, candidateIds);
+    if (verifiedTrainerId) {
+      return verifiedTrainerId;
+    }
+
+    return profileTrainerId || userTrainerId;
+  }
+
+  private async resolveTrainerIdFromClientRelationship(
+    clientId: string,
+    candidateTrainerIds: string[]
+  ): Promise<string> {
+    try {
+      const relationshipSnapshot = await getDocs(
+        query(
+          collectionGroup(this.firestore, 'clients'),
+          where('clientId', '==', clientId)
+        )
+      );
+
+      if (relationshipSnapshot.empty) {
+        return '';
+      }
+
+      for (const candidateTrainerId of candidateTrainerIds) {
+        const matchedRelationship = relationshipSnapshot.docs.find((relationshipDoc) => {
+          const trainerId = relationshipDoc.ref.parent.parent?.id || '';
+          return trainerId === candidateTrainerId;
+        });
+
+        if (matchedRelationship) {
+          return matchedRelationship.ref.parent.parent?.id || '';
+        }
+      }
+
+      const selectedRelationship = relationshipSnapshot.docs[0];
+      return selectedRelationship.ref.parent.parent?.id || '';
+    } catch (error) {
+      if (isPermissionDeniedError(error)) {
+        return '';
+      }
+
       throw error;
     }
   }
@@ -180,6 +238,29 @@ export class ClientPaymentsService {
       throw new Error('You must be logged in to make trainer payments.');
     }
     return uid;
+  }
+
+  private resolveTrainerName(
+    trainerUserData: Record<string, unknown>,
+    trainerProfileData: Record<string, unknown>
+  ): string {
+    const displayName =
+      normalizeString(trainerUserData['displayName']) ||
+      normalizeString(trainerProfileData['displayName']) ||
+      normalizeString(trainerUserData['username']) ||
+      normalizeString(trainerProfileData['username']);
+    if (displayName) {
+      return displayName;
+    }
+
+    const firstName =
+      normalizeString(trainerUserData['firstName']) ||
+      normalizeString(trainerProfileData['firstName']);
+    const lastName =
+      normalizeString(trainerUserData['lastName']) ||
+      normalizeString(trainerProfileData['lastName']);
+
+    return `${firstName} ${lastName}`.trim() || 'Assigned Trainer';
   }
 }
 

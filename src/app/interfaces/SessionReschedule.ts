@@ -2,7 +2,13 @@ export interface SessionRescheduleRequest {
   originalBookingId: string;
   newBookingId?: string;
   trainerId: string;
+  trainerFirstName?: string;
+  trainerLastName?: string;
+  trainerProfilePic?: string;
   clientId: string;
+  clientFirstName?: string;
+  clientLastName?: string;
+  clientProfilePic?: string;
   originalDate: string;
   originalTime: string;
   originalStartTimeUTC?: string;

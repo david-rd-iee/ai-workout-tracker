@@ -54,27 +54,46 @@ $atlas-blue: #2e6ef5;
 .hero-shell {
   @include neo-raised(26px);
   padding: 18px;
+  display: grid;
+  gap: 14px;
 
-  h1 {
-    margin: 0;
-    color: $atlas-text;
-    font-size: 1.1rem;
-    font-weight: 680;
-    letter-spacing: 0;
-    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.7);
-    font-family: 'Roboto Flex', 'Inter', sans-serif;
+  .section-copy {
+    display: grid;
+    gap: 5px;
+  }
+
+  .section-kicker {
+    color: $atlas-blue;
+    font-size: 0.74rem;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
   }
 
   p {
-    margin: 8px 0 0;
+    margin: 0;
     color: $atlas-muted;
     line-height: 1.5;
     font-size: 0.92rem;
   }
 }
 
+.trainer-loading {
+  @include neo-inset(18px);
+  padding: 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: $atlas-muted;
+  font-size: 0.88rem;
+
+  ion-spinner {
+    color: $atlas-blue;
+  }
+}
+
 .hero-actions {
-  margin-top: 14px;
+  margin-top: 2px;
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
@@ -127,33 +146,103 @@ $atlas-blue: #2e6ef5;
 }
 
 .trainer-shell {
-  @include neo-inset(18px);
-  padding: 12px;
+  @include neo-raised(24px);
+  padding: 14px;
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.trainer-avatar {
+  width: 68px;
+  height: 68px;
+  min-width: 68px;
+  border-radius: 22px;
+  overflow: hidden;
+  @include neo-inset(22px);
   display: flex;
   align-items: center;
-  gap: 10px;
+  justify-content: center;
 
-  ion-icon {
-    font-size: 1.2rem;
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  span {
     color: $atlas-blue;
+    font-size: 1.35rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
   }
 }
 
 .trainer-copy {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 10px;
+
   h2 {
     margin: 0;
     color: $atlas-text;
-    font-size: 0.98rem;
-    font-weight: 680;
+    font-size: 1.02rem;
+    font-weight: 700;
     letter-spacing: 0.01em;
   }
 
-  p {
-    margin: 3px 0 0;
+  .message-trainer-button {
+    margin-top: -1px;
+  }
+}
+
+.trainer-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+
+  span {
+    @include neo-raised(999px);
+    padding: 5px 10px;
     color: $atlas-muted;
-    font-size: 0.78rem;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
+    font-size: 0.72rem;
+    letter-spacing: 0.02em;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  ion-icon {
+    color: $atlas-blue;
+    font-size: 0.85rem;
+  }
+}
+
+.trainer-description {
+  margin: 0;
+  color: $atlas-muted;
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+
+.empty-shell {
+  @include neo-inset(18px);
+  padding: 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: $atlas-muted;
+  font-size: 0.85rem;
+
+  ion-icon {
+    color: #9c5a5a;
+    font-size: 1.05rem;
+  }
+
+  p {
+    margin: 0;
   }
 }
 
@@ -323,25 +412,6 @@ $atlas-blue: #2e6ef5;
   letter-spacing: 0.04em;
 }
 
-.empty-shell {
-  @include neo-inset(18px);
-  padding: 14px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  color: $atlas-muted;
-  font-size: 0.85rem;
-
-  ion-icon {
-    color: #9c5a5a;
-    font-size: 1.05rem;
-  }
-
-  p {
-    margin: 0;
-  }
-}
-
 .primary-action,
 .secondary-action {
   min-height: 42px;
@@ -420,5 +490,10 @@ $atlas-blue: #2e6ef5;
 
   .primary-action {
     width: 100%;
+  }
+
+  .trainer-shell {
+    flex-direction: column;
+    align-items: flex-start;
   }
 }

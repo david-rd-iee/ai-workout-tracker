@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { Firestore, collection, doc, getDoc, setDoc, updateDoc, query, where, getDocs } from '@angular/fire/firestore';
+import { Firestore, collection, doc, getDoc, setDoc, updateDoc, query, where, getDocs, orderBy, limit } from '@angular/fire/firestore';
 import { Database, ref, get } from '@angular/fire/database';
 import { Functions, httpsCallable } from '@angular/fire/functions';
 import { SessionRescheduleRequest } from '../Interfaces/SessionReschedule';
@@ -28,7 +28,13 @@ export class BookingService {
     const usersRef = doc(this.firestore, `users/${normalizedClientId}`);
     const trainerClientRef = doc(this.firestore, `trainers/${normalizedTrainerId}/clients/${normalizedClientId}`);
     const bookingsRef = collection(this.firestore, 'bookings');
-    const bookingsQuery = query(bookingsRef, where('trainerId', '==', normalizedTrainerId));
+    const bookingsQuery = query(
+      bookingsRef,
+      where('trainerId', '==', normalizedTrainerId),
+      where('clientId', '==', normalizedClientId),
+      orderBy('createdAt', 'desc'),
+      limit(200)
+    );
 
     const [clientSnap, usersSnap, trainerClientSnap, bookingsSnap] = await Promise.all([
       getDoc(clientRef),
@@ -55,9 +61,6 @@ export class BookingService {
 
     bookingsSnap.forEach((bookingDoc) => {
       const booking = bookingDoc.data();
-      if (String(booking?.['clientId'] || '').trim() !== normalizedClientId) {
-        return;
-      }
       if (booking?.['status'] === 'cancelled') {
         return;
       }
@@ -103,6 +106,17 @@ export class BookingService {
         totalSessions,
         lastSession: lastSessionMs !== null ? new Date(lastSessionMs).toISOString() : existingLastSession,
         nextSession: nextSessionMs !== null ? new Date(nextSessionMs).toISOString() : existingNextSession,
+        dashboardSummary: {
+          clientId: normalizedClientId,
+          clientName: fullName,
+          profilepic,
+          totalSessions,
+          lastWorkout: lastSessionMs !== null ? new Date(lastSessionMs).toISOString() : existingLastSession,
+          nextSession: nextSessionMs !== null ? new Date(nextSessionMs).toISOString() : existingNextSession,
+          paymentStatus: String((existingData?.['dashboardSummary'] as Record<string, unknown> | undefined)?.['paymentStatus'] || '').trim() || 'No payments',
+          currentStreak: Number((existingData?.['dashboardSummary'] as Record<string, unknown> | undefined)?.['currentStreak'] || 0) || 0,
+          updatedAt: new Date().toISOString(),
+        },
       },
       { merge: true },
     );

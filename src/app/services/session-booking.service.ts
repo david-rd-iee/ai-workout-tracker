@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { Firestore, collection, doc, getDoc, setDoc, updateDoc, arrayUnion, query, where, getDocs } from '@angular/fire/firestore';
+import { Firestore, collection, doc, getDoc, setDoc, updateDoc, arrayUnion, query, where, getDocs, orderBy, limit } from '@angular/fire/firestore';
 import { getFunctions, httpsCallable } from '@angular/fire/functions';
 import { BookingRequest, TimeSlot } from '../Interfaces/Calendar';
 import { SessionRescheduleRequest } from '../Interfaces/SessionReschedule';
@@ -133,7 +133,13 @@ export class SessionBookingService {
     const usersRef = doc(this.firestore, `users/${normalizedClientId}`);
     const trainerClientRef = doc(this.firestore, `trainers/${normalizedTrainerId}/clients/${normalizedClientId}`);
     const bookingsRef = collection(this.firestore, 'bookings');
-    const bookingsQuery = query(bookingsRef, where('trainerId', '==', normalizedTrainerId));
+    const bookingsQuery = query(
+      bookingsRef,
+      where('trainerId', '==', normalizedTrainerId),
+      where('clientId', '==', normalizedClientId),
+      orderBy('createdAt', 'desc'),
+      limit(200)
+    );
 
     const [clientSnap, usersSnap, trainerClientSnap, bookingsSnap] = await Promise.all([
       getDoc(clientRef),
@@ -160,9 +166,6 @@ export class SessionBookingService {
 
     bookingsSnap.forEach((bookingDoc) => {
       const booking = bookingDoc.data();
-      if (String(booking?.['clientId'] || '').trim() !== normalizedClientId) {
-        return;
-      }
       if (booking?.['status'] === 'cancelled' || booking?.['status'] === 'pending') {
         return;
       }
@@ -200,6 +203,17 @@ export class SessionBookingService {
         totalSessions,
         lastSession: lastSessionMs !== null ? new Date(lastSessionMs).toISOString() : existingLastSession,
         nextSession: nextSessionMs !== null ? new Date(nextSessionMs).toISOString() : null,
+        dashboardSummary: {
+          clientId: normalizedClientId,
+          clientName: fullName,
+          profilepic,
+          totalSessions,
+          lastWorkout: lastSessionMs !== null ? new Date(lastSessionMs).toISOString() : existingLastSession,
+          nextSession: nextSessionMs !== null ? new Date(nextSessionMs).toISOString() : null,
+          paymentStatus: String((existingData?.['dashboardSummary'] as Record<string, unknown> | undefined)?.['paymentStatus'] || '').trim() || 'No payments',
+          currentStreak: Number((existingData?.['dashboardSummary'] as Record<string, unknown> | undefined)?.['currentStreak'] || 0) || 0,
+          updatedAt: new Date().toISOString(),
+        },
       },
       { merge: true },
     );

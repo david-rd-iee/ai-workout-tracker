@@ -1,0 +1,156 @@
+.neo-raised {
+  background: linear-gradient(145deg, #f1f5fc, #e8eef8);
+  border: 1px solid rgba(255, 255, 255, 0.78);
+  box-shadow:
+    14px 14px 28px -14px rgba(184, 196, 214, 0.88),
+    -12px -12px 24px -14px rgba(249, 252, 255, 0.95);
+}
+
+.neo-inset {
+  background: linear-gradient(145deg, #edf2fb, #e4ebf7);
+  border: 1px solid rgba(255, 255, 255, 0.56);
+  box-shadow:
+    inset 7px 7px 12px -10px rgba(184, 196, 214, 0.9),
+    inset -7px -7px 12px -10px rgba(249, 252, 255, 0.95);
+}
+
+.section-title {
+  margin: 2px 2px 0;
+  color: #5a6880;
+  font-size: 1.1rem;
+  font-weight: 680;
+}
+
+.empty-state {
+  text-align: center;
+  color: var(--ion-color-medium);
+  padding: 20px;
+  margin: 0;
+}
+
+.past-sessions-trigger {
+  @extend .neo-raised;
+  width: 100%;
+  border: 0;
+  border-radius: 22px;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #5a6880;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 170ms ease, box-shadow 170ms ease;
+}
+
+.past-sessions-trigger:active {
+  transform: translateY(1px) scale(0.997);
+}
+
+.count-pill {
+  @extend .neo-inset;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 0.8rem;
+  color: #2e6ef5;
+}
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: grid;
+  place-items: center;
+}
+
+.backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: rgba(31, 42, 61, 0.45);
+}
+
+.modal {
+  @extend .neo-raised;
+  position: relative;
+  z-index: 1;
+  width: min(920px, calc(100vw - 24px));
+  height: min(82vh, 840px);
+  border-radius: 22px;
+  padding: 12px;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  gap: 10px;
+}
+
+.header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.header-row h3 {
+  margin: 0;
+  color: #5a6880;
+}
+
+.list {
+  min-height: 0;
+  overflow: auto;
+  display: grid;
+  gap: 10px;
+  padding-right: 4px;
+}
+
+.appointment-card {
+  @extend .neo-raised;
+  margin: 0;
+  border-radius: 22px;
+}
+
+.appointment-card.past {
+  opacity: 0.9;
+}
+
+.appointment-card ion-card-content {
+  padding: 16px;
+}
+
+.appointment-content {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.appointment-icon {
+  @extend .neo-inset;
+  width: 46px;
+  height: 46px;
+  border-radius: 18px;
+  display: grid;
+  place-items: center;
+}
+
+.appointment-icon ion-icon {
+  font-size: 1.3rem;
+}
+
+.appointment-info h3 {
+  margin: 0 0 4px;
+  color: #5a6880;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.appointment-date {
+  margin: 0 0 2px;
+  color: #2e6ef5;
+  font-size: 0.86rem;
+}
+
+.appointment-duration {
+  margin: 0;
+  color: #8b9ab0;
+  font-size: 0.8rem;
+}

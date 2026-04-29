@@ -26,6 +26,7 @@ import { AppointmentSchedulerModalComponent } from 'src/app/components/modals/ap
 import { HomeCustomizationModalComponent } from 'src/app/components/modals/home-customization-modal/home-customization-modal.component';
 import { AgreementModalComponent } from 'src/app/components/agreements/agreement-modal/agreement-modal.component';
 import { HeaderComponent } from 'src/app/components/header/header.component';
+import { PastSessionsComponent } from 'src/app/components/sessions/past-sessions/past-sessions.component';
 import { Auth } from '@angular/fire/auth';
 import {
   Firestore,
@@ -34,6 +35,8 @@ import {
   doc,
   getDoc,
   getDocs,
+  limit,
+  orderBy,
   query,
   serverTimestamp,
   setDoc,
@@ -92,9 +95,13 @@ interface PaymentHistoryEntry {
     IonSegmentButton,
     IonLabel,
     HeaderComponent,
+    PastSessionsComponent,
   ],
 })
 export class ClientDetailsPage implements OnInit {
+  private static readonly BOOKING_HISTORY_LIMIT = 80;
+  private static readonly PAYMENT_HISTORY_LIMIT = 60;
+
   private readonly verifyFieldOrder: VerifyFieldKey[] = ['heightMeters', 'weightKg', 'age'];
   private readonly verifyFieldLabels: Record<VerifyFieldKey, string> = {
     heightMeters: 'Height',
@@ -141,6 +148,7 @@ export class ClientDetailsPage implements OnInit {
   currentAgreementPreviewUrl: SafeResourceUrl | null = null;
   currentAgreementPreviewError = '';
   isAgreementPreviewOpen = false;
+  hasAttemptedAgreementPreviewLoad = false;
 
   isVerifyStatsModalOpen = false;
   isLoadingVerifyStats = false;
@@ -245,7 +253,9 @@ export class ClientDetailsPage implements OnInit {
           trainerProfilePic: trainerData?.['profilepic'] || '',
           clientFirstName: clientFirstName,
           clientLastName: clientLastName,
-          clientProfilePic: this.client.profilepic || ''
+          clientProfilePic: this.client.profilepic || '',
+          agreementPaymentTerms: this.currentAgreementPaymentTerms,
+          agreementPaymentStatus: this.currentAgreement?.paymentStatus || '',
         }
       });
 
@@ -484,10 +494,37 @@ export class ClientDetailsPage implements OnInit {
   }
 
   openCurrentAgreementPreview(): void {
-    if (!this.currentAgreementPreviewUrl) {
+    if (!this.currentAgreement) {
       return;
     }
+
     this.isAgreementPreviewOpen = true;
+    if (this.currentAgreementPreviewUrl || this.isLoadingCurrentAgreementPreview) {
+      return;
+    }
+
+    void this.loadCurrentAgreementPreview(this.currentAgreement);
+  }
+
+  get canPreviewCurrentAgreement(): boolean {
+    const agreement = this.currentAgreement;
+    if (!agreement) {
+      return false;
+    }
+
+    const storagePath = String(
+      agreement.signedAgreementStoragePath || agreement.agreementStoragePath || ''
+    ).trim();
+    return !!storagePath;
+  }
+
+  get shouldShowAgreementPreviewError(): boolean {
+    return this.hasAttemptedAgreementPreviewLoad && !this.isLoadingCurrentAgreementPreview &&
+      !!this.currentAgreementPreviewError;
+  }
+
+  get shouldShowAgreementPreviewButton(): boolean {
+    return !this.isLoadingCurrentAgreementPreview && this.canPreviewCurrentAgreement;
   }
 
   closeCurrentAgreementPreview(): void {
@@ -758,33 +795,66 @@ export class ClientDetailsPage implements OnInit {
     }
 
     const trainerId = String(this.auth.currentUser?.uid || '').trim();
-    const bookingsPromise = trainerId
-      ? getDocs(query(collection(this.firestore, 'bookings'), where('trainerId', '==', trainerId)))
-      : getDocs(query(collection(this.firestore, 'bookings'), where('clientId', '==', clientId)));
-    const transactionsPromise = trainerId
-      ? getDocs(query(collection(this.firestore, 'transactions'), where('trainerId', '==', trainerId)))
-      : getDocs(query(collection(this.firestore, 'transactions'), where('clientId', '==', clientId)));
-    const checkoutSessionsPromise = trainerId
-      ? getDocs(query(collection(this.firestore, 'checkoutSessions'), where('trainerId', '==', trainerId)))
-      : getDocs(query(collection(this.firestore, 'checkoutSessions'), where('clientId', '==', clientId)));
 
     try {
-      const [
-        clientProfileSnap,
-        userStatsSnap,
-        bookingsSnap,
-        transactionsSnap,
-        checkoutSessionsSnap,
-      ] = await Promise.all([
+      const summaryDocRef = trainerId
+        ? doc(this.firestore, `trainers/${trainerId}/clients/${clientId}`)
+        : null;
+      const [clientProfileSnap, userStatsSnap, dashboardSummarySnap] = await Promise.all([
         getDoc(doc(this.firestore, 'clients', clientId)),
         getDoc(doc(this.firestore, 'userStats', clientId)),
-        bookingsPromise,
-        transactionsPromise,
-        checkoutSessionsPromise,
+        summaryDocRef ? getDoc(summaryDocRef) : Promise.resolve(null),
       ]);
 
       const clientProfile = clientProfileSnap.exists() ? clientProfileSnap.data() as Record<string, any> : {};
       const userStats = userStatsSnap.exists() ? userStatsSnap.data() as Record<string, any> : {};
+      const dashboardSummary = this.readDashboardSummary(dashboardSummarySnap?.data() || {});
+
+      this.upcomingAppointments = [];
+      this.pastAppointments = [];
+      this.payments = [];
+      this.recentActivity = dashboardSummary?.recentActivity || [];
+
+      const streakData = userStats['streakData'] as Record<string, any> | undefined;
+      this.currentStreak = Number(
+        dashboardSummary?.currentStreak ??
+        streakData?.['currentStreak'] ??
+        userStats['currentStreak'] ??
+        0
+      ) || 0;
+      this.paymentStatus = dashboardSummary?.paymentStatus || 'No payments';
+
+      this.client = {
+        ...this.client,
+        ...clientProfile,
+        totalSessions: dashboardSummary?.totalSessions ?? (Number(this.client?.totalSessions || 0) || 0),
+        lastWorkout: dashboardSummary?.lastWorkout || clientProfile['lastWorkout'] || this.client?.lastWorkout || null,
+        nextSession: dashboardSummary?.nextSession || this.client?.nextSession || null,
+      };
+
+      void Promise.all([
+        this.loadBookingsAndPayments(clientId, trainerId, clientProfile),
+        this.loadClientVideos(clientId, trainerId),
+        this.loadCurrentAgreement(clientId, trainerId),
+      ]).then(() => undefined);
+    } catch (error) {
+      console.error('Failed to load client details data:', error);
+      await this.showToast('Failed to load client details.', 'danger');
+    }
+  }
+
+  private async loadBookingsAndPayments(
+    clientId: string,
+    trainerId: string,
+    clientProfile: Record<string, any>
+  ): Promise<void> {
+    try {
+      const [bookingsSnap, transactionsSnap, checkoutSessionsSnap] = await Promise.all([
+        this.getClientScopedBookings(clientId, trainerId),
+        this.getClientScopedRevenueRecords('transactions', clientId, trainerId),
+        this.getClientScopedRevenueRecords('checkoutSessions', clientId, trainerId),
+      ]);
+
       const bookings = bookingsSnap.docs.map((bookingDoc) => ({
         id: bookingDoc.id,
         ...bookingDoc.data(),
@@ -799,7 +869,6 @@ export class ClientDetailsPage implements OnInit {
       })) as Array<Record<string, any>>;
 
       const sortedBookings: Array<Record<string, any> & { _date: Date | null }> = bookings
-        .filter((booking) => String(booking['clientId'] || '').trim() === clientId)
         .map((booking) => ({
           ...booking,
           _date: this.getBookingDate(booking),
@@ -826,37 +895,79 @@ export class ClientDetailsPage implements OnInit {
 
       this.upcomingAppointments = upcoming.map((booking) => this.mapBookingForDisplay(booking));
       this.pastAppointments = past.map((booking) => this.mapBookingForDisplay(booking));
-      this.payments = this.buildStripePaymentHistory(
-        clientId,
-        trainerId,
-        transactions,
-        checkoutSessions
-      );
-
-      const streakData = userStats['streakData'] as Record<string, any> | undefined;
-      this.currentStreak = Number(streakData?.['currentStreak'] ?? userStats['currentStreak'] ?? 0) || 0;
+      this.payments = this.buildStripePaymentHistory(clientId, trainerId, transactions, checkoutSessions);
 
       const latestPayment = this.payments[0];
       this.paymentStatus = latestPayment
         ? this.toTitleCase(String(latestPayment.status || 'unknown'))
         : 'No payments';
-
       this.recentActivity = this.buildRecentActivity(clientProfile, sortedBookings, this.payments);
 
       this.client = {
         ...this.client,
-        ...clientProfile,
         totalSessions: past.filter((booking) => String(booking['status'] || '').toLowerCase() === 'confirmed').length,
         lastWorkout: clientProfile['lastWorkout'] || past[0]?._date || this.client?.lastWorkout || null,
         nextSession: upcoming[0]?._date || this.client?.nextSession || null,
       };
 
-      await this.loadClientVideos(clientId, trainerId);
-      await this.loadCurrentAgreement(clientId, trainerId);
+      if (trainerId) {
+        void this.persistDashboardSummary(trainerId, clientId);
+      }
     } catch (error) {
-      console.error('Failed to load client details data:', error);
-      await this.showToast('Failed to load client details.', 'danger');
+      console.error('Failed to load booking/payment sections:', error);
     }
+  }
+
+  private async getClientScopedBookings(clientId: string, trainerId: string) {
+    const bookingsRef = collection(this.firestore, 'bookings');
+    if (trainerId) {
+      return getDocs(
+        query(
+          bookingsRef,
+          where('trainerId', '==', trainerId),
+          where('clientId', '==', clientId),
+          orderBy('createdAt', 'desc'),
+          limit(ClientDetailsPage.BOOKING_HISTORY_LIMIT)
+        )
+      );
+    }
+
+    return getDocs(
+      query(
+        bookingsRef,
+        where('clientId', '==', clientId),
+        orderBy('createdAt', 'desc'),
+        limit(ClientDetailsPage.BOOKING_HISTORY_LIMIT)
+      )
+    );
+  }
+
+  private async getClientScopedRevenueRecords(
+    collectionName: 'transactions' | 'checkoutSessions',
+    clientId: string,
+    trainerId: string
+  ) {
+    const recordsRef = collection(this.firestore, collectionName);
+    if (trainerId) {
+      return getDocs(
+        query(
+          recordsRef,
+          where('trainerId', '==', trainerId),
+          where('clientId', '==', clientId),
+          orderBy('createdAt', 'desc'),
+          limit(ClientDetailsPage.PAYMENT_HISTORY_LIMIT)
+        )
+      );
+    }
+
+    return getDocs(
+      query(
+        recordsRef,
+        where('clientId', '==', clientId),
+        orderBy('createdAt', 'desc'),
+        limit(ClientDetailsPage.PAYMENT_HISTORY_LIMIT)
+      )
+    );
   }
 
   private async loadClientVideos(clientId: string, trainerId: string): Promise<void> {
@@ -888,6 +999,7 @@ export class ClientDetailsPage implements OnInit {
     this.currentAgreement = null;
     this.currentAgreementPreviewUrl = null;
     this.currentAgreementPreviewError = '';
+    this.hasAttemptedAgreementPreviewLoad = false;
     this.isLoadingCurrentAgreementPreview = false;
 
     if (!trainerId) {
@@ -896,16 +1008,35 @@ export class ClientDetailsPage implements OnInit {
     }
 
     try {
+      const signedStatuses = ['signed', 'completed', 'partially_signed'];
       const agreementsSnap = await getDocs(
         query(
           collection(this.firestore, 'agreements'),
           where('trainerId', '==', trainerId),
-          where('clientId', '==', clientId)
+          where('clientId', '==', clientId),
+          where('agreementStatus', 'in', signedStatuses),
+          orderBy('dateUpdated', 'desc'),
+          limit(1)
         )
       );
 
-      const signedStatuses = new Set(['signed', 'completed', 'partially_signed']);
-      const signedAgreements = agreementsSnap.docs
+      let matchingDocs = agreementsSnap.docs;
+      if (matchingDocs.length === 0) {
+        const legacyStatusSnap = await getDocs(
+          query(
+            collection(this.firestore, 'agreements'),
+            where('trainerId', '==', trainerId),
+            where('clientId', '==', clientId),
+            where('status', 'in', signedStatuses),
+            orderBy('dateUpdated', 'desc'),
+            limit(1)
+          )
+        );
+        matchingDocs = legacyStatusSnap.docs;
+      }
+
+      const signedStatusSet = new Set(signedStatuses);
+      const signedAgreements = matchingDocs
         .map((agreementDoc) => {
           const data = agreementDoc.data() as Record<string, any>;
           const status = String(data['agreementStatus'] || data['status'] || '').trim().toLowerCase();
@@ -925,13 +1056,10 @@ export class ClientDetailsPage implements OnInit {
             paymentTerms: this.normalizePaymentTerms(data['paymentTerms'] || data['payment_terms']) || undefined,
           } as Agreement;
         })
-        .filter((agreement) => signedStatuses.has(String(agreement.status || '').toLowerCase()))
+        .filter((agreement) => signedStatusSet.has(String(agreement.status || '').toLowerCase()))
         .sort((left, right) => right.dateUpdated.getTime() - left.dateUpdated.getTime());
 
       this.currentAgreement = signedAgreements[0] || null;
-      if (this.currentAgreement) {
-        await this.loadCurrentAgreementPreview(this.currentAgreement);
-      }
     } catch (error) {
       console.error('Failed to load current agreement:', error);
       this.currentAgreement = null;
@@ -941,6 +1069,7 @@ export class ClientDetailsPage implements OnInit {
   }
 
   private async loadCurrentAgreementPreview(agreement: Agreement): Promise<void> {
+    this.hasAttemptedAgreementPreviewLoad = true;
     const storagePath = String(
       agreement.signedAgreementStoragePath || agreement.agreementStoragePath || ''
     ).trim();
@@ -967,6 +1096,82 @@ export class ClientDetailsPage implements OnInit {
       this.currentAgreementPreviewError = 'Could not load agreement preview.';
     } finally {
       this.isLoadingCurrentAgreementPreview = false;
+    }
+  }
+
+  private readDashboardSummary(source: Record<string, unknown>): {
+    totalSessions: number;
+    nextSession: Date | null;
+    lastWorkout: Date | null;
+    currentStreak: number;
+    paymentStatus: string;
+    recentActivity: Array<{ title: string; date: Date; icon: string; color: string }>;
+  } | null {
+    const dashboardSummary = source['dashboardSummary'];
+    if (!dashboardSummary || typeof dashboardSummary !== 'object' || Array.isArray(dashboardSummary)) {
+      return null;
+    }
+
+    const summary = dashboardSummary as Record<string, unknown>;
+    const activitySource = Array.isArray(summary['recentActivity'])
+      ? summary['recentActivity'] as Array<Record<string, unknown>>
+      : [];
+
+    return {
+      totalSessions: Number(summary['totalSessions'] || 0) || 0,
+      nextSession: this.toDate(summary['nextSession']),
+      lastWorkout: this.toDate(summary['lastWorkout']),
+      currentStreak: Number(summary['currentStreak'] || 0) || 0,
+      paymentStatus: String(summary['paymentStatus'] || '').trim(),
+      recentActivity: activitySource
+        .map((activity) => {
+          const date = this.toDate(activity['date']);
+          if (!date) {
+            return null;
+          }
+
+          return {
+            title: String(activity['title'] || '').trim() || 'Activity',
+            date,
+            icon: String(activity['icon'] || '').trim() || 'fitness',
+            color: String(activity['color'] || '').trim() || 'primary',
+          };
+        })
+        .filter((activity): activity is { title: string; date: Date; icon: string; color: string } => !!activity),
+    };
+  }
+
+  private async persistDashboardSummary(trainerId: string, clientId: string): Promise<void> {
+    const normalizedTrainerId = String(trainerId || '').trim();
+    const normalizedClientId = String(clientId || '').trim();
+    if (!normalizedTrainerId || !normalizedClientId) {
+      return;
+    }
+
+    try {
+      const summaryRef = doc(this.firestore, `trainers/${normalizedTrainerId}/clients/${normalizedClientId}`);
+      const recentActivityPayload = this.recentActivity
+        .slice(0, 5)
+        .map((activity) => ({
+          title: activity.title,
+          date: activity.date.toISOString(),
+          icon: activity.icon,
+          color: activity.color,
+        }));
+
+      await setDoc(summaryRef, {
+        dashboardSummary: {
+          totalSessions: Number(this.client?.totalSessions || 0) || 0,
+          nextSession: this.toDate(this.client?.nextSession)?.toISOString() || null,
+          lastWorkout: this.toDate(this.client?.lastWorkout)?.toISOString() || null,
+          currentStreak: Number(this.currentStreak || 0) || 0,
+          paymentStatus: String(this.paymentStatus || 'No payments').trim(),
+          recentActivity: recentActivityPayload,
+          updatedAt: serverTimestamp(),
+        },
+      }, { merge: true });
+    } catch (error) {
+      console.warn('Failed to persist dashboard summary snapshot:', error);
     }
   }
 

@@ -315,6 +315,27 @@ ion-input {
   color: $atlas-text;
 }
 
+.agreement-price-summary {
+  @include trainer-inset(18px);
+  padding: 14px;
+  display: grid;
+  gap: 6px;
+}
+
+.agreement-price-type {
+  margin: 0;
+  color: $atlas-text;
+  font-size: 0.9rem;
+  font-weight: 680;
+}
+
+.agreement-price-status,
+.agreement-price-amount {
+  margin: 0;
+  color: $atlas-muted;
+  font-size: 0.84rem;
+}
+
 .modal-footer {
   position: fixed;
   left: 0;

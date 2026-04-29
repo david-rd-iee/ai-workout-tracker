@@ -1,7 +1,7 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
-import { Firestore, collection, getDocs } from '@angular/fire/firestore';
+import { Firestore, collection, doc, getDoc, getDocs } from '@angular/fire/firestore';
 import {
   IonButton,
   IonCard,
@@ -13,11 +13,12 @@ import {
 import { addIcons } from 'ionicons';
 import {
   cashOutline,
-  cardOutline,
   chatbubblesOutline,
   closeCircleOutline,
   fitnessOutline,
+  locationOutline,
   refreshOutline,
+  ribbonOutline,
   timeOutline,
 } from 'ionicons/icons';
 import { HeaderComponent } from '../../components/header/header.component';
@@ -37,6 +38,17 @@ interface AssignedTrainerWorkout {
   assignedAt: Date;
   assignedAtLabel: string;
   isComplete: boolean;
+}
+
+interface ConnectedTrainerDetails {
+  displayName: string;
+  profilepic: string;
+  specialization: string;
+  experience: string;
+  education: string;
+  city: string;
+  state: string;
+  hourlyRate: number | null;
 }
 
 @Component({
@@ -63,6 +75,7 @@ export class ClientPaymentsPage implements OnInit {
   private readonly chatsService = inject(ChatsService);
 
   isLoading = true;
+  isLoadingTrainer = false;
   isStartingCheckout = false;
   isOpeningChat = false;
   isLoadingWorkouts = false;
@@ -70,17 +83,19 @@ export class ClientPaymentsPage implements OnInit {
   successMessage = '';
   highlightWorkoutsSection = false;
   paymentContext: ClientTrainerPaymentContext | null = null;
+  connectedTrainer: ConnectedTrainerDetails | null = null;
   activeAgreementId = '';
   assignedWorkouts: AssignedTrainerWorkout[] = [];
 
   constructor() {
     addIcons({
-      cardOutline,
       cashOutline,
       chatbubblesOutline,
       refreshOutline,
       closeCircleOutline,
       fitnessOutline,
+      locationOutline,
+      ribbonOutline,
       timeOutline,
     });
   }
@@ -203,12 +218,38 @@ export class ClientPaymentsPage implements OnInit {
     return 'Ready for Payment';
   }
 
+  get trainerLocationLabel(): string {
+    const city = String(this.connectedTrainer?.city || '').trim();
+    const state = String(this.connectedTrainer?.state || '').trim();
+
+    if (city && state) {
+      return `${city}, ${state}`;
+    }
+
+    return city || state || '';
+  }
+
+  trainerAvatarInitial(): string {
+    const displayName = String(this.connectedTrainer?.displayName || this.paymentContext?.trainerName || '').trim();
+    return displayName ? displayName[0].toUpperCase() : '?';
+  }
+
+  formatHourlyRate(rate: number): string {
+    if (!Number.isFinite(rate) || rate <= 0) {
+      return '';
+    }
+
+    return Number.isInteger(rate) ? rate.toFixed(0) : rate.toFixed(2);
+  }
+
   private async loadPaymentContext(): Promise<void> {
     this.isLoading = true;
     this.errorMessage = '';
+    this.connectedTrainer = null;
 
     try {
       this.paymentContext = await this.clientPaymentsService.getPaymentContext();
+      await this.loadConnectedTrainer();
       const clientId = String(this.paymentContext?.clientId || '').trim();
       if (clientId) {
         await this.loadAssignedWorkouts(clientId);
@@ -218,11 +259,88 @@ export class ClientPaymentsPage implements OnInit {
     } catch (error) {
       console.error('[ClientPaymentsPage] Failed to load payment context:', error);
       this.paymentContext = null;
+      this.connectedTrainer = null;
       this.assignedWorkouts = [];
       this.errorMessage = this.resolveErrorMessage(error);
     } finally {
       this.isLoading = false;
     }
+  }
+
+  private async loadConnectedTrainer(): Promise<void> {
+    const trainerId = String(this.paymentContext?.trainerId || '').trim();
+    if (!trainerId) {
+      this.connectedTrainer = null;
+      return;
+    }
+
+    this.isLoadingTrainer = true;
+    this.connectedTrainer = null;
+
+    try {
+      const [trainerUserSnap, trainerSnap] = await Promise.all([
+        getDoc(doc(this.firestore, `users/${trainerId}`)),
+        getDoc(doc(this.firestore, `trainers/${trainerId}`)),
+      ]);
+
+      if (!trainerUserSnap.exists() && !trainerSnap.exists()) {
+        this.connectedTrainer = null;
+        return;
+      }
+
+      const trainerUserData = trainerUserSnap.exists() ? (trainerUserSnap.data() as Record<string, unknown>) : {};
+      const trainerData = trainerSnap.exists() ? (trainerSnap.data() as Record<string, unknown>) : {};
+      const displayName = this.resolveTrainerDisplayName(trainerUserData, trainerData);
+
+      this.connectedTrainer = {
+        displayName,
+        profilepic: this.resolveTrainerProfilePicture(trainerData),
+        specialization: String(trainerData['specialization'] || '').trim(),
+        experience: String(trainerData['experience'] || '').trim(),
+        education: String(trainerData['education'] || '').trim(),
+        city: String(trainerData['city'] || '').trim(),
+        state: String(trainerData['state'] || '').trim(),
+        hourlyRate: this.resolveTrainerHourlyRate(trainerData),
+      };
+    } catch (error) {
+      console.error('[ClientPaymentsPage] Failed to load connected trainer:', error);
+      this.connectedTrainer = null;
+    } finally {
+      this.isLoadingTrainer = false;
+    }
+  }
+
+  private resolveTrainerProfilePicture(trainerData: Record<string, unknown>): string {
+    const profilePic =
+      String(trainerData['profilepic'] || '').trim() ||
+      String(trainerData['photoURL'] || '').trim() ||
+      String(trainerData['profilePic'] || '').trim();
+    return profilePic;
+  }
+
+  private resolveTrainerHourlyRate(trainerData: Record<string, unknown>): number | null {
+    const rawRate = Number(trainerData['hourlyRate']);
+    return Number.isFinite(rawRate) && rawRate > 0 ? rawRate : null;
+  }
+
+  private resolveTrainerDisplayName(
+    trainerUserData: Record<string, unknown>,
+    trainerData: Record<string, unknown>
+  ): string {
+    const displayName =
+      String(trainerUserData['displayName'] || '').trim() ||
+      String(trainerData['displayName'] || '').trim() ||
+      String(trainerUserData['username'] || '').trim() ||
+      String(trainerData['username'] || '').trim();
+    if (displayName) {
+      return displayName;
+    }
+
+    const firstName =
+      String(trainerUserData['firstName'] || trainerData['firstName'] || '').trim();
+    const lastName =
+      String(trainerUserData['lastName'] || trainerData['lastName'] || '').trim();
+    return `${firstName} ${lastName}`.trim() || 'Assigned Trainer';
   }
 
   private applyCheckoutMessageFromQueryParams(): void {
