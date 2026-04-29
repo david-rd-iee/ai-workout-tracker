@@ -79,7 +79,7 @@ $atlas-muted: #8b9ab0;
 .settings-form {
   margin-top: 14px;
   display: grid;
-  gap: 12px;
+  gap: 14px;
 }
 
 .trainer-payment-summary {
@@ -139,7 +139,7 @@ $atlas-muted: #8b9ab0;
 
 .field-grid {
   display: grid;
-  gap: 10px;
+  gap: 12px;
 }
 
 .unit-helper {
@@ -159,6 +159,129 @@ $atlas-muted: #8b9ab0;
   --inner-padding-end: 0;
   --min-height: auto;
   padding: 0;
+}
+
+.trainer-profile-section {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  margin: 4px 0 2px;
+  @include atlas-inset(24px);
+}
+
+.trainer-section-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.trainer-section-header h2 {
+  margin: 0;
+}
+
+.visibility-chip {
+  flex-shrink: 0;
+  @include atlas-neu(999px);
+  padding: 8px 12px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #6f7f98;
+}
+
+.visibility-chip.is-visible {
+  color: #2a6f44;
+}
+
+.trainer-location-card {
+  @include atlas-neu(22px);
+  padding: 14px 16px;
+}
+
+.trainer-location-copy {
+  display: grid;
+  gap: 6px;
+}
+
+.trainer-kicker {
+  display: inline-flex;
+  width: fit-content;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: linear-gradient(145deg, #eef3fb, #e2e9f5);
+  color: $atlas-blue-strong;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.trainer-location-copy h3 {
+  margin: 0;
+  color: $atlas-text;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.trainer-location-copy p {
+  margin: 0;
+  color: $atlas-muted;
+  line-height: 1.45;
+  font-size: 0.88rem;
+}
+
+.trainer-location-source {
+  color: $atlas-text !important;
+  font-size: 0.8rem !important;
+  font-weight: 650;
+}
+
+.trainer-field-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.settings-field-full {
+  grid-column: 1 / -1;
+}
+
+.trainer-toggle-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.settings-toggle-field,
+.settings-toggle-row {
+  @include atlas-neu(22px);
+  padding: 14px 16px;
+}
+
+.settings-toggle-row {
+  align-items: center;
+}
+
+.settings-toggle-label {
+  display: grid;
+  gap: 4px;
+  padding-inline-end: 12px;
+}
+
+.toggle-title {
+  color: $atlas-text;
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.toggle-copy {
+  color: $atlas-muted;
+  font-size: 0.8rem;
+  line-height: 1.35;
 }
 
 .imperial-height-grid {
@@ -194,6 +317,12 @@ $atlas-muted: #8b9ab0;
 .settings-input::part(text),
 .settings-input::part(placeholder) {
   color: #4f5e77;
+}
+
+.settings-input::part(native) {
+  min-height: 44px;
+  padding-top: 2px;
+  padding-bottom: 2px;
 }
 
 .settings-input::part(icon) {
@@ -278,5 +407,14 @@ $atlas-muted: #8b9ab0;
 
   .trainer-payment-grid {
     grid-template-columns: 1fr;
+  }
+
+  .trainer-field-grid,
+  .trainer-toggle-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .trainer-section-header {
+    flex-direction: column;
   }
 }

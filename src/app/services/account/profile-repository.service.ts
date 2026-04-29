@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { Firestore } from '@angular/fire/firestore';
-import { collection, doc, getDoc, getDocs, onSnapshot } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, onSnapshot, setDoc } from 'firebase/firestore';
 import { Observable } from 'rxjs';
 import { AppUser } from '../../models/user.model';
 
@@ -10,6 +10,24 @@ type ProfileAvailability = Record<string, ProfileTimeSlot[]>;
 type ProfileTrainingLocation = {
   remote: boolean;
   inPerson: boolean;
+};
+
+export type TrainerProfileCardPatch = {
+  firstName?: string;
+  lastName?: string;
+  profileImage?: string;
+  profilePic?: string;
+  profilepic?: string;
+  specialization?: string;
+  experience?: string;
+  education?: string;
+  description?: string;
+  certifications?: string[];
+  hourlyRate?: number | null;
+  trainingLocation?: ProfileTrainingLocation;
+  city?: string;
+  state?: string;
+  visible?: boolean;
 };
 
 export interface UserProfile extends Record<string, unknown> {
@@ -214,6 +232,77 @@ export class ProfileRepositoryService {
 
     this.clearResolvedProfileCachesForUser(normalizedUserId);
     this.clearProfileLists();
+  }
+
+  async updateTrainerProfile(userId: string, patch: TrainerProfileCardPatch): Promise<void> {
+    const normalizedUserId = this.normalizeUserId(userId);
+    if (!normalizedUserId) {
+      throw new Error('Trainer user ID is required.');
+    }
+
+    const safePatch: Record<string, unknown> = {};
+    const copyString = (field: keyof TrainerProfileCardPatch, target: string) => {
+      if (!Object.prototype.hasOwnProperty.call(patch, field)) {
+        return;
+      }
+
+      const value = patch[field];
+      if (typeof value === 'string') {
+        safePatch[target] = value.trim();
+      }
+    };
+
+    copyString('firstName', 'firstName');
+    copyString('lastName', 'lastName');
+    copyString('specialization', 'specialization');
+    copyString('experience', 'experience');
+    copyString('education', 'education');
+    copyString('description', 'description');
+    copyString('city', 'city');
+    copyString('state', 'state');
+
+    const profileImage = this.normalizeString(
+      patch['profileImage'] ?? patch['profilePic'] ?? patch['profilepic']
+    );
+    if (profileImage !== null) {
+      safePatch['profileImage'] = profileImage;
+      safePatch['profilePic'] = profileImage;
+      safePatch['profilepic'] = profileImage;
+    }
+
+    if (Object.prototype.hasOwnProperty.call(patch, 'certifications')) {
+      const certifications = patch['certifications'];
+      safePatch['certifications'] = Array.isArray(certifications)
+        ? certifications
+            .map((value) => this.normalizeString(value))
+            .filter((value): value is string => value !== null)
+        : [];
+    }
+
+    if (Object.prototype.hasOwnProperty.call(patch, 'hourlyRate')) {
+      safePatch['hourlyRate'] = this.normalizeOptionalNumber(patch['hourlyRate']);
+    }
+
+    if (patch['trainingLocation']) {
+      const trainingLocation = patch['trainingLocation'] as ProfileTrainingLocation;
+      safePatch['trainingLocation'] = {
+        remote: trainingLocation.remote === true,
+        inPerson: trainingLocation.inPerson === true,
+      };
+    }
+
+    if (Object.prototype.hasOwnProperty.call(patch, 'visible') && typeof patch['visible'] === 'boolean') {
+      safePatch['visible'] = patch['visible'];
+    }
+
+    if (!Object.keys(safePatch).length) {
+      return;
+    }
+
+    await setDoc(doc(this.firestore, this.TRAINERS_COLLECTION, normalizedUserId), safePatch, {
+      merge: true,
+    });
+    this.applyProfilePatch(normalizedUserId, 'trainer', safePatch);
   }
 
   observeUserSummary(
@@ -571,7 +660,8 @@ export class ProfileRepositoryService {
         !this.hasValue(rawProfile['profilepic']) ||
         !this.hasValue(rawProfile['username']);
       const userSummary = needsUserSummary ? await this.getUserSummary(userId) : null;
-      return this.applyUserSummaryToProfile(rawProfile, userId, accountType, userSummary, true);
+      const preferUserSummary = accountType !== 'trainer';
+      return this.applyUserSummaryToProfile(rawProfile, userId, accountType, userSummary, preferUserSummary);
     } catch (error) {
       console.error(`[ProfileRepositoryService] Failed to load ${accountType} profile:`, error);
       return null;
@@ -623,13 +713,14 @@ export class ProfileRepositoryService {
           const userSummary = cachedUserSummary ?? (needsUserSummary
             ? await this.getUserSummary(profileDoc.id)
             : null);
+          const preferUserSummary = accountType !== 'trainer' && !!cachedUserSummary;
 
           return this.applyUserSummaryToProfile(
             rawProfile,
             profileDoc.id,
             accountType,
             userSummary,
-            !!cachedUserSummary
+            preferUserSummary
           );
         })
       );
@@ -661,6 +752,42 @@ export class ProfileRepositoryService {
 
   private hasValue(value: unknown): boolean {
     return typeof value === 'string' ? value.trim().length > 0 : value !== null && value !== undefined;
+  }
+
+  private normalizeString(value: unknown): string | null {
+    if (value === null || value === undefined) {
+      return null;
+    }
+
+    return String(value).trim();
+  }
+
+  private normalizeOptionalNumber(value: unknown): number | null {
+    if (value === null || value === undefined) {
+      return null;
+    }
+
+    if (typeof value === 'number') {
+      return Number.isFinite(value) ? value : null;
+    }
+
+    const trimmed = String(value).trim();
+    if (!trimmed) {
+      return null;
+    }
+
+    const parsed = Number(trimmed);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  private firstAvailableString(...values: unknown[]): string {
+    for (const value of values) {
+      if (typeof value === 'string' && value.trim()) {
+        return value.trim();
+      }
+    }
+
+    return '';
   }
 
   private isPermissionDeniedError(error: unknown): boolean {
@@ -755,10 +882,33 @@ export class ProfileRepositoryService {
       merged['email'] = userSummary.email;
     }
 
+    if (preferUserSummary && userSummary?.phone) {
+      merged['phone'] = userSummary.phone;
+    } else if (!this.hasValue(merged['phone']) && userSummary?.phone) {
+      merged['phone'] = userSummary.phone;
+    }
+
     if (preferUserSummary && userSummary?.profilepic) {
       merged['profilepic'] = userSummary.profilepic;
     } else if (!this.hasValue(merged['profilepic']) && userSummary?.profilepic) {
       merged['profilepic'] = userSummary.profilepic;
+    }
+
+    const preferredImage = this.firstAvailableString(
+      merged['profileImage'],
+      merged['profilePic'],
+      merged['profilepic']
+    );
+    if (preferredImage) {
+      if (!this.hasValue(merged['profileImage'])) {
+        merged['profileImage'] = preferredImage;
+      }
+      if (!this.hasValue(merged['profilePic'])) {
+        merged['profilePic'] = preferredImage;
+      }
+      if (!this.hasValue(merged['profilepic'])) {
+        merged['profilepic'] = preferredImage;
+      }
     }
 
     if (preferUserSummary && userSummary?.username) {

@@ -44,6 +44,156 @@
               ></ion-input>
             </ion-item>
 
+            <div class="trainer-profile-section" *ngIf="isTrainer">
+              <div class="trainer-section-header">
+                <div>
+                  <h2>Public Trainer Profile</h2>
+                  <p class="page-copy">These fields power the Find Trainer cards and previews.</p>
+                </div>
+
+                <div class="visibility-chip" [class.is-visible]="trainerVisible">
+                  {{ trainerVisible ? 'Visible in Find Trainer' : 'Hidden from Find Trainer' }}
+                </div>
+              </div>
+
+              <div class="trainer-location-card">
+                <div class="trainer-location-copy">
+                  <span class="trainer-kicker">Detected Location</span>
+                  <h3>Your trainer card location</h3>
+                  <p>
+                    {{ trainerLocationSummary || 'We use device location services to populate city and state.' }}
+                  </p>
+                  <p class="trainer-location-source" *ngIf="trainerLocationSource">
+                    Source: {{ trainerLocationSource }}
+                  </p>
+                </div>
+              </div>
+
+              <div class="trainer-field-grid">
+                <ion-item lines="none" class="settings-field">
+                  <ion-input
+                    class="settings-input"
+                    label="Specialization"
+                    label-placement="stacked"
+                    [(ngModel)]="trainerSpecialization"
+                    name="trainerSpecialization"
+                    placeholder="Strength, rehab, bodybuilding, endurance..."
+                    [disabled]="isLoading || isSaving"
+                  ></ion-input>
+                </ion-item>
+
+                <ion-item lines="none" class="settings-field">
+                  <ion-select
+                    class="settings-input"
+                    label="Experience"
+                    label-placement="stacked"
+                    [(ngModel)]="trainerExperience"
+                    name="trainerExperience"
+                    placeholder="Select years coaching"
+                    interface="popover"
+                    [disabled]="isLoading || isSaving"
+                  >
+                    <ion-select-option *ngFor="let years of trainerExperienceOptions" [value]="getExperienceOptionLabel(years)">
+                      {{ getExperienceOptionLabel(years) }}
+                    </ion-select-option>
+                  </ion-select>
+                </ion-item>
+
+                <ion-item lines="none" class="settings-field">
+                  <ion-input
+                    class="settings-input"
+                    label="Education"
+                    label-placement="stacked"
+                    [(ngModel)]="trainerEducation"
+                    name="trainerEducation"
+                    placeholder="NASM CPT, CSCS, kinesiology..."
+                    [disabled]="isLoading || isSaving"
+                  ></ion-input>
+                </ion-item>
+
+                <ion-item lines="none" class="settings-field">
+                  <ion-input
+                    class="settings-input"
+                    label="Certifications"
+                    label-placement="stacked"
+                    [(ngModel)]="trainerCertificationsInput"
+                    name="trainerCertificationsInput"
+                    placeholder="Comma-separated certifications"
+                    [disabled]="isLoading || isSaving"
+                  ></ion-input>
+                </ion-item>
+
+                <ion-item lines="none" class="settings-field">
+                  <ion-input
+                    class="settings-input"
+                    label="Hourly Rate"
+                    label-placement="stacked"
+                    type="number"
+                    inputmode="decimal"
+                    [(ngModel)]="trainerHourlyRate"
+                    name="trainerHourlyRate"
+                    placeholder="e.g. 75"
+                    [disabled]="isLoading || isSaving"
+                  ></ion-input>
+                </ion-item>
+
+                <ion-item lines="none" class="settings-field settings-field-full">
+                  <ion-textarea
+                    class="settings-input"
+                    label="Description"
+                    label-placement="stacked"
+                    [(ngModel)]="trainerDescription"
+                    name="trainerDescription"
+                    placeholder="Share your background and coaching style."
+                    rows="4"
+                    autoGrow="true"
+                    [disabled]="isLoading || isSaving"
+                  ></ion-textarea>
+                </ion-item>
+              </div>
+
+              <div class="trainer-toggle-grid">
+                <ion-item lines="none" class="settings-field settings-toggle-field">
+                  <ion-label class="settings-toggle-label">
+                    <span class="toggle-title">Remote Training</span>
+                    <span class="toggle-copy">Offer online coaching sessions.</span>
+                  </ion-label>
+                  <ion-toggle
+                    slot="end"
+                    [(ngModel)]="trainerRemote"
+                    name="trainerRemote"
+                    [disabled]="isLoading || isSaving"
+                  ></ion-toggle>
+                </ion-item>
+
+                <ion-item lines="none" class="settings-field settings-toggle-field">
+                  <ion-label class="settings-toggle-label">
+                    <span class="toggle-title">In-Person Training</span>
+                    <span class="toggle-copy">Offer face-to-face sessions.</span>
+                  </ion-label>
+                  <ion-toggle
+                    slot="end"
+                    [(ngModel)]="trainerInPerson"
+                    name="trainerInPerson"
+                    [disabled]="isLoading || isSaving"
+                  ></ion-toggle>
+                </ion-item>
+              </div>
+
+              <ion-item lines="none" class="settings-field settings-toggle-row">
+                <ion-label class="settings-toggle-label">
+                  <span class="toggle-title">Show my profile in Find Trainer</span>
+                  <span class="toggle-copy">Hide this card while you update your profile.</span>
+                </ion-label>
+                <ion-toggle
+                  slot="end"
+                  [(ngModel)]="trainerVisible"
+                  name="trainerVisible"
+                  [disabled]="isLoading || isSaving"
+                ></ion-toggle>
+              </ion-item>
+            </div>
+
             <ion-item lines="none" class="settings-field" *ngIf="!isTrainer">
               <ion-select
                 class="settings-input"

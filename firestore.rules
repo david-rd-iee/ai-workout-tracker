@@ -114,17 +114,91 @@ service cloud.firestore {
         request.auth.token.email is string &&
         request.auth.token.email == 'dev-account@example.com';
     }
+
+    function trainerProfileAllowedFields() {
+      return [
+        'firstName',
+        'lastName',
+        'profileImage',
+        'profilePic',
+        'profilepic',
+        'specialization',
+        'experience',
+        'education',
+        'description',
+        'certifications',
+        'hourlyRate',
+        'trainingLocation',
+        'city',
+        'state',
+        'zip',
+        'visible',
+        'unreadMessageCount'
+      ];
+    }
+
+    function trainerProfileCardFields() {
+      return [
+        'firstName',
+        'lastName',
+        'profileImage',
+        'profilePic',
+        'profilepic',
+        'specialization',
+        'experience',
+        'education',
+        'description',
+        'certifications',
+        'hourlyRate',
+        'trainingLocation',
+        'city',
+        'state',
+        'zip',
+        'visible'
+      ];
+    }
+
+    function hasValidTrainerProfileShape(data) {
+      return data.firstName is string &&
+        data.lastName is string &&
+        (!('profileImage' in data) || data.profileImage is string) &&
+        (!('profilePic' in data) || data.profilePic is string) &&
+        (!('profilepic' in data) || data.profilepic is string) &&
+        data.specialization is string &&
+        data.experience is string &&
+        data.education is string &&
+        data.description is string &&
+        data.certifications is list &&
+        (data.hourlyRate == null || data.hourlyRate is number) &&
+        data.trainingLocation is map &&
+        data.trainingLocation.remote is bool &&
+        data.trainingLocation.inPerson is bool &&
+        data.city is string &&
+        data.state is string &&
+        data.zip is number &&
+        data.visible is bool;
+    }
+
+    function canWriteTrainerProfile(trainerId) {
+      return isOwner(trainerId) &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(trainerProfileCardFields()) &&
+        hasValidTrainerProfileShape(request.resource.data);
+    }
+
+    function canCreateTrainerProfile(trainerId) {
+      return isOwner(trainerId) &&
+        request.resource.data.keys().hasOnly(trainerProfileAllowedFields()) &&
+        hasValidTrainerProfileShape(request.resource.data);
+    }
     
     // User profiles - trainers collection
     match /trainers/{userId} {
-      // Trainers can read, write and delete their own profiles
-      // Clients can only read trainer profiles
       allow read: if isSignedIn();
-      allow write, delete: if isOwner(userId);
-      
-      // Allow updating unreadMessageCount for chat notifications
-      // Any authenticated user can increment another user's unread count
-      allow update: if isSignedIn() && 
+      allow create: if canCreateTrainerProfile(userId);
+      allow update: if canWriteTrainerProfile(userId);
+      allow delete: if isOwner(userId);
+
+      allow update: if isSignedIn() &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['unreadMessageCount']) &&
         request.resource.data.unreadMessageCount is number &&
         request.resource.data.unreadMessageCount >= 0;

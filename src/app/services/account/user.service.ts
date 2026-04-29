@@ -49,35 +49,74 @@ export class UserService {
     formData.email = authEmail;
 
     if (userID) {
-      const collection = formData.accountType === 'trainer'
-        ? this.TRAINERS_COLLECTION
-        : this.CLIENTS_COLLECTION;
-
-      // Add required fields for chat functionality
       const isTrainerAccount = formData.accountType === 'trainer';
-      const profileData = {
-        ...formData,
-        ...(isTrainerAccount
-          ? {
-              approvalStatus: 'pending' as const,
-              visible: false,
-            }
-          : {}),
-        unreadMessageCount: 0, // Initialize unread message count
-        createdAt: new Date(),
-        updatedAt: new Date()
-      };
-
-      const userDocRef = doc(this.firestore, `${collection}/${userID}`);
-      await setDoc(userDocRef, profileData);
-
-      const usersRef = doc(this.firestore, `users/${userID}`);
       const firstName = typeof (formData as any)?.firstName === 'string'
         ? (formData as any).firstName.trim()
         : '';
       const lastName = typeof (formData as any)?.lastName === 'string'
         ? (formData as any).lastName.trim()
         : '';
+      const phone = typeof (formData as any)?.phone === 'string'
+        ? (formData as any).phone.trim()
+        : '';
+      const profileImage = typeof (formData as any)?.profilepic === 'string'
+        ? (formData as any).profilepic.trim()
+        : '';
+      const zip = typeof (formData as any)?.zip === 'number'
+        ? (formData as any).zip
+        : Number((formData as any)?.zip || 0);
+
+      const trainerProfileData = isTrainerAccount
+        ? {
+            firstName,
+            lastName,
+            profilepic: profileImage,
+            city: typeof (formData as any)?.city === 'string' ? (formData as any).city.trim() : '',
+            state: typeof (formData as any)?.state === 'string' ? (formData as any).state.trim() : '',
+            zip,
+            specialization: typeof (formData as any)?.specialization === 'string'
+              ? (formData as any).specialization.trim()
+              : '',
+            experience: typeof (formData as any)?.experience === 'string'
+              ? (formData as any).experience.trim()
+              : '',
+            education: typeof (formData as any)?.education === 'string'
+              ? (formData as any).education.trim()
+              : '',
+            description: typeof (formData as any)?.description === 'string'
+              ? (formData as any).description.trim()
+              : '',
+            certifications: Array.isArray((formData as any)?.certifications)
+              ? (formData as any).certifications.map((value: unknown) => String(value).trim()).filter(Boolean)
+              : [],
+            trainingLocation: {
+              remote: (formData as any)?.trainingLocation?.remote === true,
+              inPerson: (formData as any)?.trainingLocation?.inPerson === true,
+            },
+            visible: false,
+            unreadMessageCount: 0,
+          }
+        : null;
+
+      const clientProfileData = !isTrainerAccount
+        ? {
+            ...(formData as unknown as Record<string, unknown>),
+            unreadMessageCount: 0,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          }
+        : null;
+
+      const trainerDocRef = doc(this.firestore, `${this.TRAINERS_COLLECTION}/${userID}`);
+      const clientDocRef = doc(this.firestore, `${this.CLIENTS_COLLECTION}/${userID}`);
+
+      if (isTrainerAccount) {
+        await setDoc(trainerDocRef, trainerProfileData!);
+      } else {
+        await setDoc(clientDocRef, clientProfileData!);
+      }
+
+      const usersRef = doc(this.firestore, `users/${userID}`);
 
       await setDoc(
         usersRef,
@@ -86,6 +125,8 @@ export class UserService {
           email: authEmail ?? '',
           firstName,
           lastName,
+          phone,
+          profilepic: profileImage,
           isPT: false,
           requestedAccountType: formData.accountType,
           trainerApprovalStatus: isTrainerAccount ? 'pending' : 'approved',
@@ -100,20 +141,22 @@ export class UserService {
         email: authEmail ?? '',
         firstName,
         lastName,
+        phone,
+        profilepic: profileImage,
         isPT: false,
       };
       this.profileRepository.primeUserSummary(userID, userSummaryPatch);
-      this.profileRepository.primeProfile(userID, formData.accountType, {
-        ...profileData,
-        id: userID,
-        email: authEmail ?? '',
-      });
+      this.profileRepository.primeProfile(
+        userID,
+        formData.accountType,
+        isTrainerAccount ? trainerProfileData! : clientProfileData!
+      );
       this.syncCurrentUserSummaryPatch(userID, userSummaryPatch);
-      this.syncCurrentUserProfilePatch(userID, formData.accountType, {
-        ...profileData,
-        id: userID,
-        email: authEmail ?? '',
-      });
+      this.syncCurrentUserProfilePatch(
+        userID,
+        formData.accountType,
+        isTrainerAccount ? trainerProfileData! : clientProfileData!
+      );
       return true;
     } else {
       throw new Error('User ID not found');
@@ -528,6 +571,10 @@ export class UserService {
       merged.email = userSummary.email;
     }
 
+    if (userSummary?.phone) {
+      merged.phone = userSummary.phone;
+    }
+
     if (typeof userSummary?.profilepic === 'string' && userSummary.profilepic.trim()) {
       merged.profilepic = userSummary.profilepic;
     }
@@ -563,6 +610,10 @@ export class UserService {
 
     if (Object.prototype.hasOwnProperty.call(patch, 'email')) {
       nextUser.email = patch.email ?? '';
+    }
+
+    if (Object.prototype.hasOwnProperty.call(patch, 'phone')) {
+      nextUser.phone = patch.phone ?? '';
     }
 
     if (Object.prototype.hasOwnProperty.call(patch, 'profilepic')) {

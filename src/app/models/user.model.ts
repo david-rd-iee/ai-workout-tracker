@@ -3,6 +3,7 @@ export interface AppUser {
   userId?: string;
 
   email?: string;
+  phone?: string;
 
   firstName?: string;
   lastName?: string;

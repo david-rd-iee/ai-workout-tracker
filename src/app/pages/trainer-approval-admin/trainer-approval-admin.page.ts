@@ -207,7 +207,7 @@ export class TrainerApprovalAdminPage implements OnInit {
               typeof trainerData['hourlyRate'] === 'number' ? trainerData['hourlyRate'] : null,
             city: String(trainerData['city'] || ''),
             state: String(trainerData['state'] || ''),
-            phone: String(trainerData['phone'] || ''),
+            phone: String(userData['phone'] || trainerData['phone'] || ''),
           } satisfies PendingTrainerApplication;
         })
       );

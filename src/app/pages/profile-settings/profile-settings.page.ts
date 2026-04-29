@@ -6,10 +6,12 @@ import {
   IonContent,
   IonInput,
   IonItem,
+  IonLabel,
   IonSelect,
   IonSelectOption,
   IonText,
   IonTextarea,
+  IonToggle,
 } from '@ionic/angular/standalone';
 import { Auth, onAuthStateChanged } from '@angular/fire/auth';
 import { Firestore } from '@angular/fire/firestore';
@@ -20,7 +22,11 @@ import { FirebaseError } from 'firebase/app';
 import { AlertController } from '@ionic/angular';
 import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { AccountService } from '../../services/account/account.service';
-import { ProfileRepositoryService } from '../../services/account/profile-repository.service';
+import {
+  ProfileRepositoryService,
+  TrainerProfileCardPatch,
+} from '../../services/account/profile-repository.service';
+import { Region } from '../../models/user-stats.model';
 import { UserService } from '../../services/account/user.service';
 import { NotificationService } from '../../services/notification.service';
 import { HeaderComponent } from '../../components/header/header.component';
@@ -45,11 +51,13 @@ type UnitSystem = 'metric' | 'imperial';
     IonContent,
     IonButton,
     IonItem,
+    IonLabel,
     IonInput,
     IonSelect,
     IonSelectOption,
     IonText,
     IonTextarea,
+    IonToggle,
     HeaderComponent,
   ],
 })
@@ -84,6 +92,19 @@ export class ProfileSettingsPage implements OnInit {
   readonly ROUTE_PATHS = ROUTE_PATHS;
   trainerPaymentSummary: TrainerStripeConnectSummary | null = null;
   isLoadingTrainerPaymentSummary = false;
+  trainerSpecialization = '';
+  trainerExperience = '';
+  trainerEducation = '';
+  trainerDescription = '';
+  trainerCertificationsInput = '';
+  trainerHourlyRate: string | number = '';
+  trainerRemote = true;
+  trainerInPerson = false;
+  trainerVisible = true;
+  trainerRegion: Region | null = null;
+  trainerLocationSummary = '';
+  trainerLocationSource = '';
+  readonly trainerExperienceOptions = Array.from({ length: 40 }, (_, index) => index + 1);
 
   isLoading = false;
   isSaving = false;
@@ -152,6 +173,7 @@ export class ProfileSettingsPage implements OnInit {
     const goals = shouldSaveStats ? this.goals.trim() : '';
     const experience = shouldSaveStats ? this.experience.trim() : '';
     const description = shouldSaveStats ? this.description.trim() : '';
+    const trainerExperience = this.isTrainer ? this.normalizeExperienceSelection(this.trainerExperience) : '';
     const parsedAge = shouldSaveStats ? this.parseNumber(this.age) : null;
     let parsedHeightMeters = shouldSaveStats ? this.parseNumber(this.heightMeters) : null;
     let parsedWeightKg = shouldSaveStats ? this.parseNumber(this.weightKg) : null;
@@ -218,6 +240,18 @@ export class ProfileSettingsPage implements OnInit {
     let emailVerificationSent = false;
 
     try {
+      const trainerRegion = this.isTrainer ? await this.resolveTrainerRegion(uid) : null;
+      if (this.isTrainer) {
+        if (!trainerRegion) {
+          this.errorMessage = 'Location access is required so your trainer profile can show your city and state.';
+          return;
+        }
+
+        this.trainerRegion = trainerRegion;
+        this.trainerLocationSummary = this.formatTrainerLocation(trainerRegion);
+        this.trainerLocationSource = 'Device location services';
+      }
+
       const emailChanged = this.normalizeEmail(email) !== this.normalizeEmail(this.initialEmail);
       if (emailChanged) {
         try {
@@ -236,6 +270,31 @@ export class ProfileSettingsPage implements OnInit {
       }
 
       const userRef = doc(this.firestore, 'users', uid);
+      const trainerProfilePatch: TrainerProfileCardPatch | null = this.isTrainer
+        ? {
+            firstName,
+            lastName,
+            specialization: this.trainerSpecialization.trim(),
+            experience: trainerExperience,
+            education: this.trainerEducation.trim(),
+            description: this.trainerDescription.trim(),
+            certifications: this.trainerCertificationsInput
+              .split(',')
+              .map((entry) => entry.trim())
+              .filter(Boolean),
+            hourlyRate: (() => {
+              const parsedRate = this.parseNumber(this.trainerHourlyRate);
+              return parsedRate !== null && parsedRate > 0 ? parsedRate : null;
+            })(),
+            trainingLocation: {
+              remote: this.trainerRemote,
+              inPerson: this.trainerInPerson,
+            },
+            city: this.getTrainerCity(trainerRegion),
+            state: this.getTrainerState(trainerRegion),
+            visible: this.trainerVisible,
+          }
+        : null;
       await setDoc(
         userRef,
         {
@@ -255,6 +314,11 @@ export class ProfileSettingsPage implements OnInit {
       };
       this.profileRepository.applyUserSummaryPatch(uid, userSummaryPatch);
       this.userService.syncCurrentUserSummaryPatch(uid, userSummaryPatch);
+
+      if (this.isTrainer && trainerProfilePatch) {
+        await this.profileRepository.updateTrainerProfile(uid, trainerProfilePatch);
+        this.userService.syncCurrentUserProfilePatch(uid, 'trainer', trainerProfilePatch);
+      }
 
       if (shouldSaveStats) {
         const clientProfilePatch = {
@@ -332,9 +396,9 @@ export class ProfileSettingsPage implements OnInit {
         this.profileRepository.getUserSummary(uid),
         getDoc(userStatsRef),
       ]);
+      const trainerProfile = await this.profileRepository.getProfile(uid, 'trainer', true) as Record<string, unknown> | null;
 
       if (userSnap) {
-        this.isTrainer = userSnap.isPT === true;
         this.firstName = typeof userSnap.firstName === 'string' ? userSnap.firstName : '';
         this.lastName = typeof userSnap.lastName === 'string' ? userSnap.lastName : '';
         this.email = typeof userSnap.email === 'string' ? userSnap.email : '';
@@ -348,13 +412,42 @@ export class ProfileSettingsPage implements OnInit {
           (currentEmail.length > 0 && approvedReviewerEmails.includes(currentEmail));
       }
 
+      this.isTrainer = !!trainerProfile;
+
       if (this.isTrainer) {
         await this.loadTrainerPaymentSummary(uid);
         this.goals = '';
         this.experience = '';
         this.description = '';
+        this.trainerSpecialization = this.readProfileString(trainerProfile, ['specialization']);
+        this.trainerExperience = this.normalizeExperienceSelection(this.readProfileString(trainerProfile, ['experience']));
+        this.trainerEducation = this.readProfileString(trainerProfile, ['education']);
+        this.trainerDescription = this.readProfileString(trainerProfile, ['description']);
+        this.trainerCertificationsInput = this.readProfileArray(trainerProfile, ['certifications']).join(', ');
+        this.trainerHourlyRate = this.readProfileNumber(trainerProfile, ['hourlyRate']);
+        const trainingLocation = this.readProfileObject(trainerProfile, ['trainingLocation']);
+        this.trainerRemote = trainingLocation?.['remote'] === true;
+        this.trainerInPerson = trainingLocation?.['inPerson'] === true;
+        this.trainerVisible = trainerProfile?.['visible'] === true;
+        this.trainerRegion = this.resolveTrainerRegionFromSnapshot(
+          userStatsSnap.exists() ? (userStatsSnap.data()?.['region'] as Record<string, unknown> | null) : null
+        );
+        this.trainerLocationSummary = this.formatTrainerLocation(this.trainerRegion);
+        this.trainerLocationSource = this.trainerRegion ? 'Device location services' : 'Location unavailable';
       } else {
         this.trainerPaymentSummary = null;
+        this.trainerSpecialization = '';
+        this.trainerExperience = '';
+        this.trainerEducation = '';
+        this.trainerDescription = '';
+        this.trainerCertificationsInput = '';
+        this.trainerHourlyRate = '';
+        this.trainerRemote = true;
+        this.trainerInPerson = false;
+        this.trainerVisible = false;
+        this.trainerRegion = null;
+        this.trainerLocationSummary = '';
+        this.trainerLocationSource = '';
         const clientProfile = await this.profileRepository.getProfile(uid, 'client') as Record<string, unknown> | null;
         this.goals = typeof clientProfile?.['goals'] === 'string' ? clientProfile['goals'] : '';
         this.experience = typeof clientProfile?.['experience'] === 'string' ? clientProfile['experience'] : '';
@@ -406,6 +499,328 @@ export class ProfileSettingsPage implements OnInit {
     } finally {
       this.isLoading = false;
     }
+  }
+
+  private readProfileString(
+    profile: Record<string, unknown> | null,
+    keys: string[]
+  ): string {
+    if (!profile) {
+      return '';
+    }
+
+    for (const key of keys) {
+      const value = profile[key];
+      if (typeof value === 'string') {
+        return value.trim();
+      }
+    }
+
+    return '';
+  }
+
+  private readProfileNumber(
+    profile: Record<string, unknown> | null,
+    keys: string[]
+  ): string | number {
+    if (!profile) {
+      return '';
+    }
+
+    for (const key of keys) {
+      const value = profile[key];
+      if (typeof value === 'number' && Number.isFinite(value)) {
+        return value;
+      }
+    }
+
+    return '';
+  }
+
+  private readProfileArray(
+    profile: Record<string, unknown> | null,
+    keys: string[]
+  ): string[] {
+    if (!profile) {
+      return [];
+    }
+
+    for (const key of keys) {
+      const value = profile[key];
+      if (Array.isArray(value)) {
+        return value
+          .map((entry) => String(entry).trim())
+          .filter(Boolean);
+      }
+    }
+
+    return [];
+  }
+
+  private readProfileObject(
+    profile: Record<string, unknown> | null,
+    keys: string[]
+  ): Record<string, unknown> | null {
+    if (!profile) {
+      return null;
+    }
+
+    for (const key of keys) {
+      const value = profile[key];
+      if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+        return value as Record<string, unknown>;
+      }
+    }
+
+    return null;
+  }
+
+  private resolveTrainerRegionFromSnapshot(region: Record<string, unknown> | null): Region | null {
+    if (!region) {
+      return null;
+    }
+
+    const countryCode = this.normalizeRegionCode(region['countryCode'], 2);
+    const stateCode = this.normalizeRegionCode(region['stateCode'], 2);
+    const cityId = this.normalizeCityId(region['cityId']);
+    const cityName = this.normalizeText(region['cityName']) || this.normalizeText(region['city']);
+    const stateName = this.normalizeText(region['stateName']) || this.normalizeText(region['state']);
+    const countryName = this.normalizeText(region['countryName']) || this.normalizeText(region['country']);
+
+    if (!countryCode || !stateCode || !cityName || !cityId) {
+      return null;
+    }
+
+    return {
+      country: countryCode,
+      state: stateCode,
+      city: cityName,
+      countryCode,
+      stateCode,
+      cityId,
+      countryName: countryName || countryCode,
+      stateName: stateName || stateCode,
+      cityName,
+    };
+  }
+
+  private async resolveTrainerRegion(userId: string): Promise<Region | null> {
+    const userStatsRef = doc(this.firestore, 'userStats', userId);
+    const userStatsSnap = await getDoc(userStatsRef);
+    const existingRegion = this.resolveTrainerRegionFromSnapshot(
+      userStatsSnap.exists() ? (userStatsSnap.data()?.['region'] as Record<string, unknown> | null) : null
+    );
+
+    if (existingRegion) {
+      return existingRegion;
+    }
+
+    if (!('geolocation' in navigator)) {
+      return null;
+    }
+
+    try {
+      const position = await this.getCurrentPosition();
+      const region = await this.reverseGeocodeRegion(
+        position.coords.latitude,
+        position.coords.longitude
+      );
+
+      if (!region) {
+        return null;
+      }
+
+      await setDoc(
+        userStatsRef,
+        {
+          region,
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+
+      return region;
+    } catch (error) {
+      console.error('[ProfileSettingsPage] Failed to resolve trainer region:', error);
+      return null;
+    }
+  }
+
+  private async getCurrentPosition(): Promise<GeolocationPosition> {
+    return new Promise((resolve, reject) => {
+      navigator.geolocation.getCurrentPosition(resolve, reject, {
+        enableHighAccuracy: true,
+        maximumAge: 0,
+        timeout: 15000,
+      });
+    });
+  }
+
+  private async reverseGeocodeRegion(
+    latitude: number,
+    longitude: number
+  ): Promise<Region | null> {
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+      return null;
+    }
+
+    const endpoint = new URL('https://api.bigdatacloud.net/data/reverse-geocode-client');
+    endpoint.searchParams.set('latitude', String(latitude));
+    endpoint.searchParams.set('longitude', String(longitude));
+    endpoint.searchParams.set('localityLanguage', 'en');
+
+    const response = await fetch(endpoint.toString(), {
+      method: 'GET',
+      headers: {
+        Accept: 'application/json',
+      },
+    });
+    if (!response.ok) {
+      return null;
+    }
+
+    const payload = await response.json() as Record<string, unknown>;
+    const countryCode = this.normalizeRegionCode(payload['countryCode'], 2);
+    const countryName = this.normalizeText(payload['countryName']) || countryCode;
+    const stateName = this.normalizeText(payload['principalSubdivision']);
+    const stateCode = this.normalizeStateCode(payload['principalSubdivisionCode']);
+    const cityName = this.resolveCityName(payload);
+    const cityId = this.buildCityId(cityName, stateCode, countryCode);
+
+    if (!countryCode || !stateCode || !cityName || !cityId) {
+      return null;
+    }
+
+    return {
+      country: countryCode,
+      state: stateCode,
+      city: cityName,
+      countryCode,
+      stateCode,
+      cityId,
+      countryName,
+      stateName: stateName || stateCode,
+      cityName,
+    };
+  }
+
+  private resolveCityName(payload: Record<string, unknown>): string {
+    const candidates = [
+      payload['city'],
+      payload['locality'],
+      payload['localityInfo'] && typeof payload['localityInfo'] === 'object'
+        ? (payload['localityInfo'] as Record<string, unknown>)['administrative3']
+        : null,
+      payload['principalSubdivision'],
+    ];
+
+    for (const candidate of candidates) {
+      const normalized = this.normalizeText(candidate);
+      if (normalized) {
+        return normalized;
+      }
+    }
+
+    return '';
+  }
+
+  private buildCityId(cityName: string, stateCode: string, countryCode: string): string {
+    const normalizedCity = this.normalizeCityName(cityName);
+    const normalizedState = this.normalizeRegionCode(stateCode, 2);
+    const normalizedCountry = this.normalizeRegionCode(countryCode, 2);
+    if (!normalizedCity || !normalizedState || !normalizedCountry) {
+      return '';
+    }
+
+    return `${normalizedCity}_${normalizedState}_${normalizedCountry}`;
+  }
+
+  private normalizeCityName(value: unknown): string {
+    return this.normalizeText(value)
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '');
+  }
+
+  private normalizeCityId(value: unknown): string {
+    return this.normalizeText(value).toLowerCase();
+  }
+
+  private normalizeText(value: unknown): string {
+    return value === null || value === undefined ? '' : String(value).trim();
+  }
+
+  private normalizeRegionCode(value: unknown, maxLength: number): string {
+    const normalized = this.normalizeText(value).toUpperCase();
+    return normalized.length > 0 ? normalized.slice(0, maxLength) : '';
+  }
+
+  private normalizeStateCode(value: unknown): string {
+    const normalized = this.normalizeText(value).toUpperCase();
+    if (!normalized) {
+      return '';
+    }
+
+    const parts = normalized.split('-');
+    return (parts[parts.length - 1] || normalized).slice(0, 3);
+  }
+
+  private formatTrainerLocation(region: Region | null): string {
+    if (!region) {
+      return 'Location unavailable';
+    }
+
+    const city = region.cityName || region.city || '';
+    const state = region.stateCode || region.stateName || region.state || '';
+
+    if (!city && !state) {
+      return 'Location unavailable';
+    }
+
+    return [city, state].filter(Boolean).join(', ');
+  }
+
+  private getTrainerCity(region: Region | null): string {
+    if (!region) {
+      return '';
+    }
+
+    return region.cityName || region.city || '';
+  }
+
+  private getTrainerState(region: Region | null): string {
+    if (!region) {
+      return '';
+    }
+
+    return region.stateCode || region.state || '';
+  }
+
+  private normalizeExperienceSelection(value: string): string {
+    const normalized = this.normalizeText(value);
+    if (!normalized) {
+      return '';
+    }
+
+    const yearsMatch = normalized.match(/(\d+)/);
+    if (!yearsMatch) {
+      return '';
+    }
+
+    const years = Number(yearsMatch[1]);
+    if (!Number.isInteger(years) || years <= 0) {
+      return '';
+    }
+
+    return this.formatExperienceYears(years);
+  }
+
+  private formatExperienceYears(years: number): string {
+    return `${years} ${years === 1 ? 'year' : 'years'}`;
+  }
+
+  getExperienceOptionLabel(years: number): string {
+    return this.formatExperienceYears(years);
   }
 
   private parseNumber(value: unknown): number | null {
