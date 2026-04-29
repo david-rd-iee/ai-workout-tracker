@@ -19,17 +19,37 @@
       <div class="client-info">
         <p class="eyebrow">Home Setup</p>
         <h2>{{ clientName }}</h2>
-        <p>Personalize their home page experience with a cleaner trainer-side control panel.</p>
+        <p>Choose the client shortcuts, arrange the flow, and preview the home page before saving.</p>
       </div>
     </section>
 
+    <ion-card class="message-card">
+      <ion-card-header>
+        <div class="card-header-with-icon">
+          <ion-icon name="chatbubbles-outline" color="primary"></ion-icon>
+          <ion-card-title>Trainer Message</ion-card-title>
+        </div>
+        <p class="subtitle">Shown when the Trainer Message widget is enabled</p>
+      </ion-card-header>
+      <ion-card-content>
+        <ion-textarea
+          class="message-textarea"
+          [(ngModel)]="customMessage"
+          autoGrow="true"
+          maxlength="180"
+          placeholder="Example: Focus on quality reps today. Message me after your lift."
+        ></ion-textarea>
+      </ion-card-content>
+    </ion-card>
+
+    <section class="customization-workspace">
     <ion-card class="widgets-card">
       <ion-card-header>
         <div class="card-header-with-icon">
           <ion-icon name="grid-outline" color="primary"></ion-icon>
           <ion-card-title>Home Page Widgets</ion-card-title>
         </div>
-        <p class="subtitle">Select which widgets to display on the home page</p>
+        <p class="subtitle">Drag to reorder. Toggle anything you want hidden.</p>
       </ion-card-header>
       <ion-card-content>
         <div class="widgets-grid">
@@ -37,14 +57,45 @@
             *ngFor="let widget of widgets" 
             class="widget-toggle-card"
             [class.enabled]="widget.enabled"
-            (click)="widget.enabled = !widget.enabled"
+            draggable="true"
+            (dragstart)="onDragStart($event, widget)"
+            (dragover)="onDragOver($event)"
+            (drop)="onDrop($event, widget)"
+            (dragend)="onDragEnd()"
+            (click)="toggleWidget(widget)"
           >
+            <button
+              type="button"
+              class="drag-handle"
+              aria-label="Drag to reorder widget"
+              (click)="$event.stopPropagation()"
+            >
+              <ion-icon name="menu-outline"></ion-icon>
+            </button>
             <div class="widget-icon">
               <ion-icon [name]="widget.icon"></ion-icon>
             </div>
             <div class="widget-info">
               <h3>{{ widget.name }}</h3>
               <p>{{ widget.description }}</p>
+            </div>
+            <div class="order-actions">
+              <ion-button
+                fill="clear"
+                size="small"
+                aria-label="Move widget up"
+                (click)="moveWidget(widget, -1, $event)"
+              >
+                <ion-icon name="chevron-up-outline"></ion-icon>
+              </ion-button>
+              <ion-button
+                fill="clear"
+                size="small"
+                aria-label="Move widget down"
+                (click)="moveWidget(widget, 1, $event)"
+              >
+                <ion-icon name="chevron-down-outline"></ion-icon>
+              </ion-button>
             </div>
             <div class="widget-toggle">
               <ion-toggle 
@@ -63,17 +114,29 @@
           <ion-icon name="eye-outline" color="success"></ion-icon>
           <ion-card-title>Preview</ion-card-title>
         </div>
-        <p class="subtitle">How the home page will look</p>
+        <p class="subtitle">Live client-style preview using your current order</p>
       </ion-card-header>
       <ion-card-content>
-        <div class="preview-list">
+        <div class="phone-preview">
+          <div class="preview-topbar"></div>
+          <div class="preview-welcome">
+            <h3>Welcome back, {{ clientName || 'Client' }}!</h3>
+            <p>Wednesday, April 29</p>
+          </div>
           <div 
             *ngFor="let widget of getEnabledWidgets(); let i = index" 
             class="preview-item"
+            [class.preview-message]="widget.id === 'welcome'"
+            [class.preview-primary]="widget.id === 'start-workout'"
           >
             <span class="preview-number">{{ i + 1 }}</span>
-            <ion-icon [name]="widget.icon" color="primary"></ion-icon>
-            <span class="preview-name">{{ widget.name }}</span>
+            <div class="preview-icon">
+              <ion-icon [name]="widget.icon"></ion-icon>
+            </div>
+            <div class="preview-copy">
+              <span class="preview-name">{{ widget.previewTitle }}</span>
+              <p>{{ widget.id === 'welcome' ? (customMessage || widget.previewText) : widget.previewText }}</p>
+            </div>
           </div>
           <div *ngIf="getEnabledWidgets().length === 0" class="empty-state">
             <ion-icon name="alert-circle-outline"></ion-icon>
@@ -82,6 +145,7 @@
         </div>
       </ion-card-content>
     </ion-card>
+    </section>
   </div>
 </ion-content>
 

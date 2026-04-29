@@ -67,6 +67,10 @@ $atlas-blue-strong: #2e6ef5;
   position: relative;
 }
 
+.customization-content::part(scroll) {
+  padding-bottom: calc(92px + env(safe-area-inset-bottom, 0px));
+}
+
 .background-gradient {
   position: absolute;
   inset: 0;
@@ -81,14 +85,15 @@ $atlas-blue-strong: #2e6ef5;
   position: relative;
   z-index: 1;
   padding: 16px;
-  padding-bottom: 112px;
+  padding-bottom: 108px;
   display: grid;
   gap: 16px;
 }
 
 .client-header,
 .widgets-card,
-.preview-card {
+.preview-card,
+.message-card {
   @include trainer-neu(24px);
 }
 
@@ -144,16 +149,19 @@ $atlas-blue-strong: #2e6ef5;
 }
 
 .widgets-card,
+.message-card,
 .preview-card {
   margin: 0;
 }
 
 .widgets-card ion-card-header,
+.message-card ion-card-header,
 .preview-card ion-card-header {
   padding: 18px 18px 0;
 }
 
 .widgets-card ion-card-content,
+.message-card ion-card-content,
 .preview-card ion-card-content {
   padding: 18px;
 }
@@ -182,8 +190,28 @@ $atlas-blue-strong: #2e6ef5;
   line-height: 1.5;
 }
 
-.widgets-grid,
-.preview-list {
+.customization-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1.08fr) minmax(320px, 0.92fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.message-textarea {
+  @include trainer-inset(18px);
+  --background: transparent;
+  --color: #455776;
+  --placeholder-color: #8b9ab0;
+  --padding-start: 14px;
+  --padding-end: 14px;
+  --padding-top: 12px;
+  --padding-bottom: 12px;
+  min-height: 84px;
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
+.widgets-grid {
   display: grid;
   gap: 12px;
 }
@@ -192,11 +220,36 @@ $atlas-blue-strong: #2e6ef5;
   @include trainer-inset(18px);
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   padding: 14px;
   border: 1px solid rgba(255, 255, 255, 0.56);
   cursor: pointer;
   transition: transform 170ms ease, border-color 170ms ease, box-shadow 170ms ease;
+}
+
+.widget-toggle-card[draggable='true'] {
+  user-select: none;
+}
+
+.drag-handle {
+  @include trainer-neu(12px);
+  width: 34px;
+  height: 38px;
+  flex: 0 0 34px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  color: $atlas-muted;
+  cursor: grab;
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+}
+
+.drag-handle ion-icon {
+  font-size: 1.2rem;
 }
 
 .widget-toggle-card .widget-icon {
@@ -230,6 +283,24 @@ $atlas-blue-strong: #2e6ef5;
   color: $atlas-muted;
   font-size: 0.78rem;
   line-height: 1.45;
+}
+
+.order-actions {
+  display: grid;
+  gap: 2px;
+}
+
+.order-actions ion-button {
+  --color: #6f7f98;
+  --padding-start: 0;
+  --padding-end: 0;
+  width: 30px;
+  height: 26px;
+  margin: 0;
+}
+
+.order-actions ion-icon {
+  font-size: 1rem;
 }
 
 .widget-toggle ion-toggle {
@@ -268,12 +339,56 @@ $atlas-blue-strong: #2e6ef5;
   transform: translateY(1px) scale(0.997);
 }
 
+.phone-preview {
+  @include trainer-inset(28px);
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  min-height: 520px;
+}
+
+.preview-topbar {
+  width: 88px;
+  height: 5px;
+  margin: 0 auto 4px;
+  border-radius: 999px;
+  background: rgba(139, 154, 176, 0.34);
+}
+
+.preview-welcome {
+  padding: 8px 4px 2px;
+}
+
+.preview-welcome h3 {
+  margin: 0;
+  color: #4d5f7b;
+  font-size: 1.18rem;
+  font-weight: 750;
+}
+
+.preview-welcome p {
+  margin: 7px 0 0;
+  color: $atlas-muted;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
 .preview-item {
-  @include trainer-inset(16px);
+  @include trainer-neu(18px);
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px 14px;
+  padding: 12px;
+}
+
+.preview-primary {
+  background: linear-gradient(145deg, #f7faff, #dfeaff);
+}
+
+.preview-message {
+  @include trainer-inset(18px);
 }
 
 .preview-number {
@@ -288,16 +403,37 @@ $atlas-blue-strong: #2e6ef5;
   font-weight: 700;
 }
 
-.preview-item ion-icon {
+.preview-icon {
+  @include trainer-neu(14px);
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+  display: grid;
+  place-items: center;
+}
+
+.preview-icon ion-icon {
   font-size: 1.2rem;
+  color: $atlas-blue-strong;
+}
+
+.preview-copy {
+  flex: 1;
+  min-width: 0;
 }
 
 .preview-name {
-  flex: 1;
-  min-width: 0;
+  display: block;
   color: $atlas-text;
   font-size: 0.9rem;
   font-weight: 600;
+}
+
+.preview-copy p {
+  margin: 4px 0 0;
+  color: $atlas-muted;
+  font-size: 0.74rem;
+  line-height: 1.35;
 }
 
 .empty-state {
@@ -358,6 +494,7 @@ $atlas-blue-strong: #2e6ef5;
 
   .client-header,
   .widgets-card ion-card-content,
+  .message-card ion-card-content,
   .preview-card ion-card-content {
     padding: 16px;
   }
@@ -368,5 +505,15 @@ $atlas-blue-strong: #2e6ef5;
 
   .widget-toggle-card {
     align-items: flex-start;
+  }
+}
+
+@media (max-width: 900px) {
+  .customization-workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .phone-preview {
+    min-height: auto;
   }
 }
