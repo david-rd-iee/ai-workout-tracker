@@ -2,7 +2,7 @@
   [title]="'Log Workout'"
   [hideTitle]="true"
   [showBack]="true"
-  [backHref]="'/logging-method-routes'"
+  [backHref]="backHref"
 ></app-header>
 
 <ion-content [fullscreen]="true" class="chat-content" [scrollY]="hasUserMessages">
@@ -16,6 +16,29 @@
         [style.--keyboard-offset.px]="keyboardOffset"
       >
         <div class="chat-summary-column" *ngIf="showSummaryPanel">
+          <div class="assigned-workout-banner" *ngIf="assignedWorkout">
+            <div class="assigned-workout-banner-copy">
+              <p class="assigned-workout-kicker">Assigned Workout</p>
+              <h3>{{ assignedWorkout.title }}</h3>
+              <p class="assigned-workout-meta">
+                {{ assignedWorkout.statusLabel }} · Due {{ assignedWorkout.dueDateLabel }}
+              </p>
+              <p class="assigned-workout-note" *ngIf="assignedWorkout.notes">
+                {{ assignedWorkout.notes }}
+              </p>
+            </div>
+
+            <div class="assigned-workout-stats">
+              <span *ngIf="assignedWorkout.exerciseCount > 0">
+                {{ assignedWorkout.exerciseCount }} exercises
+              </span>
+              <span *ngIf="assignedWorkout.durationMinutes > 0">
+                {{ assignedWorkout.durationMinutes }} min
+              </span>
+              <span *ngIf="assignedWorkout.trainerName">{{ assignedWorkout.trainerName }}</span>
+            </div>
+          </div>
+
           <div class="workout-summary-card-container" *ngIf="showLiveSummary">
             <div class="workout-summary-card">
               <div class="summary-card-header">

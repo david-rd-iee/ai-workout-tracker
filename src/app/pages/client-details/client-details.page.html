@@ -190,8 +190,8 @@
                 <p><strong>Type:</strong> {{ currentAgreementPaymentTypeLabel }}</p>
                 <p><strong>Amount:</strong> {{ currentAgreementPaymentAmountLabel }}</p>
                 <p><strong>Interval:</strong> {{ currentAgreementPaymentIntervalLabel }}</p>
-                <p *ngIf="currentAgreementPaymentTerms?.description">
-                  <strong>Description:</strong> {{ currentAgreementPaymentTerms?.description }}
+                <p *ngIf="currentAgreementPaymentTerms.description">
+                  <strong>Description:</strong> {{ currentAgreementPaymentTerms.description }}
                 </p>
               </div>
               <ng-template #noPaymentTerms>

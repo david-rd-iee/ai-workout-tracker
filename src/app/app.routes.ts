@@ -152,6 +152,12 @@ export const routes: Routes = [
     canActivate: [authGuard],
   },
   {
+    path: 'assigned-workout/:workoutId',
+    loadComponent: () =>
+      import('./pages/assigned-workout/assigned-workout.page').then((m) => m.AssignedWorkoutPage),
+    canActivate: [authGuard],
+  },
+  {
     path: 'workout-chatbot',
     loadComponent: () =>
       import('./pages/workout-chatbot/workout-chatbot.page').then(

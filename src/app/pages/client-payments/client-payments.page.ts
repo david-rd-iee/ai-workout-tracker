@@ -1,7 +1,7 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
-import { Firestore, collection, doc, getDoc, getDocs } from '@angular/fire/firestore';
+import { Firestore, collection, doc, getDoc, getDocs, query, where } from '@angular/fire/firestore';
 import {
   IonButton,
   IonCard,
@@ -12,11 +12,16 @@ import {
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
 import {
+  alertCircleOutline,
+  calendarOutline,
   cashOutline,
   chatbubblesOutline,
   closeCircleOutline,
   fitnessOutline,
+  eyeOutline,
   locationOutline,
+  lockClosedOutline,
+  playOutline,
   refreshOutline,
   ribbonOutline,
   timeOutline,
@@ -28,6 +33,7 @@ import {
   ClientPaymentsService,
   ClientTrainerPaymentContext,
 } from '../../services/client-payments.service';
+import { SessionBookingService } from '../../services/session-booking.service';
 
 interface AssignedTrainerWorkout {
   id: string;
@@ -35,9 +41,21 @@ interface AssignedTrainerWorkout {
   notes: string;
   exerciseCount: number;
   durationMinutes: number;
-  assignedAt: Date;
-  assignedAtLabel: string;
+  dueDate: Date;
+  dueDateLabel: string;
+  statusLabel: string;
   isComplete: boolean;
+}
+
+interface NextSessionSummary {
+  id: string;
+  startsAt: Date;
+  dateLabel: string;
+  timeLabel: string;
+  typeLabel: string;
+  locationLabel: string;
+  statusLabel: string;
+  trainerName: string;
 }
 
 interface ConnectedTrainerDetails {
@@ -69,6 +87,7 @@ interface ConnectedTrainerDetails {
 })
 export class ClientPaymentsPage implements OnInit {
   private readonly clientPaymentsService = inject(ClientPaymentsService);
+  private readonly sessionBookingService = inject(SessionBookingService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly firestore = inject(Firestore);
@@ -79,6 +98,7 @@ export class ClientPaymentsPage implements OnInit {
   isStartingCheckout = false;
   isOpeningChat = false;
   isLoadingWorkouts = false;
+  isLoadingNextSession = false;
   errorMessage = '';
   successMessage = '';
   highlightWorkoutsSection = false;
@@ -86,15 +106,24 @@ export class ClientPaymentsPage implements OnInit {
   connectedTrainer: ConnectedTrainerDetails | null = null;
   activeAgreementId = '';
   assignedWorkouts: AssignedTrainerWorkout[] = [];
+  nextSession: NextSessionSummary | null = null;
+  nextSessionEmptyMessage = '';
+  nextSessionErrorMessage = '';
+  nextSessionPermissionDenied = false;
 
   constructor() {
     addIcons({
+      alertCircleOutline,
+      calendarOutline,
       cashOutline,
       chatbubblesOutline,
       refreshOutline,
       closeCircleOutline,
       fitnessOutline,
+      eyeOutline,
       locationOutline,
+      lockClosedOutline,
+      playOutline,
       ribbonOutline,
       timeOutline,
     });
@@ -166,6 +195,19 @@ export class ClientPaymentsPage implements OnInit {
     } finally {
       this.isOpeningChat = false;
     }
+  }
+
+  async openAssignedWorkout(workout: AssignedTrainerWorkout): Promise<void> {
+    const workoutId = String(workout?.id || '').trim();
+    if (!workoutId) {
+      return;
+    }
+
+    await this.router.navigate(['/assigned-workout', workoutId], {
+      state: {
+        workout,
+      },
+    });
   }
 
   formatPrice(priceCents: number): string {
@@ -242,6 +284,17 @@ export class ClientPaymentsPage implements OnInit {
     return Number.isInteger(rate) ? rate.toFixed(0) : rate.toFixed(2);
   }
 
+  formatSessionLocation(session: NextSessionSummary): string {
+    const typeLabel = String(session?.typeLabel || '').trim();
+    const locationLabel = String(session?.locationLabel || '').trim();
+
+    if (typeLabel && locationLabel) {
+      return `${typeLabel} · ${locationLabel}`;
+    }
+
+    return typeLabel || locationLabel || '';
+  }
+
   private async loadPaymentContext(): Promise<void> {
     this.isLoading = true;
     this.errorMessage = '';
@@ -251,16 +304,28 @@ export class ClientPaymentsPage implements OnInit {
       this.paymentContext = await this.clientPaymentsService.getPaymentContext();
       await this.loadConnectedTrainer();
       const clientId = String(this.paymentContext?.clientId || '').trim();
-      if (clientId) {
-        await this.loadAssignedWorkouts(clientId);
+      const trainerId = String(this.paymentContext?.trainerId || '').trim();
+      if (clientId && trainerId) {
+        await Promise.allSettled([
+          this.loadAssignedWorkouts(clientId, trainerId),
+          this.loadNextSession(clientId, trainerId),
+        ]);
       } else {
         this.assignedWorkouts = [];
+        this.nextSession = null;
+        this.nextSessionEmptyMessage = '';
+        this.nextSessionErrorMessage = '';
+        this.nextSessionPermissionDenied = false;
       }
     } catch (error) {
       console.error('[ClientPaymentsPage] Failed to load payment context:', error);
       this.paymentContext = null;
       this.connectedTrainer = null;
       this.assignedWorkouts = [];
+      this.nextSession = null;
+      this.nextSessionEmptyMessage = '';
+      this.nextSessionErrorMessage = '';
+      this.nextSessionPermissionDenied = false;
       this.errorMessage = this.resolveErrorMessage(error);
     } finally {
       this.isLoading = false;
@@ -343,6 +408,19 @@ export class ClientPaymentsPage implements OnInit {
     return `${firstName} ${lastName}`.trim() || 'Assigned Trainer';
   }
 
+  private isPermissionError(error: unknown): boolean {
+    const message = this.resolveErrorMessage(error).toLowerCase();
+    return message.includes('permission') || message.includes('insufficient');
+  }
+
+  private resolveNextSessionErrorMessage(error: unknown): string {
+    if (error instanceof Error && error.message.trim()) {
+      return error.message.trim();
+    }
+
+    return 'Unable to load your next session right now.';
+  }
+
   private applyCheckoutMessageFromQueryParams(): void {
     const checkoutResult = String(this.route.snapshot.queryParamMap.get('checkout') || '').trim().toLowerCase();
     if (checkoutResult === 'success') {
@@ -363,17 +441,20 @@ export class ClientPaymentsPage implements OnInit {
     this.highlightWorkoutsSection = panel === 'workouts';
   }
 
-  private async loadAssignedWorkouts(clientId: string): Promise<void> {
+  private async loadAssignedWorkouts(clientId: string, trainerId: string): Promise<void> {
     this.isLoadingWorkouts = true;
     this.assignedWorkouts = [];
 
     try {
       const workoutsSnapshot = await getDocs(
-        collection(this.firestore, `clientWorkouts/${clientId}/workouts`)
+        query(
+          collection(this.firestore, `clientWorkouts/${clientId}/workouts`),
+          where('trainerId', '==', trainerId)
+        )
       );
       const workouts = workoutsSnapshot.docs
         .map((workoutDoc) => this.mapAssignedWorkout(workoutDoc.id, workoutDoc.data() as Record<string, unknown>))
-        .sort((left, right) => right.assignedAt.getTime() - left.assignedAt.getTime());
+        .sort((left, right) => right.dueDate.getTime() - left.dueDate.getTime());
 
       this.assignedWorkouts = workouts;
     } catch (error) {
@@ -384,16 +465,151 @@ export class ClientPaymentsPage implements OnInit {
     }
   }
 
+  private async loadNextSession(clientId: string, trainerId: string): Promise<void> {
+    this.isLoadingNextSession = true;
+    this.nextSession = null;
+    this.nextSessionEmptyMessage = '';
+    this.nextSessionErrorMessage = '';
+    this.nextSessionPermissionDenied = false;
+
+    try {
+      const upcomingBookings = await this.sessionBookingService.getUpcomingConfirmedClientBookings(
+        clientId,
+        trainerId
+      );
+      const nextBooking = upcomingBookings[0];
+      if (!nextBooking) {
+        this.nextSessionEmptyMessage = 'No confirmed sessions are scheduled yet.';
+        return;
+      }
+
+      this.nextSession = this.mapNextSession(nextBooking, trainerId);
+    } catch (error) {
+      console.error('[ClientPaymentsPage] Failed to load next session:', error);
+      this.nextSession = null;
+      this.nextSessionEmptyMessage = '';
+
+      if (this.isPermissionError(error)) {
+        this.nextSessionPermissionDenied = true;
+        this.nextSessionErrorMessage = 'We could not load your bookings because this account does not have permission to read them right now.';
+        return;
+      }
+
+      this.nextSessionErrorMessage = this.resolveNextSessionErrorMessage(error);
+    } finally {
+      this.isLoadingNextSession = false;
+    }
+  }
+
+  private mapNextSession(booking: Record<string, unknown>, fallbackTrainerId: string): NextSessionSummary {
+    const startsAt = this.resolveBookingStartDate(booking) || new Date();
+    const trainerFirstName = String(booking['trainerFirstName'] || '').trim();
+    const trainerLastName = String(booking['trainerLastName'] || '').trim();
+    const trainerName = `${trainerFirstName} ${trainerLastName}`.trim() ||
+      String(this.paymentContext?.trainerName || '').trim() ||
+      'Your Trainer';
+    const sessionType = String(booking['sessionType'] || '').trim().toLowerCase();
+    const location = String(booking['location'] || '').trim();
+    const meetingLink = String(booking['meetingLink'] || '').trim();
+    const typeLabel = sessionType === 'in-person'
+      ? 'In person'
+      : sessionType === 'online'
+        ? 'Online'
+        : 'Session';
+    const locationLabel = sessionType === 'in-person'
+      ? location || 'Location pending'
+      : meetingLink
+        ? 'Virtual link available'
+        : 'Trainer meeting';
+    const status = String(booking['status'] || '').trim().toLowerCase();
+
+    return {
+      id: String(booking['id'] || booking['bookingId'] || '').trim(),
+      startsAt,
+      dateLabel: startsAt.toLocaleDateString(undefined, {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
+      }),
+      timeLabel: startsAt.toLocaleTimeString(undefined, {
+        hour: 'numeric',
+        minute: '2-digit',
+      }),
+      typeLabel,
+      locationLabel,
+      statusLabel: status === 'confirmed' ? 'Confirmed' : 'Scheduled',
+      trainerName: trainerName || (fallbackTrainerId ? 'Your Trainer' : 'Trainer'),
+    };
+  }
+
+  private resolveBookingStartDate(booking: Record<string, unknown>): Date | null {
+    const utcValue = String(booking['startTimeUTC'] || '').trim();
+    if (utcValue) {
+      const parsedUtc = new Date(utcValue);
+      if (!Number.isNaN(parsedUtc.getTime())) {
+        return parsedUtc;
+      }
+    }
+
+    const dateValue = String(booking['date'] || '').trim();
+    const timeValue = String(booking['time'] || booking['startTime'] || '').trim();
+    if (!dateValue) {
+      return null;
+    }
+
+    if (dateValue && timeValue) {
+      const parsed = this.parseLocalBookingDateTime(dateValue, timeValue);
+      if (!Number.isNaN(parsed.getTime())) {
+        return parsed;
+      }
+    }
+
+    const parsedDate = new Date(dateValue);
+    return Number.isNaN(parsedDate.getTime()) ? null : parsedDate;
+  }
+
+  private parseLocalBookingDateTime(dateStr: string, timeStr: string): Date {
+    const dateParts = dateStr.split('-').map((part) => Number(part));
+    const fallback = new Date(`${dateStr} ${timeStr}`);
+    if (dateParts.length !== 3 || dateParts.some((part) => !Number.isFinite(part))) {
+      return fallback;
+    }
+
+    const match = timeStr.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+    if (!match) {
+      return fallback;
+    }
+
+    let hours = Number(match[1]);
+    const minutes = Number(match[2]);
+    const period = match[3].toUpperCase();
+
+    if (period === 'PM' && hours < 12) {
+      hours += 12;
+    } else if (period === 'AM' && hours === 12) {
+      hours = 0;
+    }
+
+    const parsed = new Date(dateParts[0], dateParts[1] - 1, dateParts[2], hours, minutes, 0, 0);
+    return Number.isNaN(parsed.getTime()) ? fallback : parsed;
+  }
+
   private mapAssignedWorkout(workoutId: string, workoutData: Record<string, unknown>): AssignedTrainerWorkout {
     const title = String(workoutData['title'] || workoutData['name'] || 'Workout').trim() || 'Workout';
     const notes = String(workoutData['notes'] || workoutData['description'] || '').trim();
     const exercises = Array.isArray(workoutData['exercises']) ? workoutData['exercises'] : [];
     const duration = Number(workoutData['duration'] || 0);
-    const assignedAt =
+    const dueDate =
       this.toDate(workoutData['scheduledDate']) ||
       this.toDate(workoutData['createdAt']) ||
       this.toDate(workoutData['updatedAt']) ||
       new Date();
+    const isComplete = workoutData['isComplete'] === true;
+    const statusLabel = isComplete
+      ? 'Complete'
+      : dueDate.getTime() < Date.now()
+        ? 'Overdue'
+        : 'Assigned';
 
     return {
       id: workoutId,
@@ -401,14 +617,13 @@ export class ClientPaymentsPage implements OnInit {
       notes,
       exerciseCount: exercises.length,
       durationMinutes: Number.isFinite(duration) && duration > 0 ? Math.round(duration) : 0,
-      assignedAt,
-      assignedAtLabel: assignedAt.toLocaleString(undefined, {
+      dueDate,
+      dueDateLabel: dueDate.toLocaleDateString(undefined, {
         month: 'short',
         day: 'numeric',
-        hour: 'numeric',
-        minute: '2-digit',
       }),
-      isComplete: workoutData['isComplete'] === true,
+      statusLabel,
+      isComplete,
     };
   }
 

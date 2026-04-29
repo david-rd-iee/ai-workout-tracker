@@ -87,22 +87,28 @@
       </div>
 
       <ng-template #noTrainerDetails></ng-template>
-
-      <div class="hero-actions">
-        <ion-button
-          class="secondary-action"
-          fill="outline"
-          [disabled]="isStartingCheckout || isOpeningChat"
-          (click)="refresh()"
-        >
-          <ion-icon slot="start" name="refresh-outline"></ion-icon>
-          Refresh
-        </ion-button>
-      </div>
     </section>
 
     <ion-card class="plans-card">
       <ion-card-content>
+        <div class="plans-card-header">
+          <div class="section-copy">
+            <h3>Dashboard</h3>
+            <p>Training sessions, workouts, and agreements in one place.</p>
+          </div>
+
+          <ion-button
+            class="icon-refresh-button"
+            fill="clear"
+            [disabled]="isStartingCheckout || isOpeningChat || isLoading || isLoadingTrainer || isLoadingWorkouts || isLoadingNextSession"
+            (click)="refresh()"
+            aria-label="Refresh client dashboard"
+            title="Refresh client dashboard"
+          >
+            <ion-icon slot="icon-only" name="refresh-outline"></ion-icon>
+          </ion-button>
+        </div>
+
         <div class="loading-shell" *ngIf="isLoading">
           <ion-spinner name="crescent"></ion-spinner>
           <span>Loading agreement pricing...</span>
@@ -111,6 +117,67 @@
         <ng-container *ngIf="!isLoading">
           <p class="feedback feedback-error" *ngIf="errorMessage">{{ errorMessage }}</p>
           <p class="feedback feedback-success" *ngIf="successMessage">{{ successMessage }}</p>
+
+          <section class="dashboard-section next-session-section">
+            <div class="section-copy">
+              <h3>Next Session</h3>
+              <p>Your soonest confirmed booking with your trainer shows up here.</p>
+            </div>
+
+            <div class="loading-shell section-loading" *ngIf="isLoadingNextSession">
+              <ion-spinner name="crescent"></ion-spinner>
+              <span>Loading next session...</span>
+            </div>
+
+            <div class="session-card next-session-card" *ngIf="!isLoadingNextSession && nextSession">
+              <div class="session-card-top">
+                <div class="session-card-copy">
+                  <span class="session-card-kicker">Upcoming</span>
+                  <h4>{{ nextSession.dateLabel }}</h4>
+                  <p>{{ nextSession.timeLabel }}</p>
+                </div>
+
+                <span class="status-chip status-chip-session">
+                  {{ nextSession.statusLabel }}
+                </span>
+              </div>
+
+              <div class="session-card-meta">
+                <span>
+                  <ion-icon name="fitness-outline"></ion-icon>
+                  {{ formatSessionLocation(nextSession) }}
+                </span>
+                <span>
+                  <ion-icon name="location-outline"></ion-icon>
+                  {{ nextSession.trainerName }}
+                </span>
+              </div>
+            </div>
+
+            <div
+              class="empty-shell"
+              *ngIf="!isLoadingNextSession && !nextSession && nextSessionEmptyMessage && !nextSessionPermissionDenied"
+            >
+              <ion-icon name="close-circle-outline"></ion-icon>
+              <p>{{ nextSessionEmptyMessage }}</p>
+            </div>
+
+            <div
+              class="empty-shell empty-shell-error"
+              *ngIf="!isLoadingNextSession && nextSessionPermissionDenied"
+            >
+              <ion-icon name="lock-closed-outline"></ion-icon>
+              <p>{{ nextSessionErrorMessage }}</p>
+            </div>
+
+            <div
+              class="empty-shell empty-shell-error"
+              *ngIf="!isLoadingNextSession && !nextSessionPermissionDenied && nextSessionErrorMessage"
+            >
+              <ion-icon name="alert-circle-outline"></ion-icon>
+              <p>{{ nextSessionErrorMessage }}</p>
+            </div>
+          </section>
 
           <section
             class="dashboard-section workouts-section"
@@ -129,9 +196,16 @@
             <div class="workout-list" *ngIf="!isLoadingWorkouts && assignedWorkouts.length > 0">
               <article class="workout-item" *ngFor="let workout of assignedWorkouts">
                 <div class="workout-top">
-                  <h4>{{ workout.title }}</h4>
-                  <span class="status-chip" [class.status-chip-complete]="workout.isComplete">
-                    {{ workout.isComplete ? 'Complete' : 'Assigned' }}
+                  <div class="workout-heading">
+                    <h4>{{ workout.title }}</h4>
+                    <p class="workout-due-date">Due {{ workout.dueDateLabel }}</p>
+                  </div>
+                  <span
+                    class="status-chip"
+                    [class.status-chip-complete]="workout.isComplete"
+                    [class.status-chip-overdue]="workout.statusLabel === 'Overdue'"
+                  >
+                    {{ workout.statusLabel }}
                   </span>
                 </div>
                 <p class="workout-notes" *ngIf="workout.notes">{{ workout.notes }}</p>
@@ -144,7 +218,19 @@
                     <ion-icon name="time-outline"></ion-icon>
                     {{ workout.durationMinutes }} min
                   </span>
-                  <span>{{ workout.assignedAtLabel }}</span>
+                </div>
+                <div class="workout-actions">
+                  <ion-button
+                    class="primary-action workout-action"
+                    [class.workout-action-complete]="workout.isComplete"
+                    (click)="openAssignedWorkout(workout)"
+                  >
+                    <ion-icon
+                      slot="start"
+                      [name]="workout.isComplete ? 'eye-outline' : 'play-outline'"
+                    ></ion-icon>
+                    {{ workout.isComplete ? 'View' : 'Start' }}
+                  </ion-button>
                 </div>
               </article>
             </div>

@@ -198,6 +198,63 @@ $atlas-accent: #172bff;
   align-content: start;
 }
 
+.assigned-workout-banner {
+  @include atlas-neu(28px);
+  padding: 16px;
+  display: grid;
+  gap: 10px;
+}
+
+.assigned-workout-banner-copy {
+  display: grid;
+  gap: 5px;
+
+  h3 {
+    margin: 0;
+    color: $atlas-text;
+    font-size: 0.98rem;
+    font-weight: 800;
+  }
+}
+
+.assigned-workout-kicker,
+.assigned-workout-meta {
+  margin: 0;
+  color: $atlas-accent;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.assigned-workout-meta {
+  color: $atlas-muted;
+  letter-spacing: 0.04em;
+  text-transform: none;
+  font-weight: 600;
+}
+
+.assigned-workout-note {
+  margin: 0;
+  color: $atlas-muted;
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.assigned-workout-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+
+  span {
+    @include atlas-inset(999px);
+    padding: 6px 10px;
+    color: $atlas-muted;
+    font-size: 0.72rem;
+    white-space: nowrap;
+  }
+}
+
 .workout-summary-card-container {
   padding: 0;
 }

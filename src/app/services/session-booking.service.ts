@@ -108,9 +108,11 @@ export class SessionBookingService {
     const date = booking?.['date'];
     const time = booking?.['time'] || booking?.['startTime'] || '';
     if (typeof date === 'string' && date.trim()) {
-      const combined = new Date(`${date} ${time}`.trim());
-      if (!Number.isNaN(combined.getTime())) {
-        return combined;
+      if (typeof time === 'string' && time.trim()) {
+        const parsed = this.parseLocalBookingDateTime(date.trim(), time.trim());
+        if (parsed) {
+          return parsed;
+        }
       }
 
       const dateOnly = new Date(date);
@@ -120,6 +122,32 @@ export class SessionBookingService {
     }
 
     return null;
+  }
+
+  private parseLocalBookingDateTime(dateStr: string, timeStr: string): Date | null {
+    const dateParts = dateStr.split('-').map((part) => Number(part));
+    if (dateParts.length !== 3 || dateParts.some((part) => !Number.isFinite(part))) {
+      return null;
+    }
+
+    const match = timeStr.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+    if (!match) {
+      const fallback = new Date(`${dateStr} ${timeStr}`);
+      return Number.isNaN(fallback.getTime()) ? null : fallback;
+    }
+
+    let hours = Number(match[1]);
+    const minutes = Number(match[2]);
+    const period = match[3].toUpperCase();
+
+    if (period === 'PM' && hours < 12) {
+      hours += 12;
+    } else if (period === 'AM' && hours === 12) {
+      hours = 0;
+    }
+
+    const parsed = new Date(dateParts[0], dateParts[1] - 1, dateParts[2], hours, minutes, 0, 0);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
   }
 
   private async syncTrainerClientRecord(trainerId: string, clientId: string): Promise<void> {
@@ -727,6 +755,53 @@ export class SessionBookingService {
       console.error('Error getting client bookings:', error);
       throw error;
     }
+  }
+
+  /**
+   * Get upcoming confirmed bookings for a client, optionally limited to one trainer.
+   * The results are sorted from soonest to latest start time.
+   */
+  async getUpcomingConfirmedClientBookings(clientId: string, trainerId?: string): Promise<any[]> {
+    const normalizedClientId = String(clientId || '').trim();
+    const normalizedTrainerId = String(trainerId || '').trim();
+    if (!normalizedClientId) {
+      return [];
+    }
+
+    const allBookings = await this.getClientBookings(normalizedClientId);
+    const now = new Date();
+
+    return allBookings
+      .filter((booking) => String(booking?.status || '').trim().toLowerCase() === 'confirmed')
+      .filter((booking) => {
+        if (!normalizedTrainerId) {
+          return true;
+        }
+
+        return String(booking?.trainerId || '').trim() === normalizedTrainerId;
+      })
+      .map((booking) => ({
+        ...booking,
+        __bookingStart: this.parseBookingDate(booking),
+      }))
+      .filter((booking) => {
+        if (!(booking.__bookingStart instanceof Date)) {
+          return false;
+        }
+
+        return booking.__bookingStart.getTime() >= now.getTime();
+      })
+      .sort((left, right) => {
+        const leftStart = left.__bookingStart instanceof Date ? left.__bookingStart.getTime() : Number.POSITIVE_INFINITY;
+        const rightStart = right.__bookingStart instanceof Date ? right.__bookingStart.getTime() : Number.POSITIVE_INFINITY;
+        return leftStart - rightStart;
+      })
+      .map((booking) => {
+        const { __bookingStart, ...cleanBooking } = booking as Record<string, unknown> & {
+          __bookingStart?: Date;
+        };
+        return cleanBooking;
+      });
   }
   
   /**

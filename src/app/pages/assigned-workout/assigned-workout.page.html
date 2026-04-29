@@ -1,0 +1,130 @@
+<app-header
+  [title]="'Assigned Workout'"
+  [transparent]="true"
+  [neoBlend]="true"
+  [showBack]="true"
+  [backHref]="backHref"
+></app-header>
+
+<ion-content [fullscreen]="true" class="assigned-workout-content">
+  <div class="background-gradient"></div>
+
+  <div class="assigned-workout-page">
+    <section class="hero-shell">
+      <div class="section-copy">
+        <span class="section-kicker">Trainer Assigned</span>
+        <h1>{{ workout?.title || 'Assigned Workout' }}</h1>
+        <p>Review the plan, then open the workout logger when you’re ready to start.</p>
+      </div>
+
+      <div class="loading-shell" *ngIf="isLoading">
+        <ion-spinner name="crescent"></ion-spinner>
+        <span>Loading workout...</span>
+      </div>
+
+      <div class="empty-shell" *ngIf="!isLoading && errorMessage">
+        <ion-icon name="close-circle-outline"></ion-icon>
+        <p>{{ errorMessage }}</p>
+      </div>
+    </section>
+
+    <ng-container *ngIf="!isLoading && workout as currentWorkout">
+      <ion-card class="workout-card">
+        <ion-card-content>
+          <div class="workout-card-top">
+            <div class="status-group">
+              <span
+                class="status-chip"
+                [class.status-chip-complete]="currentWorkout.isComplete"
+                [class.status-chip-overdue]="currentWorkout.statusLabel === 'Overdue'"
+              >
+                {{ currentWorkout.statusLabel }}
+              </span>
+              <p class="workout-due-date">
+                <ion-icon name="calendar-outline"></ion-icon>
+                Due {{ currentWorkout.dueDateLabel }}
+              </p>
+            </div>
+
+            <div class="workout-stats">
+              <span *ngIf="currentWorkout.exerciseCount > 0">
+                <ion-icon name="fitness-outline"></ion-icon>
+                {{ currentWorkout.exerciseCount }} exercises
+              </span>
+              <span *ngIf="currentWorkout.durationMinutes > 0">
+                <ion-icon name="time-outline"></ion-icon>
+                {{ formatDuration(currentWorkout.durationMinutes) }}
+              </span>
+            </div>
+          </div>
+
+          <p class="workout-notes" *ngIf="currentWorkout.notes">{{ currentWorkout.notes }}</p>
+
+          <div class="workout-actions">
+            <ion-button
+              class="primary-action"
+              [disabled]="isOpeningLogger"
+              (click)="openWorkoutLogger()"
+            >
+              <ion-spinner
+                *ngIf="isOpeningLogger"
+                slot="start"
+                name="crescent"
+              ></ion-spinner>
+              <ion-icon
+                *ngIf="!isOpeningLogger"
+                slot="start"
+                [name]="currentWorkout.isComplete ? 'eye-outline' : 'play-outline'"
+              ></ion-icon>
+              {{ currentWorkout.isComplete ? 'View Workout' : 'Start Workout' }}
+            </ion-button>
+
+            <ion-button
+              class="secondary-action"
+              fill="outline"
+              [disabled]="isLoading || isOpeningLogger"
+              (click)="refresh()"
+            >
+              <ion-icon slot="start" name="refresh-outline"></ion-icon>
+              Refresh
+            </ion-button>
+          </div>
+        </ion-card-content>
+      </ion-card>
+
+      <section class="details-shell">
+        <div class="section-copy">
+          <h2>Workout Details</h2>
+          <p>These are the exercises your trainer assigned for this session.</p>
+        </div>
+
+        <div class="exercise-list" *ngIf="currentWorkout.exercises.length > 0; else noExercises">
+          <article class="exercise-item" *ngFor="let exercise of currentWorkout.exercises">
+            <div class="exercise-copy">
+              <h3>{{ exercise.name }}</h3>
+              <p *ngIf="exercise.notes">{{ exercise.notes }}</p>
+            </div>
+
+            <div class="exercise-meta">
+              <span *ngIf="exercise.sets > 0">{{ exercise.sets }} sets</span>
+              <span *ngIf="exercise.reps">{{ exercise.reps }}</span>
+              <span *ngIf="exercise.weight">{{ exercise.weight }}</span>
+            </div>
+          </article>
+        </div>
+
+        <ng-template #noExercises>
+          <div class="empty-shell">
+            <ion-icon name="close-circle-outline"></ion-icon>
+            <p>No exercise list was attached to this workout.</p>
+          </div>
+        </ng-template>
+
+        <div class="trainer-note-shell" *ngIf="currentWorkout.trainerName">
+          <ion-icon name="checkmark-circle-outline"></ion-icon>
+          <p>Assigned by {{ currentWorkout.trainerName }}</p>
+        </div>
+      </section>
+    </ng-container>
+  </div>
+</ion-content>

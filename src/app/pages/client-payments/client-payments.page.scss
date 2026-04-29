@@ -92,13 +92,6 @@ $atlas-blue: #2e6ef5;
   }
 }
 
-.hero-actions {
-  margin-top: 2px;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
 .plans-card {
   --background: transparent;
   background: transparent;
@@ -112,6 +105,31 @@ $atlas-blue: #2e6ef5;
     display: grid;
     gap: 12px;
   }
+}
+
+.plans-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.plans-card-header .section-copy {
+  min-width: 0;
+}
+
+.plans-card-header .section-copy h3 {
+  margin: 0;
+  color: $atlas-text;
+  font-size: 0.98rem;
+  font-weight: 680;
+}
+
+.plans-card-header .section-copy p {
+  margin: 5px 0 0;
+  color: $atlas-muted;
+  font-size: 0.82rem;
+  line-height: 1.4;
 }
 
 .loading-shell {
@@ -253,6 +271,10 @@ $atlas-blue: #2e6ef5;
   gap: 10px;
 }
 
+.next-session-section {
+  gap: 12px;
+}
+
 .workouts-section-highlight {
   border: 1px solid rgba(46, 110, 245, 0.26);
   box-shadow:
@@ -286,6 +308,73 @@ $atlas-blue: #2e6ef5;
   gap: 10px;
 }
 
+.next-session-card {
+  @include neo-raised(18px);
+  padding: 12px;
+  display: grid;
+  gap: 10px;
+}
+
+.session-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.session-card-copy {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+
+  h4 {
+    margin: 0;
+    color: $atlas-text;
+    font-size: 0.96rem;
+    font-weight: 680;
+  }
+
+  p {
+    margin: 0;
+    color: $atlas-muted;
+    font-size: 0.82rem;
+    line-height: 1.35;
+  }
+}
+
+.session-card-kicker {
+  color: $atlas-blue;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.status-chip-session {
+  color: #2e6b46;
+}
+
+.session-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+
+  span {
+    @include neo-raised(999px);
+    padding: 6px 10px;
+    color: $atlas-muted;
+    font-size: 0.72rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  ion-icon {
+    color: $atlas-blue;
+    font-size: 0.85rem;
+  }
+}
+
 .workout-item {
   @include neo-raised(16px);
   padding: 11px;
@@ -295,9 +384,15 @@ $atlas-blue: #2e6ef5;
 
 .workout-top {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 8px;
+}
+
+.workout-heading {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
 
   h4 {
     margin: 0;
@@ -305,6 +400,13 @@ $atlas-blue: #2e6ef5;
     font-size: 0.9rem;
     font-weight: 680;
   }
+}
+
+.workout-due-date {
+  margin: 0;
+  color: $atlas-muted;
+  font-size: 0.75rem;
+  line-height: 1.35;
 }
 
 .status-chip {
@@ -319,6 +421,18 @@ $atlas-blue: #2e6ef5;
 
 .status-chip-complete {
   color: #2e6b46;
+}
+
+.status-chip-overdue {
+  color: #9b5148;
+}
+
+.empty-shell-error {
+  color: #8e3f3f;
+
+  ion-icon {
+    color: #8e3f3f;
+  }
 }
 
 .workout-notes {
@@ -346,6 +460,15 @@ $atlas-blue: #2e6ef5;
     color: $atlas-blue;
     font-size: 0.85rem;
   }
+}
+
+.workout-actions {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.workout-action {
+  width: fit-content;
 }
 
 .plan-list {
@@ -457,6 +580,37 @@ $atlas-blue: #2e6ef5;
     -8px -8px 16px -11px rgba(249, 252, 255, 0.95);
 }
 
+.icon-refresh-button {
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  --padding-top: 0;
+  --padding-bottom: 0;
+  --padding-start: 0;
+  --padding-end: 0;
+  --border-radius: 50%;
+  --background: linear-gradient(145deg, #eef3fb, #e1e8f4);
+  --background-hover: linear-gradient(145deg, #f5f8fd, #e8eef8);
+  --background-activated: linear-gradient(145deg, #e0e8f4, #d5deed);
+  --color: $atlas-blue;
+  --box-shadow:
+    8px 8px 16px -12px rgba(184, 196, 214, 0.9),
+    -8px -8px 16px -11px rgba(249, 252, 255, 0.95);
+
+  &::part(native) {
+    border-radius: 50%;
+    overflow: hidden;
+  }
+
+  ion-icon {
+    font-size: 1rem;
+  }
+
+  &:disabled {
+    opacity: 0.72;
+  }
+}
+
 :host ::ng-deep app-header .header-button {
   --background: linear-gradient(145deg, #eef3fb, #e2e9f5);
   --background-hover: linear-gradient(145deg, #f5f8fd, #e8eef8);
@@ -483,12 +637,20 @@ $atlas-blue: #2e6ef5;
     align-items: flex-start;
   }
 
-  .hero-actions {
-    flex-direction: column;
-    align-items: stretch;
+  .plans-card-header {
+    align-items: center;
+  }
+
+  .next-session-card,
+  .workout-item {
+    padding: 12px;
   }
 
   .primary-action {
+    width: 100%;
+  }
+
+  .workout-action {
     width: 100%;
   }
 

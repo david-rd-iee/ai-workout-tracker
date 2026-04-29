@@ -28,6 +28,17 @@ import type { ScoreUpdateResult } from '../../services/workout-log.service';
 
 type ChatSender = 'bot' | 'user';
 
+interface AssignedWorkoutContext {
+  id: string;
+  title: string;
+  dueDateLabel: string;
+  statusLabel: string;
+  exerciseCount: number;
+  durationMinutes: number;
+  notes: string;
+  trainerName: string;
+}
+
 interface ChatMessage {
   from: ChatSender;
   text: string;
@@ -45,6 +56,8 @@ export class WorkoutChatbotPage implements OnInit, OnDestroy {
   messages: ChatMessage[] = [];
   isLoading = false;
   keyboardOffset = 0;
+  backHref = '/logging-method-routes';
+  assignedWorkout: AssignedWorkoutContext | null = null;
   displayStrengthRows: WorkoutTrainingRow[] = [];
   displayCardioRows: CardioTrainingRow[] = [];
   displayOtherRows: WorkoutTrainingRow[] = [];
@@ -73,6 +86,7 @@ export class WorkoutChatbotPage implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.isSavingWorkout = false;
     this.messages = [];
+    this.loadNavigationState();
 
     this.applyScreenState(this.workoutWorkflowService.createInitialState());
     this.addBotMessage(
@@ -95,7 +109,7 @@ export class WorkoutChatbotPage implements OnInit, OnDestroy {
   }
 
   get showSummaryPanel(): boolean {
-    return this.showLiveSummary || this.hasSavedWorkout;
+    return this.showLiveSummary || this.hasSavedWorkout || !!this.assignedWorkout;
   }
 
   get hasUserMessages(): boolean {
@@ -228,6 +242,31 @@ export class WorkoutChatbotPage implements OnInit, OnDestroy {
 
     if (state.botMessage) {
       this.addBotMessage(state.botMessage);
+    }
+  }
+
+  private loadNavigationState(): void {
+    const navigation = this.router.getCurrentNavigation();
+    const state = (navigation?.extras.state || window.history.state || {}) as Record<string, unknown>;
+
+    const backHref = this.readText(state['backHref']);
+    if (backHref) {
+      this.backHref = backHref;
+    }
+
+    const assignedWorkout = state['assignedWorkout'];
+    if (assignedWorkout && typeof assignedWorkout === 'object' && !Array.isArray(assignedWorkout)) {
+      const workout = assignedWorkout as Record<string, unknown>;
+      this.assignedWorkout = {
+        id: this.readText(workout['id']) || '',
+        title: this.readText(workout['title']) || 'Assigned Workout',
+        dueDateLabel: this.readText(workout['dueDateLabel']) || 'Due date not set',
+        statusLabel: this.readText(workout['statusLabel']) || 'Assigned',
+        exerciseCount: Math.max(0, Number(workout['exerciseCount'] || 0) || 0),
+        durationMinutes: Math.max(0, Number(workout['durationMinutes'] || 0) || 0),
+        notes: this.readText(workout['notes']) || '',
+        trainerName: this.readText(workout['trainerName']) || '',
+      };
     }
   }
 
