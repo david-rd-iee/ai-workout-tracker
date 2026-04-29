@@ -105,12 +105,36 @@ $neo-accent: #2e6ef5;
   padding: 14px 16px;
   @include neo-inset(18px);
 
+  .custom-message-label {
+    display: block;
+    margin-bottom: 7px;
+    color: $neo-accent;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
   p {
     margin: 0;
     color: $neo-muted;
     font-size: 0.94rem;
     line-height: 1.45;
   }
+}
+
+.client-home-layout {
+  display: grid;
+  gap: 14px;
+}
+
+.client-home-layout .custom-message,
+.client-home-layout .start-workout-widget,
+.client-home-layout .secondary-action-card,
+.client-home-layout .streak-widget,
+.client-home-layout .next-workout-widget,
+.client-home-layout .upcoming-sessions {
+  margin-bottom: 0;
 }
 
 .welcome-card,

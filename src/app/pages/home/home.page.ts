@@ -21,11 +21,15 @@ import {
   peopleOutline,
   personCircleOutline,
   personOutline,
+  cardOutline,
   trophyOutline,
+  analyticsOutline,
   constructOutline,
   addCircle,
   flame,
   calendarOutline,
+  barbell,
+  pulseOutline,
   chevronForward,
   cashOutline,
   chevronBack
@@ -52,6 +56,8 @@ interface Widget {
   name: string;
   enabled: boolean;
   order: number;
+  description?: string;
+  icon?: string;
 }
 
 interface HomePageConfig {
@@ -179,6 +185,25 @@ export class HomePage implements OnInit, OnDestroy {
   assignedTrainerId = '';
   homeConfig: HomePageConfig | null = null;
   customMessage: string = '';
+  private readonly defaultClientHomeWidgets = [
+    'welcome',
+    'start-workout',
+    'live-session',
+    'streak',
+    'next-workout',
+    'upcoming-session',
+    'request-session'
+  ];
+  private readonly supportedClientHomeWidgets = [
+    ...this.defaultClientHomeWidgets,
+    'workout-history',
+    'workout-insights',
+    'groups',
+    'leaderboard',
+    'chat',
+    'payments',
+    'profile'
+  ];
   
   // Display properties
   currentDate = new Date();
@@ -192,13 +217,17 @@ export class HomePage implements OnInit, OnDestroy {
       personCircle,
       personCircleOutline,
       personOutline,
+      cardOutline,
       trophyOutline,
+      analyticsOutline,
       fitnessOutline,
       peopleOutline,
       chatbubblesOutline,
       addCircle,
       flame,
       calendarOutline,
+      barbell,
+      pulseOutline,
       chevronForward,
       cashOutline,
       chevronBack
@@ -925,8 +954,7 @@ export class HomePage implements OnInit, OnDestroy {
   
   isWidgetEnabled(widgetId: string): boolean {
     if (!this.homeConfig) {
-      const defaultWidgets = ['welcome', 'streak', 'next-workout', 'upcoming-session'];
-      return defaultWidgets.includes(widgetId);
+      return this.defaultClientHomeWidgets.includes(widgetId);
     }
     const widget = this.homeConfig.widgets.find(w => w.id === widgetId);
     return widget ? widget.enabled : false;
@@ -936,6 +964,17 @@ export class HomePage implements OnInit, OnDestroy {
     if (!this.homeConfig) return 999;
     const widget = this.homeConfig.widgets.find(w => w.id === widgetId);
     return widget ? widget.order : 999;
+  }
+
+  getClientHomeWidgetIds(): string[] {
+    if (!this.homeConfig) {
+      return [...this.defaultClientHomeWidgets];
+    }
+
+    return this.homeConfig.widgets
+      .filter(widget => widget.enabled && this.supportedClientHomeWidgets.includes(widget.id))
+      .sort((a, b) => a.order - b.order)
+      .map(widget => widget.id);
   }
   
   async loadClientData(clientId: string) {
@@ -952,7 +991,7 @@ export class HomePage implements OnInit, OnDestroy {
       ]);
       
       if (configSnap.exists() && this.activeUserDataKey === roleKey) {
-        this.homeConfig = configSnap.data() as HomePageConfig;
+        this.homeConfig = this.normalizeHomeConfig(configSnap.data() as HomePageConfig);
         this.customMessage = this.homeConfig.customMessage || '';
       }
 
@@ -978,6 +1017,40 @@ export class HomePage implements OnInit, OnDestroy {
     } catch (error) {
       console.error('Error loading client data:', error);
     }
+  }
+
+  private normalizeHomeConfig(config: HomePageConfig): HomePageConfig {
+    const savedWidgets = Array.isArray(config.widgets) ? config.widgets : [];
+    const savedById = new Map(
+      savedWidgets
+        .filter(widget => this.supportedClientHomeWidgets.includes(widget.id))
+        .map(widget => [widget.id, widget])
+    );
+
+    const widgets = [...savedWidgets]
+      .filter(widget => this.supportedClientHomeWidgets.includes(widget.id))
+      .map(widget => ({
+        ...widget,
+        order: Number.isFinite(Number(widget.order)) ? Number(widget.order) : 999
+      }));
+
+    this.defaultClientHomeWidgets.forEach((widgetId, index) => {
+      if (!savedById.has(widgetId)) {
+        widgets.push({
+          id: widgetId,
+          name: widgetId,
+          enabled: true,
+          order: index
+        });
+      }
+    });
+
+    return {
+      ...config,
+      widgets: widgets
+        .sort((a, b) => a.order - b.order)
+        .map((widget, index) => ({ ...widget, order: index }))
+    };
   }
 
   async loadNextWorkout(clientId: string) {
@@ -1295,6 +1368,23 @@ export class HomePage implements OnInit, OnDestroy {
   navigateTo(path: string): void {
     const cleanedPath = path.startsWith('/') ? path : `/${path}`;
     this.router.navigateByUrl(cleanedPath);
+  }
+
+  navigateToClientWidget(widgetId: string): void {
+    const routeByWidget: Record<string, string> = {
+      'workout-history': '/workout-history',
+      'workout-insights': '/workout-insights',
+      groups: '/groups',
+      leaderboard: '/regional-leaderboard',
+      chat: '/tabs/chats',
+      payments: '/client-payments',
+      profile: '/profile-user'
+    };
+
+    const route = routeByWidget[widgetId];
+    if (route) {
+      void this.router.navigateByUrl(route);
+    }
   }
 
   startWorkout() {

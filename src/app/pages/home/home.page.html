@@ -14,86 +14,81 @@
 
     <!-- CLIENT HOME PAGE -->
     <ng-container *ngIf="currentUser?.isPT === false">
-      <!-- Custom Welcome Message -->
-      <div class="custom-message" *ngIf="customMessage && isWidgetEnabled('welcome')">
-        <p>{{ customMessage }}</p>
-      </div>
+      <div class="client-home-layout">
 
-      <!-- Main Action Widget - Start Workout -->
-      <ion-card class="start-workout-widget" button="true" (click)="startWorkout()">
-        <ion-card-content>
-          <div class="widget-content">
-            <div class="icon-container primary">
-              <ion-icon name="add-circle"></ion-icon>
+        <ng-container *ngFor="let widgetId of getClientHomeWidgetIds()" [ngSwitch]="widgetId">
+          <ng-container *ngSwitchCase="'welcome'">
+            <div class="custom-message" *ngIf="customMessage">
+              <span class="custom-message-label">A message from your trainer</span>
+              <p>{{ customMessage }}</p>
             </div>
-            <div class="widget-text">
-              <h2>Start Logging Workout</h2>
-              <p>Begin tracking your session</p>
-            </div>
-            <ion-icon name="chevron-forward" class="chevron"></ion-icon>
-          </div>
-        </ion-card-content>
-      </ion-card>
+          </ng-container>
 
-      <div class="secondary-actions-grid">
-        <ion-card class="secondary-action-card" button="true" (click)="navigateTo('live-session')">
-          <ion-card-content>
-            <div class="secondary-action-content">
-              <div class="secondary-action-icon">
-                <ion-icon name="fitness-outline"></ion-icon>
-              </div>
-              <div class="secondary-action-copy">
-                <h2>Live Session</h2>
-                <p>Track heart rate live during your workout</p>
-              </div>
-            </div>
-          </ion-card-content>
-        </ion-card>
-      </div>
-
-      <!-- Widgets Grid -->
-      <div class="widgets-grid">
-        <!-- Streak Widget -->
-        <ion-card *ngIf="isWidgetEnabled('streak')" class="streak-widget" button="true" (click)="viewStreak()">
-          <ion-card-content>
-            <div class="streak-content">
-              <div class="streak-icon">
-                <ion-icon name="flame"></ion-icon>
-              </div>
-              <div class="streak-info">
-                <h3>{{ currentStreak }}</h3>
-                <p>Day Streak</p>
-              </div>
-            </div>
-          </ion-card-content>
-        </ion-card>
-
-        <!-- Next Workout Widget -->
-        <ion-card *ngIf="isWidgetEnabled('next-workout')" class="next-workout-widget" button="true" (click)="viewNextWorkout()">
-          <ion-card-content>
-            <div class="next-workout-content">
-              <div class="workout-header">
-                <ion-icon name="calendar-outline"></ion-icon>
-                <span>Next Workout</span>
-              </div>
-              <div class="workout-details" *ngIf="nextWorkout; else noWorkout">
-                <h3>{{ nextWorkout.title }}</h3>
-                <p>{{ nextWorkout.date | date:'MMM d, h:mm a' }}</p>
-              </div>
-              <ng-template #noWorkout>
-                <div class="no-workout">
-                  <p>No upcoming workouts</p>
+          <ion-card *ngSwitchCase="'start-workout'" class="start-workout-widget" button="true" (click)="startWorkout()">
+            <ion-card-content>
+              <div class="widget-content">
+                <div class="icon-container primary">
+                  <ion-icon name="add-circle"></ion-icon>
                 </div>
-              </ng-template>
-            </div>
-          </ion-card-content>
-        </ion-card>
-      </div>
+                <div class="widget-text">
+                  <h2>Start Logging Workout</h2>
+                  <p>Begin tracking your session</p>
+                </div>
+                <ion-icon name="chevron-forward" class="chevron"></ion-icon>
+              </div>
+            </ion-card-content>
+          </ion-card>
 
-      <!-- Sessions -->
-      <div class="upcoming-sessions" *ngIf="isWidgetEnabled('upcoming-session')">
-        <h2 class="section-title">Sessions</h2>
-        <ng-container *ngIf="upcomingSessions && upcomingSessions.length > 0; else noSessions">
+          <ion-card *ngSwitchCase="'live-session'" class="secondary-action-card" button="true" (click)="navigateTo('live-session')">
+            <ion-card-content>
+              <div class="secondary-action-content">
+                <div class="secondary-action-icon">
+                  <ion-icon name="fitness-outline"></ion-icon>
+                </div>
+                <div class="secondary-action-copy">
+                  <h2>Live Session</h2>
+                  <p>Track heart rate live during your workout</p>
+                </div>
+              </div>
+            </ion-card-content>
+          </ion-card>
+
+          <ion-card *ngSwitchCase="'streak'" class="streak-widget" button="true" (click)="viewStreak()">
+            <ion-card-content>
+              <div class="streak-content">
+                <div class="streak-icon">
+                  <ion-icon name="flame"></ion-icon>
+                </div>
+                <div class="streak-info">
+                  <h3>{{ currentStreak }}</h3>
+                  <p>Day Streak</p>
+                </div>
+              </div>
+            </ion-card-content>
+          </ion-card>
+
+          <ion-card *ngSwitchCase="'next-workout'" class="next-workout-widget" button="true" (click)="viewNextWorkout()">
+            <ion-card-content>
+              <div class="next-workout-content">
+                <div class="workout-header">
+                  <ion-icon name="calendar-outline"></ion-icon>
+                  <span>Next Workout</span>
+                </div>
+                <div class="workout-details" *ngIf="nextWorkout; else noWorkout">
+                  <h3>{{ nextWorkout.title }}</h3>
+                  <p>{{ nextWorkout.date | date:'MMM d, h:mm a' }}</p>
+                </div>
+                <ng-template #noWorkout>
+                  <div class="no-workout">
+                    <p>No upcoming workouts</p>
+                  </div>
+                </ng-template>
+              </div>
+            </ion-card-content>
+          </ion-card>
+
+          <div class="upcoming-sessions" *ngSwitchCase="'upcoming-session'">
+            <ng-container *ngIf="upcomingSessions && upcomingSessions.length > 0; else noSessions">
           <ion-card class="session-card" *ngFor="let session of upcomingSessions" button="true" (click)="viewSessionDetails(session)">
             <ion-card-content>
               <div class="session-content">
@@ -130,30 +125,132 @@
             </ion-card-content>
           </ion-card>
         </ng-container>
-        <ng-template #noSessions>
-          <ion-card class="no-sessions-card">
-            <ion-card-content>
+            <ng-template #noSessions>
+              <ion-card class="no-sessions-card">
+                <ion-card-content>
               <div class="no-sessions-content">
                 <ion-icon name="calendar-outline"></ion-icon>
                 <p>There are no sessions yet</p>
               </div>
+                </ion-card-content>
+              </ion-card>
+            </ng-template>
+          </div>
+
+          <ng-container *ngSwitchCase="'request-session'">
+            <ion-card class="secondary-action-card request-session-card" button="true" *ngIf="assignedTrainerId" (click)="requestSessionWithTrainer()">
+              <ion-card-content>
+                <div class="secondary-action-content">
+                  <div class="secondary-action-icon">
+                    <ion-icon name="calendar-outline"></ion-icon>
+                  </div>
+                  <div class="secondary-action-copy">
+                    <h2>Request Session</h2>
+                    <p>Pick an open slot from your trainer's availability and send it for approval.</p>
+                  </div>
+                </div>
+              </ion-card-content>
+            </ion-card>
+          </ng-container>
+
+          <ion-card *ngSwitchCase="'workout-history'" class="secondary-action-card" button="true" (click)="navigateToClientWidget('workout-history')">
+            <ion-card-content>
+              <div class="secondary-action-content">
+                <div class="secondary-action-icon">
+                  <ion-icon name="pulse-outline"></ion-icon>
+                </div>
+                <div class="secondary-action-copy">
+                  <h2>Workout History</h2>
+                  <p>Review logged workouts and past training sessions</p>
+                </div>
+              </div>
             </ion-card-content>
           </ion-card>
-        </ng-template>
 
-        <ion-card class="secondary-action-card request-session-card" button="true" *ngIf="assignedTrainerId" (click)="requestSessionWithTrainer()">
-          <ion-card-content>
-            <div class="secondary-action-content">
-              <div class="secondary-action-icon">
-                <ion-icon name="calendar-outline"></ion-icon>
+          <ion-card *ngSwitchCase="'workout-insights'" class="secondary-action-card" button="true" (click)="navigateToClientWidget('workout-insights')">
+            <ion-card-content>
+              <div class="secondary-action-content">
+                <div class="secondary-action-icon">
+                  <ion-icon name="analytics-outline"></ion-icon>
+                </div>
+                <div class="secondary-action-copy">
+                  <h2>Workout Insights</h2>
+                  <p>See progress trends, health data, and training insights</p>
+                </div>
               </div>
-              <div class="secondary-action-copy">
-                <h2>Request Session</h2>
-                <p>Pick an open slot from your trainer's availability and send it for approval.</p>
+            </ion-card-content>
+          </ion-card>
+
+          <ion-card *ngSwitchCase="'groups'" class="secondary-action-card" button="true" (click)="navigateToClientWidget('groups')">
+            <ion-card-content>
+              <div class="secondary-action-content">
+                <div class="secondary-action-icon">
+                  <ion-icon name="people-outline"></ion-icon>
+                </div>
+                <div class="secondary-action-copy">
+                  <h2>Groups</h2>
+                  <p>Open community groups and challenges</p>
+                </div>
               </div>
-            </div>
-          </ion-card-content>
-        </ion-card>
+            </ion-card-content>
+          </ion-card>
+
+          <ion-card *ngSwitchCase="'leaderboard'" class="secondary-action-card" button="true" (click)="navigateToClientWidget('leaderboard')">
+            <ion-card-content>
+              <div class="secondary-action-content">
+                <div class="secondary-action-icon">
+                  <ion-icon name="trophy-outline"></ion-icon>
+                </div>
+                <div class="secondary-action-copy">
+                  <h2>Leaderboard</h2>
+                  <p>Check regional rankings and competition</p>
+                </div>
+              </div>
+            </ion-card-content>
+          </ion-card>
+
+          <ion-card *ngSwitchCase="'chat'" class="secondary-action-card" button="true" (click)="navigateToClientWidget('chat')">
+            <ion-card-content>
+              <div class="secondary-action-content">
+                <div class="secondary-action-icon">
+                  <ion-icon name="chatbubbles-outline"></ion-icon>
+                </div>
+                <div class="secondary-action-copy">
+                  <h2>Messages</h2>
+                  <p>Open trainer and client conversations</p>
+                </div>
+              </div>
+            </ion-card-content>
+          </ion-card>
+
+          <ion-card *ngSwitchCase="'payments'" class="secondary-action-card" button="true" (click)="navigateToClientWidget('payments')">
+            <ion-card-content>
+              <div class="secondary-action-content">
+                <div class="secondary-action-icon">
+                  <ion-icon name="card-outline"></ion-icon>
+                </div>
+                <div class="secondary-action-copy">
+                  <h2>Payments</h2>
+                  <p>Review agreements, invoices, and payment requests</p>
+                </div>
+              </div>
+            </ion-card-content>
+          </ion-card>
+
+          <ion-card *ngSwitchCase="'profile'" class="secondary-action-card" button="true" (click)="navigateToClientWidget('profile')">
+            <ion-card-content>
+              <div class="secondary-action-content">
+                <div class="secondary-action-icon">
+                  <ion-icon name="person-outline"></ion-icon>
+                </div>
+                <div class="secondary-action-copy">
+                  <h2>Profile</h2>
+                  <p>View badges, statues, and account details</p>
+                </div>
+              </div>
+            </ion-card-content>
+          </ion-card>
+        </ng-container>
       </div>
     </ng-container>
 
