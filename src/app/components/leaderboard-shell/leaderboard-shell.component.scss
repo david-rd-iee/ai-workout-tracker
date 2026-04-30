@@ -119,18 +119,38 @@ ion-card {
 
 .chart-mode-row {
   display: flex;
-  justify-content: flex-end;
+  justify-content: flex-start;
+  align-items: center;
+  width: 100%;
   margin-bottom: 6px;
 }
 
 .chart-mode-select {
   @include neo-inset(10px);
+  width: fit-content;
+  align-self: flex-start;
   --padding-start: 8px;
   --padding-end: 8px;
   min-height: 30px;
   color: $neo-text;
   font-weight: 700;
   font-size: 12px;
+}
+
+.chart-mode-locked {
+  @include neo-inset(10px);
+  width: fit-content;
+  align-self: flex-start;
+  min-height: 30px;
+  padding: 6px 10px;
+  color: $neo-text;
+  font-size: 12px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  user-select: none;
 }
 
 .graph-placeholder {

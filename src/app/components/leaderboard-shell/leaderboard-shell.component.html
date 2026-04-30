@@ -22,8 +22,9 @@
     <div class="stats-title">Stats</div>
     <div class="stats-graph">
       <div class="graph-region-label">{{ graphLabel }}</div>
-      <div class="chart-mode-row" *ngIf="availableChartModes.length > 1">
+      <div class="chart-mode-row" *ngIf="showChartModeControl || availableChartModes.length > 1">
         <ion-select
+          *ngIf="availableChartModes.length > 1; else lockedChartMode"
           class="chart-mode-select"
           interface="popover"
           [ngModel]="chartMode"
@@ -32,6 +33,12 @@
           <ion-select-option value="distribution">View: Distribution</ion-select-option>
           <ion-select-option value="trend">View: Added Score Over Time</ion-select-option>
         </ion-select>
+
+        <ng-template #lockedChartMode>
+          <div class="chart-mode-locked" aria-disabled="true">
+            {{ chartModeLabel() }}
+          </div>
+        </ng-template>
       </div>
       <div
         class="graph-placeholder"

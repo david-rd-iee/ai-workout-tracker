@@ -326,14 +326,17 @@ export class RegionalLeaderboardPage implements OnInit, OnDestroy {
   }
 
   private syncChartOptionsByPopulation(): void {
-    this.availableChartModes = ['distribution', 'trend'];
-    if (!this.availableChartModes.includes(this.chartMode)) {
-      this.chartMode = 'distribution';
+    const isTrendOnlyPopulation =
+      this.entries.length <= RegionalLeaderboardPage.SMALL_POPULATION_THRESHOLD;
+
+    if (isTrendOnlyPopulation) {
+      this.availableChartModes = ['trend'];
+      this.chartMode = 'trend';
+      return;
     }
 
-    if (this.entries.length === 0) {
-      this.chartMode = 'distribution';
-    }
+    this.availableChartModes = ['distribution', 'trend'];
+    this.chartMode = 'distribution';
   }
 
   private syncChartForCurrentMode(): void {
@@ -361,7 +364,11 @@ export class RegionalLeaderboardPage implements OnInit, OnDestroy {
 
     this.trendSub = this.leaderboard.watchAddedScoreTrend(this.entries, this.metric).subscribe({
       next: (series) => {
-        if (series.length === 0 && this.entries.length > 0) {
+        if (
+          series.length === 0 &&
+          this.entries.length > 0 &&
+          this.availableChartModes.length > 1
+        ) {
           this.fallbackToDistributionChart();
           return;
         }
@@ -369,7 +376,12 @@ export class RegionalLeaderboardPage implements OnInit, OnDestroy {
       },
       error: (error) => {
         console.warn('[RegionalLeaderboard] Failed to load trend chart data', error);
-        this.fallbackToDistributionChart();
+        if (this.availableChartModes.length > 1) {
+          this.fallbackToDistributionChart();
+          return;
+        }
+
+        this.trendSeries = [];
       },
     });
   }

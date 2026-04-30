@@ -88,6 +88,7 @@ export class LeaderboardShellComponent implements OnChanges, AfterViewInit, OnDe
   @Input() metric: Metric = 'total';
   @Input() scope: LeaderboardScope = 'city';
   @Input() showScopeSelect = false;
+  @Input() showChartModeControl = false;
 
   @Input() entries: LeaderboardEntry[] = [];
   @Input() chartMode: LeaderboardChartMode = 'distribution';
@@ -184,6 +185,10 @@ export class LeaderboardShellComponent implements OnChanges, AfterViewInit, OnDe
       return;
     }
     this.chartModeChange.emit(value);
+  }
+
+  chartModeLabel(): string {
+    return this.chartMode === 'trend' ? 'View: Added Score over time' : 'View: Distribution';
   }
 
   chartEmptyMessage(): string {
