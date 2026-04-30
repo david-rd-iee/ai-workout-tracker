@@ -411,7 +411,12 @@ export class ProfileUserPage implements OnInit, OnDestroy {
       animationDirection: 'forward',
     });
   }
-  goToRegional(): void { this.router.navigateByUrl('/regional-leaderboard'); }
+  goToRegional(): void {
+    this.navCtrl.navigateForward('/regional-leaderboard', {
+      animated: true,
+      animationDirection: 'forward',
+    });
+  }
   goToAnalyzeWorkout(): void {
     this.navCtrl.navigateForward('/camera', {
       animated: true,

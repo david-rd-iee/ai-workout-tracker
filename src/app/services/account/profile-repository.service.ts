@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { Firestore } from '@angular/fire/firestore';
-import { collection, doc, getDoc, getDocs, onSnapshot, setDoc } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, onSnapshot, serverTimestamp, setDoc } from 'firebase/firestore';
 import { Observable } from 'rxjs';
 import { AppUser } from '../../models/user.model';
 
@@ -302,6 +302,27 @@ export class ProfileRepositoryService {
     await setDoc(doc(this.firestore, this.TRAINERS_COLLECTION, normalizedUserId), safePatch, {
       merge: true,
     });
+    const userMirrorPatch: Record<string, unknown> = {};
+    for (const field of ['firstName', 'lastName', 'city', 'state'] as const) {
+      if (Object.prototype.hasOwnProperty.call(safePatch, field)) {
+        userMirrorPatch[field] = safePatch[field];
+      }
+    }
+
+    if (Object.prototype.hasOwnProperty.call(safePatch, 'profilepic')) {
+      userMirrorPatch['profilepic'] = safePatch['profilepic'];
+    }
+
+    if (Object.prototype.hasOwnProperty.call(safePatch, 'profileImage')) {
+      userMirrorPatch['profilepic'] = safePatch['profileImage'];
+    }
+
+    if (Object.keys(userMirrorPatch).length > 0) {
+      userMirrorPatch['updatedAt'] = serverTimestamp();
+      await setDoc(doc(this.firestore, 'users', normalizedUserId), userMirrorPatch, {
+        merge: true,
+      });
+    }
     this.applyProfilePatch(normalizedUserId, 'trainer', safePatch);
   }
 

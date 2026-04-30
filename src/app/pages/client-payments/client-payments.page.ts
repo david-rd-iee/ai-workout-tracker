@@ -361,12 +361,12 @@ export class ClientPaymentsPage implements OnInit {
 
       this.connectedTrainer = {
         displayName,
-        profilepic: this.resolveTrainerProfilePicture(trainerData),
+        profilepic: this.resolveTrainerProfilePicture(trainerUserData, trainerData),
         specialization: String(trainerData['specialization'] || '').trim(),
         experience: String(trainerData['experience'] || '').trim(),
         education: String(trainerData['education'] || '').trim(),
-        city: String(trainerData['city'] || '').trim(),
-        state: String(trainerData['state'] || '').trim(),
+        city: String(trainerUserData['city'] || trainerData['city'] || '').trim(),
+        state: String(trainerUserData['state'] || trainerData['state'] || '').trim(),
         hourlyRate: this.resolveTrainerHourlyRate(trainerData),
       };
     } catch (error) {
@@ -377,8 +377,14 @@ export class ClientPaymentsPage implements OnInit {
     }
   }
 
-  private resolveTrainerProfilePicture(trainerData: Record<string, unknown>): string {
+  private resolveTrainerProfilePicture(
+    trainerUserData: Record<string, unknown>,
+    trainerData: Record<string, unknown>
+  ): string {
     const profilePic =
+      String(trainerUserData['profilepic'] || '').trim() ||
+      String(trainerUserData['profilePic'] || '').trim() ||
+      String(trainerUserData['profileImage'] || '').trim() ||
       String(trainerData['profilepic'] || '').trim() ||
       String(trainerData['photoURL'] || '').trim() ||
       String(trainerData['profilePic'] || '').trim();

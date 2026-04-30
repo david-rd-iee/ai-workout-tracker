@@ -57,6 +57,14 @@ export const appNavAnimation: AnimationBuilder = (baseEl: any, opts: any): Anima
 
   const enteringIsProfile = containsSelector(enteringEl, 'app-profile-user');
   const leavingIsProfile = containsSelector(leavingEl, 'app-profile-user');
+  const enteringIsClientPayments = containsSelector(enteringEl, 'app-client-payments');
+  const leavingIsClientPayments = containsSelector(leavingEl, 'app-client-payments');
+  const enteringIsClientFindTrainer = containsSelector(enteringEl, 'app-client-find-trainer');
+  const leavingIsClientFindTrainer = containsSelector(leavingEl, 'app-client-find-trainer');
+  const enteringIsRegionalLeaderboard = containsSelector(enteringEl, 'app-regional-leaderboard');
+  const leavingIsRegionalLeaderboard = containsSelector(leavingEl, 'app-regional-leaderboard');
+  const enteringIsCamera = containsSelector(enteringEl, 'app-camera');
+  const leavingIsCamera = containsSelector(leavingEl, 'app-camera');
   const enteringIsGroups = containsSelector(enteringEl, 'app-groups');
   const leavingIsGroups = containsSelector(leavingEl, 'app-groups');
   const enteringIsWorkoutChatbot = containsSelector(enteringEl, 'app-workout-chatbot');
@@ -72,6 +80,10 @@ export const appNavAnimation: AnimationBuilder = (baseEl: any, opts: any): Anima
       enteringIsProfile &&
       (
         leavingIsGroups ||
+        leavingIsClientPayments ||
+        leavingIsClientFindTrainer ||
+        leavingIsRegionalLeaderboard ||
+        leavingIsCamera ||
         leavingIsWorkoutChatbot ||
         leavingIsLoggingMethodRoutes ||
         leavingIsWorkoutHistory
@@ -81,6 +93,10 @@ export const appNavAnimation: AnimationBuilder = (baseEl: any, opts: any): Anima
       leavingIsProfile &&
       (
         enteringIsGroups ||
+        enteringIsClientPayments ||
+        enteringIsClientFindTrainer ||
+        enteringIsRegionalLeaderboard ||
+        enteringIsCamera ||
         enteringIsWorkoutChatbot ||
         enteringIsLoggingMethodRoutes ||
         enteringIsWorkoutHistory

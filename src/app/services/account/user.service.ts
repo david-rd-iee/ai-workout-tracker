@@ -117,22 +117,33 @@ export class UserService {
       }
 
       const usersRef = doc(this.firestore, `users/${userID}`);
+      const userProfilePatch: Record<string, unknown> = {
+        userId: userID,
+        email: authEmail ?? '',
+        firstName,
+        lastName,
+        phone,
+        profilepic: profileImage,
+        isPT: false,
+        requestedAccountType: formData.accountType,
+        trainerApprovalStatus: isTrainerAccount ? 'pending' : 'approved',
+        trainerApplicationSubmittedAt: isTrainerAccount ? serverTimestamp() : null,
+        updatedAt: serverTimestamp(),
+      };
+
+      if (isTrainerAccount) {
+        userProfilePatch['city'] = typeof (formData as any)?.city === 'string'
+          ? (formData as any).city.trim()
+          : '';
+        userProfilePatch['state'] = typeof (formData as any)?.state === 'string'
+          ? (formData as any).state.trim()
+          : '';
+        userProfilePatch['zip'] = zip;
+      }
 
       await setDoc(
         usersRef,
-        {
-          userId: userID,
-          email: authEmail ?? '',
-          firstName,
-          lastName,
-          phone,
-          profilepic: profileImage,
-          isPT: false,
-          requestedAccountType: formData.accountType,
-          trainerApprovalStatus: isTrainerAccount ? 'pending' : 'approved',
-          trainerApplicationSubmittedAt: isTrainerAccount ? serverTimestamp() : null,
-          updatedAt: serverTimestamp(),
-        },
+        userProfilePatch,
         { merge: true }
       );
 
