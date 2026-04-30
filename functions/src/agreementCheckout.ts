@@ -14,6 +14,7 @@ const DEFAULT_WEB_APP_ORIGIN = resolveDefaultWebAppOrigin();
 
 type AgreementPaymentType = "one_time" | "subscription";
 type AgreementPaymentInterval = "week" | "month" | "year";
+type CheckoutReturnPage = "agreement-payment" | "client-payments";
 type AgreementPaymentStatus =
   | "not_required"
   | "not_started"
@@ -50,6 +51,9 @@ export const createAgreementCheckoutSession = onCall(
     if (!agreementId) {
       throw new HttpsError("invalid-argument", "agreementId is required.");
     }
+    const returnToPage = normalizeCheckoutReturnPage(payload["returnToPage"]);
+    const requestOrigin = normalizeHeaderValue(request.rawRequest?.headers?.origin);
+    const returnOrigin = resolveCheckoutReturnOrigin(requestOrigin, payload["returnOrigin"]);
 
     const stripeApiKey = stripeSecretKey.value()?.trim() ?? "";
     if (!stripeApiKey) {
@@ -120,8 +124,11 @@ export const createAgreementCheckoutSession = onCall(
       clientData,
     });
 
-    const successUrl = `${DEFAULT_WEB_APP_ORIGIN}/agreement-payment/${agreementId}?checkout=success`;
-    const cancelUrl = `${DEFAULT_WEB_APP_ORIGIN}/agreement-payment/${agreementId}?checkout=cancel`;
+    const { successUrl, cancelUrl } = resolveCheckoutRedirectUrls(
+      agreementId,
+      returnToPage,
+      returnOrigin
+    );
 
     const mode: "payment" | "subscription" =
       paymentTerms.type === "subscription" ? "subscription" : "payment";
@@ -283,6 +290,66 @@ async function resolveOrCreateStripeCustomer(
   });
 
   return normalizeString(customer.id);
+}
+
+function resolveCheckoutRedirectUrls(
+  agreementId: string,
+  returnToPage: CheckoutReturnPage,
+  returnOrigin: string
+): { successUrl: string; cancelUrl: string } {
+  const origin = returnOrigin || DEFAULT_WEB_APP_ORIGIN;
+  if (returnToPage === "client-payments") {
+    return {
+      successUrl: `${origin}/client-payments?checkout=success`,
+      cancelUrl: `${origin}/client-payments?checkout=cancel`,
+    };
+  }
+
+  return {
+    successUrl: `${origin}/agreement-payment/${agreementId}?checkout=success`,
+    cancelUrl: `${origin}/agreement-payment/${agreementId}?checkout=cancel`,
+  };
+}
+
+function normalizeCheckoutReturnPage(value: unknown): CheckoutReturnPage {
+  return normalizeString(value) === "client-payments" ? "client-payments" : "agreement-payment";
+}
+
+function resolveCheckoutReturnOrigin(requestOrigin: string, requestedOrigin: unknown): string {
+  const normalizedRequestedOrigin = normalizeString(requestedOrigin);
+  const normalizedRequestOrigin = normalizeString(requestOrigin);
+
+  if (
+    normalizedRequestedOrigin &&
+    isSafeCheckoutOrigin(normalizedRequestedOrigin) &&
+    (!normalizedRequestOrigin || normalizedRequestedOrigin === normalizedRequestOrigin)
+  ) {
+    return normalizedRequestedOrigin;
+  }
+
+  if (normalizedRequestOrigin && isSafeCheckoutOrigin(normalizedRequestOrigin)) {
+    return normalizedRequestOrigin;
+  }
+
+  return DEFAULT_WEB_APP_ORIGIN;
+}
+
+function isSafeCheckoutOrigin(value: string): boolean {
+  try {
+    const parsed = new URL(value);
+    const isLocalHost = parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1";
+    return parsed.origin === value && (parsed.protocol === "https:" || (isLocalHost && parsed.protocol === "http:"));
+  } catch {
+    return false;
+  }
+}
+
+function normalizeHeaderValue(value: unknown): string {
+  if (Array.isArray(value)) {
+    return normalizeString(value[0]);
+  }
+
+  return normalizeString(value);
 }
 
 function normalizePaymentStatus(value: unknown): AgreementPaymentStatus {

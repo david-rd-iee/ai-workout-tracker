@@ -37,6 +37,8 @@ export interface ClientTrainerPaymentContext {
 
 interface CreateAgreementCheckoutSessionRequest {
   agreementId: string;
+  returnToPage?: 'agreement-payment' | 'client-payments';
+  returnOrigin?: string;
 }
 
 interface CreateAgreementCheckoutSessionResponse {
@@ -93,7 +95,11 @@ export class ClientPaymentsService {
     };
   }
 
-  async createAgreementCheckoutSession(agreementId: string): Promise<CreateAgreementCheckoutSessionResponse> {
+  async createAgreementCheckoutSession(
+    agreementId: string,
+    returnToPage: 'agreement-payment' | 'client-payments' = 'agreement-payment',
+    returnOrigin?: string
+  ): Promise<CreateAgreementCheckoutSessionResponse> {
     const normalizedAgreementId = normalizeString(agreementId);
     if (!normalizedAgreementId) {
       throw new Error('A valid agreement is required.');
@@ -106,6 +112,8 @@ export class ClientPaymentsService {
 
     const response = await callable({
       agreementId: normalizedAgreementId,
+      returnToPage,
+      ...(normalizeString(returnOrigin) ? { returnOrigin: normalizeString(returnOrigin) } : {}),
     });
 
     return response.data;

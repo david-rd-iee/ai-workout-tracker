@@ -3,7 +3,7 @@ import { AccountService } from './account.service';
 import { inject } from '@angular/core';
 import { Platform, ToastController } from '@ionic/angular';
 import { Firestore, doc, getDoc } from '@angular/fire/firestore';
-import { timer, type Observable } from 'rxjs';
+import { firstValueFrom, timer, type Observable } from 'rxjs';
 import { filter, map, take } from 'rxjs/operators';
 import { Capacitor } from '@capacitor/core';
 import {
@@ -39,6 +39,8 @@ export const clientPaymentsGuard: CanActivateFn = async () => {
   const router = inject(Router);
   const firestore = inject(Firestore);
   const toastController = inject(ToastController);
+
+  await waitForAuthReady(accountService);
 
   if (!accountService.isLoggedIn()()) {
     return router.createUrlTree(['/login'], {
@@ -140,6 +142,20 @@ export const statuesDashbordGuard: CanActivateFn = (_route, state) =>
 
 function normalizeString(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
+}
+
+async function waitForAuthReady(accountService: AccountService): Promise<void> {
+  if (accountService.isAuthReady()()) {
+    return;
+  }
+
+  await firstValueFrom(
+    timer(0, 50).pipe(
+      map(() => accountService.isAuthReady()()),
+      filter((ready) => ready === true),
+      take(1)
+    )
+  );
 }
 
 function toRecord(value: unknown): Record<string, unknown> {

@@ -157,11 +157,13 @@ export class ClientPaymentsPage implements OnInit {
     this.isStartingCheckout = true;
 
     try {
-      const result = await this.clientPaymentsService.createAgreementCheckoutSession(agreementId);
-      const checkoutWindow = window.open(result.url, '_blank', 'noopener');
-      if (!checkoutWindow) {
-        window.location.assign(result.url);
-      }
+      const returnOrigin = window.location.origin;
+      const result = await this.clientPaymentsService.createAgreementCheckoutSession(
+        agreementId,
+        'client-payments',
+        returnOrigin
+      );
+      window.location.assign(result.url);
     } catch (error) {
       console.error('[ClientPaymentsPage] Failed to start checkout:', error);
       this.errorMessage = this.resolveErrorMessage(error);

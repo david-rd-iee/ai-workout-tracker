@@ -79,7 +79,10 @@ export class AgreementPaymentPage {
     this.errorMessage = '';
 
     try {
-      const checkoutUrl = await this.agreementService.createAgreementCheckoutSession(this.agreement.id);
+      const checkoutUrl = await this.agreementService.createAgreementCheckoutSession(
+        this.agreement.id,
+        'agreement-payment'
+      );
       window.location.assign(checkoutUrl);
     } catch (error) {
       console.error('[AgreementPaymentPage] Failed to start agreement checkout:', error);
