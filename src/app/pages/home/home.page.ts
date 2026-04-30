@@ -208,7 +208,12 @@ export class HomePage implements OnInit, OnDestroy {
   // Display properties
   currentDate = new Date();
   userName(): string {
-    return this.currentUser?.firstName || 'User';
+    const displayName =
+      this.currentUser?.displayName ||
+      this.currentUser?.username ||
+      this.currentUser?.firstName ||
+      '';
+    return displayName || 'User';
   }
 
   constructor() {
@@ -953,6 +958,10 @@ export class HomePage implements OnInit, OnDestroy {
   }
   
   isWidgetEnabled(widgetId: string): boolean {
+    if (this.isDemoMode() && widgetId === 'payments') {
+      return false;
+    }
+
     if (!this.homeConfig) {
       return this.defaultClientHomeWidgets.includes(widgetId);
     }
@@ -968,13 +977,14 @@ export class HomePage implements OnInit, OnDestroy {
 
   getClientHomeWidgetIds(): string[] {
     if (!this.homeConfig) {
-      return [...this.defaultClientHomeWidgets];
+      return this.defaultClientHomeWidgets.filter((widgetId) => this.isWidgetAllowedForCurrentMode(widgetId));
     }
 
     return this.homeConfig.widgets
       .filter(widget => widget.enabled && this.supportedClientHomeWidgets.includes(widget.id))
       .sort((a, b) => a.order - b.order)
-      .map(widget => widget.id);
+      .map(widget => widget.id)
+      .filter((widgetId) => this.isWidgetAllowedForCurrentMode(widgetId));
   }
   
   async loadClientData(clientId: string) {
@@ -999,6 +1009,18 @@ export class HomePage implements OnInit, OnDestroy {
         const clientProfileData = clientProfileSnap.exists()
           ? (clientProfileSnap.data() as Record<string, unknown>)
           : {};
+        if (this.isDemoMode()) {
+          this.homeConfig = this.normalizeHomeConfig({
+            clientId,
+            widgets: this.defaultClientHomeWidgets.map((widgetId, index) => ({
+              id: widgetId,
+              name: widgetId,
+              enabled: widgetId !== 'payments',
+              order: index,
+            })),
+          });
+          this.customMessage = '';
+        }
         this.assignedTrainerId = String(
           clientProfileData['trainerId'] || this.currentUser?.trainerId || ''
         ).trim();
@@ -1048,9 +1070,21 @@ export class HomePage implements OnInit, OnDestroy {
     return {
       ...config,
       widgets: widgets
-        .sort((a, b) => a.order - b.order)
-        .map((widget, index) => ({ ...widget, order: index }))
+      .sort((a, b) => a.order - b.order)
+      .map((widget, index) => ({ ...widget, order: index }))
     };
+  }
+
+  private isDemoMode(): boolean {
+    return this.currentUser?.demoMode === true;
+  }
+
+  private isWidgetAllowedForCurrentMode(widgetId: string): boolean {
+    if (this.isDemoMode() && widgetId === 'payments') {
+      return false;
+    }
+
+    return true;
   }
 
   async loadNextWorkout(clientId: string) {
@@ -1371,6 +1405,10 @@ export class HomePage implements OnInit, OnDestroy {
   }
 
   navigateToClientWidget(widgetId: string): void {
+    if (this.isDemoMode() && widgetId === 'payments') {
+      return;
+    }
+
     const routeByWidget: Record<string, string> = {
       'workout-history': '/workout-history',
       'workout-insights': '/workout-insights',

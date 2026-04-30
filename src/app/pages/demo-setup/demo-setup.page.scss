@@ -1,0 +1,30 @@
+.demo-setup-content {
+  --background: transparent;
+}
+
+.demo-helper-copy {
+  margin: 0;
+  color: #6e7d97;
+  font-size: 0.92rem;
+  line-height: 1.45;
+  font-weight: 600;
+}
+
+.auth-form {
+  gap: 10px;
+}
+
+.auth-input-item ion-select {
+  --color: #526078;
+  --placeholder-color: #8b9ab0;
+  --highlight-color-focused: #2e6ef5;
+  --label-color: #7586a0;
+  --padding-top: 8px;
+  --padding-bottom: 8px;
+  font-size: 0.98rem;
+  font-weight: 600;
+}
+
+.primary-auth-btn ion-spinner {
+  margin-inline-end: 10px;
+}

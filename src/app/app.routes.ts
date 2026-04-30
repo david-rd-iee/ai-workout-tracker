@@ -4,6 +4,8 @@ import {
   authGuard,
   authMatchGuard,
   clientPaymentsGuard,
+  demoModeGuard,
+  trainerOnlyGuard,
   statuesDashbordGuard,
 } from './services/account/auth.guard';
 import {
@@ -25,6 +27,7 @@ export const ROUTE_PATHS = {
   },
   AUTH: {
     LOGIN: '/login',
+    DEMO_SETUP: '/demo-setup',
     SIGN_UP: '/sign-up',
     COMPLETE_PROFILE: '/complete-profile'
   }
@@ -36,6 +39,11 @@ export const routes: Routes = [
     path: 'login',
     loadComponent: () =>
       import('./pages/login/login.page').then((m) => m.LoginPage),
+  },
+  {
+    path: 'demo-setup',
+    loadComponent: () =>
+      import('./pages/demo-setup/demo-setup.page').then((m) => m.DemoSetupPage),
   },
   { 
     path: 'sign-up',
@@ -58,11 +66,8 @@ export const routes: Routes = [
   },
   {
     path: 'complete-profile/trainer',
-    loadComponent: () =>
-      import('./pages/complete-profile/complete-profile-trainer/complete-profile-trainer.page').then(
-        (m) => m.CompleteProfileTrainerPage
-      ),
-    canActivate: [authGuard],
+    redirectTo: 'complete-profile/client',
+    pathMatch: 'full',
   },
   {
     path: 'profile-creation',
@@ -72,11 +77,8 @@ export const routes: Routes = [
   },
   {
     path: 'profile-creation/trainer',
-    loadComponent: () =>
-      import('./pages/profile-creation/profile-create-trainer/profile-create-trainer.page').then(
-        (m) => m.ProfileCreateTrainerPage
-      ),
-    canActivate: [authGuard],
+    redirectTo: 'profile-creation/client',
+    pathMatch: 'full',
   },
   {
     path: 'profile-creation/client',
@@ -231,7 +233,7 @@ export const routes: Routes = [
       import('./pages/service-agreements/service-agreements.page').then(
         (m) => m.ServiceAgreementsPage
       ),
-    canActivate: [authGuard],
+    canActivate: [authGuard, demoModeGuard],
   },
   {
     path: 'service-agreements/signed',
@@ -239,7 +241,7 @@ export const routes: Routes = [
       import('./pages/service-agreements/signed-agreements.page').then(
         (m) => m.SignedAgreementsPage
       ),
-    canActivate: [authGuard],
+    canActivate: [authGuard, demoModeGuard],
   },
   {
     path: 'client-payments',
@@ -255,7 +257,7 @@ export const routes: Routes = [
       import('./pages/agreement-payment/agreement-payment.page').then(
         (m) => m.AgreementPaymentPage
       ),
-    canActivate: [authGuard],
+    canActivate: [authGuard, demoModeGuard],
   },
   {
     path: 'notifications',
@@ -263,7 +265,7 @@ export const routes: Routes = [
       import('./pages/notifications/notifications.page').then(
         (m) => m.NotificationsPage
       ),
-    canActivate: [authGuard],
+    canActivate: [authGuard, demoModeGuard],
   },
   {
     path: 'trainer-approval-pending',
@@ -271,7 +273,7 @@ export const routes: Routes = [
       import('./pages/trainer-approval-pending/trainer-approval-pending.page').then(
         (m) => m.TrainerApprovalPendingPage
       ),
-    canActivate: [authGuard],
+    canActivate: [authGuard, trainerOnlyGuard],
   },
   {
     path: 'trainer-approval-admin',
@@ -279,7 +281,7 @@ export const routes: Routes = [
       import('./pages/trainer-approval-admin/trainer-approval-admin.page').then(
         (m) => m.TrainerApprovalAdminPage
       ),
-    canActivate: [authGuard],
+    canActivate: [authGuard, trainerOnlyGuard],
   },
   {
     path: 'profile-settings',
@@ -298,7 +300,7 @@ export const routes: Routes = [
     path: 'analyzed-videos',
     loadComponent: () =>
       import('./pages/analyzed-videos/analyzed-videos.page').then((m) => m.AnalyzedVideosPage),
-    canActivate: [authGuard],
+    canActivate: [authGuard, trainerOnlyGuard],
   },
   {
     path: 'client-analyzed-video/:analysisId',
@@ -309,7 +311,7 @@ export const routes: Routes = [
     data: {
       [ORIENTATION_POLICY_ROUTE_DATA_KEY]: ALLOW_LANDSCAPE_ORIENTATION_POLICY,
     },
-    canActivate: [authGuard],
+    canActivate: [authGuard, trainerOnlyGuard],
   },
   {
     path: 'trainer-client-videos/:clientId',
@@ -317,7 +319,7 @@ export const routes: Routes = [
       import('./pages/trainer-client-videos/trainer-client-videos.page').then(
         (m) => m.TrainerClientVideosPage
       ),
-    canActivate: [authGuard],
+    canActivate: [authGuard, trainerOnlyGuard],
   },
   {
     path: 'trainer-workout-analyzer/:clientId',
@@ -328,7 +330,7 @@ export const routes: Routes = [
     data: {
       [ORIENTATION_POLICY_ROUTE_DATA_KEY]: ALLOW_LANDSCAPE_ORIENTATION_POLICY,
     },
-    canActivate: [authGuard],
+    canActivate: [authGuard, trainerOnlyGuard],
   },
   {
     path: 'treadmill-logger',
@@ -365,7 +367,7 @@ export const routes: Routes = [
       import('./pages/trainer-client-workout-history/trainer-client-workout-history.page').then(
         (m) => m.TrainerClientWorkoutHistoryPage
       ),
-    canActivate: [authGuard],
+    canActivate: [authGuard, trainerOnlyGuard],
   },
   {
     path: 'workout-history-csv',
@@ -401,12 +403,12 @@ export const routes: Routes = [
   },
   {
     path: '',
-    redirectTo: 'login',
+    redirectTo: 'demo-setup',
     pathMatch: 'full',
   },
   // If user manually types a bad URL → send to login
   {
     path: '**',
-    redirectTo: 'login',
+    redirectTo: 'demo-setup',
   }
 ];

@@ -84,18 +84,6 @@
         </ion-button>
       </form>
 
-      <ion-button
-        *ngIf="isIOS"
-        class="apple-auth-btn"
-        expand="block"
-        fill="clear"
-        (click)="signUpWithApple()"
-        [disabled]="isSubmitting"
-      >
-        <ion-icon name="logo-apple" slot="start"></ion-icon>
-        Sign up with Apple
-      </ion-button>
-
       <p class="auth-switch-copy">
         Already have an account?
         <a routerLink="/login">Login</a>

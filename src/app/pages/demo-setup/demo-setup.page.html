@@ -1,0 +1,90 @@
+<ion-content
+  [fullscreen]="true"
+  class="auth-page-content demo-setup-content"
+  [scrollY]="!isSubmitting"
+  [forceOverscroll]="!isSubmitting"
+>
+  <div class="background-gradient"></div>
+
+  <div class="auth-page-container">
+    <section class="auth-hero-card">
+      <div class="hero-media-shell">
+        <img
+          class="hero-runner-image"
+          src="assets/auth/runner-figure.webp"
+          alt="Running figure"
+        />
+      </div>
+
+      <div class="hero-copy">
+        <p class="hero-eyebrow">ATLAS</p>
+        <h1>Start Demo</h1>
+        <p>Pick a name and a couple quick details, then jump straight into the client app.</p>
+      </div>
+    </section>
+
+    <section class="auth-form-card">
+      <h2>Demo Setup</h2>
+
+      <p class="demo-helper-copy">
+        No email, password, phone number, birthday, payment, or trainer selection required.
+      </p>
+
+      <form class="auth-form" (ngSubmit)="startDemo()">
+        <ion-item class="auth-input-item" lines="none">
+          <ion-input
+            label="Display Name"
+            label-placement="floating"
+            type="text"
+            [(ngModel)]="displayName"
+            name="displayName"
+            placeholder="Alex"
+            autocomplete="nickname"
+            required
+          ></ion-input>
+        </ion-item>
+
+        <ion-item class="auth-input-item" lines="none">
+          <ion-select
+            label="Fitness Level"
+            label-placement="floating"
+            interface="popover"
+            [(ngModel)]="fitnessLevel"
+            name="fitnessLevel"
+            placeholder="Choose level"
+            required
+          >
+            <ion-select-option *ngFor="let option of fitnessLevelOptions" [value]="option">
+              {{ option }}
+            </ion-select-option>
+          </ion-select>
+        </ion-item>
+
+        <ion-item class="auth-input-item" lines="none">
+          <ion-select
+            label="Goal"
+            label-placement="floating"
+            interface="popover"
+            [(ngModel)]="goal"
+            name="goal"
+            placeholder="Choose goal"
+            required
+          >
+            <ion-select-option *ngFor="let option of goalOptions" [value]="option">
+              {{ option }}
+            </ion-select-option>
+          </ion-select>
+        </ion-item>
+
+        <ion-text class="auth-error" *ngIf="errorMessage">
+          <p>{{ errorMessage }}</p>
+        </ion-text>
+
+        <ion-button class="primary-auth-btn" expand="block" type="submit" [disabled]="isSubmitting">
+          <ion-spinner slot="start" name="crescent" *ngIf="isSubmitting"></ion-spinner>
+          Start Demo
+        </ion-button>
+      </form>
+    </section>
+  </div>
+</ion-content>

@@ -1,19 +1,11 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import {
-  AlertController,
-  IonButton,
-  IonCheckbox,
-  IonContent,
-  IonText,
-} from '@ionic/angular/standalone';
+import { AlertController, IonButton, IonCheckbox, IonContent, IonText } from '@ionic/angular/standalone';
 import { Router } from '@angular/router';
 import { Auth, onAuthStateChanged } from '@angular/fire/auth';
 import { Capacitor } from '@capacitor/core';
 import { PushNotifications } from '../../services/push-notifications.plugin';
-
-type AccountChoice = 'trainer' | 'client';
 
 @Component({
   selector: 'app-complete-profile',
@@ -28,7 +20,6 @@ export class CompleteProfilePage implements OnInit {
   private alertController = inject(AlertController);
 
   termsAccepted = false;
-  selectedAccountType: AccountChoice | null = null;
   errorMessage = '';
   private hasPromptedForNotifications = false;
 
@@ -44,14 +35,7 @@ export class CompleteProfilePage implements OnInit {
       return;
     }
 
-    if (!this.selectedAccountType) {
-      this.errorMessage = 'Choose whether you are signing up as a trainer or a client.';
-      return;
-    }
-
-    await this.router.navigateByUrl(`/complete-profile/${this.selectedAccountType}`, {
-      replaceUrl: true,
-    });
+    await this.router.navigateByUrl('/complete-profile/client', { replaceUrl: true });
   }
 
   async onTermsAcceptedChange(): Promise<void> {
@@ -59,10 +43,6 @@ export class CompleteProfilePage implements OnInit {
       this.hasPromptedForNotifications = true;
       await this.checkAndPromptForPushNotifications();
     }
-  }
-
-  selectAccountType(accountType: AccountChoice): void {
-    this.selectedAccountType = accountType;
   }
 
   private async ensureAuthenticated(): Promise<void> {

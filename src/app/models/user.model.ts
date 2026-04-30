@@ -4,12 +4,17 @@ export interface AppUser {
 
   email?: string;
   phone?: string;
+  displayName?: string;
 
   firstName?: string;
   lastName?: string;
   username?: string;
 
   isPT: boolean; // "client", "trainer", etc.
+  role?: 'client' | 'trainer';
+  demoMode?: boolean;
+  fitnessLevel?: string;
+  goal?: string;
   groupID?: string[];
 
   // URL stored in Firestore under "profilepic"

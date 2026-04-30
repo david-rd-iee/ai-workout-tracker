@@ -1,12 +1,12 @@
 <ion-header [translucent]="true">
   <ion-toolbar>
-    <ion-title>Profile Creation</ion-title>
+    <ion-title>Client Profile Setup</ion-title>
   </ion-toolbar>
 </ion-header>
 
 <ion-content [fullscreen]="true">
   <div class="container">
-    <h2>Are you a Trainer or a Client?</h2>
+    <h2>Create your client demo profile</h2>
 
     <div class="terms-container">
       <h3>Terms of Service</h3>
@@ -186,8 +186,7 @@
 
 
     <div class="button-container">
-      <ion-button [disabled]="!termsAccepted" (click)="navigateTo('trainer')">Trainer</ion-button>
-      <ion-button [disabled]="!termsAccepted" (click)="navigateTo('client')">Client</ion-button>
+      <ion-button [disabled]="!termsAccepted" (click)="navigateToClient()">Continue as Client</ion-button>
     </div>
   </div>
 </ion-content>

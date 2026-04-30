@@ -15,27 +15,6 @@ import {
   normalizeStreakData,
   normalizeUserScore,
 } from '../../models/user-stats.model';
-// Import for Capacitor plugins
-import { registerPlugin } from '@capacitor/core';
-
-// Define the interface for the Apple Sign In plugin
-interface AppleSignInPlugin {
-  Authorize(): Promise<{
-    response?: {
-      identityToken: string;
-      email?: string;
-      familyName?: string;
-      givenName?: string;
-      authorizationCode?: string;
-    };
-    identityToken?: string;
-    email?: string;
-    user?: string;
-  }>;
-}
-
-// Register the Apple Sign In plugin
-const SignInWithApple = registerPlugin<AppleSignInPlugin>('SignInWithApple');
 
 @Injectable({
   providedIn: 'root'
@@ -46,6 +25,7 @@ export class AccountService {
   private isAuthenticated = computed(() => !!this.credentials().uid);
   private lastAuthError = signal('');
   private lastTrainerGroupBootstrapUid = '';
+  private demoSetupInProgress = signal(false);
   
   // Event system for authentication state changes
   private authStateChange$ = new Subject<{ user: any; isAuthenticated: boolean }>();
@@ -293,7 +273,7 @@ export class AccountService {
         if (user && user.uid) {
           try {
             await this.ensureUsersDocument(user.uid, user.email ?? null);
-            if (this.lastTrainerGroupBootstrapUid !== user.uid) {
+            if (!user.isAnonymous && this.lastTrainerGroupBootstrapUid !== user.uid) {
               await this.groupService.ensureTrainerPtGroup(user.uid);
               this.lastTrainerGroupBootstrapUid = user.uid;
             }
@@ -337,6 +317,18 @@ export class AccountService {
     this.lastAuthError.set('');
   }
 
+  beginDemoSetup(): void {
+    this.demoSetupInProgress.set(true);
+  }
+
+  endDemoSetup(): void {
+    this.demoSetupInProgress.set(false);
+  }
+
+  isDemoSetupInProgress(): Signal<boolean> {
+    return this.demoSetupInProgress.asReadonly();
+  }
+
   private mapFirebaseAuthError(error: any): string {
     const code = error?.code as string | undefined;
     switch (code) {
@@ -375,6 +367,26 @@ export class AccountService {
       console.error('Signup failed:', e);
       this.lastAuthError.set(this.mapFirebaseAuthError(e));
       return false;
+    }
+  }
+
+  async signInAnonymously(): Promise<string | null> {
+    try {
+      this.lastAuthError.set('');
+      const userCredential = await this.afAuth.signInAnonymously();
+      const user = userCredential.user;
+      if (!user?.uid) {
+        this.lastAuthError.set('Unable to start demo mode right now.');
+        return null;
+      }
+
+      await this.ensureUsersDocument(user.uid, user.email ?? null);
+      this.credentials.set({ uid: user.uid, email: user.email ?? '' });
+      return user.uid;
+    } catch (error: any) {
+      console.error('Demo auth failed:', error);
+      this.lastAuthError.set(this.mapFirebaseAuthError(error));
+      return null;
     }
   }
 
@@ -470,48 +482,6 @@ export class AccountService {
         success: false, 
         message: error.message || 'Failed to change password. Please try again.'
       };
-    }
-  }
-
-  // Sign in with Apple
-  async signInWithApple(): Promise<boolean> {
-    try {
-      // Only proceed if on iOS platform
-      if (!this.platform.is('ios')) {
-        return false;
-      }
-
-      // Use the Capacitor Apple Login plugin
-      const result = await SignInWithApple.Authorize();
-      
-      // The plugin returns data in a 'response' object
-      const appleResponse = result.response || result;
-      
-      if (!appleResponse || !appleResponse.identityToken) {
-        return false;
-      }
-
-      // Create a credential for Firebase Auth
-      const oauthProvider = new firebase.auth.OAuthProvider('apple.com');
-      const credential = oauthProvider.credential({
-        idToken: appleResponse.identityToken
-      });
-
-      // Sign in with the credential
-      const userCredential = await this.afAuth.signInWithCredential(credential);
-      
-      if (!userCredential.user) {
-        return false;
-      }
-
-      // Set the credentials
-      const email = userCredential.user.email || appleResponse.email || '';
-      await this.ensureUsersDocument(userCredential.user.uid, email);
-      this.credentials.set({ uid: userCredential.user.uid, email: email });
-      return true;
-    } catch (error) {
-      console.error('Apple Sign In error:', error);
-      return false;
     }
   }
 }

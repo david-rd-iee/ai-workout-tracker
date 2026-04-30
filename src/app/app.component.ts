@@ -93,6 +93,10 @@ export class AppComponent implements OnInit, OnDestroy {
         return;
       }
 
+      if (this.accountService.isDemoSetupInProgress()()) {
+        return;
+      }
+
       this.loadedProfileUid = null;
       const profileCompletionRoute = this.userService.getProfileCompletionRoute();
       if (!this.router.url.startsWith(profileCompletionRoute)) {

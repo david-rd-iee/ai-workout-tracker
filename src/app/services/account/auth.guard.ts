@@ -6,6 +6,7 @@ import { Firestore, doc, getDoc } from '@angular/fire/firestore';
 import { firstValueFrom, timer, type Observable } from 'rxjs';
 import { filter, map, take } from 'rxjs/operators';
 import { Capacitor } from '@capacitor/core';
+import { UserService } from './user.service';
 import {
   STATUES_DASHBORD_ALLOWED_EMAIL,
   STATUES_DASHBORD_URL,
@@ -34,11 +35,46 @@ export const authChildGuard: CanActivateChildFn = () => authDecision();
 
 export const authMatchGuard: CanMatchFn = () => authDecision();
 
+export const demoModeGuard: CanActivateFn = async () => {
+  const accountService = inject(AccountService);
+  const userService = inject(UserService);
+  const router = inject(Router);
+
+  const user = await resolveCurrentUserProfile(accountService, userService);
+  if (!user) {
+    return router.createUrlTree(['/login']);
+  }
+
+  if (user.demoMode === true) {
+    return router.createUrlTree(['/tabs/home']);
+  }
+
+  return true;
+};
+
+export const trainerOnlyGuard: CanActivateFn = async () => {
+  const accountService = inject(AccountService);
+  const userService = inject(UserService);
+  const router = inject(Router);
+
+  const user = await resolveCurrentUserProfile(accountService, userService);
+  if (!user) {
+    return router.createUrlTree(['/login']);
+  }
+
+  if (user.demoMode === true || user.accountType !== 'trainer') {
+    return router.createUrlTree(['/tabs/home']);
+  }
+
+  return true;
+};
+
 export const clientPaymentsGuard: CanActivateFn = async () => {
   const accountService = inject(AccountService);
   const router = inject(Router);
   const firestore = inject(Firestore);
   const toastController = inject(ToastController);
+  const userService = inject(UserService);
 
   await waitForAuthReady(accountService);
 
@@ -59,6 +95,7 @@ export const clientPaymentsGuard: CanActivateFn = async () => {
     });
   }
 
+  await resolveCurrentUserProfile(accountService, userService);
   try {
     const [usersSnap, clientProfileSnap] = await Promise.all([
       getDoc(doc(firestore, `users/${uid}`)),
@@ -177,4 +214,22 @@ async function presentGuardToast(toastController: ToastController, message: stri
     color: 'warning',
   });
   await toast.present();
+}
+
+async function resolveCurrentUserProfile(
+  accountService: AccountService,
+  userService: UserService
+): Promise<{ accountType?: string; demoMode?: boolean } | null> {
+  await waitForAuthReady(accountService);
+  if (!accountService.isLoggedIn()()) {
+    return null;
+  }
+
+  try {
+    await userService.loadUserProfile();
+  } catch (error) {
+    console.error('[auth.guard] Failed to load current user profile:', error);
+  }
+
+  return userService.getUserInfo()();
 }

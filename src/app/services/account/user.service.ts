@@ -11,6 +11,18 @@ import { AppUser } from '../../models/user.model';
 import { AccountType, ProfileRepositoryService } from './profile-repository.service';
 import { UserBadgesService } from '../user-badges.service';
 import { UserStatsService } from '../user-stats.service';
+import { calculateUserLevelProgress } from '../../models/user-stats.model';
+
+type DemoFitnessLevel = 'Beginner' | 'Intermediate' | 'Advanced';
+type DemoGoal = 'Strength' | 'Cardio' | 'Consistency' | 'General Fitness';
+// Public demo users always point at this fixed trainer so the event flow stays simple.
+const DEMO_TRAINER_UID = 'I1zIOGwmhDe3Mm5hURkbSpZpOyh2';
+
+interface DemoClientSetup {
+  displayName: string;
+  fitnessLevel: DemoFitnessLevel;
+  goal: DemoGoal;
+}
 
 @Injectable({
   providedIn: 'root'
@@ -21,7 +33,7 @@ export class UserService {
   private readonly CLIENTS_COLLECTION = 'clients';
   private profileLoadPromise: Promise<boolean> | null = null;
   private loadedProfileUid: string | null = null;
-  private profileCompletionRoute = '/complete-profile';
+  private profileCompletionRoute = '/complete-profile/client';
 
   constructor(
     private accountService: AccountService,
@@ -122,6 +134,9 @@ export class UserService {
         email: authEmail ?? '',
         firstName,
         lastName,
+        displayName: typeof (formData as any)?.displayName === 'string'
+          ? (formData as any).displayName.trim()
+          : `${firstName} ${lastName}`.trim(),
         phone,
         profilepic: profileImage,
         isPT: false,
@@ -150,6 +165,9 @@ export class UserService {
       const userSummaryPatch: Partial<AppUser> = {
         userId: userID,
         email: authEmail ?? '',
+        displayName: typeof (formData as any)?.displayName === 'string'
+          ? (formData as any).displayName.trim()
+          : `${firstName} ${lastName}`.trim(),
         firstName,
         lastName,
         phone,
@@ -174,8 +192,123 @@ export class UserService {
     }
   }
 
+  async createDemoClientProfile(setup: DemoClientSetup): Promise<boolean> {
+    const userID = this.accountService.getCredentials()().uid;
+    const authEmail = this.accountService.getCredentials()().email;
+    const displayName = this.normalizeText(setup.displayName) || 'Demo Athlete';
+    const fitnessLevel = setup.fitnessLevel;
+    const goal = setup.goal;
+
+    if (!userID) {
+      throw new Error('User ID not found');
+    }
+
+    const now = new Date();
+    const timestamps = {
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    };
+
+    const clientProfileData: clientProfile = {
+      id: userID,
+      displayName,
+      firstName: displayName,
+      lastName: '',
+      email: authEmail || '',
+      phone: '',
+      profilepic: '',
+      city: '',
+      state: '',
+      zip: 0,
+      accountType: 'client',
+      role: 'client',
+      demoMode: true,
+      trainerId: DEMO_TRAINER_UID,
+      fitnessLevel,
+      goal,
+      goals: goal,
+      experience: fitnessLevel,
+      description: `Demo profile for a ${fitnessLevel.toLowerCase()} athlete focused on ${goal.toLowerCase()}.`,
+      displayBadges: ['demo-starter', 'demo-consistency'],
+      unreadMessageCount: 0,
+    };
+
+    const userSummaryPatch: Partial<AppUser> = {
+      userId: userID,
+      displayName,
+      firstName: displayName,
+      lastName: '',
+      username: displayName,
+      email: '',
+      phone: '',
+      profilepic: '',
+      isPT: false,
+      role: 'client',
+      demoMode: true,
+      fitnessLevel,
+      goal,
+      trainerId: DEMO_TRAINER_UID,
+      groupID: [],
+      ...timestamps,
+    } as Partial<AppUser>;
+
+    const userStatsDoc = this.buildDemoUserStats(userID, displayName, fitnessLevel, goal, now);
+    const userStatsScore = Number(
+      (userStatsDoc['userScore'] as Record<string, unknown> | undefined)?.['totalScore'] ?? 0
+    );
+
+    await setDoc(doc(this.firestore, `users/${userID}`), userSummaryPatch, { merge: true });
+
+    await Promise.all([
+      setDoc(doc(this.firestore, `${this.CLIENTS_COLLECTION}/${userID}`), {
+        ...clientProfileData,
+        ...timestamps,
+      }),
+      setDoc(doc(this.firestore, 'userStats', userID), userStatsDoc, { merge: true }),
+      // Public demo users are always linked to a fixed trainer so the demo feels personalized.
+      setDoc(
+        doc(this.firestore, `trainers/${DEMO_TRAINER_UID}/clients/${userID}`),
+        {
+          clientId: userID,
+          trainerId: DEMO_TRAINER_UID,
+          status: 'active',
+          demoMode: true,
+          displayName,
+          firstName: displayName,
+          lastName: '',
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      ),
+    ]);
+
+    await Promise.all([
+      this.seedDemoWorkoutSummaries(userID, displayName, fitnessLevel, goal, now),
+      this.seedDemoTrendData(userID, userStatsScore),
+    ]);
+
+    this.profileRepository.primeUserSummary(userID, userSummaryPatch);
+    this.profileRepository.primeProfile(userID, 'client', {
+      ...clientProfileData,
+      ...timestamps,
+    });
+    this.syncCurrentUserSummaryPatch(userID, userSummaryPatch);
+    this.syncCurrentUserProfilePatch(userID, 'client', {
+      ...clientProfileData,
+      ...timestamps,
+    });
+
+    await Promise.all([
+      this.userStatsService.initializeCurrentUserStats(userID, true),
+      this.userBadgesService.initializeCurrentUserBadges(userID, true),
+    ]);
+
+    return true;
+  }
+
   async loadUserProfile(): Promise<boolean> {
-    this.profileCompletionRoute = '/complete-profile';
+    this.profileCompletionRoute = '/complete-profile/client';
 
     if (!this.accountService.isLoggedIn()()) {
       return false;
@@ -214,7 +347,7 @@ export class UserService {
 
     const trainerNeedsNameCompletion = await this.ensureTrainerUsersDocIdentity(userID, email);
     if (trainerNeedsNameCompletion) {
-      this.profileCompletionRoute = '/complete-profile/trainer';
+      this.profileCompletionRoute = '/complete-profile/client';
       this.userInfo.set(null);
       this.loadedProfileUid = null;
       this.userBadgesService.clear();
@@ -224,6 +357,11 @@ export class UserService {
 
     let hasRequiredStats = true;
     const usersData = await this.getUserSummaryDirectly(userID);
+    const isDemoMode =
+      usersData?.['demoMode'] === true ||
+      (userDoc.exists() &&
+        typeof (userDoc.data() as Record<string, unknown>)?.['demoMode'] === 'boolean' &&
+        (userDoc.data() as Record<string, unknown>)['demoMode'] === true);
     const trainerApprovalStatus = String((usersData as Record<string, unknown> | null)?.['trainerApprovalStatus'] || '').trim().toLowerCase();
     const requestedAccountType = String((usersData as Record<string, unknown> | null)?.['requestedAccountType'] || '').trim().toLowerCase();
 
@@ -240,7 +378,7 @@ export class UserService {
       const userStatsDoc = await getDoc(doc(this.firestore, 'userStats', userID));
       const userStatsData = userStatsDoc.exists() ? userStatsDoc.data() : null;
       await this.ensureBmiField(userID, userStatsData);
-      hasRequiredStats = this.hasRequiredUserStats(userStatsData);
+      hasRequiredStats = isDemoMode ? true : this.hasRequiredUserStats(userStatsData);
     }
 
     if (!userDoc.exists()) {
@@ -256,10 +394,9 @@ export class UserService {
       const firstName = typeof usersData?.['firstName'] === 'string' ? usersData['firstName'].trim() : '';
       const lastName = typeof usersData?.['lastName'] === 'string' ? usersData['lastName'].trim() : '';
       const username = typeof usersData?.['username'] === 'string' ? usersData['username'].trim() : '';
-      const isTrainer = usersData?.['isPT'] === true;
 
       if (!firstName || !lastName || !username) {
-        this.profileCompletionRoute = isTrainer ? '/complete-profile/trainer' : '/complete-profile';
+        this.profileCompletionRoute = '/complete-profile/client';
         this.userInfo.set(null);
         this.loadedProfileUid = null;
         this.userBadgesService.clear();
@@ -556,6 +693,207 @@ export class UserService {
     return null;
   }
 
+  private buildDemoUserStats(
+    userId: string,
+    displayName: string,
+    fitnessLevel: DemoFitnessLevel,
+    goal: DemoGoal,
+    now: Date
+  ): Record<string, unknown> {
+    const seedByLevel: Record<DemoFitnessLevel, { totalScore: number; streak: number; workouts: number; cardio: number; strength: number; }> = {
+      Beginner: { totalScore: 180, streak: 2, workouts: 2, cardio: 90, strength: 90 },
+      Intermediate: { totalScore: 540, streak: 5, workouts: 4, cardio: 250, strength: 290 },
+      Advanced: { totalScore: 980, streak: 9, workouts: 6, cardio: 470, strength: 510 },
+    };
+
+    const seed = seedByLevel[fitnessLevel];
+    const levelProgress = calculateUserLevelProgress(seed.totalScore);
+    const dateKey = this.toLocalDateKey(now);
+
+    return {
+      userId,
+      displayName,
+      demoMode: true,
+      fitnessLevel,
+      goal,
+      age: 0,
+      sex: 0,
+      heightMeters: 0,
+      weightKg: 0,
+      bmi: 0,
+      userScore: {
+        cardioScore: {
+          totalCardioScore: seed.cardio,
+        },
+        strengthScore: {
+          totalStrengthScore: seed.strength,
+        },
+        totalScore: seed.totalScore,
+        maxAddedScoreWithinDay: 0,
+      },
+      Expected_Effort: {
+        Cardio: {
+          warmup: fitnessLevel === 'Beginner' ? 10 : 18,
+        },
+        Strength: {
+          focus: fitnessLevel === 'Advanced' ? 60 : 35,
+        },
+      },
+      ...levelProgress,
+      streakData: {
+        currentStreak: seed.streak,
+        maxStreak: Math.max(seed.streak + 1, seed.streak),
+        totalNumberOfDaysTracked: seed.workouts + 1,
+        lastLoggedDay: dateKey,
+      },
+      earlymorningWorkoutsTracker: {
+        earlyMorningWorkoutNumber: fitnessLevel === 'Advanced' ? 3 : 1,
+        dateLastUpdated: dateKey,
+      },
+      groupRankings: {
+        totalNumberOfMembers: 24,
+        lastUpdated: now.toISOString(),
+      },
+      region: {
+        country: 'US',
+        state: 'CA',
+        city: 'Demo City',
+        countryCode: 'US',
+        stateCode: 'CA',
+        cityId: 'demo_city_ca_us',
+        countryName: 'United States',
+        stateName: 'California',
+        cityName: 'Demo City',
+      },
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    };
+  }
+
+  private async seedDemoWorkoutSummaries(
+    userId: string,
+    displayName: string,
+    fitnessLevel: DemoFitnessLevel,
+    goal: DemoGoal,
+    now: Date
+  ): Promise<void> {
+    const summaries = [
+      this.buildDemoWorkoutSummary(now, 0, displayName, fitnessLevel, goal, 260, 'Lower body and incline work'),
+      this.buildDemoWorkoutSummary(now, 1, displayName, fitnessLevel, goal, 330, 'Intervals and core'),
+      this.buildDemoWorkoutSummary(now, 2, displayName, fitnessLevel, goal, 220, 'Light recovery and mobility'),
+    ];
+
+    await Promise.all(
+      summaries.map((summary) =>
+        setDoc(
+          doc(this.firestore, `users/${userId}/workoutSummaries/${String(summary['date'] ?? '').trim()}`),
+          summary,
+          { merge: true }
+        )
+      )
+    );
+  }
+
+  private async seedDemoTrendData(userId: string, totalScore: number): Promise<void> {
+    const dateKeys = [0, 1, 2].map((offset) => this.toLocalDateKey(this.offsetDate(new Date(), offset)));
+    const values = [Math.round(totalScore * 0.22), Math.round(totalScore * 0.28), Math.round(totalScore * 0.3)];
+
+    await Promise.all(
+      dateKeys.map((dateKey, index) =>
+        setDoc(
+          doc(this.firestore, `userStats/${userId}/addedScore/${dateKey}`),
+          {
+            date: dateKey,
+            cardioScoreAddedToday: Math.round(values[index] * 0.45),
+            strengthScoreAddedToday: Math.round(values[index] * 0.55),
+            totalScoreAddedToday: values[index],
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+          },
+          { merge: true }
+        )
+      )
+    );
+  }
+
+  private buildDemoWorkoutSummary(
+    now: Date,
+    daysAgo: number,
+    displayName: string,
+    fitnessLevel: DemoFitnessLevel,
+    goal: DemoGoal,
+    calories: number,
+    notes: string
+  ): Record<string, unknown> {
+    const date = this.toLocalDateKey(this.offsetDate(now, daysAgo));
+    const workoutEventId = `demo-${date}`;
+    const eventCreatedAt = this.offsetDate(now, daysAgo).toISOString();
+    const event = {
+      date,
+      entries: [
+        {
+          kind: 'strength',
+          exerciseType: goal === 'Cardio' ? 'Goblet Squat' : 'Bench Press',
+          sets: fitnessLevel === 'Beginner' ? 3 : 4,
+          reps: fitnessLevel === 'Advanced' ? 8 : 10,
+          load: {
+            displayText: fitnessLevel === 'Beginner' ? '45 lb' : '95 lb',
+            weightKg: fitnessLevel === 'Beginner' ? 20.4 : 43.1,
+          },
+          estimatedCalories: Math.round(calories * 0.45),
+        },
+        {
+          kind: 'cardio',
+          cardioType: goal === 'Strength' ? 'Treadmill Walk' : 'Rowing',
+          distance: {
+            displayText: '1.5 mi',
+            meters: 2414,
+          },
+          duration: {
+            displayText: '18 min',
+            minutes: 18,
+          },
+          activitySource: 'demo',
+          estimatedCalories: Math.round(calories * 0.55),
+        },
+      ],
+      summary: {
+        estimatedCalories: calories,
+        trainerNotes: `${displayName} demo session. ${notes}. Goal: ${goal}.`,
+        isComplete: true,
+      },
+      source: 'manual',
+    };
+
+    return {
+      date,
+      workoutEventIds: [workoutEventId],
+      eventCount: 1,
+      aggregate: event,
+      firstEventCreatedAt: eventCreatedAt,
+      lastEventCreatedAt: eventCreatedAt,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    };
+  }
+
+  private offsetDate(date: Date, daysAgo: number): Date {
+    const next = new Date(date);
+    next.setDate(next.getDate() - daysAgo);
+    return next;
+  }
+
+  private toLocalDateKey(date: Date): string {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  private normalizeText(value: unknown): string {
+    return typeof value === 'string' ? value.trim() : String(value ?? '').trim();
+  }
+
   private mergeLoadedProfileWithUserSummary(
     userId: string,
     profile: trainerProfile | clientProfile,
@@ -594,8 +932,28 @@ export class UserService {
       (merged as any).username = userSummary?.username ?? '';
     }
 
+    if (Object.prototype.hasOwnProperty.call(userSummary ?? {}, 'displayName')) {
+      (merged as any).displayName = userSummary?.displayName ?? '';
+    }
+
     if (Object.prototype.hasOwnProperty.call(userSummary ?? {}, 'trainerId')) {
       (merged as any).trainerId = userSummary?.trainerId ?? '';
+    }
+
+    if (Object.prototype.hasOwnProperty.call(userSummary ?? {}, 'demoMode')) {
+      (merged as any).demoMode = userSummary?.demoMode === true;
+    }
+
+    if (Object.prototype.hasOwnProperty.call(userSummary ?? {}, 'role')) {
+      (merged as any).role = userSummary?.role ?? '';
+    }
+
+    if (Object.prototype.hasOwnProperty.call(userSummary ?? {}, 'fitnessLevel')) {
+      (merged as any).fitnessLevel = userSummary?.fitnessLevel ?? '';
+    }
+
+    if (Object.prototype.hasOwnProperty.call(userSummary ?? {}, 'goal')) {
+      (merged as any).goal = userSummary?.goal ?? '';
     }
 
     return merged as trainerProfile | clientProfile;
@@ -635,12 +993,34 @@ export class UserService {
       nextUser['username'] = patch.username ?? '';
     }
 
+    if (Object.prototype.hasOwnProperty.call(patch, 'displayName')) {
+      nextUser['displayName'] = patch.displayName ?? '';
+    }
+
     if (Object.prototype.hasOwnProperty.call(patch, 'trainerId')) {
       nextUser['trainerId'] = patch.trainerId ?? '';
     }
 
     if (typeof patch.isPT === 'boolean') {
       nextUser.accountType = patch.isPT ? 'trainer' : 'client';
+    }
+
+    if (Object.prototype.hasOwnProperty.call(patch, 'demoMode')) {
+      nextUser['demoMode'] = patch.demoMode === true;
+    }
+
+    if (Object.prototype.hasOwnProperty.call(patch, 'role')) {
+      if (patch.role === 'client' || patch.role === 'trainer') {
+        nextUser['role'] = patch.role;
+      }
+    }
+
+    if (Object.prototype.hasOwnProperty.call(patch, 'fitnessLevel')) {
+      nextUser['fitnessLevel'] = patch.fitnessLevel ?? '';
+    }
+
+    if (Object.prototype.hasOwnProperty.call(patch, 'goal')) {
+      nextUser['goal'] = patch.goal ?? '';
     }
 
     this.userInfo.set(nextUser as trainerProfile | clientProfile);

@@ -1,8 +1,8 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { IonButton, IonContent, IonHeader, IonLabel, IonSelect, IonSelectOption, IonTitle, IonToolbar, IonCheckbox, AlertController } from '@ionic/angular/standalone';
-import { Router,RouterModule } from '@angular/router';
+import { IonButton, IonContent, IonHeader, IonLabel, IonCheckbox, AlertController, IonTitle, IonToolbar } from '@ionic/angular/standalone';
+import { Router } from '@angular/router';
 import { Capacitor } from '@capacitor/core';
 import { PushNotifications } from '../../services/push-notifications.plugin';
 
@@ -98,7 +98,7 @@ export class ProfileCreationPage implements OnInit {
     } 
   }
 
-  navigateTo(type: string) {
-    this.router.navigate([`/profile-creation/${type}`]);
+  navigateToClient() {
+    this.router.navigate(['/profile-creation/client']);
   }
 }

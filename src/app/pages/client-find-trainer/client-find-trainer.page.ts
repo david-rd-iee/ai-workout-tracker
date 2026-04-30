@@ -7,6 +7,7 @@ import {
   IonContent,
   IonSpinner,
   IonText,
+  ToastController,
 } from '@ionic/angular/standalone';
 import { Auth, onAuthStateChanged } from '@angular/fire/auth';
 import {
@@ -65,6 +66,7 @@ export class ClientFindTrainerPage implements OnInit {
   private profileRepository = inject(ProfileRepositoryService);
   private trainerConnectionService = inject(TrainerConnectionService);
   private alertController = inject(AlertController);
+  private toastController = inject(ToastController);
 
   trainers: TrainerCard[] = [];
   selectedTrainerUid = '';
@@ -185,6 +187,15 @@ export class ClientFindTrainerPage implements OnInit {
     if (!authUser) {
       this.errorMessage = 'You must be logged in to find a trainer.';
       await this.router.navigateByUrl('/login', { replaceUrl: true });
+      this.isLoading = false;
+      return;
+    }
+
+    await this.userService.loadUserProfile();
+    if (this.userService.getUserInfo()()?.demoMode === true) {
+      // Demo users are already assigned a trainer, so we send them back to the normal client flow.
+      await this.presentDemoRedirectToast();
+      await this.router.navigateByUrl('/tabs/home', { replaceUrl: true });
       this.isLoading = false;
       return;
     }
@@ -484,5 +495,15 @@ export class ClientFindTrainerPage implements OnInit {
         resolve(user);
       });
     });
+  }
+
+  private async presentDemoRedirectToast(): Promise<void> {
+    const toast = await this.toastController.create({
+      message: 'Demo users are automatically assigned a trainer.',
+      duration: 2200,
+      position: 'top',
+      color: 'medium',
+    });
+    await toast.present();
   }
 }

@@ -14,7 +14,7 @@
       <div class="hero-copy">
         <p class="hero-eyebrow">ATLAS</p>
         <h1>Join Atlas</h1>
-        <p>Choose your role, review the terms, and continue with the right signup flow.</p>
+        <p>Review the terms, accept them, and continue to your client profile setup.</p>
       </div>
     </section>
 
@@ -22,33 +22,17 @@
       <h2>Account Setup</h2>
 
       <div class="role-grid">
-        <button
-          type="button"
-          class="role-card"
-          [class.role-card-selected]="selectedAccountType === 'trainer'"
-          (click)="selectAccountType('trainer')"
-        >
-          <span class="role-eyebrow">Coach</span>
-          <strong>Trainer</strong>
-          <span>Build your trainer profile, specialties, and client-facing presence.</span>
-        </button>
-
-        <button
-          type="button"
-          class="role-card"
-          [class.role-card-selected]="selectedAccountType === 'client'"
-          (click)="selectAccountType('client')"
-        >
+        <div class="role-card role-card-selected">
           <span class="role-eyebrow">Member</span>
           <strong>Client</strong>
           <span>Complete a streamlined profile with your name, username, age, and body metrics.</span>
-        </button>
+        </div>
       </div>
 
       <section class="terms-container">
         <div class="terms-header">
           <h3>Terms of Service</h3>
-          <p>Review the onboarding terms before choosing your account type.</p>
+          <p>Review the onboarding terms before continuing to the demo profile setup.</p>
         </div>
 
         <div class="terms-content">
@@ -57,19 +41,10 @@
             Last Updated: Nov 11, 2025
           </p>
           <p>
-            By using Atlas, you agree to the platform terms, privacy practices, and onboarding requirements that govern how clients and trainers interact through the app.
-          </p>
-          <p>
-            Trainers may not use Atlas as a platform for medical, psychological, or healthcare advice. Services offered through the app are intended for fitness, wellness, and lifestyle guidance only.
+            By using Atlas, you agree to the platform terms, privacy practices, and onboarding requirements that govern how clients use the app.
           </p>
           <p>
             Users must provide accurate registration information, keep their account secure, and comply with platform rules around messaging, scheduling, and off-platform solicitation.
-          </p>
-          <p>
-            Atlas may suspend or terminate accounts that violate these terms, misuse user data, or attempt to bypass platform payment, communication, or safety rules.
-          </p>
-          <p>
-            By continuing, you acknowledge that your use of the platform is subject to Atlas's full Terms of Service, including limitations of liability, dispute resolution provisions, and user conduct expectations.
           </p>
         </div>
       </section>
@@ -91,7 +66,7 @@
       </ion-text>
 
       <ion-button class="primary-auth-btn" expand="block" (click)="onSubmit()">
-        Continue
+        Continue as Client
       </ion-button>
     </section>
   </div>

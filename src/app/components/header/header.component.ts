@@ -83,9 +83,10 @@ export class HeaderComponent implements OnInit {
 
   get avatarInitial(): string {
     const user = this.effectiveUser;
+    const displayName = (user?.displayName || '').trim();
     const first = (user?.firstName || '').trim();
     const username = (user?.username || '').trim();
-    const source = first || username;
+    const source = displayName || first || username;
     return source ? source[0].toUpperCase() : '?';
   }
 

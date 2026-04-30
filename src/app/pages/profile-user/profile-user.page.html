@@ -170,29 +170,29 @@
       </ion-card-content>
     </ion-card>
 
-    <!-- Action stack (Hidden for trainers) -->
-    <div *ngIf="currentUser?.accountType !== 'trainer'" class="action-stack">
-      <button class="action-row" (click)="goToGroups()">
+    <!-- Action stack -->
+    <div class="action-stack">
+      <button class="action-row" *ngIf="!isTrainerUser" (click)="goToGroups()">
         <span>Groups</span>
         <ion-icon name="people-outline"></ion-icon>
       </button>
 
-      <button class="action-row" (click)="goToLogWorkout()">
+      <button class="action-row" *ngIf="!isTrainerUser" (click)="goToLogWorkout()">
         <span>Log Workout</span>
         <ion-icon name="create-outline"></ion-icon>
       </button>
 
-      <button class="action-row" (click)="goToWorkoutHistory()">
+      <button class="action-row" *ngIf="!isTrainerUser" (click)="goToWorkoutHistory()">
         <span>Workout History</span>
         <ion-icon name="stats-chart"></ion-icon>
       </button>
 
-      <button class="action-row" (click)="goToFindPT()">
+      <button class="action-row" *ngIf="!isDemoMode && !isTrainerUser" (click)="goToFindPT()">
         <span>Find PT</span>
         <ion-icon name="search-outline"></ion-icon>
       </button>
 
-      <button class="action-row" (click)="goToRegional()">
+      <button class="action-row" *ngIf="!isTrainerUser" (click)="goToRegional()">
         <span>Regional</span>
         <ion-icon name="map-outline"></ion-icon>
       </button>
@@ -202,7 +202,7 @@
         <ion-icon name="analytics-outline"></ion-icon>
       </button>
 
-      <button class="action-row" (click)="goToPayTrainer()">
+      <button class="action-row" *ngIf="isTrainerUser || isDemoMode" (click)="goToPayTrainer()">
         <span>Trainer Dashboard</span>
         <ion-icon name="card-outline"></ion-icon>
       </button>

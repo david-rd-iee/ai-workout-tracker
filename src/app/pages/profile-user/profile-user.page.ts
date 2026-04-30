@@ -337,12 +337,25 @@ export class ProfileUserPage implements OnInit, OnDestroy {
   }
 
   get displayName(): string {
+    const demoDisplayName = (this.currentUser as any)?.displayName;
+    if (typeof demoDisplayName === 'string' && demoDisplayName.trim()) {
+      return demoDisplayName.trim();
+    }
+
     const first = (this.currentUser?.firstName || '').trim();
     const last = (this.currentUser?.lastName || '').trim();
     const fallbackFirst = this.usersDocFirstName.trim();
     const fallbackLast = this.usersDocLastName.trim();
     const full = `${first || fallbackFirst} ${last || fallbackLast}`.trim();
     return full || 'User';
+  }
+
+  get isDemoMode(): boolean {
+    return this.currentUser?.demoMode === true;
+  }
+
+  get isTrainerUser(): boolean {
+    return this.currentUser?.accountType === 'trainer';
   }
 
   get displayUsername(): string {

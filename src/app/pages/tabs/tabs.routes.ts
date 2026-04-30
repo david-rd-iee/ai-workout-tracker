@@ -1,6 +1,7 @@
 import { Routes } from '@angular/router';
 import { TabsPage } from './tabs.page';
 import { ALLOW_LANDSCAPE_ORIENTATION_POLICY, ORIENTATION_POLICY_ROUTE_DATA_KEY } from '../../services/orientation/orientation-policy';
+import { trainerOnlyGuard } from '../../services/account/auth.guard';
 
 export const routes: Routes = [
   {
@@ -26,11 +27,13 @@ export const routes: Routes = [
         path: 'calender/trainer/availability',
         loadComponent: () =>
           import('../calender/trainer-availability/trainer-availability.page').then(m => m.TrainerAvailabilityPage),
+        canActivate: [trainerOnlyGuard],
       },
       {
         path: 'calender/trainer',
         loadComponent: () =>
           import('../calender/trainer-calendar/trainer-calendar.page').then(m => m.TrainerCalendarPage),
+        canActivate: [trainerOnlyGuard],
       },
       {
         path: 'chats',
@@ -56,6 +59,7 @@ export const routes: Routes = [
         path: 'stripe-setup',
         loadComponent: () =>
           import('../stripe-setup/stripe-setup.page').then((m) => m.StripeSetupPage),
+        canActivate: [trainerOnlyGuard],
       },
       // default inside /tabs → /tabs/home
       {

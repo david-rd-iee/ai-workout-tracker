@@ -909,6 +909,12 @@ export class ProfileRepositoryService {
       merged['phone'] = userSummary.phone;
     }
 
+    if (preferUserSummary && userSummary?.displayName) {
+      merged['displayName'] = userSummary.displayName;
+    } else if (!this.hasValue(merged['displayName']) && userSummary?.displayName) {
+      merged['displayName'] = userSummary.displayName;
+    }
+
     if (preferUserSummary && userSummary?.profilepic) {
       merged['profilepic'] = userSummary.profilepic;
     } else if (!this.hasValue(merged['profilepic']) && userSummary?.profilepic) {
@@ -942,6 +948,30 @@ export class ProfileRepositoryService {
       merged['trainerId'] = userSummary?.trainerId;
     } else if (!this.hasValue(merged['trainerId']) && this.hasValue(userSummary?.trainerId)) {
       merged['trainerId'] = userSummary?.trainerId;
+    }
+
+    if (preferUserSummary && this.hasValue(userSummary?.demoMode)) {
+      merged['demoMode'] = userSummary?.demoMode === true;
+    } else if (!this.hasValue(merged['demoMode']) && this.hasValue(userSummary?.demoMode)) {
+      merged['demoMode'] = userSummary?.demoMode === true;
+    }
+
+    if (preferUserSummary && this.hasValue(userSummary?.role)) {
+      merged['role'] = userSummary?.role;
+    } else if (!this.hasValue(merged['role']) && this.hasValue(userSummary?.role)) {
+      merged['role'] = userSummary?.role;
+    }
+
+    if (preferUserSummary && this.hasValue(userSummary?.fitnessLevel)) {
+      merged['fitnessLevel'] = userSummary?.fitnessLevel;
+    } else if (!this.hasValue(merged['fitnessLevel']) && this.hasValue(userSummary?.fitnessLevel)) {
+      merged['fitnessLevel'] = userSummary?.fitnessLevel;
+    }
+
+    if (preferUserSummary && this.hasValue(userSummary?.goal)) {
+      merged['goal'] = userSummary?.goal;
+    } else if (!this.hasValue(merged['goal']) && this.hasValue(userSummary?.goal)) {
+      merged['goal'] = userSummary?.goal;
     }
 
     merged['accountType'] = accountType;
@@ -991,8 +1021,28 @@ export class ProfileRepositoryService {
       merged['username'] = userSummary.username;
     }
 
+    if (userSummary?.displayName) {
+      merged['displayName'] = userSummary.displayName;
+    }
+
     if (this.hasValue(userSummary?.trainerId)) {
       merged['trainerId'] = userSummary?.trainerId;
+    }
+
+    if (typeof userSummary?.demoMode === 'boolean') {
+      merged['demoMode'] = userSummary.demoMode;
+    }
+
+    if (userSummary?.role) {
+      merged['role'] = userSummary.role;
+    }
+
+    if (userSummary?.fitnessLevel) {
+      merged['fitnessLevel'] = userSummary.fitnessLevel;
+    }
+
+    if (userSummary?.goal) {
+      merged['goal'] = userSummary.goal;
     }
 
     if (typeof merged['isPT'] !== 'boolean') {

@@ -204,6 +204,35 @@ $neo-accent: #2e6ef5;
   }
 }
 
+.secondary-auth-btn {
+  --background: linear-gradient(145deg, #eef3fb, #e2e9f5);
+  --background-hover: linear-gradient(145deg, #f5f8fd, #e8eef8);
+  --background-activated: linear-gradient(145deg, #e0e8f4, #d5deed);
+  --color: #4f617c;
+  --border-radius: 16px;
+  --border-color: rgba(89, 109, 142, 0.24);
+  --border-width: 1px;
+  --box-shadow: none;
+  min-height: 44px;
+  margin: 0;
+  font-size: 0.94rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  box-shadow:
+    8px 8px 16px -12px rgba(184, 196, 214, 0.9),
+    -8px -8px 14px -12px rgba(249, 252, 255, 0.92);
+
+  &::part(native) {
+    border-radius: 16px;
+    overflow: hidden;
+    transition: transform 170ms ease, box-shadow 170ms ease;
+  }
+
+  &:active::part(native) {
+    transform: translateY(1px) scale(0.997);
+  }
+}
+
 .apple-auth-btn {
   --background: linear-gradient(145deg, #eef3fb, #e2e9f5);
   --background-hover: linear-gradient(145deg, #f5f8fd, #e8eef8);

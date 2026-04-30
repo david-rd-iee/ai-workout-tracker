@@ -66,6 +66,17 @@
         <ion-button class="primary-auth-btn" expand="block" type="submit" [disabled]="isSubmitting">
           Login
         </ion-button>
+
+        <ion-button
+          class="secondary-auth-btn"
+          expand="block"
+          type="button"
+          fill="outline"
+          (click)="startDemoMode()"
+          [disabled]="isSubmitting"
+        >
+          Try Demo Mode
+        </ion-button>
       </form>
 
       <button
@@ -76,18 +87,6 @@
       >
         Forgot password?
       </button>
-
-      <ion-button
-        *ngIf="isIOS"
-        class="apple-auth-btn"
-        expand="block"
-        fill="clear"
-        (click)="loginWithApple()"
-        [disabled]="isSubmitting"
-      >
-        <ion-icon name="logo-apple" slot="start"></ion-icon>
-        Sign in with Apple
-      </ion-button>
 
       <p class="auth-switch-copy">
         New here?

@@ -5,5 +5,10 @@ export interface clientProfile extends BaseUserProfile {
     goals: string;
     experience: string;
     description: string;
+    demoMode?: boolean;
+    displayName?: string;
+    fitnessLevel?: string;
+    goal?: string;
+    trainerId?: string;
     displayBadges?: string[]; // Array of badge IDs to display on profile
   }
