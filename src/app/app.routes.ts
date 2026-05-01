@@ -403,12 +403,18 @@ export const routes: Routes = [
   },
   {
     path: '',
-    redirectTo: 'demo-setup',
+    loadComponent: () =>
+      import('./pages/landing-redirect/landing-redirect.component').then(
+        (m) => m.LandingRedirectComponent
+      ),
     pathMatch: 'full',
   },
   // If user manually types a bad URL → send to login
   {
     path: '**',
-    redirectTo: 'demo-setup',
+    loadComponent: () =>
+      import('./pages/landing-redirect/landing-redirect.component').then(
+        (m) => m.LandingRedirectComponent
+      ),
   }
 ];
