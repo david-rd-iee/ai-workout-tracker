@@ -1,7 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
-import { IonContent, IonInput, IonButton, IonIcon, IonSpinner, IonTextarea } from '@ionic/angular/standalone';
+import { IonContent, IonInput, IonButton, IonIcon, IonSpinner, IonTextarea, IonSelect, IonSelectOption } from '@ionic/angular/standalone';
 import { Router } from '@angular/router';
 import { UserService } from 'src/app/services/account/user.service';
 import { trainerProfile } from 'src/app/Interfaces/Profiles/Trainer';
@@ -19,7 +19,7 @@ import { alertCircle } from 'ionicons/icons';
   standalone: true,
   imports: [
     IonContent, CommonModule, FormsModule, ReactiveFormsModule,
-    IonInput, IonButton, IonIcon, IonSpinner, IonTextarea, PhoneInputComponent, /* AutocorrectDirective, */ HeaderComponent
+    IonInput, IonButton, IonIcon, IonSpinner, IonTextarea, IonSelect, IonSelectOption, PhoneInputComponent, /* AutocorrectDirective, */ HeaderComponent
   ]
 })
 export class ProfileCreateTrainerPage implements OnInit {
@@ -41,6 +41,10 @@ export class ProfileCreateTrainerPage implements OnInit {
       lastName: ['', [Validators.required, Validators.minLength(2), Validators.maxLength(50)]],
       email: '', // email will be got from the logged in user
       phone: ['', [Validators.required]],
+      age: ['', [Validators.required, Validators.min(1)]],
+      sex: ['', [Validators.required]],
+      heightMeters: ['', [Validators.required, Validators.min(0.1)]],
+      weightKg: ['', [Validators.required, Validators.min(0.1)]],
       specialization: ['', [Validators.required, Validators.maxLength(100)]],
       experience: ['', [Validators.required, Validators.min(0), Validators.max(100)]],
       education: ['', [Validators.required, Validators.maxLength(200)]],
@@ -61,7 +65,7 @@ export class ProfileCreateTrainerPage implements OnInit {
     if (!this.trainerForm) return false;
 
     // Check each field to see if it has errors
-    const fields = ['firstName', 'lastName', 'phone', 'specialization', 'experience', 'education', 'description', 'city', 'state', 'zip'];
+    const fields = ['firstName', 'lastName', 'phone', 'age', 'sex', 'heightMeters', 'weightKg', 'specialization', 'experience', 'education', 'description', 'city', 'state', 'zip'];
 
     for (const field of fields) {
       const control = this.trainerForm.get(field);

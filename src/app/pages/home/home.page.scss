@@ -106,7 +106,6 @@ $neo-accent: #2e6ef5;
 }
 
 .demo-hero-card,
-.demo-summary-card,
 .demo-shortcut-card,
 .demo-guide-card {
   @include neo-raised(24px);
@@ -151,76 +150,6 @@ $neo-accent: #2e6ef5;
   height: 52px;
   font-weight: 700;
   letter-spacing: 0.01em;
-}
-
-.demo-summary-card {
-  ion-card-header {
-    padding: 20px 20px 0;
-  }
-
-  ion-card-content {
-    padding: 16px 20px 20px;
-  }
-
-  ion-card-title {
-    color: $neo-text;
-    font-size: 1.08rem;
-    font-weight: 800;
-  }
-}
-
-.demo-stats-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.demo-stat {
-  padding: 14px;
-  @include neo-inset(18px);
-
-  span {
-    display: block;
-    color: $neo-muted;
-    font-size: 0.72rem;
-    font-weight: 800;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-  }
-
-  strong {
-    display: block;
-    margin-top: 8px;
-    color: $neo-text;
-    font-size: 1.2rem;
-    font-weight: 800;
-  }
-}
-
-.demo-progress-shell {
-  margin-top: 16px;
-
-  p {
-    margin: 10px 0 0;
-    color: $neo-muted;
-    font-size: 0.82rem;
-    font-weight: 600;
-  }
-}
-
-.demo-progress-bar {
-  height: 12px;
-  border-radius: 999px;
-  overflow: hidden;
-  background: rgba(160, 179, 219, 0.28);
-  box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.8);
-}
-
-.demo-progress-fill {
-  height: 100%;
-  border-radius: inherit;
-  background: linear-gradient(90deg, #2e6ef5, #7fb0ff);
-  transition: width 220ms ease;
 }
 
 .demo-shortcuts {

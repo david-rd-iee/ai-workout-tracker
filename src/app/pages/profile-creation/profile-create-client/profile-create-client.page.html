@@ -42,6 +42,76 @@
         <app-phone-input formControlName="phone" class="modern-input"></app-phone-input>
       </div>
 
+      <!-- Age -->
+      <div class="form-field">
+        <ion-input
+          formControlName="age"
+          label="Age"
+          labelPlacement="stacked"
+          type="number"
+          inputmode="numeric"
+          placeholder="Enter your age"
+          [class.ion-invalid]="shouldShowError('age')"
+          [class.ion-touched]="clientForm.get('age')?.touched"
+          class="modern-input"
+          fill="outline">
+        </ion-input>
+      </div>
+
+      <!-- Sex -->
+      <div class="form-field">
+        <ion-select
+          formControlName="sex"
+          label="Sex"
+          labelPlacement="stacked"
+          placeholder="Select sex"
+          interface="popover"
+          [class.ion-invalid]="shouldShowError('sex')"
+          [class.ion-touched]="clientForm.get('sex')?.touched"
+          class="modern-input"
+          fill="outline">
+          <ion-select-option [value]="1">Male</ion-select-option>
+          <ion-select-option [value]="2">Female</ion-select-option>
+          <ion-select-option [value]="1.5">Other</ion-select-option>
+        </ion-select>
+      </div>
+
+      <!-- Height -->
+      <div class="form-field">
+        <ion-input
+          formControlName="heightMeters"
+          label="Height (m)"
+          labelPlacement="stacked"
+          type="number"
+          inputmode="decimal"
+          placeholder="Enter your height in meters"
+          [class.ion-invalid]="shouldShowError('heightMeters')"
+          [class.ion-touched]="clientForm.get('heightMeters')?.touched"
+          class="modern-input"
+          fill="outline">
+        </ion-input>
+      </div>
+
+      <!-- Weight -->
+      <div class="form-field">
+        <ion-input
+          formControlName="weightKg"
+          label="Weight (kg)"
+          labelPlacement="stacked"
+          type="number"
+          inputmode="decimal"
+          placeholder="Enter your weight in kilograms"
+          [class.ion-invalid]="shouldShowError('weightKg')"
+          [class.ion-touched]="clientForm.get('weightKg')?.touched"
+          class="modern-input"
+          fill="outline">
+        </ion-input>
+      </div>
+
+      <p class="profile-hint">
+        These stats help Atlas calculate effort using your baseline profile.
+      </p>
+
       <!-- City -->
       <div class="form-field">
         <ion-input 
@@ -159,6 +229,27 @@
           </li>
           <li *ngIf="clientForm.get('phone')?.errors?.['required'] && shouldShowError('phone')">
             Phone number is required
+          </li>
+          <li *ngIf="clientForm.get('age')?.errors?.['required'] && shouldShowError('age')">
+            Age is required
+          </li>
+          <li *ngIf="clientForm.get('age')?.errors?.['min'] && shouldShowError('age')">
+            Age must be greater than 0
+          </li>
+          <li *ngIf="clientForm.get('sex')?.errors?.['required'] && shouldShowError('sex')">
+            Sex is required
+          </li>
+          <li *ngIf="clientForm.get('heightMeters')?.errors?.['required'] && shouldShowError('heightMeters')">
+            Height is required
+          </li>
+          <li *ngIf="clientForm.get('heightMeters')?.errors?.['min'] && shouldShowError('heightMeters')">
+            Height must be greater than 0
+          </li>
+          <li *ngIf="clientForm.get('weightKg')?.errors?.['required'] && shouldShowError('weightKg')">
+            Weight is required
+          </li>
+          <li *ngIf="clientForm.get('weightKg')?.errors?.['min'] && shouldShowError('weightKg')">
+            Weight must be greater than 0
           </li>
           <li *ngIf="clientForm.get('phone')?.errors?.['phoneFormat'] && shouldShowError('phone')">
             Please enter exactly 10 digits for phone number

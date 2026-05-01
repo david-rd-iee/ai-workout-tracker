@@ -22,8 +22,21 @@ export class CompleteProfilePage implements OnInit {
   termsAccepted = false;
   errorMessage = '';
   private hasPromptedForNotifications = false;
+  private onboardingProfile: Record<string, unknown> | null = null;
 
   ngOnInit(): void {
+    const state = this.router.getCurrentNavigation()?.extras.state as Record<string, unknown> | undefined;
+    const stateProfile = state?.['onboardingProfile'];
+    if (stateProfile && typeof stateProfile === 'object' && !Array.isArray(stateProfile)) {
+      this.onboardingProfile = stateProfile as Record<string, unknown>;
+    } else {
+      const historyState = window.history.state as Record<string, unknown> | undefined;
+      const fallbackProfile = historyState?.['onboardingProfile'];
+      if (fallbackProfile && typeof fallbackProfile === 'object' && !Array.isArray(fallbackProfile)) {
+        this.onboardingProfile = fallbackProfile as Record<string, unknown>;
+      }
+    }
+
     void this.ensureAuthenticated();
   }
 
@@ -35,7 +48,12 @@ export class CompleteProfilePage implements OnInit {
       return;
     }
 
-    await this.router.navigateByUrl('/complete-profile/client', { replaceUrl: true });
+    await this.router.navigateByUrl('/complete-profile/client', {
+      replaceUrl: true,
+      state: {
+        onboardingProfile: this.onboardingProfile,
+      },
+    });
   }
 
   async onTermsAcceptedChange(): Promise<void> {

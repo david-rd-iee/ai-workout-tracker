@@ -174,6 +174,15 @@ export class ProfileUserPage implements OnInit, OnDestroy {
     return Math.min(1, Math.max(0, rawPercentage * 0.01));
   }
 
+  get totalScore(): number {
+    const rawTotal = Number(this.currentUserStats?.userScore?.totalScore ?? 0);
+    if (!Number.isFinite(rawTotal) || rawTotal < 0) {
+      return 0;
+    }
+
+    return Math.floor(rawTotal);
+  }
+
   get isTrainerVerified(): boolean {
     return this.currentUserStats?.trainerVerified === true;
   }

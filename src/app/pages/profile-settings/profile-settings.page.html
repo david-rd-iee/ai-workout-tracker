@@ -31,19 +31,6 @@
               ></ion-input>
             </ion-item>
 
-            <ion-item lines="none" class="settings-field">
-              <ion-input
-                class="settings-input"
-                label="Last Name"
-                label-placement="stacked"
-                [(ngModel)]="lastName"
-                name="lastName"
-                placeholder="Enter last name"
-                [disabled]="isLoading || isSaving"
-                required
-              ></ion-input>
-            </ion-item>
-
             <div class="trainer-profile-section" *ngIf="isTrainer">
               <div class="trainer-section-header">
                 <div>
@@ -210,20 +197,6 @@
                 <ion-select-option [value]="2">Female</ion-select-option>
                 <ion-select-option [value]="1.5">Other</ion-select-option>
               </ion-select>
-            </ion-item>
-
-            <ion-item lines="none" class="settings-field">
-              <ion-input
-                class="settings-input"
-                label="Email"
-                label-placement="stacked"
-                type="email"
-                [(ngModel)]="email"
-                name="email"
-                placeholder="Enter email"
-                [disabled]="isLoading || isSaving"
-                required
-              ></ion-input>
             </ion-item>
 
             <ion-item lines="none" class="settings-field" *ngIf="!isTrainer">

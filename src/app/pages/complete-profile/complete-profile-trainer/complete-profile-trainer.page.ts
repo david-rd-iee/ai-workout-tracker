@@ -7,6 +7,8 @@ import {
   IonContent,
   IonInput,
   IonItem,
+  IonSelect,
+  IonSelectOption,
   IonText,
   IonTextarea,
 } from '@ionic/angular/standalone';
@@ -28,6 +30,8 @@ import { UserService } from '../../../services/account/user.service';
     IonContent,
     IonInput,
     IonItem,
+    IonSelect,
+    IonSelectOption,
     IonText,
     IonTextarea,
   ],
@@ -40,6 +44,10 @@ export class CompleteProfileTrainerPage implements OnInit {
   firstName = '';
   lastName = '';
   phone = '';
+  age: string | number = '';
+  sex: string | number | null = null;
+  heightMeters: string | number = '';
+  weightKg: string | number = '';
   specialization = '';
   experience = '';
   education = '';
@@ -54,6 +62,11 @@ export class CompleteProfileTrainerPage implements OnInit {
   visible = true;
   isSubmitting = false;
   errorMessage = '';
+  readonly sexOptions = [
+    { value: 1, label: 'Male' },
+    { value: 2, label: 'Female' },
+    { value: 1.5, label: 'Other' },
+  ];
 
   ngOnInit(): void {
     void this.ensureAuthenticated();
@@ -65,6 +78,10 @@ export class CompleteProfileTrainerPage implements OnInit {
     const firstName = this.firstName.trim();
     const lastName = this.lastName.trim();
     const phone = this.phone.trim();
+    const age = this.parsePositiveInteger(this.age);
+    const sex = this.parseSexValue(this.sex);
+    const heightMeters = this.parsePositiveNumber(this.heightMeters);
+    const weightKg = this.parsePositiveNumber(this.weightKg);
     const specialization = this.specialization.trim();
     const experience = this.experience.trim();
     const education = this.education.trim();
@@ -82,6 +99,10 @@ export class CompleteProfileTrainerPage implements OnInit {
     if (!firstName) missingFields.push('first name');
     if (!lastName) missingFields.push('last name');
     if (!phone) missingFields.push('phone');
+    if (age === null) missingFields.push('age');
+    if (sex === null) missingFields.push('sex');
+    if (heightMeters === null) missingFields.push('height');
+    if (weightKg === null) missingFields.push('weight');
     if (!specialization) missingFields.push('specialization');
     if (!experience) missingFields.push('experience');
     if (!education) missingFields.push('education / certifications');
@@ -125,6 +146,10 @@ export class CompleteProfileTrainerPage implements OnInit {
         city,
         state,
         zip: resolvedZip,
+        age,
+        heightMeters,
+        weightKg,
+        sex,
         accountType: 'trainer',
         specialization,
         experience,
@@ -191,5 +216,23 @@ export class CompleteProfileTrainerPage implements OnInit {
 
     const parsed = Number(trimmed);
     return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+  }
+
+  private parsePositiveInteger(value: unknown): number | null {
+    const parsed = Number(String(value ?? '').trim());
+    if (!Number.isFinite(parsed) || parsed <= 0 || !Number.isInteger(parsed)) {
+      return null;
+    }
+
+    return parsed;
+  }
+
+  private parseSexValue(value: unknown): number | null {
+    const parsed = Number(String(value ?? '').trim());
+    if (parsed === 1 || parsed === 1.5 || parsed === 2) {
+      return parsed;
+    }
+
+    return null;
   }
 }

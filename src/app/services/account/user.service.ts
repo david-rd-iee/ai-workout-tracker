@@ -6,12 +6,12 @@ import { Firestore, setDoc, getDoc, doc, updateDoc, serverTimestamp } from '@ang
 import { Observable, from } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { FileUploadService } from '../file-upload.service';
-import { getFunctions, httpsCallable } from 'firebase/functions';
 import { AppUser } from '../../models/user.model';
 import { AccountType, ProfileRepositoryService } from './profile-repository.service';
 import { UserBadgesService } from '../user-badges.service';
 import { UserStatsService } from '../user-stats.service';
 import { calculateUserLevelProgress } from '../../models/user-stats.model';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 
 type DemoFitnessLevel = 'Beginner' | 'Intermediate' | 'Advanced';
 type DemoGoal = 'Strength' | 'Cardio' | 'Consistency' | 'General Fitness';
@@ -126,6 +126,11 @@ export class UserService {
         await setDoc(trainerDocRef, trainerProfileData!);
       } else {
         await setDoc(clientDocRef, clientProfileData!);
+      }
+
+      const userStatsPayload = this.buildInitialUserStatsPayload(formData, userID);
+      if (userStatsPayload) {
+        await setDoc(doc(this.firestore, 'userStats', userID), userStatsPayload, { merge: true });
       }
 
       const usersRef = doc(this.firestore, `users/${userID}`);
@@ -283,10 +288,7 @@ export class UserService {
       ),
     ]);
 
-    await Promise.all([
-      this.seedDemoWorkoutSummaries(userID, displayName, fitnessLevel, goal, now),
-      this.seedDemoTrendData(userID, userStatsScore),
-    ]);
+    await this.seedDemoTrendData(userID, userStatsScore);
 
     this.profileRepository.primeUserSummary(userID, userSummaryPatch);
     this.profileRepository.primeProfile(userID, 'client', {
@@ -303,6 +305,8 @@ export class UserService {
       this.userStatsService.initializeCurrentUserStats(userID, true),
       this.userBadgesService.initializeCurrentUserBadges(userID, true),
     ]);
+
+    await this.ensureInnovationDayGroupMembership(userID, displayName);
 
     return true;
   }
@@ -693,6 +697,50 @@ export class UserService {
     return null;
   }
 
+  private buildInitialUserStatsPayload(
+    formData: trainerProfile | clientProfile,
+    userId: string
+  ): Record<string, unknown> | null {
+    const formDataRecord = formData as unknown as Record<string, unknown>;
+    const age = this.parsePositiveInteger(formDataRecord['age']);
+    const heightMeters = this.parsePositiveNumber(formDataRecord['heightMeters']);
+    const weightKg = this.parsePositiveNumber(formDataRecord['weightKg']);
+    const sex = this.parseSexValue(formDataRecord['sex']);
+
+    if (
+      age === null ||
+      heightMeters === null ||
+      weightKg === null ||
+      sex === null
+    ) {
+      return null;
+    }
+
+    const bmi = this.calculateBmi(heightMeters, weightKg);
+    if (!bmi) {
+      return null;
+    }
+
+    return {
+      userId,
+      age,
+      heightMeters,
+      weightKg,
+      sex,
+      bmi,
+      updatedAt: serverTimestamp(),
+    };
+  }
+
+  private parsePositiveInteger(value: unknown): number | null {
+    const parsed = Number(String(value ?? '').trim());
+    if (!Number.isFinite(parsed) || parsed <= 0 || !Number.isInteger(parsed)) {
+      return null;
+    }
+
+    return parsed;
+  }
+
   private buildDemoUserStats(
     userId: string,
     displayName: string,
@@ -770,30 +818,6 @@ export class UserService {
     };
   }
 
-  private async seedDemoWorkoutSummaries(
-    userId: string,
-    displayName: string,
-    fitnessLevel: DemoFitnessLevel,
-    goal: DemoGoal,
-    now: Date
-  ): Promise<void> {
-    const summaries = [
-      this.buildDemoWorkoutSummary(now, 0, displayName, fitnessLevel, goal, 260, 'Lower body and incline work'),
-      this.buildDemoWorkoutSummary(now, 1, displayName, fitnessLevel, goal, 330, 'Intervals and core'),
-      this.buildDemoWorkoutSummary(now, 2, displayName, fitnessLevel, goal, 220, 'Light recovery and mobility'),
-    ];
-
-    await Promise.all(
-      summaries.map((summary) =>
-        setDoc(
-          doc(this.firestore, `users/${userId}/workoutSummaries/${String(summary['date'] ?? '').trim()}`),
-          summary,
-          { merge: true }
-        )
-      )
-    );
-  }
-
   private async seedDemoTrendData(userId: string, totalScore: number): Promise<void> {
     const dateKeys = [0, 1, 2].map((offset) => this.toLocalDateKey(this.offsetDate(new Date(), offset)));
     const values = [Math.round(totalScore * 0.22), Math.round(totalScore * 0.28), Math.round(totalScore * 0.3)];
@@ -816,65 +840,31 @@ export class UserService {
     );
   }
 
-  private buildDemoWorkoutSummary(
-    now: Date,
-    daysAgo: number,
-    displayName: string,
-    fitnessLevel: DemoFitnessLevel,
-    goal: DemoGoal,
-    calories: number,
-    notes: string
-  ): Record<string, unknown> {
-    const date = this.toLocalDateKey(this.offsetDate(now, daysAgo));
-    const workoutEventId = `demo-${date}`;
-    const eventCreatedAt = this.offsetDate(now, daysAgo).toISOString();
-    const event = {
-      date,
-      entries: [
-        {
-          kind: 'strength',
-          exerciseType: goal === 'Cardio' ? 'Goblet Squat' : 'Bench Press',
-          sets: fitnessLevel === 'Beginner' ? 3 : 4,
-          reps: fitnessLevel === 'Advanced' ? 8 : 10,
-          load: {
-            displayText: fitnessLevel === 'Beginner' ? '45 lb' : '95 lb',
-            weightKg: fitnessLevel === 'Beginner' ? 20.4 : 43.1,
-          },
-          estimatedCalories: Math.round(calories * 0.45),
-        },
-        {
-          kind: 'cardio',
-          cardioType: goal === 'Strength' ? 'Treadmill Walk' : 'Rowing',
-          distance: {
-            displayText: '1.5 mi',
-            meters: 2414,
-          },
-          duration: {
-            displayText: '18 min',
-            minutes: 18,
-          },
-          activitySource: 'demo',
-          estimatedCalories: Math.round(calories * 0.55),
-        },
-      ],
-      summary: {
-        estimatedCalories: calories,
-        trainerNotes: `${displayName} demo session. ${notes}. Goal: ${goal}.`,
-        isComplete: true,
-      },
-      source: 'manual',
-    };
+  private async ensureInnovationDayGroupMembership(userId: string, displayName: string): Promise<void> {
+    const callable = httpsCallable<
+      { displayName: string },
+      { groupId: string; groupName: string }
+    >(
+      getFunctions(undefined, 'us-central1'),
+      'ensureInnovationDayGroupMembership'
+    );
 
-    return {
-      date,
-      workoutEventIds: [workoutEventId],
-      eventCount: 1,
-      aggregate: event,
-      firstEventCreatedAt: eventCreatedAt,
-      lastEventCreatedAt: eventCreatedAt,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    };
+    await callable({
+      displayName: this.normalizeText(displayName) || 'Demo Athlete',
+    });
+
+    this.profileRepository.applyUserSummaryPatch(userId, {
+      groupID: ['innovation-day'],
+      groupId: 'innovation-day',
+      groupName: 'Innovation day',
+      groups: ['innovation-day'],
+    });
+    this.profileRepository.applyProfilePatch(userId, 'client', {
+      groupID: ['innovation-day'],
+      groupId: 'innovation-day',
+      groupName: 'Innovation day',
+      groups: ['innovation-day'],
+    } as Record<string, unknown>);
   }
 
   private offsetDate(date: Date, daysAgo: number): Date {

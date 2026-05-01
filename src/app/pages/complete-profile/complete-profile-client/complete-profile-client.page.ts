@@ -6,8 +6,6 @@ import {
   IonContent,
   IonInput,
   IonItem,
-  IonSelect,
-  IonSelectOption,
   IonText,
 } from '@ionic/angular/standalone';
 import { Router } from '@angular/router';
@@ -31,8 +29,6 @@ type UnitSystem = 'metric' | 'imperial';
     IonContent,
     IonInput,
     IonItem,
-    IonSelect,
-    IonSelectOption,
     IonText,
   ],
 })
@@ -47,6 +43,7 @@ export class CompleteProfileClientPage implements OnInit {
   lastName = '';
   username = '';
   age: string | number = '';
+  sex: string | number | null = null;
   heightMeters: string | number = '';
   weightKg: string | number = '';
   heightFeet: string | number = '';
@@ -55,8 +52,27 @@ export class CompleteProfileClientPage implements OnInit {
   unitSystem: UnitSystem = 'metric';
   isSubmitting = false;
   errorMessage = '';
+  readonly sexOptions = [
+    { value: 1, label: 'Male' },
+    { value: 2, label: 'Female' },
+    { value: 1.5, label: 'Other' },
+  ];
+  private onboardingProfile: Record<string, unknown> | null = null;
 
   ngOnInit(): void {
+    const navigationState = this.router.getCurrentNavigation()?.extras.state as Record<string, unknown> | undefined;
+    const stateProfile = navigationState?.['onboardingProfile'];
+    if (stateProfile && typeof stateProfile === 'object' && !Array.isArray(stateProfile)) {
+      this.onboardingProfile = stateProfile as Record<string, unknown>;
+    } else if (typeof window !== 'undefined') {
+      const historyState = window.history.state as Record<string, unknown> | undefined;
+      const fallbackProfile = historyState?.['onboardingProfile'];
+      if (fallbackProfile && typeof fallbackProfile === 'object' && !Array.isArray(fallbackProfile)) {
+        this.onboardingProfile = fallbackProfile as Record<string, unknown>;
+      }
+    }
+
+    this.applyOnboardingProfile();
     void this.ensureAuthenticated();
   }
 
@@ -67,7 +83,7 @@ export class CompleteProfileClientPage implements OnInit {
     const lastName = this.lastName.trim();
     const username = this.username.trim();
     const age = this.parsePositiveInteger(this.age);
-    const sex = 1.5;
+    const sex = this.parseSexValue(this.sex);
 
     let heightMeters = this.parsePositiveNumber(this.heightMeters);
     let weightKg = this.parsePositiveNumber(this.weightKg);
@@ -112,7 +128,12 @@ export class CompleteProfileClientPage implements OnInit {
       this.errorMessage =
         this.unitSystem === 'imperial'
           ? 'Weight (lb) must be greater than 0.'
-          : 'Weight (kg) must be greater than 0.';
+        : 'Weight (kg) must be greater than 0.';
+      return;
+    }
+
+    if (sex === null) {
+      this.errorMessage = 'Please select sex.';
       return;
     }
 
@@ -140,6 +161,10 @@ export class CompleteProfileClientPage implements OnInit {
         city: '',
         state: '',
         zip: 0,
+        age,
+        heightMeters,
+        weightKg,
+        sex,
         accountType: 'client',
         goals: '',
         experience: '',
@@ -173,21 +198,6 @@ export class CompleteProfileClientPage implements OnInit {
       };
       this.profileRepository.applyUserSummaryPatch(uid, userSummaryPatch);
       this.userService.syncCurrentUserSummaryPatch(uid, userSummaryPatch);
-
-      const userStatsRef = doc(this.firestore, 'userStats', uid);
-      await setDoc(
-        userStatsRef,
-        {
-          userId: uid,
-          age,
-          heightMeters,
-          weightKg,
-          bmi,
-          sex,
-          updatedAt: serverTimestamp(),
-        },
-        { merge: true }
-      );
 
       await this.userService.loadUserProfile();
       await this.router.navigateByUrl('/tabs/home', { replaceUrl: true });
@@ -315,6 +325,15 @@ export class CompleteProfileClientPage implements OnInit {
     return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
   }
 
+  private parseSexValue(value: unknown): number | null {
+    const parsed = Number(String(value ?? '').trim());
+    if (parsed === 1 || parsed === 1.5 || parsed === 2) {
+      return parsed;
+    }
+
+    return null;
+  }
+
   private parsePositiveInteger(value: unknown): number | null {
     const parsed = this.parsePositiveNumber(value);
     if (parsed === null) {
@@ -322,6 +341,38 @@ export class CompleteProfileClientPage implements OnInit {
     }
 
     return Number.isInteger(parsed) ? parsed : null;
+  }
+
+  private applyOnboardingProfile(): void {
+    if (!this.onboardingProfile) {
+      return;
+    }
+
+    const firstName = String(this.onboardingProfile['firstName'] ?? '').trim();
+    const lastName = String(this.onboardingProfile['lastName'] ?? '').trim();
+    const age = this.parsePositiveInteger(this.onboardingProfile['age']);
+    const sex = this.parseSexValue(this.onboardingProfile['sex']);
+    const heightMeters = this.parsePositiveNumber(this.onboardingProfile['heightMeters']);
+    const weightKg = this.parsePositiveNumber(this.onboardingProfile['weightKg']);
+
+    if (firstName) {
+      this.firstName = firstName;
+    }
+    if (lastName) {
+      this.lastName = lastName;
+    }
+    if (age !== null) {
+      this.age = age;
+    }
+    if (sex !== null) {
+      this.sex = sex;
+    }
+    if (heightMeters !== null) {
+      this.heightMeters = heightMeters;
+    }
+    if (weightKg !== null) {
+      this.weightKg = weightKg;
+    }
   }
 
   private parseNumber(value: unknown): number | null {

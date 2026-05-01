@@ -1,6 +1,7 @@
 import { Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
+import { NavController } from '@ionic/angular';
 import {
   AlertController,
   IonButton,
@@ -148,6 +149,7 @@ interface RevenueLedgerEntry {
 })
 export class HomePage implements OnInit, OnDestroy {
   private router = inject(Router);
+  private navCtrl = inject(NavController);
   private auth = inject(Auth);
   private firestore = inject(Firestore);
   private userService = inject(UserService);
@@ -187,12 +189,6 @@ export class HomePage implements OnInit, OnDestroy {
   assignedTrainerId = '';
   homeConfig: HomePageConfig | null = null;
   customMessage: string = '';
-  demoSummary = {
-    level: 0,
-    streak: 0,
-    effortScore: 0,
-    progress: 0,
-  };
   private readonly defaultClientHomeWidgets = [
     'welcome',
     'start-workout',
@@ -215,10 +211,10 @@ export class HomePage implements OnInit, OnDestroy {
   
   // Display properties
   currentDate = new Date();
-  private readonly demoSummaryFallbacks: Record<string, { level: number; streak: number; effortScore: number; progress: number; }> = {
-    Beginner: { level: 3, streak: 2, effortScore: 180, progress: 34 },
-    Intermediate: { level: 6, streak: 5, effortScore: 540, progress: 62 },
-    Advanced: { level: 9, streak: 9, effortScore: 980, progress: 88 },
+  private readonly demoStreakFallbacks: Record<string, number> = {
+    Beginner: 2,
+    Intermediate: 5,
+    Advanced: 9,
   };
   userName(): string {
     const displayName =
@@ -1108,18 +1104,10 @@ export class HomePage implements OnInit, OnDestroy {
   }
 
   private applyDemoDashboardState(): void {
-    const fitnessLevel = (this.currentUser?.fitnessLevel || 'Beginner') as keyof typeof this.demoSummaryFallbacks;
-    const fallback = this.demoSummaryFallbacks[fitnessLevel] ?? this.demoSummaryFallbacks['Beginner'];
     const currentStats = this.userStatsService.getCurrentUserStats()();
-    const totalScore = Number(currentStats?.userScore?.totalScore ?? fallback.effortScore);
-
-    this.demoSummary = {
-      level: Number(currentStats?.level ?? fallback.level) || fallback.level,
-      streak: Number(currentStats?.streakData?.currentStreak ?? fallback.streak) || fallback.streak,
-      effortScore: Number.isFinite(totalScore) ? totalScore : fallback.effortScore,
-      progress: Number(currentStats?.percentage_of_level ?? fallback.progress) || fallback.progress,
-    };
-    this.currentStreak = this.demoSummary.streak;
+    const fitnessLevel = (this.currentUser?.fitnessLevel || 'Beginner') as keyof typeof this.demoStreakFallbacks;
+    const fallbackStreak = this.demoStreakFallbacks[fitnessLevel] ?? this.demoStreakFallbacks['Beginner'];
+    this.currentStreak = Number(currentStats?.streakData?.currentStreak ?? fallbackStreak) || fallbackStreak;
     this.clients = [];
     this.pendingClientRequests = [];
     this.pendingSessionRequests = [];
@@ -1446,7 +1434,11 @@ export class HomePage implements OnInit, OnDestroy {
   }
 
   openTrainerPaymentDashboard(): void {
-    void this.router.navigateByUrl(ROUTE_PATHS.APP.TABS.STRIPE_SETUP);
+    void this.navCtrl.navigateForward(ROUTE_PATHS.APP.TABS.STRIPE_SETUP, {
+      animated: true,
+      animationDirection: 'forward',
+      state: { returnToHome: true },
+    });
   }
   
   get currentMonthData() {
@@ -1455,7 +1447,9 @@ export class HomePage implements OnInit, OnDestroy {
 
   navigateTo(path: string): void {
     const cleanedPath = path.startsWith('/') ? path : `/${path}`;
-    this.router.navigateByUrl(cleanedPath);
+    void this.router.navigate([cleanedPath], {
+      state: { returnToHome: true },
+    });
   }
 
   navigateToClientWidget(widgetId: string): void {
@@ -1475,12 +1469,16 @@ export class HomePage implements OnInit, OnDestroy {
 
     const route = routeByWidget[widgetId];
     if (route) {
-      void this.router.navigateByUrl(route);
+      void this.router.navigate([route], {
+        state: { returnToHome: true },
+      });
     }
   }
 
   startWorkout() {
-    this.router.navigate(['/workout-chatbot']);
+    void this.router.navigate(['/workout-chatbot'], {
+      state: { returnToHome: true },
+    });
   }
 
   async openEffortWorksInfo(): Promise<void> {
@@ -1491,7 +1489,7 @@ export class HomePage implements OnInit, OnDestroy {
     const alert = await this.alertController.create({
       header: 'How Effort Works',
       message:
-        'Effort score is a simple demo signal that combines workout volume, consistency, and completed sessions. Start a workout to see the summary update.',
+        'Effort score uses a simple regression model. It starts with age, sex, height, and weight, then combines those with workout volume, consistency, and completed sessions to estimate expected effort and compare it with actual output.',
       buttons: ['OK'],
     });
 

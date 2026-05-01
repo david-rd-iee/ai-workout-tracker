@@ -37,6 +37,7 @@ export { createAgreementCheckoutSession } from "./agreementCheckout";
 export { stripeWebhook } from "./stripeWebhook";
 export { acceptTrainerClientRequest } from "./trainerClientRequests";
 export { requestSessionBooking } from "./sessionBookingRequests";
+export { ensureInnovationDayGroupMembership } from "./innovationDayGroup";
 export {
   enforceTrainerProfileMirror,
   syncTrainerProfileFromUsers,

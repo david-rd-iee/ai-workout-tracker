@@ -430,6 +430,7 @@ export class GroupService {
     const currentActiveWarId = this.normalizeString(data['currentActiveWarId']);
     const dominantExerciseTag = this.normalizeString(data['dominantExerciseTag']);
     const groupImage = this.normalizeString(data['groupImage']);
+    const groupType = this.normalizeString(data['groupType']);
     const lastWarEndedAt = this.normalizeTimestamp(data['lastWarEndedAt']);
     const globalLeaderboardRank = this.toNonNegativeInteger(data['globalLeaderboardRank']);
 
@@ -440,6 +441,8 @@ export class GroupService {
       ownerUserId: this.normalizeString(data['ownerUserId']),
       created_at: this.normalizeTimestamp(data['created_at']) ?? Timestamp.now(),
       userIDs: this.normalizeStringArray(data['userIDs']),
+      demoMode: data['demoMode'] === true,
+      eventGroup: data['eventGroup'] === true,
       warOptIn: data['warOptIn'] === true,
       warEnabled: data['warEnabled'] === true,
       warRating: this.toFiniteNumber(data['warRating'], 1000),
@@ -450,6 +453,7 @@ export class GroupService {
       losses: this.toNonNegativeInteger(data['losses']),
       ties: this.toNonNegativeInteger(data['ties']),
       ...(groupImage ? { groupImage } : {}),
+      ...(groupType ? { groupType } : {}),
       ...(currentActiveWarId ? { currentActiveWarId } : {}),
       ...(dominantExerciseTag ? { dominantExerciseTag } : {}),
       ...(lastWarEndedAt ? { lastWarEndedAt } : {}),

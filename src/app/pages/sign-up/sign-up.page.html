@@ -31,6 +31,32 @@
       <form class="auth-form" (ngSubmit)="onSignupSubmit()">
         <ion-item class="auth-input-item" lines="none">
           <ion-input
+            label="First Name"
+            label-placement="floating"
+            type="text"
+            [(ngModel)]="firstName"
+            name="firstName"
+            placeholder="First name"
+            autocomplete="given-name"
+            required
+          ></ion-input>
+        </ion-item>
+
+        <ion-item class="auth-input-item" lines="none">
+          <ion-input
+            label="Last Name"
+            label-placement="floating"
+            type="text"
+            [(ngModel)]="lastName"
+            name="lastName"
+            placeholder="Last name"
+            autocomplete="family-name"
+            required
+          ></ion-input>
+        </ion-item>
+
+        <ion-item class="auth-input-item" lines="none">
+          <ion-input
             label="Email"
             label-placement="floating"
             type="email"
@@ -41,6 +67,63 @@
             required
           ></ion-input>
         </ion-item>
+
+        <ion-item class="auth-input-item" lines="none">
+          <ion-input
+            label="Age"
+            label-placement="floating"
+            type="number"
+            inputmode="numeric"
+            [(ngModel)]="age"
+            name="age"
+            placeholder="Age"
+            required
+          ></ion-input>
+        </ion-item>
+
+        <ion-item class="auth-input-item" lines="none">
+          <ion-select
+            label="Sex"
+            label-placement="floating"
+            [(ngModel)]="sex"
+            name="sex"
+            interface="popover"
+            placeholder="Select sex"
+            required
+          >
+            <ion-select-option *ngFor="let option of sexOptions" [value]="option.value">
+              {{ option.label }}
+            </ion-select-option>
+          </ion-select>
+        </ion-item>
+
+        <ion-item class="auth-input-item" lines="none">
+          <ion-input
+            label="Height (m)"
+            label-placement="floating"
+            type="number"
+            inputmode="decimal"
+            [(ngModel)]="heightMeters"
+            name="heightMeters"
+            placeholder="e.g. 1.78"
+            required
+          ></ion-input>
+        </ion-item>
+
+        <ion-item class="auth-input-item" lines="none">
+          <ion-input
+            label="Weight (kg)"
+            label-placement="floating"
+            type="number"
+            inputmode="decimal"
+            [(ngModel)]="weightKg"
+            name="weightKg"
+            placeholder="e.g. 72"
+            required
+          ></ion-input>
+        </ion-item>
+
+        <p class="profile-hint">These stats help Atlas estimate your effort score during setup.</p>
 
         <ion-item class="auth-input-item" lines="none">
           <ion-input

@@ -267,10 +267,6 @@ export class TreadmillLoggerPage {
         return;
       }
 
-      if (result.scoreUpdate) {
-        await this.showScoreUpdateAlert(result.scoreUpdate);
-      }
-
       await this.router.navigate(['/workout-summary'], {
         state: {
           summary: result.session,

@@ -13,44 +13,11 @@
             <p class="demo-eyebrow">Public demo</p>
             <h1>Welcome, {{ userName() }}.</h1>
             <p class="demo-hero-copy">
-              Your demo profile is ready. Start a workout, then review progress on the leaderboard or profile tab.
+              Your demo profile is ready. Complete your first demo workout to unlock workout history and review progress on the leaderboard or profile tab.
             </p>
             <ion-button expand="block" class="demo-start-button" (click)="startWorkout()">
               Start Demo Workout
             </ion-button>
-          </ion-card-content>
-        </ion-card>
-
-        <ion-card class="demo-summary-card">
-          <ion-card-header>
-            <ion-card-title>Progress Summary</ion-card-title>
-          </ion-card-header>
-          <ion-card-content>
-            <div class="demo-stats-grid">
-              <div class="demo-stat">
-                <span>Level</span>
-                <strong>{{ demoSummary.level }}</strong>
-              </div>
-              <div class="demo-stat">
-                <span>Streak</span>
-                <strong>{{ demoSummary.streak }} days</strong>
-              </div>
-              <div class="demo-stat">
-                <span>Effort</span>
-                <strong>{{ demoSummary.effortScore }}</strong>
-              </div>
-              <div class="demo-stat">
-                <span>XP</span>
-                <strong>{{ demoSummary.progress }}%</strong>
-              </div>
-            </div>
-
-            <div class="demo-progress-shell" aria-hidden="true">
-              <div class="demo-progress-bar">
-                <div class="demo-progress-fill" [style.width.%]="demoSummary.progress"></div>
-              </div>
-              <p>{{ demoSummary.progress }}% to the next level</p>
-            </div>
           </ion-card-content>
         </ion-card>
 

@@ -173,10 +173,6 @@ export class WorkoutChatbotPage implements OnInit, OnDestroy {
       if (result.saveStatus !== 'saved' || !result.loggedAt) {
         return;
       }
-
-      if (result.scoreUpdate) {
-        await this.showScoreUpdateAlert(result.scoreUpdate);
-      }
     } catch (error) {
       console.error('Failed to save workout:', error);
       this.addBotMessage('I had trouble saving your workout. Please try again.');

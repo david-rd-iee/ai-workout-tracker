@@ -16,6 +16,9 @@ export interface AppUser {
   fitnessLevel?: string;
   goal?: string;
   groupID?: string[];
+  groupId?: string;
+  groupName?: string;
+  groups?: string[];
 
   // URL stored in Firestore under "profilepic"
   profilepic?: string;

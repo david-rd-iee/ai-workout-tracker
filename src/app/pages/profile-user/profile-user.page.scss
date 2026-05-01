@@ -73,6 +73,7 @@ ion-header {
 }
 
 .profile-hero,
+.score-summary-card,
 .statues-card,
 .trainer-stats-card,
 .action-row {
@@ -87,6 +88,70 @@ ion-header {
   align-items: center;
   padding: 18px;
   @include atlas-neu(26px);
+}
+
+.score-summary-card {
+  margin: 16px 0 18px;
+  @include atlas-neu(24px);
+}
+
+.score-summary-card ion-card-content {
+  padding: 18px;
+}
+
+.score-summary-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.score-summary-copy {
+  min-width: 0;
+}
+
+.score-summary-eyebrow {
+  display: inline-block;
+  margin-bottom: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1.8px;
+  text-transform: uppercase;
+  color: $atlas-blue-strong;
+}
+
+.score-summary-copy h2 {
+  margin: 0;
+  font-size: 34px;
+  line-height: 1;
+  font-weight: 760;
+  color: $atlas-text;
+  font-family: 'Roboto Flex', 'Inter', sans-serif;
+}
+
+.score-summary-copy p {
+  margin: 10px 0 0;
+  color: $atlas-muted;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.score-summary-badge {
+  width: 72px;
+  height: 72px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 22px;
+  background: linear-gradient(145deg, #eef3fb, #e1e8f4);
+  box-shadow:
+    8px 8px 16px -12px rgba($atlas-shadow-dark, 0.9),
+    -8px -8px 16px -12px rgba($atlas-shadow-light, 0.95);
+}
+
+.score-summary-badge ion-icon {
+  font-size: 32px;
+  color: $atlas-blue-strong;
 }
 
 .avatar-button {

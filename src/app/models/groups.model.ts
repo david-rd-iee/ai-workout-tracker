@@ -9,6 +9,9 @@ export interface Group {
   ownerUserId: string;
   created_at: Timestamp;
   groupImage?: string;
+  groupType?: string;
+  demoMode?: boolean;
+  eventGroup?: boolean;
   userIDs: string[];
   warOptIn: boolean;
   warEnabled: boolean;

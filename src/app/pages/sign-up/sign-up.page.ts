@@ -5,6 +5,8 @@ import {
   IonItem,
   IonInput,
   IonButton,
+  IonSelect,
+  IonSelectOption,
   IonText,
 } from '@ionic/angular/standalone';
 import { Platform } from '@ionic/angular';
@@ -28,13 +30,26 @@ import { Keyboard } from '@capacitor/keyboard';
     IonItem,
     IonInput,
     IonButton,
+    IonSelect,
+    IonSelectOption,
     IonText,
   ],
 })
 export class SignUpPage implements OnInit, OnDestroy {
+  firstName = '';
+  lastName = '';
   email = '';
   password = '';
   confirmPassword = '';
+  age: string | number = '';
+  sex: string | number | null = null;
+  heightMeters: string | number = '';
+  weightKg: string | number = '';
+  readonly sexOptions = [
+    { value: 1, label: 'Male' },
+    { value: 2, label: 'Female' },
+    { value: 1.5, label: 'Other' },
+  ];
 
   isIOS = false;
   isIOSKeyboardOpen = false;
@@ -74,7 +89,21 @@ export class SignUpPage implements OnInit, OnDestroy {
   async onSignupSubmit() {
     this.errorMessage = '';
 
-    if (!this.email || !this.password || !this.confirmPassword) {
+    const firstName = this.firstName.trim();
+    const lastName = this.lastName.trim();
+    const email = this.email.trim();
+    const age = this.parsePositiveInteger(this.age);
+    const sex = this.parseSexValue(this.sex);
+    const heightMeters = this.parsePositiveNumber(this.heightMeters);
+    const weightKg = this.parsePositiveNumber(this.weightKg);
+
+    if (
+      !firstName ||
+      !lastName ||
+      !email ||
+      !this.password ||
+      !this.confirmPassword
+    ) {
       this.errorMessage = 'Please fill out all fields.';
       return;
     }
@@ -82,17 +111,45 @@ export class SignUpPage implements OnInit, OnDestroy {
       this.errorMessage = 'Passwords do not match.';
       return;
     }
+    if (age === null) {
+      this.errorMessage = 'Please enter a valid age.';
+      return;
+    }
+    if (sex === null) {
+      this.errorMessage = 'Please select sex.';
+      return;
+    }
+    if (heightMeters === null || heightMeters <= 0) {
+      this.errorMessage = 'Please enter a valid height in meters.';
+      return;
+    }
+    if (weightKg === null || weightKg <= 0) {
+      this.errorMessage = 'Please enter a valid weight in kilograms.';
+      return;
+    }
 
     this.isSubmitting = true;
     try {
-      const success = await this.accountService.signup(this.email.trim(), this.password);
+      const success = await this.accountService.signup(email, this.password);
 
       if (!success) {
         this.errorMessage = 'Sign up failed. Try a different email or password.';
         return;
       }
 
-      await this.router.navigateByUrl('/complete-profile', { replaceUrl: true });
+      await this.router.navigateByUrl('/complete-profile', {
+        replaceUrl: true,
+        state: {
+          onboardingProfile: {
+            firstName,
+            lastName,
+            age,
+            sex,
+            heightMeters,
+            weightKg,
+          },
+        },
+      });
     } catch (err) {
       console.error(err);
       this.errorMessage = 'An error occurred during sign up.';
@@ -178,5 +235,37 @@ export class SignUpPage implements OnInit, OnDestroy {
     return this.normalizeKeyboardHeight(
       window.innerHeight - window.visualViewport.height - window.visualViewport.offsetTop
     );
+  }
+
+  private parsePositiveNumber(value: unknown): number | null {
+    if (typeof value === 'number') {
+      return Number.isFinite(value) && value > 0 ? value : null;
+    }
+
+    const trimmed = String(value ?? '').trim();
+    if (!trimmed) {
+      return null;
+    }
+
+    const parsed = Number(trimmed);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+  }
+
+  private parsePositiveInteger(value: unknown): number | null {
+    const parsed = Number(String(value ?? '').trim());
+    if (!Number.isFinite(parsed) || parsed <= 0 || !Number.isInteger(parsed)) {
+      return null;
+    }
+
+    return parsed;
+  }
+
+  private parseSexValue(value: unknown): number | null {
+    const parsed = Number(String(value ?? '').trim());
+    if (parsed === 1 || parsed === 1.5 || parsed === 2) {
+      return parsed;
+    }
+
+    return null;
   }
 }

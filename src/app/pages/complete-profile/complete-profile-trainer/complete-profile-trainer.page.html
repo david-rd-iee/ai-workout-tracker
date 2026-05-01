@@ -28,19 +28,43 @@
           </ion-item>
         </div>
 
-        <div class="field-grid two-up">
-          <ion-item class="auth-input-item" lines="none">
-            <ion-input label="Phone" label-placement="floating" [(ngModel)]="phone" name="phone" placeholder="Phone number" required></ion-input>
-          </ion-item>
-
-          <ion-item class="auth-input-item" lines="none">
-            <ion-input label="Hourly Rate (Optional)" label-placement="floating" type="number" inputmode="decimal" [(ngModel)]="hourlyRate" name="hourlyRate" placeholder="e.g. 75"></ion-input>
-          </ion-item>
-        </div>
+      <div class="field-grid two-up">
+        <ion-item class="auth-input-item" lines="none">
+          <ion-input label="Phone" label-placement="floating" [(ngModel)]="phone" name="phone" placeholder="Phone number" required></ion-input>
+        </ion-item>
 
         <ion-item class="auth-input-item" lines="none">
-          <ion-input label="Specialization" label-placement="floating" [(ngModel)]="specialization" name="specialization" placeholder="Strength, rehab, bodybuilding, endurance..." required></ion-input>
+          <ion-input label="Hourly Rate (Optional)" label-placement="floating" type="number" inputmode="decimal" [(ngModel)]="hourlyRate" name="hourlyRate" placeholder="e.g. 75"></ion-input>
         </ion-item>
+      </div>
+
+      <div class="field-grid two-up">
+        <ion-item class="auth-input-item" lines="none">
+          <ion-input label="Age" label-placement="floating" type="number" inputmode="numeric" [(ngModel)]="age" name="age" placeholder="Age" required></ion-input>
+        </ion-item>
+
+        <ion-item class="auth-input-item" lines="none">
+          <ion-select label="Sex" label-placement="floating" [(ngModel)]="sex" name="sex" interface="popover" required>
+            <ion-select-option *ngFor="let option of sexOptions" [value]="option.value">{{ option.label }}</ion-select-option>
+          </ion-select>
+        </ion-item>
+      </div>
+
+      <div class="field-grid two-up">
+        <ion-item class="auth-input-item" lines="none">
+          <ion-input label="Height (m)" label-placement="floating" type="number" inputmode="decimal" [(ngModel)]="heightMeters" name="heightMeters" placeholder="e.g. 1.78" required></ion-input>
+        </ion-item>
+
+        <ion-item class="auth-input-item" lines="none">
+          <ion-input label="Weight (kg)" label-placement="floating" type="number" inputmode="decimal" [(ngModel)]="weightKg" name="weightKg" placeholder="e.g. 72" required></ion-input>
+        </ion-item>
+      </div>
+
+      <p class="unit-helper">These stats help Atlas estimate expected effort with its regression model.</p>
+
+      <ion-item class="auth-input-item" lines="none">
+        <ion-input label="Specialization" label-placement="floating" [(ngModel)]="specialization" name="specialization" placeholder="Strength, rehab, bodybuilding, endurance..." required></ion-input>
+      </ion-item>
 
         <div class="field-grid two-up">
           <ion-item class="auth-input-item" lines="none">

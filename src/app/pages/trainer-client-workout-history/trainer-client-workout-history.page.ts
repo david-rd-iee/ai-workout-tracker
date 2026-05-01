@@ -52,6 +52,7 @@ export class TrainerClientWorkoutHistoryPage implements OnInit {
   backHref?: string;
   clientId = '';
   clientName = '';
+  clientIsDemoMode = false;
 
   isAuthorized = false;
   accessError = '';
@@ -102,6 +103,7 @@ export class TrainerClientWorkoutHistoryPage implements OnInit {
         }
       }
 
+      this.clientIsDemoMode = await this.resolveClientDemoMode(this.clientId);
       const summaries = await this.workoutSummaryService.listRecentWorkoutSummaries(this.clientId, 30);
       this.historyGroups = summaries.map((summary) => this.workoutSummaryService.toHistoryGroup(summary));
     } catch (error) {
@@ -149,6 +151,14 @@ export class TrainerClientWorkoutHistoryPage implements OnInit {
         historyGroups: this.historyGroups,
       },
     });
+  }
+
+  get emptyStateMessage(): string {
+    if (this.clientIsDemoMode) {
+      return 'This demo client has no workout history yet. Have them log a demo workout first.';
+    }
+
+    return 'No workouts saved yet for this client.';
   }
 
   async exportCsv(): Promise<void> {
@@ -322,6 +332,23 @@ export class TrainerClientWorkoutHistoryPage implements OnInit {
     const lastName = this.readText(userData['lastName']) || this.readText(clientData['lastName']);
     const fullName = `${firstName} ${lastName}`.trim();
     return fullName || '';
+  }
+
+  private async resolveClientDemoMode(clientId: string): Promise<boolean> {
+    try {
+      const [clientSnap, userSnap] = await Promise.all([
+        getDoc(doc(this.firestore, `clients/${clientId}`)),
+        getDoc(doc(this.firestore, `users/${clientId}`)),
+      ]);
+
+      const clientData = clientSnap.exists() ? (clientSnap.data() as Record<string, unknown>) : {};
+      const userData = userSnap.exists() ? (userSnap.data() as Record<string, unknown>) : {};
+
+      return clientData['demoMode'] === true || userData['demoMode'] === true;
+    } catch (error) {
+      console.error('[TrainerClientWorkoutHistoryPage] Failed to resolve demo mode:', error);
+      return false;
+    }
   }
 
   private async resolveCurrentUserId(): Promise<string> {

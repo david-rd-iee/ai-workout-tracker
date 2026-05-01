@@ -1,6 +1,7 @@
 import { Injectable, Signal, signal } from '@angular/core';
 import { Firestore, docData } from '@angular/fire/firestore';
 import { doc, getDoc, onSnapshot, setDoc, serverTimestamp } from 'firebase/firestore';
+import { AlertController } from '@ionic/angular/standalone';
 import { Observable } from 'rxjs';
 import {
   Region,
@@ -28,8 +29,13 @@ export class UserStatsService {
   private currentUserStats = signal<UserStats | null>(null);
   private currentUserId: string | null = null;
   private currentUserUnsubscribe: (() => void) | null = null;
+  private currentUserLastObservedTotalScore: number | null = null;
+  private scoreUpdateAlertInFlight = false;
 
-  constructor(private firestore: Firestore) {}
+  constructor(
+    private firestore: Firestore,
+    private alertController: AlertController
+  ) {}
 
   getCurrentUserStats(): Signal<UserStats | null> {
     return this.currentUserStats;
@@ -89,6 +95,7 @@ export class UserStatsService {
     this.currentUserUnsubscribe = null;
     this.currentUserId = null;
     this.currentUserStats.set(null);
+    this.currentUserLastObservedTotalScore = null;
     this.userStatsCache.clear();
     this.userStatsPromiseCache.clear();
   }
@@ -154,6 +161,7 @@ export class UserStatsService {
 
     this.currentUserUnsubscribe?.();
     this.currentUserId = normalizedUserId;
+    this.currentUserLastObservedTotalScore = null;
     const ref = doc(this.firestore, 'userStats', normalizedUserId);
     this.currentUserUnsubscribe = onSnapshot(
       ref,
@@ -175,6 +183,7 @@ export class UserStatsService {
         if (this.currentUserId === normalizedUserId) {
           this.currentUserStats.set(this.cloneUserStats(userStats));
         }
+        void this.maybeShowScoreUpdateAlert(userStats);
       },
       (error) => {
         console.error('[UserStatsService] Failed to observe userStats:', error);
@@ -263,5 +272,49 @@ export class UserStatsService {
       ),
       groupRankings: normalizeGroupRankings(rawUserStats.groupRankings),
     };
+  }
+
+  private async maybeShowScoreUpdateAlert(userStats: UserStats): Promise<void> {
+    const currentTotalScore = this.getTotalScore(userStats);
+    if (currentTotalScore === null) {
+      return;
+    }
+
+    if (this.currentUserLastObservedTotalScore === null) {
+      this.currentUserLastObservedTotalScore = currentTotalScore;
+      return;
+    }
+
+    if (currentTotalScore === this.currentUserLastObservedTotalScore) {
+      return;
+    }
+
+    const previousTotal = this.currentUserLastObservedTotalScore;
+    this.currentUserLastObservedTotalScore = currentTotalScore;
+    const addedScore = currentTotalScore - previousTotal;
+    if (addedScore <= 0 || this.scoreUpdateAlertInFlight) {
+      return;
+    }
+
+    this.scoreUpdateAlertInFlight = true;
+    try {
+      const alert = await this.alertController.create({
+        mode: 'ios',
+        header: 'Score Updated',
+        cssClass: 'score-update-alert',
+        message: `SCORE Added: +${Math.round(addedScore)}\nTotal SCORE: ${Math.round(currentTotalScore)}`,
+        buttons: ['OK'],
+        translucent: true,
+      });
+
+      await alert.present();
+    } finally {
+      this.scoreUpdateAlertInFlight = false;
+    }
+  }
+
+  private getTotalScore(userStats: UserStats | null): number | null {
+    const totalScore = Number(userStats?.userScore?.totalScore);
+    return Number.isFinite(totalScore) ? totalScore : null;
   }
 }

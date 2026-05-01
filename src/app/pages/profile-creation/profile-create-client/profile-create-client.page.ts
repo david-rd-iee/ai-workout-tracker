@@ -42,6 +42,10 @@ export class ProfileCreateClientPage implements OnInit {
       lastName: '',
       email: '',
       phone: '',
+      age: '',
+      sex: '',
+      heightMeters: '',
+      weightKg: '',
       accountType: 'client',
       city: '',
       state: '',
@@ -56,6 +60,10 @@ export class ProfileCreateClientPage implements OnInit {
       lastName: [initialValues.lastName, [Validators.required, Validators.minLength(2), Validators.maxLength(50)]],
       email: initialValues.email, // email will be got from the logged in user
       phone: [initialValues.phone, [Validators.required]],
+      age: [initialValues.age, [Validators.required, Validators.min(1)]],
+      sex: [initialValues.sex, [Validators.required]],
+      heightMeters: [initialValues.heightMeters, [Validators.required, Validators.min(0.1)]],
+      weightKg: [initialValues.weightKg, [Validators.required, Validators.min(0.1)]],
       accountType: ['client', Validators.required],
       city: [initialValues.city, [Validators.required, Validators.minLength(2), Validators.maxLength(100)]],
       state: [initialValues.state, [Validators.required, Validators.minLength(2), Validators.maxLength(50)]],
@@ -74,7 +82,7 @@ export class ProfileCreateClientPage implements OnInit {
     if (!this.clientForm) return false;
     
     // Check each field to see if it has errors
-    const fields = ['firstName', 'lastName', 'phone', 'city', 'state', 'zip'];
+    const fields = ['firstName', 'lastName', 'phone', 'age', 'sex', 'heightMeters', 'weightKg', 'city', 'state', 'zip'];
     
     for (const field of fields) {
       const control = this.clientForm.get(field);

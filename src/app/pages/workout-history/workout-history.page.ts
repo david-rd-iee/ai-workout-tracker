@@ -1,6 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
+import { Firestore, doc, getDoc } from '@angular/fire/firestore';
 import {
   AlertController,
   IonButton,
@@ -39,11 +40,13 @@ export class ClientSelfWorkoutHistoryPage implements OnInit {
   isLoading = false;
   pageTitle = 'Workout History';
   backHref = '/profile-user';
+  isDemoModeUser = false;
   private requestedUserId = '';
   private clientName = '';
 
   constructor(
     private auth: Auth,
+    private firestore: Firestore,
     private route: ActivatedRoute,
     private router: Router,
     private workoutSummaryService: WorkoutSummaryService,
@@ -73,6 +76,7 @@ export class ClientSelfWorkoutHistoryPage implements OnInit {
         return;
       }
       this.requestedUserId = targetUserId;
+      this.isDemoModeUser = await this.resolveDemoMode(targetUserId);
 
       if (requestedUserId && requestedUserId !== signedInUserId) {
         console.warn(
@@ -88,6 +92,14 @@ export class ClientSelfWorkoutHistoryPage implements OnInit {
     } finally {
       this.isLoading = false;
     }
+  }
+
+  get emptyStateMessage(): string {
+    if (this.isDemoModeUser) {
+      return 'Complete a demo workout to see your history here.';
+    }
+
+    return 'No workouts saved yet.';
   }
 
   viewCsv(): void {
@@ -159,5 +171,22 @@ export class ClientSelfWorkoutHistoryPage implements OnInit {
     });
 
     return authUser?.uid?.trim() || '';
+  }
+
+  private async resolveDemoMode(userId: string): Promise<boolean> {
+    try {
+      const [userSnap, clientSnap] = await Promise.all([
+        getDoc(doc(this.firestore, 'users', userId)),
+        getDoc(doc(this.firestore, 'clients', userId)),
+      ]);
+
+      const userData = userSnap.exists() ? (userSnap.data() as Record<string, unknown>) : {};
+      const clientData = clientSnap.exists() ? (clientSnap.data() as Record<string, unknown>) : {};
+
+      return userData['demoMode'] === true || clientData['demoMode'] === true;
+    } catch (error) {
+      console.error('[ClientSelfWorkoutHistoryPage] Failed to resolve demo mode:', error);
+      return false;
+    }
   }
 }

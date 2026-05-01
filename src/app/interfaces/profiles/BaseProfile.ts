@@ -9,11 +9,19 @@ export interface BaseUserProfile {
     city: string;
     state: string;
     zip: number;
+    age?: number;
+    heightMeters?: number;
+    weightKg?: number;
+    sex?: number;
     accountType: "trainer" | "client";
     role?: "trainer" | "client";
     demoMode?: boolean;
     fitnessLevel?: string;
     goal?: string;
+    groupID?: string[];
+    groupId?: string;
+    groupName?: string;
+    groups?: string[];
     trainerId?: string;
     gclid?: string; // Google Ads click ID for conversion tracking
     unreadMessageCount?: number; // Count of unread messages for notification badges

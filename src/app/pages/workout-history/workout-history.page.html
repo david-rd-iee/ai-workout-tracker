@@ -37,7 +37,7 @@
     </div>
 
     <div class="status-card" *ngIf="!isLoading && historyGroups.length === 0">
-      <p>No workouts saved yet.</p>
+      <p>{{ emptyStateMessage }}</p>
     </div>
 
     <ion-list class="history-list" *ngIf="!isLoading && historyGroups.length > 0">

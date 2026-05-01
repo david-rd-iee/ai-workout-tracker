@@ -1,4 +1,4 @@
-import { Component, OnDestroy, effect, inject } from '@angular/core';
+import { Component, OnDestroy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { NavigationEnd, Router } from '@angular/router';
 import {
@@ -53,7 +53,6 @@ export class TabsPage implements OnDestroy {
   private isResolvingRegion = false;
 
   showTabBar = true;
-  isDemoMode = false;
   calendarHref = '/tabs/calender/client';
   currentUrl = '';
 
@@ -65,11 +64,6 @@ export class TabsPage implements OnDestroy {
       trophyOutline,
       personOutline,
     });
-
-    effect(() => {
-      this.isDemoMode = this.userService.getUserInfo()()?.demoMode === true;
-    });
-
     this.currentUrl = this.router.url;
     this.updateTabBarVisibility(this.router.url);
     this.router.events

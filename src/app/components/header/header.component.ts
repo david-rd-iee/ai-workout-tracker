@@ -130,6 +130,15 @@ export class HeaderComponent implements OnInit {
   goBack() {
     this.blurActiveElement();
 
+    const returnToHome = Boolean((window.history.state as Record<string, unknown> | null)?.['returnToHome']);
+    if (returnToHome) {
+      this.navCtrl.navigateBack('/tabs/home', {
+        animated: true,
+        animationDirection: 'back',
+      });
+      return;
+    }
+
     // If backHref is provided, use Ionic back navigation so transition reverses naturally.
     if (this.backHref) {
       this.navCtrl.navigateBack(this.backHref, {

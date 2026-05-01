@@ -162,10 +162,10 @@ export class ProfileSettingsPage implements OnInit {
 
     const firstName = this.firstName.trim();
     const lastName = this.lastName.trim();
-    const email = this.email.trim();
+    const emailForUsersDoc = this.email.trim() || authUser.email?.trim() || '';
 
-    if (!firstName || !lastName || !email) {
-      this.errorMessage = 'First name, last name, and email are required.';
+    if (!firstName) {
+      this.errorMessage = 'First name is required.';
       return;
     }
 
@@ -235,10 +235,6 @@ export class ProfileSettingsPage implements OnInit {
 
     this.isSaving = true;
 
-    let emailForUsersDoc = email;
-    let emailUpdateError: string | null = null;
-    let emailVerificationSent = false;
-
     try {
       const trainerRegion = this.isTrainer ? await this.resolveTrainerRegion(uid) : null;
       if (this.isTrainer) {
@@ -250,23 +246,6 @@ export class ProfileSettingsPage implements OnInit {
         this.trainerRegion = trainerRegion;
         this.trainerLocationSummary = this.formatTrainerLocation(trainerRegion);
         this.trainerLocationSource = 'Device location services';
-      }
-
-      const emailChanged = this.normalizeEmail(email) !== this.normalizeEmail(this.initialEmail);
-      if (emailChanged) {
-        try {
-          const result = await this.updateAuthEmailWithReauthIfNeeded(authUser, email);
-          if (result === 'updated') {
-            this.initialEmail = email;
-          } else if (result === 'verification-sent') {
-            emailVerificationSent = true;
-            emailForUsersDoc = this.initialEmail || (authUser.email ?? '').trim() || email;
-          }
-        } catch (emailError: unknown) {
-          console.error('[ProfileSettingsPage] Email update failed:', emailError);
-          emailUpdateError = this.getUserFriendlyAuthError(emailError);
-          emailForUsersDoc = this.initialEmail || (authUser.email ?? '').trim() || email;
-        }
       }
 
       const userRef = doc(this.firestore, 'users', uid);
@@ -353,22 +332,9 @@ export class ProfileSettingsPage implements OnInit {
         };
       }
 
-      if (emailVerificationSent) {
-        this.errorMessage =
-          'Verification email sent. Confirm the new email, then save again to sync it here.';
-        this.successMessage = shouldSaveStats
-          ? 'Profile details and body metrics were saved.'
-          : 'Name and email were saved.';
-        this.email = emailForUsersDoc;
-      } else if (emailUpdateError) {
-        this.errorMessage = emailUpdateError;
-        this.successMessage = shouldSaveStats
-          ? 'Profile details and body metrics were saved.'
-          : 'Name and email were saved.';
-        this.email = emailForUsersDoc;
-      } else {
-        this.successMessage = 'Settings saved.';
-      }
+      this.successMessage = shouldSaveStats
+        ? 'Profile details and body metrics were saved.'
+        : 'Profile details were saved.';
     } catch (error: unknown) {
       console.error('[ProfileSettingsPage] Failed to save settings:', error);
       this.errorMessage = this.getUserFriendlyAuthError(error);
@@ -453,12 +419,6 @@ export class ProfileSettingsPage implements OnInit {
         this.experience = typeof clientProfile?.['experience'] === 'string' ? clientProfile['experience'] : '';
         this.description = typeof clientProfile?.['description'] === 'string' ? clientProfile['description'] : '';
       }
-
-      if (!this.email && this.auth.currentUser?.email) {
-        this.email = this.auth.currentUser.email;
-      }
-
-      this.initialEmail = this.email.trim();
 
       if (userStatsSnap.exists()) {
         const userStatsData = userStatsSnap.data();
