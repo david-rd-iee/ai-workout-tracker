@@ -329,7 +329,7 @@ export class CameraPage implements AfterViewInit, OnDestroy {
     }
 
     this.isUploading = true;
-    this.uploadMessage = 'Queueing upload...';
+    this.uploadMessage = 'Sending analysis to trainer...';
     this.errorMessage = '';
 
     try {
@@ -340,18 +340,24 @@ export class CameraPage implements AfterViewInit, OnDestroy {
         return;
       }
 
-      this.videoAnalysisUploadQueueService.enqueueUpload({
+      const savedRecord = await this.videoAnalysisService.saveAnalysisToTrainer({
         clientId,
         trainerId: this.assignedTrainerId,
         recordedAtMs: this.recordedAtMs,
         recordedVideo: this.recordedVideoBlob,
         analysis: this.analysisResult,
         workoutName,
+        onProgress: (message) => {
+          this.uploadMessage = message || 'Sending analysis to trainer...';
+        },
       });
-      this.clearRecordedSession();
+
       this.uploadMessage = '';
-      await this.startCamera();
-      await this.showToast('Upload queued in the background. You can record another video now.');
+      await this.showToast('Analysis sent to trainer.');
+      this.logCameraDebug('Analysis sent to trainer', {
+        savedRecordId: savedRecord.documentId,
+        canView: savedRecord.canView,
+      });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Upload failed.';
       this.errorMessage = message;

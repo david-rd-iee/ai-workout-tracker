@@ -300,7 +300,7 @@ export const routes: Routes = [
     path: 'analyzed-videos',
     loadComponent: () =>
       import('./pages/analyzed-videos/analyzed-videos.page').then((m) => m.AnalyzedVideosPage),
-    canActivate: [authGuard, trainerOnlyGuard],
+    canActivate: [authGuard],
   },
   {
     path: 'client-analyzed-video/:analysisId',
@@ -311,7 +311,7 @@ export const routes: Routes = [
     data: {
       [ORIENTATION_POLICY_ROUTE_DATA_KEY]: ALLOW_LANDSCAPE_ORIENTATION_POLICY,
     },
-    canActivate: [authGuard, trainerOnlyGuard],
+    canActivate: [authGuard],
   },
   {
     path: 'trainer-client-videos/:clientId',
