@@ -1,4 +1,4 @@
-import { Component, OnDestroy, inject } from '@angular/core';
+import { Component, OnDestroy, effect, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { NavigationEnd, Router } from '@angular/router';
 import {
@@ -14,6 +14,8 @@ import {
   homeOutline,
   calendarOutline,
   chatbubbleEllipsesSharp,
+  trophyOutline,
+  personOutline,
 } from 'ionicons/icons';
 import { filter } from 'rxjs/operators';
 import { UserService } from '../../services/account/user.service';
@@ -51,6 +53,7 @@ export class TabsPage implements OnDestroy {
   private isResolvingRegion = false;
 
   showTabBar = true;
+  isDemoMode = false;
   calendarHref = '/tabs/calender/client';
   currentUrl = '';
 
@@ -59,6 +62,12 @@ export class TabsPage implements OnDestroy {
       homeOutline,
       calendarOutline,
       chatbubbleEllipsesSharp,
+      trophyOutline,
+      personOutline,
+    });
+
+    effect(() => {
+      this.isDemoMode = this.userService.getUserInfo()()?.demoMode === true;
     });
 
     this.currentUrl = this.router.url;
@@ -129,11 +138,19 @@ export class TabsPage implements OnDestroy {
         return;
       }
 
+      if (this.userService.getUserInfo()()?.demoMode === true) {
+        return;
+      }
+
       void this.ensureRegionIsConfigured(user.uid);
     });
   }
 
   private async ensureRegionIsConfigured(userId: string): Promise<void> {
+    if (this.userService.getUserInfo()()?.demoMode === true) {
+      return;
+    }
+
     if (!this.firestore || !('geolocation' in navigator)) {
       return;
     }

@@ -6,14 +6,111 @@
   <div class="home-container">
     <div class="home-header-space" aria-hidden="true"></div>
 
-    <!-- Welcome Section -->
-    <div class="welcome-section">
-      <h1>Welcome back, {{ userName() }}!</h1>
-      <p class="date">{{ currentDate | date:'EEEE, MMMM d' }}</p>
-    </div>
+    <ng-container *ngIf="isDemoMode(); else standardHome">
+      <div class="demo-home-layout">
+        <ion-card class="demo-hero-card">
+          <ion-card-content>
+            <p class="demo-eyebrow">Public demo</p>
+            <h1>Welcome, {{ userName() }}.</h1>
+            <p class="demo-hero-copy">
+              Your demo profile is ready. Start a workout, then review progress on the leaderboard or profile tab.
+            </p>
+            <ion-button expand="block" class="demo-start-button" (click)="startWorkout()">
+              Start Demo Workout
+            </ion-button>
+          </ion-card-content>
+        </ion-card>
 
-    <!-- CLIENT HOME PAGE -->
-    <ng-container *ngIf="currentUser?.isPT === false">
+        <ion-card class="demo-summary-card">
+          <ion-card-header>
+            <ion-card-title>Progress Summary</ion-card-title>
+          </ion-card-header>
+          <ion-card-content>
+            <div class="demo-stats-grid">
+              <div class="demo-stat">
+                <span>Level</span>
+                <strong>{{ demoSummary.level }}</strong>
+              </div>
+              <div class="demo-stat">
+                <span>Streak</span>
+                <strong>{{ demoSummary.streak }} days</strong>
+              </div>
+              <div class="demo-stat">
+                <span>Effort</span>
+                <strong>{{ demoSummary.effortScore }}</strong>
+              </div>
+              <div class="demo-stat">
+                <span>XP</span>
+                <strong>{{ demoSummary.progress }}%</strong>
+              </div>
+            </div>
+
+            <div class="demo-progress-shell" aria-hidden="true">
+              <div class="demo-progress-bar">
+                <div class="demo-progress-fill" [style.width.%]="demoSummary.progress"></div>
+              </div>
+              <p>{{ demoSummary.progress }}% to the next level</p>
+            </div>
+          </ion-card-content>
+        </ion-card>
+
+        <div class="demo-shortcuts">
+          <ion-card class="demo-shortcut-card" button="true" (click)="navigateTo('/regional-leaderboard')">
+            <ion-card-content>
+              <div class="demo-shortcut-content">
+                <div class="demo-shortcut-icon">
+                  <ion-icon name="trophy-outline"></ion-icon>
+                </div>
+                <div class="demo-shortcut-copy">
+                  <h2>Leaderboard</h2>
+                  <p>See where the demo performance lands.</p>
+                </div>
+                <ion-icon name="chevron-forward" class="demo-shortcut-chevron"></ion-icon>
+              </div>
+            </ion-card-content>
+          </ion-card>
+
+          <ion-card class="demo-shortcut-card" button="true" (click)="navigateTo('/profile-user')">
+            <ion-card-content>
+              <div class="demo-shortcut-content">
+                <div class="demo-shortcut-icon">
+                  <ion-icon name="person-outline"></ion-icon>
+                </div>
+                <div class="demo-shortcut-copy">
+                  <h2>Profile</h2>
+                  <p>Open badges, stats, and account details.</p>
+                </div>
+                <ion-icon name="chevron-forward" class="demo-shortcut-chevron"></ion-icon>
+              </div>
+            </ion-card-content>
+          </ion-card>
+        </div>
+
+        <ion-card class="demo-guide-card" button="true" (click)="openEffortWorksInfo()">
+          <ion-card-content>
+            <div class="demo-guide-content">
+              <div class="demo-guide-icon">
+                <ion-icon name="analytics-outline"></ion-icon>
+              </div>
+              <div class="demo-guide-copy">
+                <h2>How Effort Works</h2>
+                <p>Effort score rewards consistency, workout volume, and complete sessions. Tap to learn the demo rules.</p>
+              </div>
+            </div>
+          </ion-card-content>
+        </ion-card>
+      </div>
+    </ng-container>
+
+    <ng-template #standardHome>
+      <!-- Welcome Section -->
+      <div class="welcome-section">
+        <h1>Welcome back, {{ userName() }}!</h1>
+        <p class="date">{{ currentDate | date:'EEEE, MMMM d' }}</p>
+      </div>
+
+      <!-- CLIENT HOME PAGE -->
+      <ng-container *ngIf="currentUser?.isPT === false">
       <div class="client-home-layout">
 
         <ng-container *ngFor="let widgetId of getClientHomeWidgetIds()" [ngSwitch]="widgetId">
@@ -254,8 +351,8 @@
       </div>
     </ng-container>
 
-    <!-- TRAINER HOME PAGE -->
-    <ng-container *ngIf="currentUser?.isPT === true">
+      <!-- TRAINER HOME PAGE -->
+      <ng-container *ngIf="currentUser?.isPT === true">
       <!-- Monthly Revenue Card -->
       <ion-card class="revenue-card">
         <ion-card-content>
@@ -399,8 +496,8 @@
       </div>
     </ng-container>
 
-    <!-- FALLBACK / PLACEHOLDER (when no account type or loading) -->
-    <ng-container *ngIf="currentUser?.isPT === undefined">
+      <!-- FALLBACK / PLACEHOLDER (when no account type or loading) -->
+      <ng-container *ngIf="currentUser?.isPT === undefined">
       <ion-card class="welcome-card">
         <ion-card-content>
           <div class="welcome-section">
@@ -421,7 +518,8 @@
           </ion-card-content>
         </ion-card>
       </div>
-    </ng-container>
+      </ng-container>
+    </ng-template>
 
   </div>
 </ion-content>

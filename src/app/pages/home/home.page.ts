@@ -47,6 +47,7 @@ import { UserService } from '../../services/account/user.service';
 import { ProfileRepositoryService } from '../../services/account/profile-repository.service';
 import { SessionBookingService } from '../../services/session-booking.service';
 import { TrainerConnectionService } from '../../services/trainer-connection.service';
+import { UserStatsService } from '../../services/user-stats.service';
 import { ROUTE_PATHS } from '../../app.routes';
 
 import type { AppUser } from '../../models/user.model';
@@ -153,6 +154,7 @@ export class HomePage implements OnInit, OnDestroy {
   private profileRepository = inject(ProfileRepositoryService);
   private sessionBookingService = inject(SessionBookingService);
   private trainerConnectionService = inject(TrainerConnectionService);
+  private userStatsService = inject(UserStatsService);
   private alertController = inject(AlertController);
   private modalController = inject(ModalController);
 
@@ -185,6 +187,12 @@ export class HomePage implements OnInit, OnDestroy {
   assignedTrainerId = '';
   homeConfig: HomePageConfig | null = null;
   customMessage: string = '';
+  demoSummary = {
+    level: 0,
+    streak: 0,
+    effortScore: 0,
+    progress: 0,
+  };
   private readonly defaultClientHomeWidgets = [
     'welcome',
     'start-workout',
@@ -207,6 +215,11 @@ export class HomePage implements OnInit, OnDestroy {
   
   // Display properties
   currentDate = new Date();
+  private readonly demoSummaryFallbacks: Record<string, { level: number; streak: number; effortScore: number; progress: number; }> = {
+    Beginner: { level: 3, streak: 2, effortScore: 180, progress: 34 },
+    Intermediate: { level: 6, streak: 5, effortScore: 540, progress: 62 },
+    Advanced: { level: 9, streak: 9, effortScore: 980, progress: 88 },
+  };
   userName(): string {
     const displayName =
       this.currentUser?.displayName ||
@@ -282,6 +295,11 @@ export class HomePage implements OnInit, OnDestroy {
         this.clearRoleData();
         const userId = this.currentUser.userId;
         if (!userId) {
+          return;
+        }
+
+        if (this.isDemoMode()) {
+          this.applyDemoDashboardState();
           return;
         }
 
@@ -398,6 +416,11 @@ export class HomePage implements OnInit, OnDestroy {
   }
 
   ionViewWillEnter(): void {
+    if (this.currentUser?.demoMode === true) {
+      this.applyDemoDashboardState();
+      return;
+    }
+
     if (this.currentUser && !this.currentUser.isPT) {
       const clientId = this.currentUser.userId;
       if (clientId) {
@@ -991,6 +1014,11 @@ export class HomePage implements OnInit, OnDestroy {
     if (!clientId) return;
     const roleKey = `${clientId}:client`;
 
+    if (this.isDemoMode()) {
+      this.applyDemoDashboardState();
+      return;
+    }
+
     try {
       this.startClientUserStatsListener(clientId);
       const configRef = doc(this.firestore, `clientHomeConfigs/${clientId}`);
@@ -1075,8 +1103,34 @@ export class HomePage implements OnInit, OnDestroy {
     };
   }
 
-  private isDemoMode(): boolean {
+  isDemoMode(): boolean {
     return this.currentUser?.demoMode === true;
+  }
+
+  private applyDemoDashboardState(): void {
+    const fitnessLevel = (this.currentUser?.fitnessLevel || 'Beginner') as keyof typeof this.demoSummaryFallbacks;
+    const fallback = this.demoSummaryFallbacks[fitnessLevel] ?? this.demoSummaryFallbacks['Beginner'];
+    const currentStats = this.userStatsService.getCurrentUserStats()();
+    const totalScore = Number(currentStats?.userScore?.totalScore ?? fallback.effortScore);
+
+    this.demoSummary = {
+      level: Number(currentStats?.level ?? fallback.level) || fallback.level,
+      streak: Number(currentStats?.streakData?.currentStreak ?? fallback.streak) || fallback.streak,
+      effortScore: Number.isFinite(totalScore) ? totalScore : fallback.effortScore,
+      progress: Number(currentStats?.percentage_of_level ?? fallback.progress) || fallback.progress,
+    };
+    this.currentStreak = this.demoSummary.streak;
+    this.clients = [];
+    this.pendingClientRequests = [];
+    this.pendingSessionRequests = [];
+    this.monthlyRevenue = [];
+    this.totalRevenue = 0;
+    this.currentMonthIndex = 0;
+    this.nextWorkout = null;
+    this.upcomingSessions = [];
+    this.assignedTrainerId = String(this.currentUser?.trainerId || '').trim();
+    this.homeConfig = null;
+    this.customMessage = '';
   }
 
   private isWidgetAllowedForCurrentMode(widgetId: string): boolean {
@@ -1427,6 +1481,21 @@ export class HomePage implements OnInit, OnDestroy {
 
   startWorkout() {
     this.router.navigate(['/workout-chatbot']);
+  }
+
+  async openEffortWorksInfo(): Promise<void> {
+    if (!this.isDemoMode()) {
+      return;
+    }
+
+    const alert = await this.alertController.create({
+      header: 'How Effort Works',
+      message:
+        'Effort score is a simple demo signal that combines workout volume, consistency, and completed sessions. Start a workout to see the summary update.',
+      buttons: ['OK'],
+    });
+
+    await alert.present();
   }
 
   async requestSessionWithTrainer(): Promise<void> {

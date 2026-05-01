@@ -100,6 +100,185 @@ $neo-accent: #2e6ef5;
   }
 }
 
+.demo-home-layout {
+  display: grid;
+  gap: 14px;
+}
+
+.demo-hero-card,
+.demo-summary-card,
+.demo-shortcut-card,
+.demo-guide-card {
+  @include neo-raised(24px);
+}
+
+.demo-hero-card {
+  ion-card-content {
+    padding: 22px;
+  }
+
+  .demo-eyebrow {
+    margin: 0 0 10px;
+    color: $neo-accent;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  h1 {
+    margin: 0;
+    color: $neo-text;
+    font-size: clamp(1.8rem, 3vw, 2.4rem);
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 1.08;
+  }
+
+  .demo-hero-copy {
+    margin: 12px 0 18px;
+    color: $neo-muted;
+    font-size: 0.96rem;
+    line-height: 1.5;
+  }
+}
+
+.demo-start-button {
+  --border-radius: 18px;
+  --background: linear-gradient(145deg, #2e6ef5, #1f56cc);
+  --box-shadow: none;
+  margin: 0;
+  height: 52px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.demo-summary-card {
+  ion-card-header {
+    padding: 20px 20px 0;
+  }
+
+  ion-card-content {
+    padding: 16px 20px 20px;
+  }
+
+  ion-card-title {
+    color: $neo-text;
+    font-size: 1.08rem;
+    font-weight: 800;
+  }
+}
+
+.demo-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.demo-stat {
+  padding: 14px;
+  @include neo-inset(18px);
+
+  span {
+    display: block;
+    color: $neo-muted;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  strong {
+    display: block;
+    margin-top: 8px;
+    color: $neo-text;
+    font-size: 1.2rem;
+    font-weight: 800;
+  }
+}
+
+.demo-progress-shell {
+  margin-top: 16px;
+
+  p {
+    margin: 10px 0 0;
+    color: $neo-muted;
+    font-size: 0.82rem;
+    font-weight: 600;
+  }
+}
+
+.demo-progress-bar {
+  height: 12px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(160, 179, 219, 0.28);
+  box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.8);
+}
+
+.demo-progress-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #2e6ef5, #7fb0ff);
+  transition: width 220ms ease;
+}
+
+.demo-shortcuts {
+  display: grid;
+  gap: 12px;
+}
+
+.demo-shortcut-card,
+.demo-guide-card {
+  ion-card-content {
+    padding: 16px 18px;
+  }
+}
+
+.demo-shortcut-content,
+.demo-guide-content {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.demo-shortcut-icon,
+.demo-guide-icon {
+  @include neo-icon-well(52px, 18px);
+
+  ion-icon {
+    color: $neo-accent;
+    font-size: 28px;
+  }
+}
+
+.demo-shortcut-copy,
+.demo-guide-copy {
+  flex: 1;
+
+  h2 {
+    margin: 0;
+    color: $neo-text;
+    font-size: 1.05rem;
+    font-weight: 800;
+  }
+
+  p {
+    margin: 6px 0 0;
+    color: $neo-muted;
+    font-size: 0.84rem;
+    line-height: 1.45;
+  }
+}
+
+.demo-shortcut-chevron {
+  color: $neo-accent;
+  font-size: 18px;
+  padding: 8px;
+  border-radius: 999px;
+  @include neo-inset(999px);
+}
+
 .custom-message {
   margin-bottom: 18px;
   padding: 14px 16px;

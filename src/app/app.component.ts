@@ -72,10 +72,6 @@ export class AppComponent implements OnInit, OnDestroy {
       return;
     }
 
-    this.initializeExerciseEstimatorsAfterLogin();
-    this.notificationService.startInAppNotifications(uid);
-    void this.notificationService.initPushNotifications();
-
     if (this.loadedProfileUid === uid) {
       return;
     }
@@ -90,6 +86,16 @@ export class AppComponent implements OnInit, OnDestroy {
       const loaded = await this.profileLoadInFlight;
       if (loaded) {
         this.loadedProfileUid = uid;
+
+        const currentUser = this.userService.getUserInfo()();
+        if (currentUser?.demoMode === true) {
+          this.notificationService.stopInAppNotifications();
+          return;
+        }
+
+        this.notificationService.startInAppNotifications(uid);
+        void this.notificationService.initPushNotifications();
+        this.initializeExerciseEstimatorsAfterLogin();
         return;
       }
 
